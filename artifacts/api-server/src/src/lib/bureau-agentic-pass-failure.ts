@@ -10,6 +10,7 @@ export type BureauPassAgenticSnapshot = {
   modelFindings?: AgenticFinding[];
   trajectory?: string[];
   trajectoryRecords?: AgenticTrajectoryRecord[];
+  groundingTrajectoryRecords?: AgenticTrajectoryRecord[];
   stopReason?: string;
   consecutiveActionParseFailures?: number;
 };
@@ -25,6 +26,7 @@ export type BureauPassFailureResult = {
   contactEvidence: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>;
   trajectory: string[];
   trajectoryRecords: AgenticTrajectoryRecord[];
+  groundingTrajectoryRecords?: AgenticTrajectoryRecord[];
   modelFindings: AgenticFinding[];
   caseId?: number;
   runId: string;
@@ -86,6 +88,7 @@ export function buildBureauAgenticPassFailureResult(input: {
     contactEvidence: [],
     trajectory: [...(agentic.trajectory ?? []), `step${turn}: runtime_error execution=error stage=${input.stage}`],
     trajectoryRecords: [...priorRecords, runtimeFailure],
+    ...(agentic.groundingTrajectoryRecords ? { groundingTrajectoryRecords: agentic.groundingTrajectoryRecords } : {}),
     modelFindings: agentic.modelFindings ?? [],
     ...(input.caseId != null ? { caseId: input.caseId } : {}),
     runId: input.runId,
