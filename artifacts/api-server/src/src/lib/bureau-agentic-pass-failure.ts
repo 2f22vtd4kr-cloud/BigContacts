@@ -86,7 +86,7 @@ export function buildBureauAgenticPassFailureResult(input: {
     findings: [],
     partialFindings: [],
     contactEvidence: [],
-    trajectory: [...(agentic.trajectory ?? []), `step${turn}: runtime_error execution=error stage=${input.stage}`],
+    trajectory: [...(agentic.trajectory ?? []), `runtime_error execution=error stage=${input.stage}`],
     trajectoryRecords: [...priorRecords, runtimeFailure],
     ...(agentic.groundingTrajectoryRecords ? { groundingTrajectoryRecords: agentic.groundingTrajectoryRecords } : {}),
     modelFindings: agentic.modelFindings ?? [],
