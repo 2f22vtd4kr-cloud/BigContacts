@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBureauAgenticPassFailureResult } from "./bureau-agentic-pass-failure";
+import { buildBureauAgenticPassFailureResult, shouldSkipAlreadyFinalizedTrajectory } from "./bureau-agentic-pass-failure";
 
 describe("Bureau agentic pass failure preservation", () => {
   it("retains completed Investigator observations and identifies a failed finalization boundary", () => {
@@ -75,3 +75,9 @@ describe("Bureau agentic pass failure preservation", () => {
     });
   });
 });
+
+  it("skips an already-finalized replay only when it contains no new trajectory records", () => {
+    expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: true, pendingRecordCount: 0 })).toBe(true);
+    expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: true, pendingRecordCount: 1 })).toBe(false);
+    expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: false, pendingRecordCount: 0 })).toBe(false);
+  });
