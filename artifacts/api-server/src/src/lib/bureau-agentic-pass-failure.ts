@@ -54,13 +54,9 @@ export function buildBureauAgenticPassFailureResult(input: {
     if (record && Number.isFinite(record.turn)) byTurn.set(record.turn, record);
   }
   const priorRecords = [...byTurn.values()].sort((a, b) => a.turn - b.turn);
-  const failureDomain = input.stage === "trajectory_finalization"
+  const failureDomain = ["case_initialization", "trajectory_finalization", "contact_persistence"].includes(input.stage)
     ? "persistence_database"
-    : input.stage === "live_event_delivery"
-      ? "unexpected_programming_error"
-      : input.stage === "contact_persistence"
-        ? "persistence_database"
-        : "unexpected_programming_error";
+    : "unexpected_programming_error";
   const failureKind = input.stage === "live_event_delivery" ? "request_failure" : "unexpected_exception";
   const turn = Math.max(0, ...priorRecords.map((record) => record.turn)) + 1;
   const runtimeFailure: AgenticTrajectoryRecord = {
