@@ -65,7 +65,7 @@ function intelligenceObjective(base: string, direction: string | null): string {
   // Durable context, intelligence and complete history travel through their
   // dedicated bounded fields below. Do not bury the active Boss question after
   // a large state/history blob that is truncated from the objective field.
-  return buildBoundedInvestigatorObjective({ base, direction, maxChars: 1_800 });
+  return buildBoundedInvestigatorObjective({ base, direction, maxChars: 4_000 });
 }
 
 function normalizedObservedUrl(value: string): string | null { try { const url = new URL(value); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
