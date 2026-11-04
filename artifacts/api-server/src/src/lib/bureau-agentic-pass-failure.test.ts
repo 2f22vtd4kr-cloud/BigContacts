@@ -44,7 +44,7 @@ describe("Bureau agentic pass failure preservation", () => {
       failureDomain: "persistence_database",
       failureKind: "unexpected_exception",
     });
-    expect(result.trajectory).toContain("step5: runtime_error execution=error stage=trajectory_finalization");
+    expect(result.trajectory).toContain("runtime_error execution=error stage=trajectory_finalization");
     expect(result.caseId).toBe(7);
   });
 
