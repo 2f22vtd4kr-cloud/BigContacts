@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Presence-only check for active provider and operator-auth secrets; never prints values. */
-const NAMES = ["COMPANIES_HOUSE_API_KEY","EXA_API_KEY","GROQ_BOSS_API_KEY","GROQ_RIGHT_HAND_API_KEY","GROQ_INVESTIGATOR_API_KEY","HF_TOKEN","GROQ_INVESTIGATOR_API_KEY_1","REDIS_URL_1","SCRAPFLY_API_KEY","SERPER_API_KEY","TAVILY_API_KEY","ZENROWS_API_KEY"];
+const NAMES = ["COMPANIES_HOUSE_API_KEY","EXA_API_KEY","GROQ_BOSS_API_KEY","GROQ_RIGHT_HAND_API_KEY","GROQ_INVESTIGATOR_API_KEY","GROQ_INVESTIGATOR_API_KEY_1","REDIS_URL_1","SCRAPFLY_API_KEY","SERPER_API_KEY","TAVILY_API_KEY","ZENROWS_API_KEY"];
 const AUTH_NAMES = ["APEX_OPERATOR_PASSWORD","APEX_API_AUTH_TOKEN","APEX_SESSION_SECRET"];
 function value(name) { const raw = process.env[name]; return raw == null ? "" : String(raw).trim(); }
 function present(name) { const v = value(name); return Boolean(v && !v.includes("YOUR_")); }

@@ -11,6 +11,7 @@ const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
 const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
+const OBJECTIVE_OMISSION_MARKER = /\[(?:OBJECTIVE|CASE OBJECTIVE)\s+MIDDLE OMITTED\b|\[(?:MIDDLE OF )?OBJECTIVE(?: MIDDLE)? OMITTED\b/i;
 
 /**
  * Extract URL tokens for provenance validation. Trailing sentence punctuation
@@ -224,6 +225,13 @@ export async function summarizeInvestigatorContextWithBoss(
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return "";
+  // Only inspect the explicitly authoritative objective section. Public-page
+  // observations are untrusted data and may quote this marker without corrupting
+  // the actual case objective; those observations must remain eligible for AI compaction.
+  const objectiveSection = source.match(
+    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
+  );
+  if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return source;
