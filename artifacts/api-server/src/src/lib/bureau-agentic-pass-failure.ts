@@ -92,3 +92,12 @@ export function buildBureauAgenticPassFailureResult(input: {
     consecutiveActionParseFailures: agentic.consecutiveActionParseFailures ?? input.initialConsecutiveActionParseFailures ?? 0,
   };
 }
+
+
+/** A completed run is idempotent only when the retry has no newly captured records. */
+export function shouldSkipAlreadyFinalizedTrajectory(input: {
+  runAlreadyFinalized: boolean;
+  pendingRecordCount: number;
+}): boolean {
+  return input.runAlreadyFinalized && input.pendingRecordCount === 0;
+}
