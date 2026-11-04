@@ -74,10 +74,10 @@ describe("Bureau agentic pass failure preservation", () => {
       failureKind: "request_failure",
     });
   });
-});
-
   it("skips an already-finalized replay only when it contains no new trajectory records", () => {
     expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: true, pendingRecordCount: 0 })).toBe(true);
     expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: true, pendingRecordCount: 1 })).toBe(false);
     expect(shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: false, pendingRecordCount: 0 })).toBe(false);
   });
+
+});
