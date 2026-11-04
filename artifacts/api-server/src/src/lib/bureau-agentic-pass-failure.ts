@@ -22,7 +22,7 @@ export type BureauPassFailureResult = {
   visits: number;
   findings: AgenticFinding[];
   partialFindings: AgenticFinding[];
-  contactEvidence: [];
+  contactEvidence: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>;
   trajectory: string[];
   trajectoryRecords: AgenticTrajectoryRecord[];
   modelFindings: AgenticFinding[];
@@ -79,8 +79,10 @@ export function buildBureauAgenticPassFailureResult(input: {
     iterations: agentic.iterations ?? 0,
     searches: agentic.searches ?? 0,
     visits: agentic.visits ?? 0,
-    findings: agentic.findings ?? [],
-    partialFindings: agentic.partialFindings ?? [],
+    // Raw model findings must not cross the source-backed projection boundary.
+    // The caller applies the same grounding/scope projection as the success path.
+    findings: [],
+    partialFindings: [],
     contactEvidence: [],
     trajectory: [...(agentic.trajectory ?? []), `step${turn}: runtime_error execution=error stage=${input.stage}`],
     trajectoryRecords: [...priorRecords, runtimeFailure],
