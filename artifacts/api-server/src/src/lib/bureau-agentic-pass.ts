@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
-import { buildBureauAgenticPassFailureResult } from "./bureau-agentic-pass-failure";
+import { buildBureauAgenticPassFailureResult, shouldSkipAlreadyFinalizedTrajectory } from "./bureau-agentic-pass-failure";
 import { lockResearchCaseEventAppendStream, resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords, hasDurableUrlProjectionOmissions as hasDurableUrlProjectionOmissionsHelper } from "./durable-discovery-projection";
@@ -218,7 +218,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
     let lockedCase: Record<string, any>;
     try { lockedCase = JSON.parse(locked.caseFile) as Record<string, any>; } catch { throw new Error(`Discovery case ${caseId} has unreadable durable state during trajectory persistence.`); }
     const lockedRunIds = Array.isArray(lockedCase.runIds) ? lockedCase.runIds.filter((value): value is string => typeof value === "string") : [];
-    if (lockedRunIds.includes(input.runId)) return;
+    if (shouldSkipAlreadyFinalizedTrajectory({ runAlreadyFinalized: lockedRunIds.includes(input.runId), pendingRecordCount: newOffsetRecords.length })) return;
     if (locked.caseFile !== row.caseFile || Number(locked.iteration ?? 0) !== Number(row.iteration ?? 0)) {
       throw new Error(`Discovery trajectory persistence detected a stale case snapshot for run ${input.runId}; retry from the latest durable case state.`);
     }
