@@ -148,12 +148,16 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
     .some((clause) => retrievalClaim.test(clause) && !negativeRetrieval.test(clause));
   if (!affirmativeClaim) return false;
 
-  // A successful fetch of one page cannot authorize claims about another search
-  // lead. Require every URL retained alongside a retrieval claim to be one of the
-  // exact URLs recorded by a successful visit/browser_fetch action. A retrieval
-  // claim without an exact observed URL is unverifiable and must be repaired.
-  const summaryUrls = extractAiContextUrls(summary);
-  return summaryUrls.length === 0 || summaryUrls.some((url) => !successfulFetchUrls.has(url));
+  // Bind each affirmative retrieval claim to URLs in its own clause. A
+  // separately labelled search lead may coexist with a fetched-page summary,
+  // but it cannot authorize (or be used to substantiate) a retrieval claim.
+  return summary
+    .split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\bhowever\b)/i)
+    .some((clause) => {
+      if (!retrievalClaim.test(clause) || negativeRetrieval.test(clause)) return false;
+      const clauseUrls = extractAiContextUrls(clause);
+      return clauseUrls.length === 0 || clauseUrls.some((url) => !successfulFetchUrls.has(url));
+    });
 }
 
 function summaryResponseFormat(): Record<string, unknown> {

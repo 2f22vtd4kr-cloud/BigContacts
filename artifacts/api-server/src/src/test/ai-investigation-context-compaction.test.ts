@@ -277,6 +277,28 @@ describe("AI investigation context compaction", () => {
     expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
   });
 
+  it("keeps a separately labelled search lead distinct beside a fetched-page claim", async () => {
+    const fetchedUrl = "https://company.example/about";
+    const searchLeadUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "SEARCH-ONLY LEAD: " + searchLeadUrl,
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The about page was fetched; the investor page remains unvisited.",
+      "BACKGROUND: " + "Preserve source-stage distinctions. ".repeat(30),
+    ].join("\n");
+    const summary = "The about page was fetched and identifies the operating company (source: " + fetchedUrl + "). The investor URL remains an unverified search lead (lead URL: " + searchLeadUrl + ").";
+    bossMocks.generateGroqBossText.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
+  });
+
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
     const sourceUrl = "https://source.example/posts/award-42";
     const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
