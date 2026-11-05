@@ -159,16 +159,17 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    // GPT-OSS completion budgets also cover private reasoning tokens. A short
-    // visible JSON summary can therefore exhaust a small character-derived cap
-    // before the summary itself is emitted.
-    const outputBudget = Math.min(2_048, Math.max(1_024, Math.ceil(maxChars * 0.85)));
+    // GPT-OSS completion budgets also cover private reasoning tokens. Keep
+    // enough bounded headroom for the model to finish the structured summary;
+    // the visible summary is still capped and provenance-validated below.
+    const outputBudget = Math.min(2_048, Math.max(1_536, Math.ceil(maxChars * 0.85)));
     const result = await generateGroqBossText(selection, prompt, {
       responseFormat: summaryResponseFormat(),
       maxOutputTokens: outputBudget,
       thinkingLevel: "low",
       jobId: input.jobId ?? null,
       caseId: input.caseId ?? null,
+      cognitiveTask: "context_compaction",
     });
     let summary = parseSummary(result.raw);
 
@@ -201,6 +202,7 @@ async function requestSummary(
         thinkingLevel: "low",
         jobId: input.jobId ?? null,
         caseId: input.caseId ?? null,
+        cognitiveTask: "context_compaction",
       });
       summary = parseSummary(retry.raw);
     }

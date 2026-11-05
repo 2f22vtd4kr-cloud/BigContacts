@@ -92,12 +92,14 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("Omit commenter names, profile links, and optional detail");
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(1_024);
-    expect(repairOptions?.maxOutputTokens).toBe(1_280);
+    expect(firstOptions?.maxOutputTokens).toBe(1_536);
+    expect(repairOptions?.maxOutputTokens).toBe(1_920);
     expect(repairOptions?.maxOutputTokens).toBeGreaterThanOrEqual(firstOptions?.maxOutputTokens ?? 0);
+    expect(firstOptions?.cognitiveTask).toBe("context_compaction");
+    expect(repairOptions?.cognitiveTask).toBe("context_compaction");
   });
 
-  it("increases bounded output headroom after the provider exhausts the first generation budget", async () => {
+  it("retries with more bounded output headroom after the provider exhausts the first generation budget", async () => {
     const source = "CANONICAL CASE MEMORY\n" + "Observed source facts and unresolved questions. ".repeat(45);
     const summary = "The source memory remains available for model-led research.";
     bossMocks.generateGroqBossText
@@ -119,9 +121,11 @@ describe("AI investigation context compaction", () => {
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
-    expect(firstOptions?.maxOutputTokens).toBe(1_024);
-    expect(repairOptions?.maxOutputTokens).toBe(1_280);
+    expect(firstOptions?.maxOutputTokens).toBe(1_536);
+    expect(repairOptions?.maxOutputTokens).toBe(1_920);
     expect(repairOptions?.maxOutputTokens).toBeGreaterThan(firstOptions?.maxOutputTokens ?? Infinity);
+    expect(firstOptions?.cognitiveTask).toBe("context_compaction");
+    expect(repairOptions?.cognitiveTask).toBe("context_compaction");
   });
 
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
@@ -220,7 +224,8 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(1_024);
+    expect(options?.maxOutputTokens).toBe(1_536);
+    expect(options?.cognitiveTask).toBe("context_compaction");
     expect(options?.responseFormat).toMatchObject({
       type: "json_schema",
       json_schema: {

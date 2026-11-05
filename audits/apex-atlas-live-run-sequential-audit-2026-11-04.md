@@ -149,8 +149,111 @@
 ### 021 — First run terminated during oversight control
 - **Stage:** Discovery/control, terminal poll at `2026-11-04T10:02:06Z`.
 - **Job state:** `failed`, progress `1`, errors `1`; public job message classifies the failure as `oversight_control_decision` / `unexpected_programming_error` / `unexpected_exception` and exposes only digest `8af5571b0c17fa19`. The active Atlas lock is now clear. Durable case `1` was created.
-- **Attempt telemetry captured so far:** 16 Groq GPT-OSS 120B attempts: 11 Boss, 2 Right-hand, 3 Investigator. Eleven returned HTTP 200; one Investigator HTTP 400 `json_validate_failed` was followed by a successful retry; four Boss HTTP 429 `rate_limit_exceeded` responses were logged, three followed by successful retry responses. The last visible Boss 429 had no successful retry in this snapshot. Its relationship to the terminal exception is unconfirmed until the server error record is inspected.
+- **Attempt telemetry:** The first log snapshot contained 16 Groq GPT-OSS 120B attempts: 11 Boss, 2 Right-hand, 3 Investigator. A later refresh showed the final Boss HTTP 429 `rate_limit_exceeded` also received a successful retry (HTTP 200; 1,622 prompt / 340 completion tokens; 979 ms). Thus all four Boss rate limits recovered within bounded retries. The Investigator HTTP 400 `json_validate_failed` likewise recovered on retry. The terminal exception is not explained by an exhausted key or an unrecovered provider response.
 - **Key decision:** This was not an Investigator quota-exhaustion event. No investigator-key reassignment was warranted. Do not retry by creating a new run; first inspect the durable case, terminal event, and correlated server error, then use the repository’s bounded canonical recovery path only if its eligibility checks allow it.
+
+### 022 — Persisted case state recorded before source update
+- **Stage:** Post-failure reconciliation.
+- **Read-only case inspection:** `GET /api/research/bureau/cases/1` returned a discovery case in `review` state, created at `09:58:13.559Z` and updated at `10:01:42.166Z`; its `targetEntityId` is null. The event endpoint returned six events: assignment, observation, control decision, assignment, then two tool observations.
+- **Outcome:** The case has not produced a company-bound card. The failed job and its active lock are terminal/cleared. No prompt, `thought` field, raw private contact, or secret was copied into this visible audit.
+- **Next action:** Preserve this audit and the initialized DB, fetch the user-specified `main` commit `ff3e799bca5f67d4ed4ad2230044d9ce2940afb7`, inspect the source delta and migration impact, then verify the new canonical route before the next launch.
+
+### 023 — Requested commit fetched; local branch is not a fast-forward
+- **Stage:** Source update.
+- **Action:** Fetched `origin/main` and verified it resolves exactly to `ff3e799bca5f67d4ed4ad2230044d9ce2940afb7`.
+- **Finding:** The current local `main` is at `6578afe22778fb8141eaa4f37042aac446e86565`, so the fetched commit is not a fast-forward from this checkout. The fetched tree adds the new Bureau Playbook/orientation/control changes and has no schema migration paths. Its tree also omits this visible audit file.
+- **Safeguard:** No reset, checkout, merge, or audit deletion was performed. Inspect the commit graph and preserve the visible audit before applying the source changes. The current API workflow and database remain untouched.
+
+### 024 — Latest Bureau Playbook integrated without resetting the project
+- **Stage:** Source integration.
+- **Integration:** The graph showed both local audit commit and requested source commit descend from `19cd5ed`. A merge preview reported no conflicts; the preview command first needed its documented Git-guard override. Merged `ff3e799bca5f67d4ed4ad2230044d9ce2940afb7` into existing `main`, producing local merge commit `2a52d1a356ce5484d12085ae180800c547347353`.
+- **Change reviewed:** The source adds an adaptive Bureau Playbook and supplies it to Boss/Right-hand orientation and control prompts, while keeping Investigator execution model-owned and the playbook explicitly non-deterministic. It preserves provenance, identity, scope, and contact-safety boundaries. The API build now copies the text reference into `dist`.
+- **Preservation:** The visible audit file remains at `audits/apex-atlas-live-run-sequential-audit-2026-11-04.md`; no force reset or database replacement occurred. No package/lockfile or schema/migration paths changed, so do not reinstall dependencies or rerun schema initialization.
+- **Next action:** Restart the canonical API/UI workflow once so the new build and prompt contract are active; then recheck health and both active-job lanes before launching a new run.
+
+### 025 — Updated runtime ready; both research lanes idle
+- **Stage:** Post-update readiness.
+- **Build:** Canonical API workflow restarted from merge commit `2a52d1a356ce5484d12085ae180800c547347353`. The imported API build and source-contract checks passed; the new playbook asset is present in `dist` (9,951 bytes). The API/UI server is running.
+- **Services:** `/api/healthz` reports `ok`; `/api/system/status` reports Postgres `ok` (20 ms), local Redis `ready` (130 ms), configured Upstash `ready`, and `bureauIntegrity=ok`.
+- **Provider configuration:** Boss and Right-hand are configured; Investigator slots 0 and 1 are active; one Serper, Tavily, Exa, and Companies House lane is active. These checks establish configuration, not live quota; the investigation itself will verify actual provider behavior.
+- **Lock reconciliation:** Both `atlas-run` and `case-bureau-discovery` return `active:false`, `jobId:null`. The previous failed case remains in the database; no data/schema reset was performed.
+- **Non-blocking setup issue:** The separate, unused mockup-sandbox workflow again failed while trying to self-install pnpm 9.15.9 under the environment’s package-manager wrapper. Apex serves its dashboard from the API workflow, so no mockup workflow or extra install was started.
+- **Next action:** Launch one new run through the canonical UI-equivalent request using the same built-in broad B2B objective and standard defaults.
+
+### 026 — Second live run accepted on updated main
+- **Stage:** Canonical launch after source update.
+- **Action:** Submitted the dashboard-equivalent request to `POST /api/ingest/atlas-run` on merged commit `2a52d1a356ce5484d12085ae180800c547347353`.
+- **Result:** HTTP `202`; new job `b939bfff-fbb2-4573-b1b6-bc3dd3923f41`; canonical poll URL `/api/ingest/job/b939bfff-fbb2-4573-b1b6-bc3dd3923f41`.
+- **Options:** Three targets, standard depth, 420,000 ms target timeout, exact built-in B2B objective from event 016, no single target or extra discovery context. The server confirmed the objective was included.
+- **Integrity:** One new job only. Monitor this job through terminal status, durable evidence, and card creation; do not launch another concurrently.
+
+### 027 — Updated run’s first control and Investigator calls
+- **Stage:** Opening control/assignment, first runtime-log snapshot.
+- **Observed calls:** The first seven telemetry records show Boss GPT-OSS 120B success, two Right-hand GPT-OSS 120B successes, then a successful Boss control decision. Boss selected capability `groq-investigator-20b` / model GPT-OSS 20B for the first Investigator identity-resolution turn; that call succeeded (1,774 prompt / 1,201 completion tokens; 1,871 ms). This is the model-owned selection on the updated run, not a fallback after key exhaustion.
+- **Rate limit:** One subsequent Boss call returned HTTP 429 `rate_limit_exceeded`; the bounded retry outcome is not yet visible in this snapshot.
+- **Evidence:** No new search span, fetched-source verification, or company card is yet confirmed for this run.
+- **Audit-tool issue:** The first status/trace poll command omitted its `node` heredoc wrapper and failed at shell parsing before issuing any HTTP request. No application state changed; retry with the valid wrapper.
+
+### 028 — Updated run completed first model-selected discovery turn
+- **Observed at:** `2026-11-05T04:45:40Z` (UTC).
+- **Job/case:** Job `b939bfff-fbb2-4573-b1b6-bc3dd3923f41` is still `running` with errors `0` and the same active lock; new discovery case `2` is `active`, iteration `1`, `currentAction=investigator-completed`.
+- **Tool result:** Investigator’s `parallel_web_search` span completed `ok` at `04:45:08.406Z`; trace reports 18 independent search-result lead URLs. Search leads are not yet verified company/person evidence.
+- **No cards yet:** Case 2 has no target entity at this checkpoint. Next inspect the structured tool-observation record for exact search arguments and public source URLs, excluding any hidden `thought` field.
+
+### 029 — Raw discovery queries and search-result leads
+- **Stage:** Case 2, Investigator turn 1, `parallel_web_search`; event `11`, `2026-11-05T04:45:08.420Z` UTC.
+- **Selected capability/model:** `groq-investigator-20b` / GPT-OSS 20B. The Investigator selected three concurrent provider queries; the tool returned 18 URLs (six per provider), `findingsCount=0`, `sourceBindingsCount=0`, and no fetched/observed URLs.
+- **Structured hypothesis:** “Public business directories and annual company listings contain names of companies that are currently operating as of 2023, which can serve as a source‑backed foundation for B2B decision‑maker identification.” Purpose: “Identify real operating companies for B2B prospecting.” Declared expected information gain: `0.6`.
+- **Exact searches:**  
+  1. Serper, locale `US`, market `US`: **“publicly active companies 2023”** — purpose: discover companies listed as active in 2023.  
+  2. Tavily, locale `global`, market `US`: **“business directory of operating companies”** — purpose: discover companies via business directories.  
+  3. Exa, locale `global`, market `US`: **“list of companies currently in operation 2023”** — purpose: discover companies via annual listings.
+- **Returned lead URLs (all unverified):**
+  - Serper: https://www.forbes.com/lists/global2000/ ; https://en.wikipedia.org/wiki/List_of_public_corporations_by_market_capitalization ; https://justcapital.com/rankings/ ; https://tuck.dartmouth.edu/news/articles/where-did-all-the-public-companies-go ; https://companiesmarketcap.com/ ; https://www.sec.gov/files/rules/other/4-460list.htm
+  - Tavily: https://leadiq.com/c/dale-operating-company/5a1d9d3b2300005c008d15a2/employee-directory?page=4 ; https://guides.newman.baruch.cuny.edu/c.php?g=188235&p=1243714 ; https://leadiq.com/c/aero-operating-llc-and-family-of-companies/5a1d9d8123000054008d5a73/employee-directory ; https://guides.loc.gov/entrepreneurs-reference-guide/directories ; https://www.zoominfo.com/pic/kr-operating-llc/76252471 ; https://www.zoominfo.com/pic/stp-nuclear-operating-co/36782491
+  - Exa: https://www.founded.org/companies/status/active/ ; https://ukcompanyhub.co.uk/companies/ ; https://www.kaggle.com/datasets/mfrye0/bigpicture-company-dataset ; https://aidb.si/d/us-company-financials-2023 ; https://fortune.com/ranking/fortune500/2023/explore/ ; https://github.com/EatMoreOranges/Fortune-500-Dataset/blob/main/data/2023-fortune-500-data.csv
+- **Raw result excerpts, still leads:** Forbes’ result lists Intel, Coherent, Richemont, Lennar, H&M, Samsung Electronics, and TDK. The Wikipedia result says its list is current only as of 31 December 2023. Dartmouth’s article describes the decline in U.S. public-company counts through 2020. The SEC URL is a legacy “List of Companies” page. Tavily’s LeadIQ snippet describes Dale Operating Company as an oil-and-gas company founded in 1981 with about 39 employees; the returned directory summary says it provides no specific contact details or official websites for the named companies. Exa surfaced a 2023-Q4 company dataset, 2023 SEC financials, a 2023 Fortune 500 explorer, and a 2023 Fortune 500 CSV.
+- **Evidence/provenance assessment:** This call produced search snippets and URLs only; no company operating status, role, identity, or contact route is verified. Several sources are secondary directories or historical datasets, not current primary evidence. No card should be admitted from these results alone.
+- **Quality note for later analysis:** The model chose `2023` queries and `US` markets despite the broad, country-unspecified objective. These are the Investigator’s emitted tool arguments, not operator-imposed scope. They risk stale/narrow discovery; I did not inject a replacement target or query. Observe whether Boss/Investigator challenge the age/source quality and pivot autonomously.
+
+### 030 — Oversized-observation compaction failed closed; Boss continued discovery
+- **Observed at:** Trace error span `2026-11-05T04:47:00.594Z` UTC.
+- **Runtime event:** `ai_recent_observation_compaction_unavailable` for target `discovery`: AI compaction of the oversized recent observation was unavailable or failed its size/provenance checks. The trace explicitly says no action was sent using a deterministically truncated substitute.
+- **Durable control response:** At `04:47:42.035Z`, case 2 recorded a completed Boss control decision `continue_discovery`, confidence `0.85`, with the concise reason: “No specific candidate identified yet; unfetched leads (e.g., global company lists) remain and could yield operating companies. Continue broad discovery to fetch and assess leads.” The full human objective remained unchanged in the following control-objective event.
+- **Current state:** Job remains `running`, errors `0`, active lock held by job `b939bfff-fbb2-4573-b1b6-bc3dd3923f41`; case 2 remains active, iteration `1`, `currentAction=canonical-control-continue_discovery`, and has no target entity.
+- **Decision:** This is a material runtime warning, but the guarded failure did not replace source context with a truncated version and the Boss selected a continuation. Do not patch or manually direct the Investigator yet; observe whether the next autonomous action resumes normally or the same boundary blocks it again.
+
+### 031 — Repeated control calls without a new research action
+- **Observed through:** `2026-11-05T04:50:31Z` UTC, workflow telemetry and read-only job/case/trace polls.
+- **Provider activity:** Groq GPT-OSS 120B continued making Boss `control_decision` calls; Right-hand also completed a `control_advisory` call. Several Boss HTTP 429 `rate_limit_exceeded` attempts were retried successfully. A Boss control response returned HTTP 400 `json_validate_failed` and then succeeded on retry index 3. The newest telemetry snapshot ends with another Boss 429 whose retry outcome is not yet visible.
+- **No Investigator quota exhaustion:** There is no `upstream_quota_exhausted` or Investigator provider-error event, and the assigned Investigator remains `groq-investigator-20b`. Do not rotate investigator credentials or reassign based on transient Boss rate limits or a recovered JSON validation error.
+- **No durable progress:** At `04:50:30.984Z`, the job was still running with errors `0`; case 2 remained active at iteration `1`, `currentAction=canonical-control-continue_discovery`, no target entity, and its last durable event remained event `13` at `04:47:42.590Z`. The trace still contains only the original search and the compaction error: 18 unverified leads, 0 fetched URLs, 0 findings, 0 source bindings, and no card.
+- **Implementation diagnosis:** The source fails closed when Boss context compaction returns no valid summary; it does not send deterministic excerpts as a substitute. The compaction helper returns `null` for provider, prompt-size, summary-schema, or URL-provenance failures, but the current trace exposes only a generic compaction-unavailable message, not which condition occurred. This is an observability gap, not evidence of a depleted Investigator key.
+- **Action:** Keep the active job untouched while it remains within its configured timeout; no code edit or manual query/target has been applied. If it terminalizes without a new Investigator action, inspect the complete failure path, add only the minimum safe diagnostic/recovery change, then make a fresh canonical UI launch.
+
+### 032 — Updated-main run terminalized before a usable continuation
+- **Terminal state observed:** Job `b939bfff-fbb2-4573-b1b6-bc3dd3923f41` failed at `2026-11-05T04:50:39.527Z`; progress `3`; error count `0`. The active Atlas-run lock is released.
+- **Case state:** Case 2 moved to `review`, iteration `3`, `currentAction=canonical-investigator-episode-failed`, no target entity. Event `14` records: “Canonical Investigator continuation failed before producing a usable research pass; case parked for review.”
+- **Failure classification:** Job message classifies the continuation as `failureDomain=model_action`, `failureKind=no_usable_action` (error digest `da9b1db98bf22e26`). The trace still records the earlier AI recent-observation compaction failure. This is not a classified exhausted Investigator key, so no Investigator switch was appropriate.
+- **Run result:** The only research action was the initial `parallel_web_search`; 18 results remained unverified leads, with no fetched URLs, claim-grade findings, source bindings, target entity, or company cards. This is not a successful run.
+- **Next step:** Inspect only the sanitized failure payload and the compaction/control path to identify the smallest architecture-preserving fix; then relaunch via the canonical Atlas UI action with the unchanged objective and source-verification safeguards.
+
+### 033 — Sanitized failure metrics
+- **Case event:** Event `14` reports `failureCode=investigator_episode_no_action`, `reportedStatus=timeout`, `stopReason=HARD_TIMEOUT`, `iterations=1`, `newTrajectoryRecordCount=0`, and `investigatorActionExecuted=false`.
+- **Cumulative run counters:** 3 search-provider calls, 0 visits, 3 cumulative Investigator iterations across the failed attempt and continuation, and 1 cumulative trajectory record (the initial search). No target research episode or card admission occurred.
+- **Failure semantics:** `failureDomain=model_action`, `failureKind=no_usable_action`; no runtime-stage code, provider error code, or quota-exhaustion signal was recorded. This confirms a bounded timeout/no-action failure, not a reason to swap Investigator keys.
+- **Evidence state:** The case remains available in review; the initial three searches and their raw result evidence remain durably recorded. No reset or deletion was performed.
+
+### 034 — Targeted test command hit the global pnpm bootstrap shim
+- **Attempt:** Ran only `ai-investigation-context-compaction.test.ts` with the global `pnpm` command.
+- **Result:** The Replit shim recursively attempted `pnpm add pnpm@9.15.9` and exited with `SIGABRT` before the test runner started. No test ran and no project files or dependencies were changed by that attempt.
+- **Recovery:** Use the repository’s established pinned invocation (`npm exec --yes --package=pnpm@9.15.9 -- pnpm ...`) for the targeted test and required API build; do not repeat installs or schema initialization.
+
+### 035 — Bounded compaction headroom and task telemetry updated
+- **Diagnosis:** The recent-observation compactor had only a 1,024-token first-response cap for the 1,200-character summary, with 1,280 tokens for repair. The source notes that GPT-OSS completion budgets include private reasoning tokens. The live failure did not expose the precise compaction rejection cause, so insufficient output headroom is a plausible risk, not a proven root cause.
+- **Minimal change:** Raised the initial compaction output budget to 1,536 tokens and repair to 1,920 (provider cap remains 2,048). Both Boss calls now identify `cognitiveTask=context_compaction`, so future operational telemetry distinguishes summary work from control decisions. The helper still enforces the same 1,200-character summary limit, exact-URL provenance checks, source-grounding rules, and fail-closed behavior; no deterministic excerpt fallback was added.
+- **Verification:** The targeted `ai-investigation-context-compaction.test.ts` suite passed: 10 tests. It ran with the repository’s pinned pnpm invocation after the global shim failed to bootstrap.
+- **Next:** Restart the existing API workflow once; its canonical boot script will rebuild the changed API bundle. Then verify health and use the canonical Atlas launch with the unchanged objective.
 
 ---
 
