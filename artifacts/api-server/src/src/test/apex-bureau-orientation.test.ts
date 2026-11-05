@@ -53,11 +53,11 @@ describe("objective-led institutional orientation", () => {
     const mission = APEX_WHAT_IS_ATLAS;
     const compactBoss = apexOrientationCompact("boss");
     const compactInvestigator = apexOrientationCompact("investigator");
-    expect(mission).toContain("not realistic targets");
-    expect(mission).toContain("do not select them as discovery candidates");
-    expect(compactBoss).toContain("Tim Cook is a known fame-only negative control");
-    expect(compactInvestigator).toContain("ignore incidental mentions");
-    expect(compactInvestigator).toContain("not discovery targets or review-card leads");
+    expect(mission).toContain("Fame and wealth do not imply access");
+    expect(mission).toContain("Ignore incidental famous ultra-wealthy names");
+    expect(compactBoss).toContain("Tim Cook is a fame-only negative control");
+    expect(compactInvestigator).toContain("ignore incidental famous ultra-wealthy names");
+    expect(compactInvestigator).toContain("verified practical access route");
   });
 
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
