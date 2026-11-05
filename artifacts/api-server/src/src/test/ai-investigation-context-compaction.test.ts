@@ -194,7 +194,8 @@ describe("AI investigation context compaction", () => {
     const firstPrompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
     const repairPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
     expect(firstPrompt).toContain("hard limit of 1500 characters");
-    expect(repairPrompt).toContain("source segment records no successful visit/browser_fetch action for the claimed page");
+    expect(repairPrompt).toContain("REPAIR REQUIRED");
+    expect(repairPrompt).toContain("unverified search leads");
     expect(repairPrompt).toContain("unverified search leads");
     expect(repairPrompt).toContain("CASE MEMORY START");
     expect(repairPrompt).not.toContain("Aim at or below 585 characters");
@@ -214,7 +215,8 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
-    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("source segment records no successful visit/browser_fetch action for the claimed page");
+    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("REPAIR REQUIRED");
+    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("unverified search leads");
   });
 
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
