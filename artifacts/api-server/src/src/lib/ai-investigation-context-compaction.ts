@@ -106,11 +106,11 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
 function sourceHasSuccessfulFetchRecord(source: string): boolean {
-  return /(?:^|\\n)\\s*TURN\\s+\\d+\\s*\\|\\s*action=(?:visit|browser_fetch)\\b[^\\n]*?\\|\\s*execution=(?:success|succeeded|completed)\\b/i.test(source);
+  return /(?:^|\n)\s*TURN\s+\d+\s*\|\s*action=(?:visit|browser_fetch)\b[^\n]*?\|\s*execution=(?:success|succeeded|completed)\b/i.test(source);
 }
 
 function summaryClaimsFetchedEvidence(summary: string): boolean {
-  return /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i.test(summary);
+  return /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i.test(summary);
 }
 
 function summaryResponseFormat(): Record<string, unknown> {
