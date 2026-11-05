@@ -241,7 +241,7 @@ async function requestSummary(
         validationIssues.push("the previous summary included URL tokens that were not copied exactly from the source");
       }
       if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) {
-        validationIssues.push("the source segment records no successful visit/browser_fetch action, but the previous summary claimed page-level retrieval or verification; search snippets and lead URLs are not fetched evidence");
+        validationIssues.push("the previous summary made a page-level retrieval claim without citing only exact URLs recorded in successful visit/browser_fetch observedUrls metadata; a successful fetch of one URL does not authorize claims about another lead URL");
       }
       const retryPrompt = buildSummaryPrompt(
         "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + repairSource,
