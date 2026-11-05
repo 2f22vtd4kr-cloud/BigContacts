@@ -162,10 +162,57 @@ describe("AI investigation context compaction", () => {
     const firstPrompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
     const secondPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
     const finalPrompt = String(bossMocks.generateGroqBossText.mock.calls[2]?.[1] ?? "");
-    expect(firstPrompt).toContain("hard limit of 1200 characters");
-    expect(secondPrompt).toContain("hard limit of 1200 characters");
+    expect(firstPrompt).toContain("hard limit of 1500 characters");
+    expect(secondPrompt).toContain("hard limit of 1500 characters");
     expect(finalPrompt).toContain("MEMORY SEGMENT 1:");
     expect(finalPrompt).toContain("MEMORY SEGMENT 2:");
+  });
+
+  it("repairs a 1,393-character partial summary that falsely claims search-only pages were fetched", async () => {
+    const source = "CASE MEMORY START " + "x".repeat(12_500);
+    const falseClaim = "Apple leadership/investor pages were fetched and verified.";
+    const firstSummary = falseClaim + " " + "x".repeat(1_393 - falseClaim.length - 1);
+    const correctedSummary = "Search-only leads mention Apple leadership, but no page was fetched; these remain unverified leads.";
+    const secondChunkSummary = "The remaining search results are unverified leads; no page was fetched.";
+    const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded.";
+    expect(firstSummary.length).toBe(1_393);
+
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
+
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(4);
+    const firstPrompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
+    const repairPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
+    expect(firstPrompt).toContain("hard limit of 1500 characters");
+    expect(repairPrompt).toContain("source segment records no successful visit/browser_fetch action");
+    expect(repairPrompt).toContain("search snippets and lead URLs are not fetched evidence");
+    expect(repairPrompt).toContain("CASE MEMORY START");
+    expect(repairPrompt).not.toContain("Aim at or below 585 characters");
+  });
+
+  it("allows fetched-page language only when the trajectory records a successful fetch action", async () => {
+    const sourceUrl = "https://company.example/about/leadership";
+    const source = [
+      "TURN 1 | action=visit | execution=success",
+      "OBSERVED_URLS: " + sourceUrl,
+      "OBSERVATION: The official leadership page identifies the current executive team.",
+      "BACKGROUND: " + "The case also retains unresolved ownership questions. ".repeat(25),
+    ].join("\\n");
+    const summary = "The fetched leadership page identifies the current executive team. Source: " + sourceUrl;
+    bossMocks.generateGroqBossText.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
   });
 
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
