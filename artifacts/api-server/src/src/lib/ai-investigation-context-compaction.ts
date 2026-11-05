@@ -108,7 +108,7 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
 function sourceHasSuccessfulFetchRecord(source: string): boolean {
   // Only parse JSON records under runtime-authored trajectory metadata headings.
   // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
-  const lines = source.split("\\n");
+  const lines = source.split("\n");
   const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
   const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS)/.test(line));
   const candidates: string[] = [];
