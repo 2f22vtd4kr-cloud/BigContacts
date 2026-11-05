@@ -106,7 +106,23 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
 function sourceHasSuccessfulFetchRecord(source: string): boolean {
-  return /(?:^|\n)\s*TURN\s+\d+\s*\|\s*action=(?:visit|browser_fetch)\b[^\n]*?\|\s*execution=(?:success|succeeded|completed)\b/i.test(source);
+  // Trajectory metadata is serialized as a standalone JSON object by the runtime.
+  // Do not infer a fetch from URLs, snippets, prose, or model-generated summaries.
+  for (const line of source.split("\\n")) {
+    const candidate = line.trim();
+    if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
+    try {
+      const record = JSON.parse(candidate) as Record<string, unknown>;
+      const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
+      const successful = record.execution === "success";
+      const hasObservation = typeof record.observation === "string" && record.observation.trim().length > 0;
+      const hasObservedUrls = Array.isArray(record.observedUrls) && record.observedUrls.some((url) => typeof url === "string" && url.trim().length > 0);
+      if (fetchedAction && successful && (hasObservation || hasObservedUrls)) return true;
+    } catch {
+      // Non-record JSON and untrusted observations cannot authorize fetch claims.
+    }
+  }
+  return false;
 }
 
 function summaryClaimsFetchedEvidence(summary: string): boolean {
