@@ -1,15 +1,16 @@
 /**
  * Target fitness gate — Phase 1.
  *
- * Prefer reachable operators/principals. Hard-reject fame-only trophies and
- * pure corp shells when the budget is person-scoped. Never invent signals;
- * only reads name + optional public footprint text.
+ * Prefer reachable operators/principals and reject pure organization shells
+ * when the budget is person-scoped. Famous-person realism is a model-owned
+ * Boss/Investigator judgment, not a deterministic name or description filter.
+ * Never invent signals; only reads name + optional public footprint text.
  *
  * Outcomes:
  *   strong              — clear operator/principal signal
  *   weak                — person-shaped but thin signal; proceed with caution
  *   review              — ambiguous; human or Boss should look
- *   reject_fame_only    — ultra-public celebrity / household name without operator role
+ *   reject_fame_only    — legacy outcome retained for compatibility; not emitted here
  *   reject_non_person   — corp/shell with no person path when person-scoped
  */
 
