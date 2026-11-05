@@ -206,7 +206,7 @@ describe("AI investigation context compaction", () => {
       "SEARCH RESULTS: leadership and investor-relations snippets; no visit or browser_fetch action was executed.",
       "LEAD_URLS: " + sourceUrl,
       "The result snippet is unverified until the underlying page is fetched. ".repeat(45),
-    ].join("\\n");
+    ].join("\n");
     const unsafe = "Fetched evidence from leadership and investor-relations pages confirms the named executives. " + sourceUrl;
     const safe = "Search-only lead: snippets point to possible leadership pages; no page fetch is recorded. " + sourceUrl;
     bossMocks.generateGroqBossText
