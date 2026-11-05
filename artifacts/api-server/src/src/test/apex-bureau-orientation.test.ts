@@ -67,8 +67,8 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
     expect(core).toContain("Other objectives use their criteria");
     expect(core).toContain("REALISTIC TARGETABILITY (AI JUDGMENT, NO BLACKLIST)");
-    expect(core).toContain("do not turn incidental celebrity");
-    expect(core).toContain("preserve source-backed operating-company leads/cards");
-    expect(core).toContain("not a deterministic name blacklist");
+    expect(core).toContain("do not select or card incidental famous/celebrity/household-name figures");
+    expect(core).toContain("Preserve source-backed company leads when decision-makers remain unresolved");
+    expect(core).toContain("AI judgment, no blacklist");
   });
 });
