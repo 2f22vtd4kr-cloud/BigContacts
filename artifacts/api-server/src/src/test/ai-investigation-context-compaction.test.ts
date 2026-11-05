@@ -217,6 +217,23 @@ describe("AI investigation context compaction", () => {
     expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("exact URLs recorded in successful visit/browser_fetch observedUrls metadata");
   });
 
+  it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
+    const sourceUrl = "https://company.example/leadership";
+    const source = [
+      "SEARCH-ONLY LEAD: " + sourceUrl,
+      "SEARCH RESULTS: a snippet mentions the company's leadership page; no visit or browser_fetch action was executed.",
+      "BACKGROUND: " + "Keep all source-stage distinctions intact. ".repeat(30),
+    ].join("\n");
+    const unsupported = "The leadership page identifies the current executive team. Source: " + sourceUrl;
+    const corrected = "A search-result snippet points to a possible leadership page; it remains an unverified lead. URL: " + sourceUrl;
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(corrected);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
+  });
+
   it("allows fetched-page language only when the trajectory records a successful fetch action", async () => {
     const sourceUrl = "https://company.example/about/leadership";
     const source = [
