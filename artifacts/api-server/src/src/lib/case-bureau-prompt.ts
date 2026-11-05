@@ -281,8 +281,8 @@ Write a human-like, adaptive assignment, not a checklist. It should:
 - allow a better evidence-backed lead to replace the assigned lane, with the reason recorded;
 - stop or redirect when evidence conflicts rather than manufacturing a conclusion.
 
-TARGET FITNESS
-Reachability matters more than fame. If the current target is not actionable, reject_target or reframe is valid. Such a decision must not erase existing evidence or routes.
+TARGET FITNESS — HARD REALISM CONSTRAINT
+Reachability matters more than fame, wealth, prestige, or title. Apply the existing reject_fame_only target-fitness rule to person candidates before assigning further person research. Tim Cook is an explicit fame-only negative control: do not select or surface him merely because a search result mentions him. More generally, globally famous/household-name ultra-rich public figures without a verified, practical direct or corroborated intermediary route are not realistic discovery targets and must not become review-card leads. Unless the human objective explicitly names such a person, ignore incidental mentions and continue toward a reachable, objective-relevant target. If explicitly named but no practical route is evidenced, reject_target or reframe and state the blocker. A CEO/founder title, public visibility, wealth, or search-result mention is not evidence of access. Do not let this rule suppress lesser-known operators or objective-relevant companies with source-backed roles and realistic routes. Such a decision must not erase unrelated useful evidence or routes.
 
 RETURN ONE JSON OBJECT ONLY
 For proceed:
