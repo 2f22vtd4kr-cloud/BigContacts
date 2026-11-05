@@ -110,6 +110,8 @@ function sourceHasSuccessfulFetchRecord(source: string): boolean {
 }
 
 function summaryClaimsFetchedEvidence(summary: string): boolean {
+  const lower = summary.toLowerCase();
+  if (lower.includes("no page was fetched") || lower.includes("no pages were fetched") || lower.includes("page was not fetched") || lower.includes("no successful page fetch") || lower.includes("no page fetch succeeded")) return false;
   return /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i.test(summary);
 }
 
