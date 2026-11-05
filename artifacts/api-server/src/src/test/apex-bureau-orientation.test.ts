@@ -53,7 +53,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("not a hard-coded name blacklist");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toMatch(/REALISM[\\s\\S]*famous[\\s\\S]*wealthy people/i);
+      expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
       expect(prompt).toContain("not a hard-coded name");
     }
     expect(apexOrientationCompact("boss")).toContain("do not surface them incidentally");
