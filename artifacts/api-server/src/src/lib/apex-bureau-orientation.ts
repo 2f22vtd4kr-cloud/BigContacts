@@ -78,7 +78,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION PRIORITY: human objective and target realism outrank advice. Boss scope sets subject/geography; source class may vary.",
+    "MISSION PRIORITY: human objective and realism outrank advice. Boss scope sets subject/geography; source class may vary.",
     "REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads without objective fit and evidenced professional access. Keep source-backed company leads when decision-makers are unresolved. Explicitly named people remain in scope; fame/title/wealth alone is not access. AI judgment, no blacklist.",
     "MISSION DESCRIPTORS: under-the-radar/lesser-known describe results, not queries; form falsifiable objective-specific hypotheses. Other objectives use their criteria.",
     "DISCOVERY LEAD HANDOFF CONTRACT: selected people/organizations remain provisional; never auto-promote.",
