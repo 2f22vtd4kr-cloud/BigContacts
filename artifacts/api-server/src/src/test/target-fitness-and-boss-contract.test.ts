@@ -202,9 +202,11 @@ describe("offline eval cohort", () => {
           evaluateTargetFitness({ name, role, snippet, personScoped: true }),
         ),
     });
-    expect(card.fameRejectPrecision).toBe(1);
+    expect(card.fameRejectPrecision).toBe(0);
     expect(card.quietAdmitRate).toBe(1);
     expect(card.zeroInventedContacts).toBe(true);
+    // Famous-name exclusion is model reasoning, not a deterministic blacklist.
+    expect(evaluateTargetFitness({ name: "Tim Cook", personScoped: true }).fit).not.toBe("reject_fame_only");
     expect(FAME_NEGATIVE_CONTROLS.length).toBeGreaterThan(3);
     expect(QUIET_OPERATOR_FIXTURES.length).toBeGreaterThan(2);
   });
