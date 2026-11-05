@@ -75,9 +75,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
     expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
-    expect(discoveryPrompt).toContain("market=null unless a country is named");
-    expect(discoveryPrompt).toContain("locale=language");
-    expect(discoveryPrompt).toContain("avoid stale years");
+    expect(discoveryPrompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
+    expect(discoveryPrompt).toContain("locale is language only, never geography");
+    expect(discoveryPrompt).toContain("Avoid stale years unless the objective is explicitly historical");
     expect(discoveryPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
