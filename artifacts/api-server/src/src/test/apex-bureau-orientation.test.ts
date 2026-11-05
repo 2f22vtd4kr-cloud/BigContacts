@@ -49,15 +49,15 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
   });
 
-  it("hard-excludes fame-only unreachable public figures from discovery candidates", () => {
+  it("keeps famous-wealthy target realism as an AI reasoning rule across roles", () => {
     const mission = APEX_WHAT_IS_ATLAS;
-    const compactBoss = apexOrientationCompact("boss");
-    const compactInvestigator = apexOrientationCompact("investigator");
-    expect(mission).toContain("Fame and wealth do not imply access");
-    expect(mission).toContain("Ignore incidental famous ultra-wealthy names");
-    expect(compactBoss).toContain("Tim Cook is a fame-only negative control");
-    expect(compactInvestigator).toContain("ignore incidental famous ultra-wealthy names");
-    expect(compactInvestigator).toContain("verified practical access route");
+    expect(mission).toContain("not a hard-coded name blacklist");
+    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+      const prompt = apexOrientationCompact(role);
+      expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
+      expect(prompt).toContain("not a hard-coded name list");
+    }
+    expect(apexOrientationCompact("boss")).toContain("do not surface them as incidental suggestions or quota fillers");
   });
 
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
