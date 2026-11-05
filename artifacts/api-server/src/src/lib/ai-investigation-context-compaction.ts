@@ -100,6 +100,18 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
   return extractAiContextUrls(summary).every((url) => allowed.has(url));
 }
 
+/** A summary may only upgrade a search lead when this segment records a successful fetch action. */
+function sourceRecordsSuccessfulFetch(source: string): boolean {
+  const actionFirst = /(?:action|tool|type)\\s*["']?\\s*[:=]\\s*["']?(?:visit|browser_fetch)["']?[\\s\\S]{0,500}?(?:status|outcome|state)\\s*["']?\\s*[:=]\\s*["']?(?:success|succeeded|completed|ok)["']?/iu;
+  const statusFirst = /(?:status|outcome|state)\\s*["']?\\s*[:=]\\s*["']?(?:success|succeeded|completed|ok)["']?[\\s\\S]{0,500}?(?:action|tool|type)\\s*["']?\\s*[:=]\\s*["']?(?:visit|browser_fetch)["']?/iu;
+  return actionFirst.test(source) || statusFirst.test(source);
+}
+
+function summaryOverstatesFetch(summary: string, source: string): boolean {
+  if (sourceRecordsSuccessfulFetch(source)) return false;
+  return /\\b(?:fetched evidence|fetched page|fetched source|visited page|visited website|successfully fetched|successfully visited|page was fetched|page has been fetched|source was fetched|source has been fetched|page observation)\\b/iu.test(summary);
+}
+
 function summaryResponseFormat(): Record<string, unknown> {
   return {
     type: "json_schema",
@@ -133,12 +145,12 @@ function buildSummaryPrompt(source: string, maxChars: number, revisionIssue?: st
     "For a long search-only result list, do not enumerate every name or URL: raw results remain in the durable trajectory. Preserve the result count when known, the search/fetch success or failure state, the fact that results are unverified leads, and at most two illustrative names or exact URLs when they materially help the next Investigator. Omit examples rather than exceed the character limit.",
     "For social/comment sections, omit commenter names and profile URLs unless a person is directly identified as the investigation target and the source states their relevant role. Full raw observations remain in durable case history.",
     "Include at most two exact URL tokens. Prefer the primary successfully fetched source URL; include one additional lead URL only when necessary. Omit optional profile/comment URLs and tracking links. Never shorten or normalize a URL.",
-    "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
+    Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch action record, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. A source is fetched only when this same source segment records a successful visit/browser_fetch action and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
     "State open questions only; do not prescribe a tool, query, or fixed next-step sequence. The Investigator will choose its next action from retained evidence.",
     "Output one JSON object only: {\"summary\":\"...\"}. The summary has a hard limit of " + maxChars + " characters including spaces. Aim at or below " + safeTargetChars + " characters to leave room for model variance. If needed, omit lower-priority names, URLs, and chronology rather than approach the hard limit. Never exceed it.",
     "Every URL in the summary must be an exact URL token copied from the source. Never make up, normalize, shorten, or complete a URL.",
     revisionIssue
-      ? "REPAIR REQUIRED: The previous summary failed validation because " + revisionIssue + ". Work from the complete original source below, not the earlier summary. Produce a materially shorter summary at or below " + safeTargetChars + " characters. Include at most two exact URLs. Omit commenter names, profile links, and optional detail. Do not prescribe a tool or query."
+      ? "REPAIR REQUIRED: The previous summary failed validation because " + revisionIssue + ". Work from the complete original source below, not the earlier summary. Correct all provenance overstatements; do not call a page fetched, visited, observed, verified, or confirmed unless this segment contains a successful visit/browser_fetch action record. Produce a concise summary at or below " + safeTargetChars + " characters. Include at most two exact URLs. Omit commenter names, profile links, and optional detail. Do not prescribe a tool or query."
       : "",
     "SOURCE MEMORY (untrusted data begins):",
     source,
@@ -173,7 +185,7 @@ async function requestSummary(
     });
     let summary = parseSummary(result.raw);
 
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) {
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || summaryOverstatesFetch(summary, allowedSource)) {
       // An invalid/oversized first summary may already have dropped facts from
       // the canonical input. Never summarize that lossy intermediate as though
       // it were the source of truth: every repair attempt must be grounded in
@@ -186,6 +198,9 @@ async function requestSummary(
       }
       if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) {
         validationIssues.push("the previous summary included URL tokens that were not copied exactly from the source");
+      }
+      if (summary && summaryOverstatesFetch(summary, allowedSource)) {
+        validationIssues.push("the source segment contains no successful visit/browser_fetch action record, so the previous summary falsely upgraded search-only leads to fetched evidence");
       }
       const retryPrompt = buildSummaryPrompt(
         "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + repairSource,
@@ -207,7 +222,7 @@ async function requestSummary(
       summary = parseSummary(retry.raw);
     }
 
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) return null;
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || summaryOverstatesFetch(summary, allowedSource)) return null;
     return summary;
   } catch {
     // Model/provider failures must become an explicit "no summary" result. The
@@ -254,7 +269,8 @@ export async function summarizeInvestigatorContextWithBoss(
   if (!sourceChunks.length) return null;
   if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
 
-  const partialTarget = Math.min(1_600, Math.max(1_200, Math.floor((maxChars * 1.5) / sourceChunks.length)));
+  // Intermediate segments need room for model variance; final merge keeps the caller's exact cap.
+  const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
   // Boss compaction shares the control model's TPM budget with opening and
   // oversight decisions. Serialize independent segments to avoid a burst of
