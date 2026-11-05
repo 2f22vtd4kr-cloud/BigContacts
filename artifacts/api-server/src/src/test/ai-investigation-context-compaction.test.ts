@@ -247,7 +247,7 @@ describe("AI investigation context compaction", () => {
       "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The about page was fetched, but the investor page remains only a search lead.",
       "BACKGROUND: " + "Keep the source-stage distinction explicit. ".repeat(30),
     ].join("\n");
-    const falseClaim = "The investor page was fetched and confirms ownership. Source: " + searchLeadUrl;
+    const falseClaim = "No page was fetched for Apple; the investor page was fetched and confirms ownership. Source: " + searchLeadUrl;
     const correctedSummary = "The about page was fetched. The investor URL remains an unverified search lead. Source: " + fetchedUrl;
     bossMocks.generateGroqBossText
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
