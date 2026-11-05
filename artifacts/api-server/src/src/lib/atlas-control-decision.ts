@@ -529,7 +529,9 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
     }
     return prompt;
   }
-  const fixedPrefix = `APEX ATLAS — ${apexOrientationCompact("boss")}
+  const fixedPrefix = `APEX ATLAS — ${apexOrientationCompact("boss", false)}
+
+BUREAU PLAYBOOK QUICK REFERENCE: use objective-led mixed web/registry discovery; sanity-check candidate relevance and identity; preserve useful partial review cards; route each newly observed lead only to an enabled, attested tool whose input/purpose fits; reassess results and provenance; distinguish no-hit from failure; do not impose a fixed chain.
 
 You are Groq Boss. Choose the NEXT research action from current evidence; this is a control decision, not a fixed workflow phase.
 
