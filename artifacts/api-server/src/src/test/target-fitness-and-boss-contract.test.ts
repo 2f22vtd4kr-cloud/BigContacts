@@ -194,6 +194,17 @@ describe("discovery contact collect for cards", () => {
 
 
 describe("offline eval cohort", () => {
+  it("hard-rejects Tim Cook as a fame-only target even when his CEO role is stated", () => {
+    const result = evaluateTargetFitness({
+      name: "Tim Cook",
+      role: "Chief Executive Officer",
+      snippet: "Apple CEO and globally prominent public figure",
+      personScoped: true,
+    });
+    expect(result.fit).toBe("reject_fame_only");
+    expect(shouldRejectTarget(result)).toBe(true);
+  });
+
   it("rejects all fame controls and admits quiet operators", () => {
     const card = scoreOfflineCohort({
       rejectFame: (name) => shouldRejectTarget(evaluateTargetFitness({ name, personScoped: true })),
