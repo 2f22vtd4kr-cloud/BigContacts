@@ -54,5 +54,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
     expect(core).toContain("Other objectives use their criteria");
+    expect(core).toContain("PLAYBOOK FIELD GUIDE");
+    expect(core).toContain("choose only exposed, attested specialist tools");
   });
 });
