@@ -56,6 +56,7 @@ describe("objective-led institutional orientation", () => {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
       expect(prompt).toContain("not a hard-coded name list");
+      expect(prompt).not.toContain("Tim Cook");
     }
     expect(apexOrientationCompact("boss")).toContain("do not surface them as incidental suggestions or quota fillers");
   });
