@@ -8,7 +8,7 @@ import {
 } from "../lib/apex-bureau-orientation";
 
 describe("objective-led institutional orientation", () => {
-  it("loads the plain-text playbook for Boss and Right-hand without turning it into Investigator instructions", () => {
+  it("loads the full playbook for control roles and a compact field guide for the Investigator", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("PHASE 1 — DISCOVERY");
     expect(APEX_BUREAU_PLAYBOOK).toContain("SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST");
     expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP: EVERY NEW OBSERVATION CAN CHANGE THE PLAN");
