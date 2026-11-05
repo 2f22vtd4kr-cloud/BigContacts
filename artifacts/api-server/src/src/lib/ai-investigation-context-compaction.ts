@@ -108,7 +108,7 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
 function sourceHasSuccessfulFetchRecord(source: string): boolean {
   // Trajectory metadata is serialized as a standalone JSON object by the runtime.
   // Do not infer a fetch from URLs, snippets, prose, or model-generated summaries.
-  for (const line of source.split("\\n")) {
+  for (const line of source.split("\n")) {
     const candidate = line.trim();
     if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
     try {
