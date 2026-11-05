@@ -255,7 +255,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
-    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("exact URL in the successful visit/browser_fetch observedUrls metadata");
+    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("a successful fetch of one URL does not authorize claims about another lead URL");
   });
 
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
