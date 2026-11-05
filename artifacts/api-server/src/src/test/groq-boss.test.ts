@@ -318,7 +318,7 @@ describe("Groq Boss context-compaction empty output recovery", () => {
         }), { status: 200 });
       }
       return new Response(JSON.stringify({
-        choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ summary: "A bounded source-backed summary." }) } }],
+        choices: [{ finish_reason: "stop", message: { content: [{ type: "text", text: JSON.stringify({ summary: "A bounded source-backed summary." }) }] } }],
       }), { status: 200 });
     });
 
