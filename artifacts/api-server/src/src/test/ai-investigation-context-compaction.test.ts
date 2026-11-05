@@ -195,7 +195,7 @@ describe("AI investigation context compaction", () => {
     const repairPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
     expect(firstPrompt).toContain("hard limit of 1500 characters");
     expect(repairPrompt).toContain("source segment records no successful visit/browser_fetch action for the claimed page");
-    expect(repairPrompt).toContain("search snippets and lead URLs are not fetched evidence");
+    expect(repairPrompt).toContain("unverified search leads");
     expect(repairPrompt).toContain("CASE MEMORY START");
     expect(repairPrompt).not.toContain("Aim at or below 585 characters");
   });
