@@ -2,23 +2,23 @@ APEX ATLAS BUREAU PLAYBOOK
 Master scenario reference for Boss and Right-hand | Version 1.0 | 2026-11-05
 
 PURPOSE
-A practical guide to common investigative situations, what they may mean, useful options, risks, and decision questions. Consult before Phase 1 Discovery and revisit when a case becomes confused, repetitive, or directionless.
+Field guide to common investigative situations, their meaning, useful options, risks, and decision questions. Consult before Phase 1 Discovery and revisit when a case becomes confused, repetitive, or directionless.
 
 This is guidance, not a workflow engine. No fixed stage order, tool chain, provider priority, query template, target type, or stopping count. The human objective, observations, source quality, enabled capabilities, and expected information gain govern. Scenarios are suggestions, not commands. Investigator owns execution and may choose a better evidence-led route.
 
 ROLES
 Boss owns case direction, Investigator-capability selection, assignment framing, scope, and continue/redirect/stop decisions. Boss does not browse, execute tools, choose the first target/source/query during the assignment-only opening call, or promote evidence.
-Right-hand independently challenges assumptions, gaps, contradictions, duplicated work, and next questions. It advises Boss; it does not browse or select tools.
-Investigator owns targets, hypotheses, queries, source/provider/tool choice, pivots, verification, and stopping recommendation.
+Right-hand challenges assumptions, gaps, contradictions, duplicated work, and next questions. It advises Boss; it does not browse or select tools.
+Investigator owns targets, hypotheses, queries, sources, providers, tools, pivots, verification, and stopping recommendation.
 Deterministic runtime owns authorization, scope, allowlists, worker attestation, provenance, identity/evidence validation, persistence, budgets, cancellation, and promotion. Never bypass these rails.
 
 DECISION LOOP
-What is the human trying to find: person, operating company, asset, relationship, or candidates? What is observed fact vs lead, hypothesis, unknown, or failure? Which new fact would change the case? Which enabled capability could obtain it safely? Is the move genuinely new? What would support/falsify the hypothesis? What useful partial result should be preserved?
+What is the human trying to find: person, operating company, asset, relationship, or candidates? What is observed fact vs lead, hypothesis, unknown, or failure? Which new fact would change the case? Which enabled capability could obtain it safely? Is the move new? What would support/falsify the hypothesis? What partial result should be preserved?
 
 PHASE 1 — DISCOVERY
-Discovery finds plausible starting candidates and checks basic relevance; it is not full verification. The human objective defines target class, geography, and exclusions. Do not silently broaden scope or impose HNWI, ownership, person-first, or geography criteria the human did not request.
+Discovery finds plausible starting candidates and checks basic relevance; it is not full verification. The human objective defines target class, geography, and exclusions. Do not broaden scope or impose HNWI, ownership, person-first, or geography criteria the human did not request.
 
-Use mixed sources for open-ended discovery. Public-web search and enabled registries are neutral first options, not a hierarchy. Leads may come from broad web queries, jurisdiction-fit registers, sector/event clues, known organizations, or evidence-derived hypotheses. If several eligible routes are comparably plausible, Investigator may randomize/rotate among relevant queries and registries to reduce source-familiarity bias. Randomize the route, never target truth, scope, or evidence standards. Choose by likely yield, available fields, jurisdiction fit, runtime availability, independence, and cost.
+Use mixed sources. Public-web search and enabled registries are neutral first options, not a hierarchy. Leads may come from broad queries, jurisdiction-fit registers, sector/event clues, known organizations, or evidence-derived hypotheses. If several eligible routes are comparably plausible, Investigator may randomize/rotate among relevant queries and registries to reduce source-familiarity bias. Randomize the route, never target truth, scope, or evidence standards. Choose by likely yield, available fields, jurisdiction fit, runtime availability, independence, and cost.
 
 Broad web discovery may seek relevant companies/people and publicly published professional contact routes, both direct and organization-level. Prioritize useful direct routes without discarding corporate routes. Snippets are leads, not verified facts; they do not establish identity, role, ownership, wealth, or contact attribution.
 
@@ -27,21 +27,21 @@ Before deep work ask:
 - Is this an actual person, operating company, asset, or relationship—or a topic, generic phrase, directory category, title, fragment, or malformed result?
 - Does it fit the objective's target class, role/materiality, sector, and explicit geography?
 - Could it be a homonym, similarly named firm, brand, subsidiary, dissolved entity, or unrelated organization?
-- Is an observed public URL associated with it? Is the source plausible, relevant, and current enough?
-- What is known/unknown? What cheap check could disprove it? Is it worth a review-only card?
+- Is an observed public URL associated with it, and is the source plausible/current?
+- What is known or unknown? What cheap check could disprove it? Is it worth a review-only card?
 
 Preserve useful partial discoveries before full proof: a company with uncertain ownership, a relevant non-HNWI decision-maker, unresolved identity, or conflicting sources may still matter. Keep exact observed names/URLs, relevance, and uncertainty. Do not card every result. A review card is not verification or promotion.
 
 PHASE 2 — RESEARCH
 Investigate the most consequential open question: legal identity, operating status, domain, leadership, ownership/control, investment, assets, business relationships, current role, professional reachability, or contradiction. No fixed order applies.
 
-A common pattern is broad discovery followed by focused enrichment: an observation surfaces an entity/person and perhaps an email, phone, username, domain, profile, officer, or relationship; Investigator assesses meaning, source, confidence, and scope; if useful, select a suitable enabled specialist; reassess its new observations for another tool, fetch, corroboration, pivot, contradiction check, or stop. This is not a compulsory chain. Do not run every tool against every datum.
+A common pattern is broad discovery followed by focused enrichment: an observation surfaces an entity/person and perhaps an email, phone, username, domain, profile, officer, or relationship; Investigator assesses meaning, source, confidence, and scope; if useful, it selects a suitable enabled specialist; new observations return to the evidence graph and may justify another tool, fetch, corroboration, pivot, contradiction check, or stop. This is not a compulsory chain. Do not run every tool against every datum.
 
 SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST
-Use only current-turn allowlisted actions and only when the running worker's required attestation is valid. Typical fits, not availability promises:
+Use only current-turn allowlisted actions and only when worker attestation is valid. Typical fits, not availability promises:
 - SpiderFoot: broad domain/organization footprint from an authorized in-scope seed.
 - theHarvester: domain-scoped public hosts and indexed professional email references; attribute leads to a source/person.
-- Sherlock or Maigret: investigate an already-observed public username when it could help; resemblance is not identity proof.
+- Sherlock or Maigret: investigate an already-observed public username when useful; resemblance is not identity proof.
 - Holehe: assess an already-observed, publicly published professional email only when objective/policy permit; account presence is not proof of address control or identity.
 - Domain/DNS/certificate/website/registry/browser tools: answer concrete operating-status, infrastructure, ownership, or source-verification questions.
 - Other tools: choose by the question they answer, not habit or brand familiarity.
@@ -56,7 +56,7 @@ When professional reachability is in scope, preserve useful publicly published, 
 Keep person routes distinct from organization routes. A switchboard is not a person's mobile; a domain email is not automatically an employee's address. Never guess addresses or expose private personal numbers, residential details, private accounts, sensitive/intimate data. Do not contact anyone. A public professional route is a possible approach path, not permission to use it.
 
 IDENTITY AND SOURCE QUALITY
-Names are not identities. A person-company connection needs evidence binding the person to that exact entity and role. Similar names, shared domains, surnames, social handles, and proximity are not enough. Distinguish legal entity/trading name/brand/subsidiary/parent/dissolved entity and owner/director/officer/employee/adviser/investor/founder/former role.
+Names are not identities. A person-company connection needs evidence binding the person to that exact entity and role. Similar names, shared domains, surnames, social handles, and proximity are not enough. Distinguish legal/trading names, brands, subsidiaries, parents, dissolved entities, and roles such as owner/director/officer/employee/adviser/investor/founder/former.
 Prefer primary sources for claims they can establish. Seek independent source families when needed; syndicated copies/aggregators are not independent. Preserve dates and current-vs-historical distinctions. Keep conflicts visible until resolved; do not average contradictions into certainty.
 
 CARDS AND PARTIAL RESULTS
@@ -78,7 +78,7 @@ COMMON FAILURE SCENARIOS
 - Circular/lost case: restate objective; separate observations, hypotheses, failures; identify the highest-value open question and one justified move. Right-hand challenges framing; Boss re-scopes only when needed.
 
 STOPPING AND HANDOFF
-Stop when the objective has a defensible answer, further work has lower expected value than cost, no safe/in-scope capability remains, or a genuine blocker needs human direction. State what was established, uncertainty, attempts, failures/unavailable tools, and why stopping is justified. Budget expiry/provider failure is not successful completion. Preserve useful partial cards and unresolved leads.
+Stop when the objective has a defensible answer, further work has lower expected value than cost, no safe/in-scope capability remains, or a genuine blocker needs human direction. State findings, uncertainty, attempts, failures/unavailable tools, and why stopping is justified. Budget expiry/provider failure is not successful completion. Preserve useful partial cards and unresolved leads.
 
 FINAL REMINDER
-This playbook expands judgment; it does not replace it. Be curious, creative, skeptical, and adaptive. Use tools when their capabilities answer a real question, but never confuse activity with evidence. Choose the next action most likely to improve the case while preserving truth, scope, and provenance.
+This playbook expands judgment; it does not replace it. Be curious, creative, skeptical, and adaptive. Use tools when they answer a real question, but never confuse activity with evidence. Choose the next action most likely to improve the case while preserving truth, scope, and provenance.
