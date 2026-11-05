@@ -105,7 +105,7 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  * Search results and arbitrary observation text are not fetch evidence: only a
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
-function sourceHasSuccessfulFetchRecord(source: string): boolean {
+function sourceSuccessfulFetchUrls(source: string): Set<string> {
   // Only parse JSON records under runtime-authored trajectory metadata headings.
   // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
   const lines = source.split("\n");
@@ -119,26 +119,37 @@ function sourceHasSuccessfulFetchRecord(source: string): boolean {
       if (candidate.startsWith("{") && candidate.endsWith("}")) candidates.push(candidate);
     }
   }
+  const fetchedUrls = new Set<string>();
   for (const candidate of candidates) {
     if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
     try {
       const record = JSON.parse(candidate) as Record<string, unknown>;
       const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
-      const successful = record.execution === "success";
-      const hasObservation = typeof record.observation === "string" && record.observation.trim().length > 0;
-      const hasObservedUrls = Array.isArray(record.observedUrls) && record.observedUrls.some((url) => typeof url === "string" && url.trim().length > 0);
-      if (fetchedAction && successful && (hasObservation || hasObservedUrls)) return true;
+      if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
+      for (const rawUrl of record.observedUrls) {
+        if (typeof rawUrl === "string" && rawUrl.trim()) {
+          for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
+        }
+      }
     } catch {
-      // Malformed or untrusted JSON cannot authorize fetched-evidence claims.
+      // Malformed or untrusted JSON cannot authorize fetched-page claims.
     }
   }
-  return false;
+  return fetchedUrls;
 }
 
-function summaryClaimsFetchedEvidence(summary: string): boolean {
+function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
   const lower = summary.toLowerCase();
   if (lower.includes("no page was fetched") || lower.includes("no pages were fetched") || lower.includes("page was not fetched") || lower.includes("no successful page fetch") || lower.includes("no page fetch succeeded")) return false;
-  return /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i.test(summary);
+  const claimsRetrieval = /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i.test(summary);
+  if (!claimsRetrieval) return false;
+
+  // A successful fetch of one page cannot authorize claims about another search
+  // lead. Require every URL retained alongside a retrieval claim to be one of the
+  // exact URLs recorded by a successful visit/browser_fetch action. A retrieval
+  // claim without an exact observed URL is unverifiable and must be repaired.
+  const summaryUrls = extractAiContextUrls(summary);
+  return summaryUrls.length === 0 || summaryUrls.some((url) => !successfulFetchUrls.has(url));
 }
 
 function summaryResponseFormat(): Record<string, unknown> {
@@ -174,7 +185,7 @@ function buildSummaryPrompt(source: string, maxChars: number, revisionIssue?: st
     "For a long search-only result list, do not enumerate every name or URL: raw results remain in the durable trajectory. Preserve the result count when known, the search/fetch success or failure state, the fact that results are unverified leads, and at most two illustrative names or exact URLs when they materially help the next Investigator. Omit examples rather than exceed the character limit.",
     "For social/comment sections, omit commenter names and profile URLs unless a person is directly identified as the investigation target and the source states their relevant role. Full raw observations remain in durable case history.",
     "Include at most two exact URL tokens. Prefer the primary successfully fetched source URL; include one additional lead URL only when necessary. Omit optional profile/comment URLs and tracking links. Never shorten or normalize a URL.",
-    "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
+    "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. Any page-level retrieval claim must be tied to an exact URL in the successful visit/browser_fetch observedUrls metadata; a successful fetch of one URL never authorizes claims about another lead URL. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
     "State open questions only; do not prescribe a tool, query, or fixed next-step sequence. The Investigator will choose its next action from retained evidence.",
     "Output one JSON object only: {\"summary\":\"...\"}. The summary has a hard limit of " + maxChars + " characters including spaces. Aim at or below " + safeTargetChars + " characters to leave room for model variance. If needed, omit lower-priority names, URLs, and chronology rather than approach the hard limit. Never exceed it.",
     "Every URL in the summary must be an exact URL token copied from the source. Never make up, normalize, shorten, or complete a URL.",
@@ -192,7 +203,7 @@ async function requestSummary(
   allowedSource: string,
   maxChars: number,
   input: AiInvestigationContextCompactionInput,
-  hasSuccessfulFetchEvidence = sourceHasSuccessfulFetchRecord(allowedSource),
+  successfulFetchUrls: ReadonlySet<string> = sourceSuccessfulFetchUrls(allowedSource),
 ): Promise<string | null> {
   try {
     const config = getGroqBossLatencyConfig();
@@ -215,7 +226,7 @@ async function requestSummary(
     });
     let summary = parseSummary(result.raw);
 
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || (summaryClaimsFetchedEvidence(summary) && !hasSuccessfulFetchEvidence)) {
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) {
       // An invalid/oversized first summary may already have dropped facts from
       // the canonical input. Never summarize that lossy intermediate as though
       // it were the source of truth: every repair attempt must be grounded in
@@ -229,7 +240,7 @@ async function requestSummary(
       if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) {
         validationIssues.push("the previous summary included URL tokens that were not copied exactly from the source");
       }
-      if (summary && summaryClaimsFetchedEvidence(summary) && !hasSuccessfulFetchEvidence) {
+      if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) {
         validationIssues.push("the source segment records no successful visit/browser_fetch action, but the previous summary claimed page-level retrieval or verification; search snippets and lead URLs are not fetched evidence");
       }
       const retryPrompt = buildSummaryPrompt(
@@ -304,14 +315,14 @@ export async function summarizeInvestigatorContextWithBoss(
   // the final merged memory remains subject to the caller's unchanged maxChars.
   const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
-  let anySuccessfulFetchEvidence = false;
+  const successfulFetchUrls = new Set<string>();
   // Boss compaction shares the control model's TPM budget with opening and
   // oversight decisions. Serialize independent segments to avoid a burst of
   // concurrent summary reservations; the Investigator still owns research actions.
   for (const chunk of sourceChunks) {
-    const chunkHasSuccessfulFetch = sourceHasSuccessfulFetchRecord(chunk);
-    anySuccessfulFetchEvidence = anySuccessfulFetchEvidence || chunkHasSuccessfulFetch;
-    const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkHasSuccessfulFetch);
+    const chunkSuccessfulFetchUrls = sourceSuccessfulFetchUrls(chunk);
+    for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
+    const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
     if (!summary) return null;
     partialSummaries.push(summary);
   }
@@ -326,7 +337,7 @@ export async function summarizeInvestigatorContextWithBoss(
     const combined = combine(summaries);
     if (combined.length <= promptInputBudget) {
       // Do not return a mechanical concatenation as though it were a summary.
-      return requestSummary(combined, combined, maxChars, input, anySuccessfulFetchEvidence);
+      return requestSummary(combined, combined, maxChars, input, successfulFetchUrls);
     }
 
     const batches: string[][] = [];
@@ -352,7 +363,7 @@ export async function summarizeInvestigatorContextWithBoss(
       const currentBatch = batches.slice(offset, offset + 2);
       for (const batch of currentBatch) {
         const batchSource = combine(batch);
-        const summary = await requestSummary(batchSource, batchSource, nextTarget, input, anySuccessfulFetchEvidence);
+        const summary = await requestSummary(batchSource, batchSource, nextTarget, input, successfulFetchUrls);
         if (!summary) return null;
         reduced.push(summary);
       }
