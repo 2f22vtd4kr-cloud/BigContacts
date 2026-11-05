@@ -202,7 +202,7 @@ describe("AI investigation context compaction", () => {
       "OBSERVED_URLS: " + sourceUrl,
       "OBSERVATION: The official leadership page identifies the current executive team.",
       "BACKGROUND: " + "The case also retains unresolved ownership questions. ".repeat(25),
-    ].join("\\n");
+    ].join("\n");
     const summary = "The fetched leadership page identifies the current executive team. Source: " + sourceUrl;
     bossMocks.generateGroqBossText.mockResolvedValueOnce({
       model: "mock-boss-model",
