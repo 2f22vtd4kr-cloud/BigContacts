@@ -101,7 +101,7 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
 }
 
 /**
- * The compacted trajectory has a machine-authored TURN header for each action.
+ * Runtime action metadata is serialized as standalone JSON records.
  * Search results and arbitrary observation text are not fetch evidence: only a
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
