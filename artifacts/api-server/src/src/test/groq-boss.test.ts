@@ -294,6 +294,108 @@ describe("Groq Boss token-window recovery", () => {
 });
 
 
+describe("Groq Boss context-compaction empty output recovery", () => {
+  beforeEach(() => {
+    delete process.env.GROQ_BOSS_API_KEY;
+    for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+  });
+
+  afterEach(() => {
+    delete process.env.GROQ_BOSS_API_KEY;
+    for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+    vi.restoreAllMocks();
+  });
+
+  it("retries an empty strict-schema compaction response once as JSON-object on the same Boss model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-empty-compaction-key";
+    const requests: Array<{ model: string; response_format?: { type?: string } }> = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string; response_format?: { type?: string } };
+      requests.push(body);
+      if (requests.length === 1) {
+        return new Response(JSON.stringify({
+          choices: [{ finish_reason: "stop", message: { content: "" } }],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ summary: "A bounded source-backed summary." }) } }],
+      }), { status: 200 });
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 2,
+        candidateModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return a structured memory summary.",
+      {
+        cognitiveTask: "context_compaction",
+        responseFormat: {
+          type: "json_schema",
+          json_schema: {
+            name: "apex_investigation_memory_summary",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: { summary: { type: "string" } },
+              required: ["summary"],
+              additionalProperties: false,
+            },
+          },
+        },
+      },
+    );
+
+    expect(result.raw).toBe(JSON.stringify({ summary: "A bounded source-backed summary." }));
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requests.map((request) => request.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
+    expect(requests[0]?.response_format?.type).toBe("json_schema");
+    expect(requests[1]?.response_format?.type).toBe("json_object");
+  });
+
+  it("does not retry an empty non-compaction control response in JSON-object mode", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-empty-control-key";
+    const requests: Array<{ model: string; response_format?: { type?: string } }> = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string; response_format?: { type?: string } };
+      requests.push(body);
+      return new Response(JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: "" } }],
+      }), { status: 200 });
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 2,
+        candidateModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return a control decision.",
+      {
+        cognitiveTask: "control_decision",
+        responseFormat: {
+          type: "json_schema",
+          json_schema: { name: "control", strict: true, schema: { type: "object" } },
+        },
+      },
+    );
+
+    expect(result.raw).toBeNull();
+    expect(result.error).toContain("empty or invalid control response");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requests.map((request) => request.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(requests.every((request) => request.response_format?.type === "json_schema")).toBe(true);
+  });
+});
+
 describe("Groq Boss assignment-only opening response", () => {
   it("accepts only an available Investigator capability and never parses model-supplied candidates", () => {
     const parsed = parseBossDiscoveryResponse(JSON.stringify({
