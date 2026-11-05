@@ -139,12 +139,12 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 }
 
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
-  const retrievalClaim = /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been|is|are)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,80}\\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i;
-  const negativeRetrieval = /\\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\\b.{0,60}\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b/i;
+  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
+  const negativeRetrieval = /\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\b.{0,60}\b(?:fetched|visited|read|reviewed|verified|confirmed)\b/i;
   // Keep a trailing Source:/URL: label attached to the claim immediately
   // before it. Split other clauses so a negative statement cannot mask a
   // separate affirmative claim, and so separately labelled leads stay distinct.
-  const clauses = summary.split(/(?:[.!?]\\s+(?!(?:source(?:\\s+url)?|url|lead\\s+url)\\s*:)|;\\s+(?!(?:source(?:\\s+url)?|url|lead\\s+url)\\s*:)|,\\s+but\\s+|\\bhowever\\b)/i);
+  const clauses = summary.split(/(?:[.!?]\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|;\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|,\s+but\s+|\bhowever\b)/i);
   const affirmativeClaims = clauses.filter((clause) =>
     retrievalClaim.test(clause) && !negativeRetrieval.test(clause),
   );
