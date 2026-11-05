@@ -139,25 +139,24 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 }
 
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
-  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
-  const negativeRetrieval = /\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\b.{0,60}\b(?:fetched|visited|read|reviewed|verified|confirmed)\b/i;
-  // Split mixed statements so a truthful "no page was fetched" clause cannot
-  // mask a separate affirmative fabrication later in the same summary.
-  const affirmativeClaim = summary
-    .split(/(?:[.!?]\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|;\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|,\s+but\s+|\bhowever\b)/i)
-    .some((clause) => retrievalClaim.test(clause) && !negativeRetrieval.test(clause));
-  if (!affirmativeClaim) return false;
+  const retrievalClaim = /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been|is|are)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,80}\\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i;
+  const negativeRetrieval = /\\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\\b.{0,60}\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b/i;
+  // Keep a trailing Source:/URL: label attached to the claim immediately
+  // before it. Split other clauses so a negative statement cannot mask a
+  // separate affirmative claim, and so separately labelled leads stay distinct.
+  const clauses = summary.split(/(?:[.!?]\\s+(?!(?:source(?:\\s+url)?|url|lead\\s+url)\\s*:)|;\\s+(?!(?:source(?:\\s+url)?|url|lead\\s+url)\\s*:)|,\\s+but\\s+|\\bhowever\\b)/i);
+  const affirmativeClaims = clauses.filter((clause) =>
+    retrievalClaim.test(clause) && !negativeRetrieval.test(clause),
+  );
+  if (!affirmativeClaims.length) return false;
 
-  // Bind each affirmative retrieval claim to URLs in its own clause. A
-  // separately labelled search lead may coexist with a fetched-page summary,
-  // but it cannot authorize (or be used to substantiate) a retrieval claim.
-  return summary
-    .split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\bhowever\b)/i)
-    .some((clause) => {
-      if (!retrievalClaim.test(clause) || negativeRetrieval.test(clause)) return false;
-      const clauseUrls = extractAiContextUrls(clause);
-      return clauseUrls.length === 0 || clauseUrls.some((url) => !successfulFetchUrls.has(url));
-    });
+  // Each affirmative claim must carry an exact URL from a successful
+  // visit/browser_fetch. A separately labelled search lead may coexist, but
+  // cannot authorize (or substantiate) a retrieval claim.
+  return affirmativeClaims.some((clause) => {
+    const clauseUrls = extractAiContextUrls(clause);
+    return clauseUrls.length === 0 || clauseUrls.some((url) => !successfulFetchUrls.has(url));
+  });
 }
 
 function summaryResponseFormat(): Record<string, unknown> {

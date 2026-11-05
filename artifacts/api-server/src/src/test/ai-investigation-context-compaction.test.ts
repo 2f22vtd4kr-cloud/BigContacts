@@ -267,7 +267,7 @@ describe("AI investigation context compaction", () => {
       "BACKGROUND: " + "Keep the source-stage distinction explicit. ".repeat(30),
     ].join("\n");
     const falseClaim = "No page was fetched for Apple; the investor page was fetched and confirms ownership. Source: " + searchLeadUrl;
-    const correctedSummary = "The about page was fetched. The investor URL remains an unverified search lead. Source: " + fetchedUrl;
+    const correctedSummary = "The about page was fetched (source: " + fetchedUrl + "). The investor URL remains an unverified search lead (lead URL: " + searchLeadUrl + ").";
     bossMocks.generateGroqBossText
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
