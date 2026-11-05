@@ -263,7 +263,7 @@ async function requestSummary(
       summary = parseSummary(retry.raw);
     }
 
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || (summaryClaimsFetchedEvidence(summary) && !hasSuccessfulFetchEvidence)) return null;
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || (summaryClaimsFetchedEvidence(summary, successfulFetchUrls))) return null;
     return summary;
   } catch {
     // Model/provider failures must become an explicit "no summary" result. The
