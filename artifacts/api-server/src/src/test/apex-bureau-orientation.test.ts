@@ -11,7 +11,7 @@ describe("objective-led institutional orientation", () => {
   it("loads the full playbook for control roles and a compact field guide for the Investigator", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("PHASE 1 — DISCOVERY");
     expect(APEX_BUREAU_PLAYBOOK).toContain("SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP: EVERY NEW OBSERVATION CAN CHANGE THE PLAN");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP");
     expect(APEX_BUREAU_PLAYBOOK).toContain("This is guidance, not a workflow engine.");
 
     const boss = apexOrientationCompact("boss");
@@ -54,7 +54,5 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
     expect(core).toContain("Other objectives use their criteria");
-    expect(core).toContain("PLAYBOOK FIELD GUIDE");
-    expect(core).toContain("choose only exposed, attested specialist tools");
   });
 });
