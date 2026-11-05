@@ -144,7 +144,7 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
   // Split mixed statements so a truthful "no page was fetched" clause cannot
   // mask a separate affirmative fabrication later in the same summary.
   const affirmativeClaim = summary
-    .split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\bhowever\b)/i)
+    .split(/(?:[.!?]\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|;\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|,\s+but\s+|\bhowever\b)/i)
     .some((clause) => retrievalClaim.test(clause) && !negativeRetrieval.test(clause));
   if (!affirmativeClaim) return false;
 
