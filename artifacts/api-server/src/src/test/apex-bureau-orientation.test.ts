@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APEX_BUREAU_PLAYBOOK } from "../lib/apex-bureau-playbook";
 import {
   APEX_WHAT_IS_ATLAS,
   apexInvestigatorSystemCore,
@@ -7,6 +8,22 @@ import {
 } from "../lib/apex-bureau-orientation";
 
 describe("objective-led institutional orientation", () => {
+  it("loads the plain-text playbook for Boss and Right-hand without turning it into Investigator instructions", () => {
+    expect(APEX_BUREAU_PLAYBOOK).toContain("PHASE 1 — DISCOVERY");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP: EVERY NEW OBSERVATION CAN CHANGE THE PLAN");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("This is guidance, not a workflow engine.");
+
+    const boss = apexOrientationCompact("boss");
+    const rightHand = apexOrientationCompact("right_hand");
+    const investigator = apexOrientationCompact("investigator");
+    expect(boss).toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
+    expect(boss).toContain("SpiderFoot");
+    expect(rightHand).toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
+    expect(rightHand).toContain("Holehe");
+    expect(investigator).not.toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
+  });
+
   it("treats HNWI as an optional classification rather than the universal mission", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("people, operating companies, and assets");
     expect(APEX_WHAT_IS_ATLAS).toContain("HNWI is an optional classification");
