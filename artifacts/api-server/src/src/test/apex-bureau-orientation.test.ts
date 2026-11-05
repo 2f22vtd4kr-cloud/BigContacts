@@ -66,8 +66,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
     expect(core).toContain("Other objectives use their criteria");
-    expect(core).toContain("REALISTIC TARGETABILITY (AI JUDGMENT, NO BLACKLIST)");
-    expect(core).toContain("must not select incidental celebrity/household-name person leads");
+    expect(core).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
     expect(core).toContain("Keep source-backed company leads when decision-makers are unresolved");
     expect(core).toContain("AI judgment, no blacklist");
   });
