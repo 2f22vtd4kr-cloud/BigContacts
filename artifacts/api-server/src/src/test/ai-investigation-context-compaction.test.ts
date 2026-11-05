@@ -146,7 +146,7 @@ describe("AI investigation context compaction", () => {
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps intermediate multi-chunk summaries above the 900-character failure floor", async () => {
+  it("gives intermediate multi-chunk summaries bounded headroom for model variance", async () => {
     const source = "CASE MEMORY START " + "x".repeat(12_500);
     const firstChunkSummary = "A".repeat(1_049);
     const secondChunkSummary = "B".repeat(800);
@@ -197,6 +197,25 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
+  });
+
+  it("repairs search-only summaries that falsely claim fetched evidence", async () => {
+    const sourceUrl = "https://example.test/leadership";
+    const source = [
+      'TRAJECTORY: {"action":"web_search","status":"success"}',
+      "SEARCH RESULTS: leadership and investor-relations snippets; no visit or browser_fetch action was executed.",
+      "LEAD_URLS: " + sourceUrl,
+      "The result snippet is unverified until the underlying page is fetched. ".repeat(45),
+    ].join("\\n");
+    const unsafe = "Fetched evidence from leadership and investor-relations pages confirms the named executives. " + sourceUrl;
+    const safe = "Search-only lead: snippets point to possible leadership pages; no page fetch is recorded. " + sourceUrl;
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: unsafe }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: safe }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(safe);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
+    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("no successful visit/browser_fetch action record");
   });
 
   it("treats each compaction input as a partial segment and preserves search-lead provenance", async () => {
