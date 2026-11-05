@@ -139,10 +139,14 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 }
 
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
-  const lower = summary.toLowerCase();
-  if (lower.includes("no page was fetched") || lower.includes("no pages were fetched") || lower.includes("page was not fetched") || lower.includes("no successful page fetch") || lower.includes("no page fetch succeeded")) return false;
-  const claimsRetrieval = /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i.test(summary);
-  if (!claimsRetrieval) return false;
+  const retrievalClaim = /\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b.{0,100}\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b|\\b(?:page|pages|site|website|filing|profile|record|document|source)\\b.{0,100}\\b(?:was|were|has been|have been|is|are)\\s+(?:successfully\\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\\b|\\baccording to\\b.{0,80}\\b(?:page|website|filing|profile|record|source)\\b/i;
+  const negativeRetrieval = /\\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\\b.{0,60}\\b(?:fetched|visited|read|reviewed|verified|confirmed)\\b/i;
+  // Split mixed statements so a truthful "no page was fetched" clause cannot
+  // mask a separate affirmative fabrication later in the same summary.
+  const affirmativeClaim = summary
+    .split(/(?:[.!?]\\s+|;\\s+|,\\s+but\\s+|\\bhowever\\b)/i)
+    .some((clause) => retrievalClaim.test(clause) && !negativeRetrieval.test(clause));
+  if (!affirmativeClaim) return false;
 
   // A successful fetch of one page cannot authorize claims about another search
   // lead. Require every URL retained alongside a retrieval claim to be one of the
