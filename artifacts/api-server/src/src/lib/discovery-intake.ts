@@ -96,9 +96,9 @@ export function buildSourcesToRun(input: {
 }
 
 /**
- * Lightweight public-signal score for "worth a proposal" principals.
- * Higher = prefer admit/cook first. Does not invent facts — only reads text.
- * Fame-only / non-person targets score 0 so they are never preferred under budget.
+ * Deprecated legacy ranking helper. Canonical Apex admission/relevance is AI-owned.
+ * This helper must not make fame/celebrity decisions; it only preserves non-person
+ * shape handling for old callers. It is not part of the canonical launch path.
  */
 export function scoreApproachableCandidate(input: {
   name: string;
@@ -141,9 +141,6 @@ export function scoreApproachableCandidate(input: {
     score += 0.12;
   }
 
-  if (/\b(billionaire|celebrity|socialite|heir|heiress|royalty)\b/i.test(text) && !/\b(founder|ceo|partner|operator|director)\b/i.test(text)) {
-    score -= 0.15;
-  }
   if (/\b(anonymous|undisclosed owner|shell company only)\b/i.test(text)) {
     score -= 0.2;
   }
@@ -153,7 +150,7 @@ export function scoreApproachableCandidate(input: {
     score += 0.05;
   }
 
-  // Blend deterministic fitness so strong operators rise and trophies stay low.
+  // Legacy-only signal blend. Famous-person relevance is intentionally not scored here.
   score = score * 0.7 + fitness.score * 0.3;
 
   return Math.max(0, Math.min(1, Number(score.toFixed(3))));
@@ -171,7 +168,7 @@ export function rankCandidatesForAdmission<T extends { name: string; snippet?: s
 }
 
 /**
- * Drop fame-only trophies from discovery review lists.
+ * Legacy shape annotation only. Fame-based filtering is intentionally absent.
  * Pure corp shells are kept but annotated so operators reframe to officers —
  * never presented as person targets without a person path.
  */
@@ -189,10 +186,6 @@ export function filterDiscoveryCandidatesByFitness<T extends {
       snippet: `${candidate.relevance ?? ""} ${candidate.reachability ?? ""}`,
       personScoped: true,
     });
-    if (fitness.fit === "reject_fame_only") {
-      // Ultra-public household names never enter the discovery review deck.
-      continue;
-    }
     if (fitness.fit === "reject_non_person") {
       const relevance = String(candidate.relevance ?? "").trim();
       const note = "Corp/shell under person-scoped discovery — reframe to named officers/directors/shareholders before admission.";

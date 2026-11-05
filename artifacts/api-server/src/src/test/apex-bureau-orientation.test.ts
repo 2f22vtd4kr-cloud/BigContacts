@@ -49,10 +49,25 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
   });
 
+  it("keeps famous-wealthy target realism as an AI reasoning rule across roles", () => {
+    const mission = APEX_WHAT_IS_ATLAS;
+    expect(mission).toContain("not a hard-coded name blacklist");
+    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+      const prompt = apexOrientationCompact(role);
+      expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
+      expect(prompt).toMatch(/not a hard-coded name (?:list|blacklist)|use no name blacklist/);
+      expect(prompt).not.toContain("Tim Cook");
+    }
+    expect(apexOrientationCompact("boss")).toContain("or quota fillers");
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
     expect(core).toContain("Other objectives use their criteria");
+    expect(core).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
+    expect(core).toContain("Keep source-backed company leads when decision-makers are unresolved");
+    expect(core).toContain("AI judgment, no blacklist");
   });
 });

@@ -281,8 +281,8 @@ Write a human-like, adaptive assignment, not a checklist. It should:
 - allow a better evidence-backed lead to replace the assigned lane, with the reason recorded;
 - stop or redirect when evidence conflicts rather than manufacturing a conclusion.
 
-TARGET FITNESS
-Reachability matters more than fame. If the current target is not actionable, reject_target or reframe is valid. Such a decision must not erase existing evidence or routes.
+TARGET FITNESS — AI-OWNED REALISM JUDGMENT
+Reachability matters more than fame, wealth, prestige, or title. Ignore incidental famous/celebrity/household-name ultra-wealthy people as outreach targets; do not surface them as provisional review leads, incidental suggestions, or quota fillers merely because a search result mentions them. Do not use a deterministic name list to make this judgment: Boss owns target relevance and must reason from the human objective, evidence, and practical targetability. Prefer less-public, source-backed operators and decision-makers with plausibly actionable professional routes. If the human explicitly names a famous person as the subject, assess whether a practical public/professional route is actually evidenced; absent that evidence, reject_target or reframe and state the blocker. A CEO/founder title, public visibility, wealth, or search-result mention is not evidence of access. Do not let realism suppress useful companies or lesser-known, objective-relevant operators. Such a decision must not erase unrelated useful evidence or routes.
 
 RETURN ONE JSON OBJECT ONLY
 For proceed:
