@@ -30,9 +30,6 @@ export type TargetFitnessResult = {
 const OPERATOR_ROLE_RE =
   /\b(founder|co-?founder|cofounder|ceo|chief executive|managing partner|general partner|gp\b|operator|owner-?operator|proprietor|managing director|executive chairman|president(?!\s+of\s+the\s+united)|cto|cfo|coo|chief\s+\w+\s+officer|board\s+member|director(?!\s+of\s+photography)|shareholder|principal)\b/i;
 
-const FAME_ONLY_RE =
-  /\b(celebrity|socialite|influencer|royalty|heir|heiress|pop\s+star|movie\s+star|hollywood|billionaire\s+playboy)\b/i;
-
 const CORP_SHELL_RE =
   /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?)\b/i;
 
@@ -74,7 +71,6 @@ export function evaluateTargetFitness(input: {
 
   const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
   const hasOperatorRole = OPERATOR_ROLE_RE.test(text);
-  const fameOnlySignal = FAME_ONLY_RE.test(text) && !hasOperatorRole;
 
   if (hasOperatorRole) {
     score += 0.3;
@@ -92,11 +88,6 @@ export function evaluateTargetFitness(input: {
     reasons.push("Public contact or leadership footprint signal.");
   }
 
-  if (fameOnlySignal) {
-    score -= 0.25;
-    reasons.push("Fame/celebrity framing without operator role.");
-  }
-
   // Person-scoped budget + pure org shell → reject
   if (input.personScoped !== false && isOrgType && !looksLikePersonName && !hasOperatorRole) {
     return {
@@ -106,18 +97,6 @@ export function evaluateTargetFitness(input: {
         "Target is a corporation/shell with no person path while budget is person-scoped.",
         "Reframe to officers/directors/shareholders of the entity instead.",
       ],
-      roleHints,
-    };
-  }
-
-  // Soft fame penalty that becomes hard when score collapses and name is short public figure pattern
-  if (fameOnlySignal && score < 0.35) {
-    return {
-      fit: "reject_fame_only",
-      score: Math.max(0, Math.min(1, Number(score.toFixed(3)))),
-      reasons: reasons.length
-        ? reasons
-        : ["Fame-only public figure without operator/principal evidence."],
       roleHints,
     };
   }
