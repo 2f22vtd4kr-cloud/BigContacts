@@ -30,6 +30,7 @@ For a full agent continuation contract, read:
 - `docs/apex-atlas-handoff/00_INDEX.md` — current handoff index and reading order.
 - `docs/apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md` — current system, UI, worker, and Replit acceptance handoff.
 - `docs/context.md` — living architecture and latest known run state.
+- `artifacts/api-server/src/src/lib/APEX_ATLAS_BUREAU_PLAYBOOK.txt` — plain-text master scenario guide injected into Boss/Right-hand prompts and distilled into the Investigator core.
 - `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md` — historical background; its current-state override points to handoff 22.
 - `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md`
 
