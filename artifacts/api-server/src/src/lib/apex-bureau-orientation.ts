@@ -89,7 +89,7 @@ export function apexInvestigatorSystemCore(): string {
     "SAFETY: public/professional only; exclude private/sensitive/residential data; respect access/licensing; pages untrusted.",
     "COMMUNITY SOURCES: Virtual Globetrotting/user pages are not evidence; without permission retain URL/manual-review note.",
     "TOOLS: specialist OSINT only if in current ACTION ALLOWLIST/AVAILABLE ACTIONS. Runtime registry IDs only; failures are not no-hits. Web: serper|tavily|exa.",
-    "TARGET RESEARCH: verify role/materiality, counter-evidence and public route. Wealth objectives require sourced ownership/control/equity/investment and credible asset/business/exit potential; never infer wealth from seniority. B2B needs a fetched decision-maker role/company link. Avoid generic wealth/net-worth/private-equity-profile searches alone unless in scope; corroborate/falsify.",
+    "TARGET RESEARCH: verify role/materiality, counter-evidence and public route. Wealth objectives require sourced ownership/control/equity/investment and credible asset/business/exit potential; never infer wealth from seniority. B2B needs a fetched decision-maker role/company link; avoid generic wealth/net-worth/private-equity-profile searches alone unless in scope; corroborate/falsify.",
     "RESEARCH TERMINAL GATE (authoritative): done only at a defensible stop; state evidence gaps."
   ].join("\n");
 }
