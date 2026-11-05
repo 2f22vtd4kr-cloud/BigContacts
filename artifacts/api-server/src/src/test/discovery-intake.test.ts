@@ -77,26 +77,27 @@ describe("discovery-intake", () => {
     expect(ranked[0]!.name).toBe("Active GP");
   });
 
-  it("hard-rejects Cook-class fame-only names and scores them zero", () => {
+  it("leaves famous-person targetability to Boss reasoning rather than deterministic name rules", () => {
     for (const name of ["Tim Cook", "Bernard Arnault", "Jensen Huang", "Warren Buffett"]) {
       const fit = evaluateTargetFitness({ name, personScoped: true });
-      expect(shouldRejectTarget(fit)).toBe(true);
-      expect(fit.fit).toBe("reject_fame_only");
-      expect(scoreApproachableCandidate({ name, snippet: "CEO billionaire" })).toBe(0);
+      expect(shouldRejectTarget(fit)).toBe(false);
+      expect(fit.fit).not.toBe("reject_fame_only");
+      expect(scoreApproachableCandidate({ name, snippet: "CEO billionaire" })).toBeGreaterThan(0);
     }
   });
 
-  it("drops fame-only from discovery review deck and ranks quiet principals first", () => {
+  it("preserves person leads for AI relevance review and annotates only non-person shells", () => {
     const filtered = filterDiscoveryCandidatesByFitness([
       { name: "Tim Cook", type: "person", relevance: "CEO of Apple" },
       { name: "Quiet Operator", type: "person", relevance: "founder managing partner portfolio company" },
       { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
     ]);
-    expect(filtered.some((c) => /tim cook/i.test(c.name))).toBe(false);
+    expect(filtered.some((c) => /tim cook/i.test(c.name))).toBe(true);
     expect(filtered.some((c) => /quiet operator/i.test(c.name))).toBe(true);
     expect(filtered.some((c) => /shell holdings/i.test(c.name))).toBe(true);
     const ranked = rankDiscoveryReviewCandidates(filtered);
-    expect(ranked[0]!.name).toMatch(/quiet operator/i);
+    expect(ranked.some((c) => /tim cook/i.test(c.name))).toBe(true);
+    expect(ranked.some((c) => /quiet operator/i.test(c.name))).toBe(true);
   });
 
   it("keeps quiet person-shaped officers above zero score", () => {
@@ -111,7 +112,7 @@ describe("discovery-intake", () => {
 import { computeDiscoveryQualityMetrics } from "../lib/discovery-metrics";
 
 describe("discovery quality metrics", () => {
-  it("counts fame rejects and person-shaped rates without inventing contacts", () => {
+  it("counts person-shaped rates without deterministic fame rejection or invented contacts", () => {
     const metrics = computeDiscoveryQualityMetrics([
       { name: "Tim Cook", type: "person", relevance: "CEO" },
       {
@@ -123,9 +124,9 @@ describe("discovery quality metrics", () => {
       { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
     ]);
     expect(metrics.total).toBe(3);
-    expect(metrics.fameRejected).toBe(1);
+    expect(metrics.fameRejected).toBe(0);
     expect(metrics.nonPersonRejected).toBe(1);
-    expect(metrics.personShaped).toBe(1);
+    expect(metrics.personShaped).toBe(2);
     expect(metrics.withAnyEvidence).toBe(1);
     expect(metrics.evidenceRate).toBeCloseTo(1 / 3, 3);
   });
