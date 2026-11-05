@@ -53,6 +53,8 @@ describe("source-grounded Boss opening contract", () => {
       motivation: "Identify useful private-company leads.",
     }, [investigator]);
     expect(prompt).toContain("select an available Investigator execution capability");
+    expect(prompt).toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
+    expect(prompt).toContain("This is guidance, not a workflow engine.");
     expect(prompt).toContain("Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction.");
     expect(prompt).toContain("Do not invent or imply that any target has been discovered.");
     expect(prompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
