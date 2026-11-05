@@ -106,10 +106,20 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
 function sourceHasSuccessfulFetchRecord(source: string): boolean {
-  // Trajectory metadata is serialized as a standalone JSON object by the runtime.
-  // Do not infer a fetch from URLs, snippets, prose, or model-generated summaries.
-  for (const line of source.split("\n")) {
-    const candidate = line.trim();
+  // Only parse JSON records under runtime-authored trajectory metadata headings.
+  // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
+  const lines = source.split("\\n");
+  const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
+  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS)/.test(line));
+  const candidates: string[] = [];
+  if (metadataIndex >= 0 && lines[metadataIndex + 1]) candidates.push(lines[metadataIndex + 1]!.trim());
+  if (durableIndex >= 0) {
+    for (const line of lines.slice(durableIndex + 1)) {
+      const candidate = line.trim();
+      if (candidate.startsWith("{") && candidate.endsWith("}")) candidates.push(candidate);
+    }
+  }
+  for (const candidate of candidates) {
     if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
     try {
       const record = JSON.parse(candidate) as Record<string, unknown>;
@@ -119,7 +129,7 @@ function sourceHasSuccessfulFetchRecord(source: string): boolean {
       const hasObservedUrls = Array.isArray(record.observedUrls) && record.observedUrls.some((url) => typeof url === "string" && url.trim().length > 0);
       if (fetchedAction && successful && (hasObservation || hasObservedUrls)) return true;
     } catch {
-      // Non-record JSON and untrusted observations cannot authorize fetch claims.
+      // Malformed or untrusted JSON cannot authorize fetched-evidence claims.
     }
   }
   return false;
