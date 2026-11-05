@@ -776,7 +776,7 @@ export class ResearchIntelligenceEngine {
         importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : 0.5,
         uncertainty: 0.8,
         discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
-        status: action.execution === "success" ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
+        status: action.useful ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
       });
     }
     const researchQuestions = [...researchQuestionMap.values()].slice(-24);

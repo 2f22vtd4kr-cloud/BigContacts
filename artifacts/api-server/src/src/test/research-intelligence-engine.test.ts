@@ -149,6 +149,47 @@ describe("Apex research intelligence", () => {
   });
 
 
+  it("keeps a successful search-only research question open until claim-grade evidence is accepted", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "search-question-open", target: "Example Company", objective: "identify operating companies and decision-makers" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      execution: "success",
+      args: {
+        purpose: "Verify a real operating company's current decision-maker",
+        hypothesis: "A public leadership page will identify the current decision-maker",
+        expectedInformationGain: 0.8,
+      },
+      urls: ["https://example.com/leadership"],
+      observation: "Search snippets mention Example Company and a leadership page.",
+      findings: [],
+    });
+    const state = engine.buildContext();
+    const question = state.researchQuestions.find((item) => item.question === "Verify a real operating company's current decision-maker");
+    expect(state.evidenceCount).toBe(0);
+    expect(state.recentActions[0]?.useful).toBe(false);
+    expect(question?.status).toBe("open");
+  });
+
+  it("answers a research question only after a fetched source binds a useful finding", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "fetched-question-answered", target: "Example Operating Company", objective: "identify operating companies and decision-makers" });
+    const sourceUrl = "https://example.com/about";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      args: { purpose: "Verify the company's operating status", hypothesis: "Example Operating Company is an operating business" },
+      urls: [sourceUrl],
+      observation: "Example Operating Company is an operating business providing logistics services.",
+      findings: [{ vectorType: "other", value: "an operating business", sourceUrls: [sourceUrl] }],
+    });
+    const state = engine.buildContext();
+    const question = state.researchQuestions.find((item) => item.question === "Verify the company's operating status");
+    expect(state.evidenceCount).toBe(1);
+    expect(state.recentActions[0]?.useful).toBe(true);
+    expect(question?.status).toBe("answered");
+  });
+
   it("does not treat subdomains of one publisher as independent planning source families", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "publisher-family-planning", target: "Jane Example", objective: "verify organization and role" });
     engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/about"], observation: "Jane Example is founder of Example Inc.", findings: [{ vectorType: "other", value: "founder of Example Inc.", personName: "Jane Example", sourceUrls: ["https://example.com/about"] }] });
