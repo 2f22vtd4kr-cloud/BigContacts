@@ -274,7 +274,7 @@ export async function summarizeInvestigatorContextWithBoss(
   // A 1,200-character floor rejected otherwise usable 1,393-character partial
   // memories in the live run. Give intermediate model summaries bounded headroom;
   // the final merged memory remains subject to the caller's unchanged maxChars.
-  const partialTarget = Math.min(1_600, Math.max(1_600, Math.floor((maxChars * 1.5) / sourceChunks.length)));
+  const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
   let anySuccessfulFetchEvidence = false;
   // Boss compaction shares the control model's TPM budget with opening and
