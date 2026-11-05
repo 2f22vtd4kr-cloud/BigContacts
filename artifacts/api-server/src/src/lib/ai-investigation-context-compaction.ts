@@ -139,7 +139,7 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 }
 
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
-  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
+  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
   const negativeRetrieval = /\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\b.{0,60}\b(?:fetched|visited|read|reviewed|verified|confirmed)\b/i;
   // Split mixed statements so a truthful "no page was fetched" clause cannot
   // mask a separate affirmative fabrication later in the same summary.
