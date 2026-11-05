@@ -182,7 +182,21 @@ function normalizeReasoningEffort(value?: string): "low" | "medium" | "high" {
 function extractText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const choice = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices?.[0];
-  return typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
+  const content = choice?.message?.content;
+  if (typeof content === "string") return content.trim();
+  // Keep the transport tolerant of text-block content variants without ever
+  // treating reasoning, tool calls, refusals, or other metadata as model output.
+  if (Array.isArray(content)) {
+    return content
+      .filter((part): part is { type?: unknown; text: string } =>
+        Boolean(part && typeof part === "object")
+        && typeof (part as { text?: unknown }).text === "string"
+        && ((part as { type?: unknown }).type === undefined || (part as { type?: unknown }).type === "text"))
+      .map((part) => part.text.trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
 }
 
 function groqHardRateLimit(response: Response, body: string): boolean {
@@ -495,6 +509,28 @@ async function generateGroqBossTextImpl(
             providerErrorCode: null,
             failureClass: "invalid_response",
           });
+          if (
+            options?.cognitiveTask === "context_compaction"
+            && responseFormat?.type === "json_schema"
+            && !jsonObjectFallbackUsed
+          ) {
+            // Some successful Groq GPT-OSS responses can terminate without a
+            // visible message body under strict JSON-schema mode. Retry this
+            // compaction request once on the SAME Boss model/credential using
+            // JSON-object mode. The caller still parses and validates the
+            // summary, including exact URL provenance and size limits.
+            jsonObjectFallbackUsed = true;
+            logger.warn({
+              role: "groq_boss",
+              phase: "retrying_empty_context_compaction_with_json_object",
+              model,
+              keyName: entry.name,
+              httpStatus: response.status,
+              failureClass: "invalid_response",
+              cognitiveTask: "context_compaction",
+            }, "Groq Boss returned empty structured compaction content; retrying the same model with JSON-object response mode");
+            continue;
+          }
           lastError = `Groq Boss ${model} returned an empty or invalid control response.`;
           logger.warn({
             role: "groq_boss",
@@ -503,6 +539,7 @@ async function generateGroqBossTextImpl(
             keyName: entry.name,
             httpStatus: response.status,
             failureClass: "invalid_response",
+            cognitiveTask: options?.cognitiveTask ?? "control_decision",
           }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
