@@ -237,6 +237,27 @@ describe("AI investigation context compaction", () => {
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
   });
 
+  it("does not let one successful fetch authorize a different search-lead URL", async () => {
+    const fetchedUrl = "https://company.example/about";
+    const searchLeadUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "SEARCH-ONLY LEAD: " + searchLeadUrl,
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The about page was fetched, but the investor page remains only a search lead.",
+      "BACKGROUND: " + "Keep the source-stage distinction explicit. ".repeat(30),
+    ].join("\\n");
+    const falseClaim = "The investor page was fetched and confirms ownership. Source: " + searchLeadUrl;
+    const correctedSummary = "The about page was fetched. The investor URL remains an unverified search lead. Source: " + fetchedUrl;
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
+    expect(String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "")).toContain("exact URL in the successful visit/browser_fetch observedUrls metadata");
+  });
+
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
     const sourceUrl = "https://source.example/posts/award-42";
     const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
