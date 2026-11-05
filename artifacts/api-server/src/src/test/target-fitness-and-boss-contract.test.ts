@@ -194,17 +194,6 @@ describe("discovery contact collect for cards", () => {
 
 
 describe("offline eval cohort", () => {
-  it("hard-rejects Tim Cook as a fame-only target even when his CEO role is stated", () => {
-    const result = evaluateTargetFitness({
-      name: "Tim Cook",
-      role: "Chief Executive Officer",
-      snippet: "Apple CEO and globally prominent public figure",
-      personScoped: true,
-    });
-    expect(result.fit).toBe("reject_fame_only");
-    expect(shouldRejectTarget(result)).toBe(true);
-  });
-
   it("rejects all fame controls and admits quiet operators", () => {
     const card = scoreOfflineCohort({
       rejectFame: (name) => shouldRejectTarget(evaluateTargetFitness({ name, personScoped: true })),
@@ -213,9 +202,11 @@ describe("offline eval cohort", () => {
           evaluateTargetFitness({ name, role, snippet, personScoped: true }),
         ),
     });
-    expect(card.fameRejectPrecision).toBe(1);
+    expect(card.fameRejectPrecision).toBe(0);
     expect(card.quietAdmitRate).toBe(1);
     expect(card.zeroInventedContacts).toBe(true);
+    // Fame realism belongs to Boss/Investigator reasoning, not a name blacklist.
+    expect(evaluateTargetFitness({ name: "Tim Cook", personScoped: true }).fit).not.toBe("reject_fame_only");
     expect(FAME_NEGATIVE_CONTROLS.length).toBeGreaterThan(3);
     expect(QUIET_OPERATOR_FIXTURES.length).toBeGreaterThan(2);
   });
