@@ -49,6 +49,16 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
   });
 
+  it("makes realistic targetability a model-owned rule across the Bureau", () => {
+    expect(APEX_WHAT_IS_ATLAS).toContain("not a hard-coded name blacklist");
+    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+      const prompt = apexOrientationCompact(role);
+      expect(prompt).toMatch(/REALISM[\\s\\S]*famous[\\s\\S]*wealthy people/i);
+      expect(prompt).toContain("not a hard-coded name");
+    }
+    expect(apexOrientationCompact("boss")).toContain("do not surface them incidentally");
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
