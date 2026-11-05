@@ -461,7 +461,7 @@ export type GroqBossDiscoveryInput = {
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  return `You are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
+  return `${apexOrientationCompact("boss")}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 

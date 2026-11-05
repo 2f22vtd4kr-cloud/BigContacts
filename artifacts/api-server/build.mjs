@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, writeFile } from "node:fs/promises";
+import { copyFile, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
@@ -145,6 +145,12 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // The plain-text institutional playbook is loaded at runtime by the bundled control-role prompts.
+  await copyFile(
+    path.resolve(artifactDir, "src/src/lib/APEX_ATLAS_BUREAU_PLAYBOOK.txt"),
+    path.join(distDir, "APEX_ATLAS_BUREAU_PLAYBOOK.txt"),
+  );
 
   await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt }) + "\n");
 }
