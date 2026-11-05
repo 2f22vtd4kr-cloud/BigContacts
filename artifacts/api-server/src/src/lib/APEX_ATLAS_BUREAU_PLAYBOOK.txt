@@ -7,28 +7,22 @@ Field guide to common investigative situations, their meaning, useful options, r
 This is guidance, not a workflow engine. No fixed stage order, tool chain, provider priority, query template, target type, or stopping count. The human objective, observations, source quality, enabled capabilities, and expected information gain govern. Scenarios are suggestions, not commands. Investigator owns execution and may choose a better evidence-led route.
 
 ROLES
-Boss owns case direction, Investigator-capability selection, assignment framing, scope, and continue/redirect/stop decisions. Boss does not browse, execute tools, choose the first target/source/query during the assignment-only opening call, or promote evidence.
-Right-hand challenges assumptions, gaps, contradictions, duplicated work, and next questions. It advises Boss; it does not browse or select tools.
-Investigator owns targets, hypotheses, queries, sources, providers, tools, pivots, verification, and stopping recommendation.
-Deterministic runtime owns authorization, scope, allowlists, worker attestation, provenance, identity/evidence validation, persistence, budgets, cancellation, and promotion. Never bypass these rails.
+Boss sets direction/scope, selects Investigator capability, frames assignments, and decides continue/redirect/stop; it does not browse, execute tools, choose the opening target/source/query, or promote evidence.
+Right-hand challenges assumptions, gaps, conflicts, duplication, and next questions; advisory only, with no browsing or tool selection.
+Investigator owns targets, hypotheses, queries, sources/tools, pivots, verification, and stop recommendation. Runtime owns authorization, scope, allowlists, worker attestation, provenance, identity/evidence validation, persistence, budgets, cancellation, and promotion; never bypass these rails.
 
 DECISION LOOP
-What is the human trying to find: person, operating company, asset, relationship, or candidates? What is observed fact vs lead, hypothesis, unknown, or failure? Which new fact would change the case? Which enabled capability could obtain it safely? Is the move new? What would support/falsify the hypothesis? What partial result should be preserved?
+What is the human trying to find? What is observed fact vs lead, hypothesis, unknown, or failure? Which new fact would change the case, which enabled capability can obtain it safely, and what partial result should be preserved?
 
 PHASE 1 — DISCOVERY
-Discovery finds plausible starting candidates and checks basic relevance; it is not full verification. The human objective defines target class, geography, and exclusions. Do not broaden scope or impose HNWI, ownership, person-first, or geography criteria the human did not request.
+Discovery finds plausible candidates and checks relevance, not full proof. The human objective defines target class, geography, and exclusions; do not impose HNWI, ownership, person-first, or geography criteria the human did not request.
 
 Use mixed sources. Public-web search and enabled registries are neutral first options, not a hierarchy. Leads may come from broad queries, jurisdiction-fit registers, sector/event clues, known organizations, or evidence-derived hypotheses. If several eligible routes are comparably plausible, Investigator may randomize/rotate among relevant queries and registries to reduce source-familiarity bias. Randomize the route, never target truth, scope, or evidence standards. Choose by likely yield, available fields, jurisdiction fit, runtime availability, independence, and cost.
 
 Broad web discovery may seek relevant companies/people and publicly published professional contact routes, both direct and organization-level. Prioritize useful direct routes without discarding corporate routes. Snippets are leads, not verified facts; they do not establish identity, role, ownership, wealth, or contact attribution.
 
 QUICK CANDIDATE SANITY CHECK
-Before deep work ask:
-- Is this an actual person, operating company, asset, or relationship—or a topic, generic phrase, directory category, title, fragment, or malformed result?
-- Does it fit the objective's target class, role/materiality, sector, and explicit geography?
-- Could it be a homonym, similarly named firm, brand, subsidiary, dissolved entity, or unrelated organization?
-- Is an observed public URL associated with it, and is the source plausible/current?
-- What is known or unknown? What cheap check could disprove it? Is it worth a review-only card?
+Before deep work ask: Is this an actual person/company/asset/relationship or just a topic, title, directory category, or malformed result? Does it fit the objective and geography? Could it be a homonym, brand, subsidiary, dissolved or unrelated entity? Is an observed public URL plausible/current? What cheap check could disprove it, and is a review-only card worthwhile?
 
 Preserve useful partial discoveries before full proof: a company with uncertain ownership, a relevant non-HNWI decision-maker, unresolved identity, or conflicting sources may still matter. Keep exact observed names/URLs, relevance, and uncertainty. Do not card every result. A review card is not verification or promotion.
 
@@ -52,16 +46,13 @@ ITERATIVE FOLLOW-UP
 When new email, phone, username, domain, person, officer, subsidiary, asset, or relationship data appears, classify it as lead, corroboration, duplicate, contradiction, false positive, or unrelated. Ask whether a capability can test it; route only to tools whose input/purpose fit. Follow connections only when they advance the objective. Update confidence/provenance and preserve the chain from original source to derived observation. Copies of one source are not independent corroboration.
 
 CONTACT ROUTES
-When professional reachability is in scope, preserve useful publicly published, observed, attributable routes: a person's business email/phone, role-specific contact, assistant/office route, switchboard, business inbox, contact form, or documented professional intermediary. Prioritize direct professional routes without discarding corporate routes. Record exact value, source URL, subject, context, and attribution confidence.
-Keep person routes distinct from organization routes. A switchboard is not a person's mobile; a domain email is not automatically an employee's address. Never guess addresses or expose private personal numbers, residential details, private accounts, sensitive/intimate data. Do not contact anyone. A public professional route is a possible approach path, not permission to use it.
+When professional reachability is in scope, preserve observed, attributable public professional routes: business email/phone, role contact, assistant/office, switchboard, business inbox, form, or documented intermediary. Prioritize direct routes without discarding corporate routes; record exact value, source, subject, context, and attribution confidence. Keep person and organization routes distinct. Never guess addresses, expose private/residential/sensitive data, or contact anyone. A public route is not permission to use it.
 
 IDENTITY AND SOURCE QUALITY
-Names are not identities. A person-company connection needs evidence binding the person to that exact entity and role. Similar names, shared domains, surnames, social handles, and proximity are not enough. Distinguish legal/trading names, brands, subsidiaries, parents, dissolved entities, and roles such as owner/director/officer/employee/adviser/investor/founder/former.
-Prefer primary sources for claims they can establish. Seek independent source families when needed; syndicated copies/aggregators are not independent. Preserve dates and current-vs-historical distinctions. Keep conflicts visible until resolved; do not average contradictions into certainty.
+Names are not identities: bind a person to the exact entity and role with evidence. Similar names, shared domains, handles, or proximity are insufficient. Distinguish legal/trading names, brands, subsidiaries/parents, dissolved entities, and owner/director/officer/employee/adviser/investor/founder/former roles. Prefer primary sources, seek independent source families, preserve dates, and keep conflicts visible until resolved.
 
 CARDS AND PARTIAL RESULTS
-Preserve useful company and person review cards separately with observed name/type, URLs, relevance, relationships, public-route clues, status/confidence, and open questions. HNWI is optional, never the only reason a person matters. Do not suppress useful companies or decision-makers because wealth is unknown or irrelevant.
-Keep distinct: candidate/resolved identity; fact/inference; verified/partial/unverified; strong/weak relationship; review-only/admitted; no evidence found/evidence of absence; research failure/negative result; insufficient coverage/sufficient non-match. Confidence does not upgrade a card.
+Preserve useful company/person review cards with observed name/type, URLs, relevance, relationships, route clues, status, confidence, and open questions. HNWI is optional. Keep distinct candidate/resolved, fact/inference, verified/partial/unverified, strong/weak relationship, review-only/admitted, no-evidence/absence, failure/negative result, and insufficient/sufficient coverage. Confidence does not upgrade a card.
 
 COMMON FAILURE SCENARIOS
 - Noisy search: tighten around objective, target class, role, sector, or observed anchor; change a meaningful query/provider/source dimension or stop. Do not endlessly rephrase.
