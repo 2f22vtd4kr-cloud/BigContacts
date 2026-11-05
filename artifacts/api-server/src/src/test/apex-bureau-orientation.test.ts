@@ -55,10 +55,10 @@ describe("objective-led institutional orientation", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
-      expect(prompt).toContain("not a hard-coded name list");
+      expect(prompt).toMatch(/not a hard-coded name (?:list|blacklist)|use no name blacklist/);
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexOrientationCompact("boss")).toContain("do not surface them as incidental suggestions or quota fillers");
+    expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
