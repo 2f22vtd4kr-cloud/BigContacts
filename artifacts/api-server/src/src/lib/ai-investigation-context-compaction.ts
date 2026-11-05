@@ -102,14 +102,14 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
 
 /** A summary may only upgrade a search lead when this segment records a successful fetch action. */
 function sourceRecordsSuccessfulFetch(source: string): boolean {
-  const actionFirst = /(?:action|tool|type)\\s*["']?\\s*[:=]\\s*["']?(?:visit|browser_fetch)["']?[\\s\\S]{0,500}?(?:status|outcome|state)\\s*["']?\\s*[:=]\\s*["']?(?:success|succeeded|completed|ok)["']?/iu;
-  const statusFirst = /(?:status|outcome|state)\\s*["']?\\s*[:=]\\s*["']?(?:success|succeeded|completed|ok)["']?[\\s\\S]{0,500}?(?:action|tool|type)\\s*["']?\\s*[:=]\\s*["']?(?:visit|browser_fetch)["']?/iu;
+  const actionFirst = /(?:action|tool|type)\s*["']?\s*[:=]\s*["']?(?:visit|browser_fetch)["']?[\s\S]{0,500}?(?:status|outcome|state)\s*["']?\s*[:=]\s*["']?(?:success|succeeded|completed|ok)["']?/iu;
+  const statusFirst = /(?:status|outcome|state)\s*["']?\s*[:=]\s*["']?(?:success|succeeded|completed|ok)["']?[\s\S]{0,500}?(?:action|tool|type)\s*["']?\s*[:=]\s*["']?(?:visit|browser_fetch)["']?/iu;
   return actionFirst.test(source) || statusFirst.test(source);
 }
 
 function summaryOverstatesFetch(summary: string, source: string): boolean {
   if (sourceRecordsSuccessfulFetch(source)) return false;
-  return /\\b(?:fetched evidence|fetched page|fetched source|visited page|visited website|successfully fetched|successfully visited|page was fetched|page has been fetched|source was fetched|source has been fetched|page observation)\\b/iu.test(summary);
+  return /\b(?:fetched evidence|fetched page|fetched source|visited page|visited website|successfully fetched|successfully visited|page was fetched|page has been fetched|source was fetched|source has been fetched|page observation)\b/iu.test(summary);
 }
 
 function summaryResponseFormat(): Record<string, unknown> {
