@@ -49,6 +49,17 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
   });
 
+  it("hard-excludes fame-only unreachable public figures from discovery candidates", () => {
+    const mission = APEX_WHAT_IS_ATLAS;
+    const compactBoss = apexOrientationCompact("boss");
+    const compactInvestigator = apexOrientationCompact("investigator");
+    expect(mission).toContain("not realistic targets");
+    expect(mission).toContain("do not select them as discovery candidates");
+    expect(compactBoss).toContain("Tim Cook is a known fame-only negative control");
+    expect(compactInvestigator).toContain("ignore incidental mentions");
+    expect(compactInvestigator).toContain("not discovery targets or review-card leads");
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
