@@ -27,41 +27,6 @@ export type TargetFitnessResult = {
   roleHints: string[];
 };
 
-/** Ultra-public household names that are almost never realistic contact targets. */
-const FAME_ONLY_EXACT = new Set(
-  [
-    "tim cook",
-    "timothy cook",
-    "bernard arnault",
-    "jensen huang",
-    "jen-hsun huang",
-    "elon musk",
-    "jeff bezos",
-    "warren buffett",
-    "bill gates",
-    "mark zuckerberg",
-    "larry page",
-    "sergey brin",
-    "sundar pichai",
-    "satya nadella",
-    "jamie dimon",
-    "larry ellison",
-    "michael bloomberg",
-    "oprah winfrey",
-    "taylor swift",
-    "kim kardashian",
-    "kanye west",
-    "ye west",
-    "donald trump",
-    "barack obama",
-    "joe biden",
-    "vladimir putin",
-    "xi jinping",
-    "jeffery bezos",
-    "jeffery p. bezos",
-  ].map((s) => s.toLowerCase()),
-);
-
 const OPERATOR_ROLE_RE =
   /\b(founder|co-?founder|cofounder|ceo|chief executive|managing partner|general partner|gp\b|operator|owner-?operator|proprietor|managing director|executive chairman|president(?!\s+of\s+the\s+united)|cto|cfo|coo|chief\s+\w+\s+officer|board\s+member|director(?!\s+of\s+photography)|shareholder|principal)\b/i;
 
@@ -72,16 +37,6 @@ const CORP_SHELL_RE =
   /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?)\b/i;
 
 const PERSON_NAME_RE = /^[A-Za-zÀ-ÿ'’.\-]+(?:\s+[A-Za-zÀ-ÿ'’.\-]+){0,4}$/;
-
-function normalizeName(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s'-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /**
  * Evaluate whether a proposed target is fit for person-scoped OSINT budget.
@@ -100,7 +55,6 @@ export function evaluateTargetFitness(input: {
   const role = (input.role ?? "").trim();
   const footprint = `${role}\n${input.snippet ?? ""}\n${input.notes ?? ""}`.trim();
   const text = `${name}\n${footprint}`.toLowerCase();
-  const normalized = normalizeName(name);
   const reasons: string[] = [];
   const roleHints: string[] = [];
   let score = 0.4;
@@ -110,19 +64,6 @@ export function evaluateTargetFitness(input: {
       fit: "reject_non_person",
       score: 0,
       reasons: ["Empty or invalid name."],
-      roleHints: [],
-    };
-  }
-
-  // Hard reject: known fame-only household names (Cook / Buffett class).
-  if (FAME_ONLY_EXACT.has(normalized)) {
-    return {
-      fit: "reject_fame_only",
-      score: 0.05,
-      reasons: [
-        `"${name}" is an ultra-public household name with no realistic direct contact path under product rules.`,
-        "Reachability > fame; operators > trophies.",
-      ],
       roleHints: [],
     };
   }
