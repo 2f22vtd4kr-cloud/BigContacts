@@ -5454,7 +5454,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? suppliedLastObservation
       : "";
     const latestTrajectoryRecovery = input.trajectoryRecords.length && (!hasLatestRecordContext || !hasLatestQueryContext)
-      ? buildLatestRecordTail(320, 2)
+      ? latestRecord
+        ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + ": " + JSON.stringify(compactRecordEnvelope(latestRecord, 320, 2))
+        : buildLatestRecordTail(320, 2)
       : "";
     const pinnedInventoryRecovery = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     const recoveryObservation = [
