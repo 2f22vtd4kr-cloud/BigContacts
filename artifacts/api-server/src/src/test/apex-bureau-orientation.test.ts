@@ -67,6 +67,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR SCENARIO");
     expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
     expect(apexInvestigatorSystemCore()).toContain("One focused discovery query");
+    expect(apexInvestigatorSystemCore()).toContain("one alternative only if no useful lead emerges");
     expect(apexInvestigatorSystemCore()).toContain("No duplicate LinkedIn/Google/provider fan-out");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       expect(apexOrientationCompact(role)).toContain("casinos in Slovenia");
