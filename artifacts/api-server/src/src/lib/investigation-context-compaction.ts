@@ -77,7 +77,7 @@ export function shouldCreateInvestigatorResearchMemory(input: {
 }): boolean {
   if (input.hasExistingMemory || input.historicalRecordCount <= 0) return false;
   // Any older record will be reduced by the bounded archive projection below.
-  // Hand it to Boss first, even when the raw payload is small: the compactor
+  // Hand it to the AI memory compactor first, even when the raw payload is small: the compactor
   // returns small inputs losslessly and semantically summarizes larger ones.
   return true;
 }

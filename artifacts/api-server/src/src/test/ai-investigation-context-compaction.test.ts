@@ -13,7 +13,7 @@ vi.mock("../lib/groq-right-hand-reasoning", () => ({
   runGroqRightHandMemoryCompaction: memoryMocks.runGroqRightHandMemoryCompaction,
 }));
 
-import { extractAiContextUrls, summarizeInvestigatorContextWithBoss } from "../lib/ai-investigation-context-compaction";
+import { extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
 
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe("AI investigation context compaction", () => {
       "Seek public professional contact routes; do not infer wealth.",
     ].join("\n");
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBeNull();
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBeNull();
     expect(memoryMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
     expect(memoryMocks.runGroqRightHandMemoryCompaction).not.toHaveBeenCalled();
   });
@@ -46,7 +46,7 @@ describe("AI investigation context compaction", () => {
       "[OBJECTIVE MIDDLE OMITTED; quoted example from a public page]",
     ].join("\n\n");
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(source);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(source);
     expect(memoryMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
     expect(memoryMocks.runGroqRightHandMemoryCompaction).not.toHaveBeenCalled();
   });
@@ -72,7 +72,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, status: "completed" })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    const result = await summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 });
+    const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
 
     expect(result).toBe(correctedSummary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(2);
@@ -111,7 +111,7 @@ describe("AI investigation context compaction", () => {
         attempts: [],
       });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
     const firstOptions = memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[2];
     const repairOptions = memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[2];
@@ -133,7 +133,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
 
     const prompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("hard limit of 1200 characters");
@@ -156,7 +156,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(3);
     const firstPrompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[0] ?? "");
@@ -183,7 +183,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(4);
     const firstPrompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[0] ?? "");
@@ -208,7 +208,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(2);
     expect(String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("REPAIR REQUIRED");
     expect(String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("unverified search leads");
@@ -227,7 +227,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(corrected);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(corrected);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(2);
   });
 
@@ -247,7 +247,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(1);
   });
 
@@ -267,7 +267,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(2);
     expect(String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
   });
@@ -290,7 +290,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(1);
   });
 
@@ -305,7 +305,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(1);
     expect(extractAiContextUrls(`${sourceUrl}):`)).toEqual([sourceUrl]);
     expect(extractAiContextUrls(`${sourceUrl}:`)).toEqual([`${sourceUrl}:`]);
@@ -326,7 +326,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: invalid }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: valid }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(3);
     expect(String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
@@ -337,7 +337,7 @@ describe("AI investigation context compaction", () => {
     const source = "CANONICAL CASE MEMORY " + "Named source facts and unresolved questions. ".repeat(45);
     memoryMocks.runGroqRightHandMemoryCompaction.mockRejectedValueOnce(new Error("mock provider unavailable"));
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(1);
   });
 
@@ -357,7 +357,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
     const prompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("one chunk or segment of a larger case memory");
