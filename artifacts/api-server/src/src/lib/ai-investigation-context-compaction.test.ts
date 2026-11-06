@@ -54,6 +54,37 @@ describe("AI memory compaction model-scoped recovery", () => {
     });
   });
 
+  it("recovers a Groq HTTP 413 model TPM throttle on the same-role 120B model", async () => {
+    const summary = "The source contains one useful unverified company lead.";
+    mockedRun
+      .mockResolvedValueOnce({
+        status: "unavailable",
+        model: "openai/gpt-oss-20b",
+        raw: null,
+        error: 'Groq Right-hand openai/gpt-oss-20b provider_rejected HTTP 413: {"providerCode":"rate_limit_exceeded","body":{"message":"Rate limit reached on tokens per minute (TPM)"}}',
+      })
+      .mockResolvedValueOnce({
+        status: "completed",
+        model: "openai/gpt-oss-120b",
+        raw: JSON.stringify({ summary }),
+        error: null,
+      });
+
+    const result = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: "CASE MEMORY\\n" + "Observed but unverified context. ".repeat(45),
+      maxChars: 900,
+      jobId: "compaction-413-recovery",
+      caseId: 19,
+    });
+
+    expect(result).toBe(summary);
+    expect(mockedRun).toHaveBeenCalledTimes(2);
+    expect(mockedRun.mock.calls[1]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-120b",
+      allowModelFallback: false,
+    });
+  });
+
   it("does not use the 120B recovery path for a daily token cap", async () => {
     mockedRun.mockResolvedValueOnce({
       status: "unavailable",
