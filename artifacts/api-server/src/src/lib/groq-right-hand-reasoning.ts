@@ -31,7 +31,7 @@ const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL = 1;
 const MAX_TOKEN_RATE_LIMIT_WAIT_MS = 60_000;
-const MAX_PROMPT_CHARS = 20_000;
+export const GROQ_RIGHT_HAND_GROQ_RIGHT_HAND_MAX_PROMPT_CHARS = 20_000;
 const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
 let groqRightHandRequestGate: Promise<void> = Promise.resolve();
@@ -256,7 +256,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  const distinctEntries=configuredEntries.filter((entry,index,all)=>all.findIndex(other=>fingerprint(other.key)===fingerprint(entry.key))===index);
  const entry=distinctEntries[0];
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
- const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
+ const normalizedUser=user.trim(); if(normalizedUser.length>GROQ_RIGHT_HAND_MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${GROQ_RIGHT_HAND_MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  let currentUser=normalizedUser;
  const contractRecoveryPrompt="FORMAT RECOVERY: The previous JSON did not satisfy the caller's exact task-specific contract. Re-evaluate the same request and return exactly the required keys with no extras. Keep decision within 300 characters, reason within 1200 characters, focusLanes to at most 8 non-empty strings of at most 160 characters each, and confidence as a number from 0 to 1. Do not change your substantive judgment merely to fit the format.";
  const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
@@ -339,7 +339,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&!isGptOssModel&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}
      if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&isGptOssModel){
        useJsonObjectFallback=true;
-       currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;
+       currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=GROQ_RIGHT_HAND_MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,GROQ_RIGHT_HAND_MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;
        continue;
      }
      if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;
@@ -361,7 +361,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
         // Retry once with explicit format repair before moving to the next same-role
         // model; GPT-OSS uses local parsing rather than provider-side response_format,
         // and the caller's validator remains authoritative.
-        if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;continue;}
+        if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=GROQ_RIGHT_HAND_MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,GROQ_RIGHT_HAND_MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;continue;}
         break;
        }
       }
@@ -545,7 +545,7 @@ function compactDiscoveryEmergency(file: DiscoveryCaseFile): string {
 function boundedDiscoveryPrompt(file: DiscoveryCaseFile, iteration: number): string {
   const prefix = `Iteration ${iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n`;
   const suffix = `\n\nReturn {"decision":"...","reason":"...","focusLanes":["..."],"confidence":0.0}.`;
-  const budget = MAX_PROMPT_CHARS - 1024;
+  const budget = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS - 1024;
   for (const profile of DISCOVERY_COMPACT_PROFILES) {
     const prompt = prefix + compactDiscovery(file, profile) + suffix;
     if (prompt.length <= budget) return prompt;
