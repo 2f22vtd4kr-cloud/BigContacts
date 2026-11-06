@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -2378,29 +2378,44 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoverySearchLivenessAdvisory(afterObservedPage)).toBeNull();
   });
 
-  it("keeps lead follow-up advisory and leaves search choice with the Investigator", () => {
+  it("requires one lead inspection before any further discovery search and counts failed fetches as attempts", () => {
     const objective = "discover source-backed people in Ohio manufacturing";
     const records = [{
       ...livenessRecord("web_search", "success"),
+      turn: 1,
       pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
-      leadUrls: ["https://www.ohiosos.gov/business/search"],
+      leadUrls: ["https://www.ohiosos.gov/business/search", "https://company.example/team"],
       observedUrls: [],
     }];
-    const prompt = buildStepPrompt({
-      targetName: "",
-      objective,
-      history: [],
-      trajectoryRecords: records,
-      lastObservation: "Search results returned a potentially useful unvisited lead.",
-      findings: [],
-      mode: "discovery",
+    expect(discoveryLeadInspectionRequirement(records)).toEqual({
+      leadUrl: "https://www.ohiosos.gov/business/search",
+      searchTurn: 1,
     });
+    expect(discoveryLeadInspectionRequirement([
+      ...records,
+      { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
+    ])).toBeNull();
+    expect(discoveryLeadInspectionRequirement([
+      ...records,
+      { ...livenessRecord("visit", "success"), turn: 2, args: { url: "https://unrelated.example/" } },
+    ])).toEqual({
+      leadUrl: "https://www.ohiosos.gov/business/search",
+      searchTurn: 1,
+    });
+    expect(discoveryLeadInspectionRequirement([
+      { ...livenessRecord("web_search", "success"), leadUrls: [], observedUrls: [] },
+    ])).toBeNull();
+  });
 
-    expect(prompt).toMatch(/LEAD FOLLOW-UP GUIDANCE(?: \(non-binding\))?|consider inspecting a promising in-scope lead URL|no fixed action sequence/i);
-    expect(prompt).toMatch(/The Investigator retains action choice|Investigator chooses queries\/tools\/pages|Investigator chooses actions/i);
-    expect(agenticCoreSource).not.toContain("discoveryLeadFollowUpBackpressureReason");
-    expect(agenticCoreSource).not.toContain("discovery_lead_followup_gate");
-    expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-UTILIZATION GATE BLOCKED ACTION");
+  it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
+    const guardStart = agenticCoreSource.indexOf("DISCOVERY LEAD-INSPECTION GATE");
+    const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search") {');
+    const parallelToolCall = agenticCoreSource.indexOf("toolWebSearch(search.query", parallelStart);
+    expect(guardStart).toBeGreaterThan(-1);
+    expect(guardStart).toBeLessThan(parallelStart);
+    expect(parallelToolCall).toBeGreaterThan(parallelStart);
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search query");
+    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement(previousResearchRecords)");
   });
 
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
