@@ -6025,7 +6025,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   if (aiHistoricalMemory.trim() && !boundedPrompt.includes(aiHistoricalMemory.trim())) {
     return finalizeEmergencyPrompt(boundedPrompt);
   }
-  return boundedPrompt;
+  return preserveFetchedClaimAtProviderBoundary(boundedPrompt);
 }
 
 /**
