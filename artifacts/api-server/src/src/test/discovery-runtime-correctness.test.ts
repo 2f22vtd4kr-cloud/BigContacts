@@ -371,6 +371,44 @@ describe("discovery runtime architecture", () => {
     })).toBe(true);
     expect(isTransientInvestigatorCapacityError({ error: "upstream_quota_exhausted" })).toBe(false);
   });
+  it("keeps discovery to one focused query and requires one lead fetch before another search", async () => {
+    const { resolveDiscoveryActionAllowlist } = await import("../lib/agentic-web-research-core");
+    const available = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "done"];
+    expect(resolveDiscoveryActionAllowlist({ mode: "discovery", availableActions: available, trajectoryRecords: [] })).toEqual([
+      "web_search", "registry_search", "visit", "browser_fetch", "done",
+    ]);
+    expect(resolveDiscoveryActionAllowlist({ mode: "target", availableActions: available, trajectoryRecords: [] })).toEqual(available);
+
+    const searched = {
+      turn: 1, model: "groq", action: "web_search", args: { query: "licensed casino operators Slovenia", provider: "serper" },
+      execution: "success" as const, observation: "One relevant operator and official source URL surfaced.",
+      observedUrls: [], leadUrls: ["https://operator.example.si/about"], findings: [],
+    };
+    expect(resolveDiscoveryActionAllowlist({
+      mode: "discovery", availableActions: available, trajectoryRecords: [searched],
+    })).toEqual(["visit", "browser_fetch", "done"]);
+
+    const attemptedFetch = {
+      turn: 2, model: "groq", action: "visit", args: { url: "https://operator.example.si/about" },
+      execution: "error" as const, observation: "Primary page unavailable.", observedUrls: [], findings: [],
+    };
+    expect(resolveDiscoveryActionAllowlist({
+      mode: "discovery", availableActions: available, trajectoryRecords: [searched, attemptedFetch],
+    })).toEqual(["web_search", "registry_search", "visit", "browser_fetch", "done"]);
+  });
+
+  it("blocks discovery completion while a surfaced primary URL has not been inspected", async () => {
+    const { discoveryTerminalGate } = await import("../lib/agentic-web-research-core");
+    expect(discoveryTerminalGate([{
+      turn: 1, model: "groq", action: "web_search", args: { provider: "serper", query: "licensed casino operators Slovenia" },
+      execution: "success", observation: "A relevant operator page surfaced.", observedUrls: [],
+      leadUrls: ["https://operator.example.si/about"], findings: [],
+    }])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("inspect one relevant lead"),
+    });
+  });
+
   it("surfaces repeated discovery searches as guidance without blocking model choice", async () => {
     const { discoverySearchLivenessAdvisory } = await import("../lib/agentic-web-research-core");
     const search = (turn: number) => ({
@@ -489,7 +527,7 @@ describe("discovery runtime architecture", () => {
   it("releases the target-stage reserve until a lead qualifies, then protects the remaining target budget", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
-    expect(canonicalSource).toContain("const discoveryIterationCeiling = depth.agenticMaxIterations");
+    expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.min(depth.agenticMaxIterations, depth.investigatorIterationsPerAct)");
     expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
