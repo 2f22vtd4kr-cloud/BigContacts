@@ -6051,8 +6051,8 @@ export function discoveryLeadInspectionRequirement(
       .filter((url): url is string => Boolean(url) && validateDiscoverySourceUrl(url!).allowed);
     if (!leadUrls.length) continue;
     const leadSet = new Set(leadUrls);
-    const inspected = records.slice(i + 1).some((record) => {
-      if ((record.action !== "visit" && record.action !== "browser_fetch") || !fetchAttempts.has(record.execution)) return false;
+    const inspected = records.some((record, recordIndex) => {
+      if (recordIndex === i || (record.action !== "visit" && record.action !== "browser_fetch") || !fetchAttempts.has(record.execution)) return false;
       const requested = normalizeLeadKey(record.args?.url);
       return requested !== null && leadSet.has(requested);
     });
