@@ -2430,9 +2430,9 @@ Choose each next action yourself from the available capabilities and observed ev
       livenessRecord("web_search", "success"),
       livenessRecord("parallel_registry_search", "blocked"),
       livenessRecord("visit", "error"),
-      livenessRecord("registry_search", "http_error"),
+      livenessRecord("registry_search", "error"),
       livenessRecord("web_search", "blocked"),
-      livenessRecord("parallel_web_search", "selected"),
+      livenessRecord("parallel_web_search", "blocked"),
     ];
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBe(2);
     expect(countDiscoverySearchActions(records)).toBe(2);
