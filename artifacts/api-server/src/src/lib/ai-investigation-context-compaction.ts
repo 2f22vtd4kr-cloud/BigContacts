@@ -344,7 +344,7 @@ async function requestSummary(
 }
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
- * semantic reduction is always performed within the Boss role, using 20B for routine compaction and 120B only for bounded recovery. A
+ * semantic reduction uses the separate Right-hand credential lane, with 20B for routine compaction and 120B only for bounded recovery. A
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
