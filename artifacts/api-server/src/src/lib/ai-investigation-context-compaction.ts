@@ -1,4 +1,6 @@
-import { generateGroqBossText, getGroqBossLatencyConfig, resolveGroqBossModel } from "./groq-boss";
+import { getGroqBossLatencyConfig } from "./groq-boss";
+import { runGroqRightHandMemoryCompaction } from "./groq-right-hand-reasoning";
+import { logger } from "./logger";
 
 export type AiInvestigationContextCompactionInput = {
   rawContext: string;
@@ -205,6 +207,61 @@ function buildSummaryPrompt(source: string, maxChars: number, revisionIssue?: st
   ].filter(Boolean).join("\n\n");
 }
 
+type SummaryValidation = {
+  summary: string | null;
+  issues: string[];
+  summaryChars: number;
+  urlCount: number;
+};
+
+function validateSummary(
+  raw: string | null | undefined,
+  allowedSource: string,
+  maxChars: number,
+  successfulFetchUrls: ReadonlySet<string>,
+): SummaryValidation {
+  const summary = parseSummary(raw);
+  const issues: string[] = [];
+  if (!summary) issues.push("missing_or_unparseable_summary");
+  if (summary && summary.length > maxChars) issues.push("summary_exceeds_character_limit");
+  const urlsGrounded = summary ? summaryUrlsAreGrounded(summary, allowedSource) : true;
+  if (summary && !urlsGrounded) issues.push("summary_contains_ungrounded_url");
+  const unsupportedFetchClaim = summary ? summaryClaimsFetchedEvidence(summary, successfulFetchUrls) : false;
+  if (unsupportedFetchClaim) issues.push("summary_contains_unproven_fetch_claim");
+  return {
+    summary,
+    issues,
+    summaryChars: summary?.length ?? 0,
+    urlCount: summary ? extractAiContextUrls(summary).length : 0,
+  };
+}
+
+function logSummaryValidationFailure(
+  input: AiInvestigationContextCompactionInput,
+  stage: "primary" | "repair" | "fallback",
+  model: string,
+  maxChars: number,
+  validation: SummaryValidation,
+): void {
+  logger.warn({
+    role: "apex_memory_compaction",
+    phase: "summary_validation_failed",
+    stage,
+    model,
+    jobId: input.jobId ?? null,
+    caseId: input.caseId ?? null,
+    validationCodes: validation.issues,
+    summaryChars: validation.summaryChars,
+    maxChars,
+    urlCount: validation.urlCount,
+  }, "AI memory compaction summary failed validation");
+}
+
+function retryableSummaryResponse(result: { raw: string | null; error: string | null }): boolean {
+  if (typeof result.raw === "string" && result.raw.trim()) return true;
+  return /invalid_response|invalid_contract/i.test(result.error ?? "");
+}
+
 async function requestSummary(
   source: string,
   allowedSource: string,
@@ -217,68 +274,70 @@ async function requestSummary(
     const prompt = buildSummaryPrompt(source, maxChars);
     if (prompt.length > config.maximumPromptChars) return null;
 
-    const selection = await resolveGroqBossModel();
-    if (selection.status !== "resolved" || !selection.model) return null;
-    // GPT-OSS completion budgets also cover private reasoning tokens. Keep
-    // enough bounded headroom for the model to finish the structured summary;
-    // the visible summary is still capped and provenance-validated below.
-    const outputBudget = Math.min(2_048, Math.max(1_536, Math.ceil(maxChars * 0.85)));
-    const result = await generateGroqBossText(selection, prompt, {
-      responseFormat: summaryResponseFormat(),
-      maxOutputTokens: outputBudget,
-      thinkingLevel: "low",
+    // Memory compaction is a non-decision transformation. Use the separate
+    // Right-hand credential lane so long summaries cannot consume Boss's
+    // strategic-control TPM budget immediately before a required Boss decision.
+    const outputBudget = Math.min(1_536, Math.max(1_024, Math.ceil(maxChars * 0.75)));
+    const primary = await runGroqRightHandMemoryCompaction(
+      prompt,
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { maxAttempts: 3, maxCompletionTokens: outputBudget, reasoningEffort: "low" },
+    );
+    let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
+
+    // Provider unavailability is not a content-validation failure. The Right-hand
+    // helper already owns bounded provider retries/model fallback; do not duplicate
+    // an unavailable transport request at this layer.
+    if (!retryableSummaryResponse(primary)) return null;
+
+    const repairPrompt = buildSummaryPrompt(
+      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
+      maxChars,
+      validation.issues.join("; "),
+    );
+    if (repairPrompt.length > config.maximumPromptChars) return null;
+    const repairOutputBudget = Math.min(2_048, Math.max(outputBudget, Math.ceil(outputBudget * 1.25)));
+    const repair = await runGroqRightHandMemoryCompaction(
+      repairPrompt,
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { maxAttempts: 3, maxCompletionTokens: repairOutputBudget, reasoningEffort: "low" },
+    );
+    validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
+    if (!retryableSummaryResponse(repair)) return null;
+
+    // One same-role small-model attempt is reserved for a nonempty/invalid or
+    // empty-structured-output summary after the primary and original-source repair.
+    // It sees the complete original source and passes the identical validators.
+    const fallbackPrompt = buildSummaryPrompt(
+      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
+      maxChars,
+      "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary",
+    );
+    if (fallbackPrompt.length > config.maximumPromptChars) return null;
+    const fallback = await runGroqRightHandMemoryCompaction(
+      fallbackPrompt,
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { maxAttempts: 1, maxCompletionTokens: 2_048, reasoningEffort: "low", preferredModel: "openai/gpt-oss-20b" },
+    );
+    validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    return null;
+  } catch (error) {
+    logger.warn({
+      role: "apex_memory_compaction",
+      phase: "request_failed",
       jobId: input.jobId ?? null,
       caseId: input.caseId ?? null,
-      cognitiveTask: "context_compaction",
-    });
-    let summary = parseSummary(result.raw);
-
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) {
-      // An invalid/oversized first summary may already have dropped facts from
-      // the canonical input. Never summarize that lossy intermediate as though
-      // it were the source of truth: every repair attempt must be grounded in
-      // the original, complete source segment.
-      const repairSource = source;
-      const validationIssues: string[] = [];
-      if (!summary) validationIssues.push("the response did not contain a parseable summary string");
-      if (summary && summary.length > maxChars) {
-        validationIssues.push(`the previous summary was ${summary.length} characters, exceeding the hard limit of ${maxChars}`);
-      }
-      if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) {
-        validationIssues.push("the previous summary included URL tokens that were not copied exactly from the source");
-      }
-      if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) {
-        validationIssues.push("the source segment records no successful visit/browser_fetch action for the claimed page, or the previous summary cited a URL that is not one of the exact observedUrls in a successful visit/browser_fetch record; a successful fetch of one URL never authorizes claims about another lead URL");
-      }
-      const retryPrompt = buildSummaryPrompt(
-        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + repairSource,
-        maxChars,
-        validationIssues.join("; "),
-      );
-      if (retryPrompt.length > config.maximumPromptChars) return null;
-      // A repair follows an invalid/truncated response, so never give it less
-      // headroom than the first attempt. Keep the provider-side cap bounded.
-      const repairOutputBudget = Math.min(2_048, Math.max(outputBudget, Math.ceil(outputBudget * 1.25)));
-      const retry = await generateGroqBossText(selection, retryPrompt, {
-        responseFormat: summaryResponseFormat(),
-        maxOutputTokens: repairOutputBudget,
-        thinkingLevel: "low",
-        jobId: input.jobId ?? null,
-        caseId: input.caseId ?? null,
-        cognitiveTask: "context_compaction",
-      });
-      summary = parseSummary(retry.raw);
-    }
-
-    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource) || (summaryClaimsFetchedEvidence(summary, successfulFetchUrls))) return null;
-    return summary;
-  } catch {
-    // Model/provider failures must become an explicit "no summary" result. The
-    // caller then fails closed instead of falling back to deterministic excerpts.
+      errorName: error instanceof Error ? error.name : "unknown",
+    }, "AI memory compaction request failed");
     return null;
   }
 }
-
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
  * semantic reduction is always performed by Boss, including the final merge. A

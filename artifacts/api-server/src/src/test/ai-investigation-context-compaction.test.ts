@@ -3,13 +3,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const bossMocks = vi.hoisted(() => ({
   generateGroqBossText: vi.fn(),
   getGroqBossLatencyConfig: vi.fn(),
-  resolveGroqBossModel: vi.fn(),
 }));
 
 vi.mock("../lib/groq-boss", () => ({
-  generateGroqBossText: bossMocks.generateGroqBossText,
   getGroqBossLatencyConfig: bossMocks.getGroqBossLatencyConfig,
-  resolveGroqBossModel: bossMocks.resolveGroqBossModel,
+}));
+
+vi.mock("../lib/groq-right-hand-reasoning", () => ({
+  runGroqRightHandMemoryCompaction: async (prompt: string, auditContext: any, requestOptions: any) => {
+    const selection = {
+      model: requestOptions?.preferredModel ?? "mock-boss-model",
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 1,
+      candidateModels: requestOptions?.preferredModel ? [requestOptions.preferredModel] : ["mock-boss-model"],
+      keyName: "GROQ_BOSS_API_KEY",
+    };
+    const result = await bossMocks.generateGroqBossText(selection, prompt, {
+      maxOutputTokens: requestOptions?.maxCompletionTokens,
+      thinkingLevel: requestOptions?.reasoningEffort,
+      jobId: auditContext?.jobId ?? null,
+      caseId: auditContext?.caseId ?? null,
+      cognitiveTask: auditContext?.cognitiveTask ?? "context_compaction",
+    });
+    return result?.raw
+      ? { status: "completed", model: result.model, raw: result.raw, error: null }
+      : { status: "unavailable", model: result?.model ?? selection.model, raw: null, error: result?.error ?? "invalid_response" };
+  },
 }));
 
 import { extractAiContextUrls, summarizeInvestigatorContextWithBoss } from "../lib/ai-investigation-context-compaction";
@@ -21,12 +41,6 @@ describe("AI investigation context compaction", () => {
       requestTimeoutMs: 1_000,
       overallTimeoutMs: 2_000,
       maximumPromptChars: 20_000,
-    });
-    bossMocks.resolveGroqBossModel.mockResolvedValue({
-      model: "mock-boss-model",
-      status: "resolved",
-      inspectedKeyCount: 1,
-      candidateCount: 1,
     });
   });
 
@@ -320,6 +334,22 @@ describe("AI investigation context compaction", () => {
     const sourceUrl = "https://source.example/records/ownership-42";
     expect(extractAiContextUrls(sourceUrl + String.raw`\nCheck the next field`)).toEqual([sourceUrl]);
     expect(extractAiContextUrls(sourceUrl + String.raw`\r\nNext field: additional context`)).toEqual([sourceUrl]);
+  });
+
+  it("uses one Right-hand 20B fallback after primary and original-source repair summaries fail validation", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
+    const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
+    const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: invalid }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: invalid }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: valid }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(3);
+    expect(bossMocks.generateGroqBossText.mock.calls[2]?.[0]).toMatchObject({ model: "openai/gpt-oss-20b" });
+    expect(String(bossMocks.generateGroqBossText.mock.calls[2]?.[1] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
+    expect(bossMocks.generateGroqBossText.mock.calls[2]?.[2]).toMatchObject({ cognitiveTask: "context_compaction", maxOutputTokens: 2_048 });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {

@@ -121,6 +121,8 @@ export type GroqRightHandRequestOptions = {
     maxCompletionTokens: number;
     reasoningEffort?: "low" | "medium" | "high";
   };
+  /** Prefer one catalog-listed model for a bounded, same-role recovery attempt. */
+  preferredModel?: string;
 };
 export function normalizeGroqRightHandCaseReasoning(parsed: Record<string, unknown> | null, queuedActionIds: readonly string[], model: string): GroqRightHandCaseReasoningResult {
   const expected = ["actionId", "decision", "reason", "confidence"];
@@ -161,17 +163,22 @@ function catalogCandidates(payload:unknown):string[] {
 const catalogCache=new Map<string,{expiresAt:number;models:string[]}>();
 export function resetGroqRightHandModelCatalogCacheForTests(): void { catalogCache.clear(); }
 function fingerprint(key:string){return createHash("sha256").update(key,"utf8").digest("hex");}
-async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
+async function resolveModelChain(apiKeyOverride?:string,preferredModel?:string):Promise<string[]> {
  const apiKey=apiKeyOverride?.trim()||key(); if(!apiKey)return [];
  const fp=fingerprint(apiKey); const cached=catalogCache.get(fp);
- if(cached&&cached.expiresAt>Date.now())return cached.models.slice(0,MAX_MODEL_ATTEMPTS);
+ const order=(candidates:string[])=>{
+  if(preferredModel&&!candidates.includes(preferredModel))return [];
+  const ordered=preferredModel?[preferredModel,...candidates.filter(model=>model!==preferredModel)]:candidates;
+  return ordered.slice(0,MAX_MODEL_ATTEMPTS);
+ };
+ if(cached&&cached.expiresAt>Date.now())return order(cached.models);
  try {
   const response=await fetch(GROQ_RIGHT_HAND_MODELS_API,{headers:{Accept:"application/json",Authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS)});
   if(!response.ok){logger.warn({role:"groq_right_hand",phase:"model_catalog_failed",httpStatus:response.status},"Groq Right-hand model catalog unavailable");return [];}
   const candidates=catalogCandidates(await response.json());
   if(!candidates.length)return [];
   catalogCache.set(fp,{expiresAt:Date.now()+5*60_000,models:candidates});
-  return candidates.slice(0,MAX_MODEL_ATTEMPTS);
+  return order(candidates);
  }catch(error){logger.warn({role:"groq_right_hand",phase:"model_catalog_rejected",errorName:error instanceof Error?error.name:"unknown"},"Groq Right-hand model catalog request failed");return [];}
 }
 function extractJson(raw:string):Record<string,unknown>|null{const fenced=raw.match(/\`\`\`(?:json)?\\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();const source=fenced||raw.trim();const start=source.indexOf("{"),end=source.lastIndexOf("}");if(start<0||end<=start)return null;try{const v=JSON.parse(source.slice(start,end+1));return v&&typeof v==="object"?v as Record<string,unknown>:null;}catch{return null;}}
@@ -262,7 +269,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  // Duplicate slot values are one quota pool and must never be retried as if independent.
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const credential of distinctEntries){
-  for(const model of await resolveModelChain(credential.key))attempts.push({entry:credential,model});
+  for(const model of await resolveModelChain(credential.key,requestOptions?.preferredModel))attempts.push({entry:credential,model});
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
@@ -721,4 +728,49 @@ export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra =
  const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }, validateRaw, auditContext, requestOptions);
  return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error };
 }
+
+/**
+ * Run a pure, non-authoritative memory transformation on the Right-hand
+ * provider lane. This does not issue advice or make case decisions.
+ */
+export async function runGroqRightHandMemoryCompaction(
+  userPrompt: string,
+  auditContext?: GroqRightHandAuditContext,
+  requestOptions?: GroqRightHandRequestOptions,
+): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
+  const system = [
+    "You are an Apex Atlas non-authoritative memory-compression service.",
+    "This is a text transformation only. Do not advise the Boss, make strategic decisions, choose targets, plan research, browse, or invoke tools.",
+    "Preserve the supplied objective, approved scope, source-stage distinctions, exact entity names/roles, successful fetch provenance, contradictions, and unresolved questions.",
+    "Do not invent facts or URLs, and do not promote search leads into fetched observations or claim-grade evidence.",
+    "Return exactly one JSON object with a string property named summary.",
+  ].join(" ");
+  const format = {
+    type: "text",
+    mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: { summary: { type: "string" } },
+      required: ["summary"],
+      additionalProperties: false,
+    },
+  };
+  const result = await request(
+    system,
+    userPrompt,
+    format,
+    undefined,
+    { ...auditContext, cognitiveTask: "context_compaction" },
+    {
+      maxAttempts: requestOptions?.maxAttempts ?? 3,
+      maxCompletionTokens: requestOptions?.maxCompletionTokens ?? 1_536,
+      reasoningEffort: requestOptions?.reasoningEffort ?? "low",
+      preferredModel: requestOptions?.preferredModel,
+    },
+  );
+  return result.raw
+    ? { status: "completed", model: result.model, raw: result.raw, error: null }
+    : { status: "unavailable", model: result.model, raw: null, error: result.error };
+}
+
 export async function runGroqRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGroqRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
