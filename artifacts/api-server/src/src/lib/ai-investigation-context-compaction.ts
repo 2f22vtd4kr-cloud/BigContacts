@@ -283,7 +283,7 @@ async function requestSummary(
     const outputBudget = 1_536;
     const primary = await runGroqBossMemoryCompaction(
       prompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
       { maxOutputTokens: outputBudget, preferredModel: "openai/gpt-oss-20b" },
     );
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
@@ -300,7 +300,7 @@ async function requestSummary(
     const repairOutputBudget = 1_536;
     const repair = await runGroqBossMemoryCompaction(
       repairPrompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
       { maxOutputTokens: repairOutputBudget, preferredModel: "openai/gpt-oss-20b" },
     );
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
@@ -316,7 +316,7 @@ async function requestSummary(
     if (fallbackPrompt.length > maximumPromptChars) return null;
     const fallback = await runGroqBossMemoryCompaction(
       fallbackPrompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
+      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
       { maxOutputTokens: outputBudget, preferredModel: "openai/gpt-oss-120b" },
     );
     validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
