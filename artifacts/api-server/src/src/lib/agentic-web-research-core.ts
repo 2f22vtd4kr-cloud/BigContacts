@@ -6652,6 +6652,21 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     runtimeStage = "model_action_validation";
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
 if (input.mode === "discovery") {
+  const discoverySearchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  const discoverySearchActionsUsed = previousResearchRecords.filter((item) =>
+    discoverySearchActions.has(item.action) && item.execution !== "blocked",
+  ).length;
+  if (discoverySearchActionsUsed >= 2 && discoverySearchActions.has(action.action)) {
+    record.execution = "blocked";
+    record.failureDomain = "tool_execution";
+    record.failureKind = "request_failure";
+    record.observation = "DISCOVERY SEARCH BUDGET EXHAUSTED: two discovery search actions have already been attempted. No further search/provider request was sent. Preserve any source-backed review lead and move to target-scoped research, or stop with the evidence gap clearly stated.";
+    lastObservation = record.observation;
+    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_search_budget_exhausted");
+    await emitSanitizedTrajectoryRecord(record);
+    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search cap reached; no provider request sent." });
+    continue;
+  }
   const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords);
   if (pendingLead && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action.action)) {
     record.execution = "blocked";
