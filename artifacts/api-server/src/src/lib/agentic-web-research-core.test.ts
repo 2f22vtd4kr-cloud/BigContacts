@@ -88,6 +88,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
+    expect(discoveryPrompt).toContain("set promotionDecision=promote and promotionReason");
+    expect(discoveryPrompt).toContain("This admits the company for target-scoped research only");
+    expect(discoveryPrompt).toContain("not final CRM/contact promotion");
+    expect(agenticCoreSource).toContain("when it directly names a relevant exact organization, set promotionDecision=promote");
     expect(discoveryPrompt).toContain("One focused web_search or registry_search action");
     expect(discoveryPrompt).toContain("casinos in Slovenia means preserve both constraints");
     expect(discoveryPrompt).toContain("parallel_web_search and parallel_registry_search are unavailable");
