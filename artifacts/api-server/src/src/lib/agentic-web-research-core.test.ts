@@ -2419,6 +2419,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryLeadInspectionRequirement([
       { ...livenessRecord("web_search", "success"), leadUrls: [], observedUrls: [] },
     ])).toBeNull();
+    expect(discoveryLeadInspectionRequirement([
+      { ...livenessRecord("visit", "success"), turn: 0, args: { url: "https://company.example/team" }, observedUrls: ["https://company.example/team"] },
+      ...records,
+    ])).toBeNull();
   });
 
   it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
