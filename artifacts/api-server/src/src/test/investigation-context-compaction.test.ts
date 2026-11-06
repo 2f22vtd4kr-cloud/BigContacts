@@ -56,6 +56,12 @@ describe("investigator context compaction", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 0, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
   });
 
+  it("does not repeatedly recompact unchanged memory just because objective or Boss context is long", () => {
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: true, pendingHistoricalRecordCount: 0 })).toBe(false);
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: true, pendingHistoricalRecordCount: 1 })).toBe(true);
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: false, pendingHistoricalRecordCount: 5 })).toBe(false);
+  });
+
   it("routes every older record through Boss before the deterministic archive projection can omit detail", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 1, sourceChars: 1_200, priorContextChars: 0 })).toBe(true);
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(true);

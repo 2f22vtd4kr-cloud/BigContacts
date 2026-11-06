@@ -14,7 +14,7 @@ import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
-import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory } from "./investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
 import { summarizeInvestigatorContextWithBoss } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
@@ -6339,8 +6339,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         sourceChars: initialMemorySource.length,
         priorContextChars: input.priorContext?.length ?? 0,
       });
-      const shouldUpdateAiMemory = Boolean(aiCompactedHistoricalContext)
-        && (pendingHistoricalRecords.length >= 1 || objective.length > 1_600 || (input.priorContext?.length ?? 0) > 800);
+      const shouldUpdateAiMemory = shouldUpdateInvestigatorResearchMemory({
+        hasExistingMemory: Boolean(aiCompactedHistoricalContext),
+        pendingHistoricalRecordCount: pendingHistoricalRecords.length,
+      });
       if (shouldCreateAiMemory || shouldUpdateAiMemory) {
         const memorySource = shouldCreateAiMemory
           ? initialMemorySource
