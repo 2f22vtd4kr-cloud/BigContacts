@@ -369,7 +369,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 
   let maximumPromptChars: number;
   try {
-    maximumPromptChars = getGroqBossLatencyConfig().maximumPromptChars;
+    maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
   } catch {
     return null;
   }
