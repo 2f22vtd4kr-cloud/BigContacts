@@ -270,10 +270,15 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
  */
 function recoverableCompactionModelThrottle(error: string | null): boolean {
   const diagnostic = error ?? "";
-  const modelScoped = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
   const shortWindow = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
+  const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
+  // Groq has also surfaced model-scoped TPM throttles as HTTP 413 with
+  // rate_limit_exceeded instead of the usual HTTP 429/rateLimitKind metadata.
+  const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
+    && /rate_limit_exceeded/i.test(diagnostic)
+    && shortWindow;
   const dailyCap = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
-  return modelScoped && shortWindow && !dailyCap;
+  return (classifiedModelThrottle || oversizedModelThrottle) && shortWindow && !dailyCap;
 }
 
 async function requestRightHandSummary(
