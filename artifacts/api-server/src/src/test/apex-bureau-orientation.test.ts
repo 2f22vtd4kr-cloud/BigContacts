@@ -61,11 +61,25 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
+  it("carries explicit sector-and-jurisdiction scenarios into every role prompt", () => {
+    expect(APEX_WHAT_IS_ATLAS).toContain("casinos in Slovenia");
+    expect(APEX_WHAT_IS_ATLAS).toContain("keep scope");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
+    expect(apexInvestigatorSystemCore()).toContain("One focused discovery query");
+    expect(apexInvestigatorSystemCore()).toContain("one alternative only if no useful lead emerges");
+    expect(apexInvestigatorSystemCore()).toContain("No duplicate LinkedIn/Google/provider fan-out");
+    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+      expect(apexOrientationCompact(role)).toContain("casinos in Slovenia");
+      expect(apexOrientationFor(role)).toContain("casinos in Slovenia");
+    }
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("B2B needs a fetched decision-maker role/company link");
-    expect(core).toContain("Other objectives use their criteria");
+    expect(core).toContain("Other objectives use their own evidence criteria");
     expect(core).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
     expect(core).toContain("Keep source-backed company leads when decision-makers are unresolved");
     expect(core).toContain("AI judgment, no blacklist");
