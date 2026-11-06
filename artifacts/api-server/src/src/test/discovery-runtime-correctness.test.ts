@@ -89,7 +89,7 @@ describe("discovery runtime architecture", () => {
 
   it("makes the first admitted target an immediate Boss handoff to main research", () => {
     expect(atlasControlDecisionSource).toContain("MANDATORY EARLY HANDOFF");
-    expect(atlasControlDecisionSource).toContain("choose research_candidate for the most objective-relevant admitted target now");
+    expect(atlasControlDecisionSource).toContain("choose research_candidate for the most objective-relevant one now");
     expect(atlasControlDecisionSource).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
   });
 
