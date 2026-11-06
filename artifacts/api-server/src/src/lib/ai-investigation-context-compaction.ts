@@ -270,9 +270,9 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
  */
 function recoverableCompactionModelThrottle(error: string | null): boolean {
   const diagnostic = error ?? "";
-  const modelScoped = /"rateLimitKind"\\s*:\\s*"(?:tokens|model)"/i.test(diagnostic);
-  const shortWindow = /tokens per minute|\\bTPM\\b|model.{0,40}rate.?limit/i.test(diagnostic);
-  const dailyCap = /tokens per day|\\bTPD\\b|daily token quota/i.test(diagnostic);
+  const modelScoped = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
+  const shortWindow = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
+  const dailyCap = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
   return modelScoped && shortWindow && !dailyCap;
 }
 
