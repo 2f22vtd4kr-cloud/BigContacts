@@ -67,8 +67,8 @@ describe("discovery runtime architecture", () => {
     expect(launchDefaults).toContain("researchLimit: 1");
     expect(launchRoute).toContain("Number(body.targetCount) || 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
-    const uiObjectiveLine = launchUi.split("\\n").find((line) => line.startsWith("export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "));
-    const apiObjectiveLine = canonicalDiscoverySource.split("\\n").find((line) => line.includes("let discoveryObjective = opts.discoveryObjective?.trim() ||"));
+    const uiObjectiveLine = launchUi.split("\n").find((line) => line.startsWith("export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "));
+    const apiObjectiveLine = canonicalDiscoverySource.split("\n").find((line) => line.includes("let discoveryObjective = opts.discoveryObjective?.trim() ||"));
     expect(uiObjectiveLine).toBeDefined();
     expect(apiObjectiveLine).toBeDefined();
     const parseDefaultObjective = (line: string): string => {
