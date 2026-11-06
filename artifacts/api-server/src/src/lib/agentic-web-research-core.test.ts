@@ -25,7 +25,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).toContain("No duplicate LinkedIn/Google/provider fan-out");
-    expect(systemCore).toContain("one focused discovery query");
+    expect(systemCore).toContain("One focused discovery query");
     expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
     expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
   });
