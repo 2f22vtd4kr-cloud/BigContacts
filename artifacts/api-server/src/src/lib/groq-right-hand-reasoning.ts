@@ -114,6 +114,10 @@ export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number
 export type GroqRightHandRequestOptions = {
   maxCompletionTokens?: number;
   reasoningEffort?: "low" | "medium" | "high";
+  /** Prefer one catalog-verified model for a bounded task such as memory compaction. */
+  preferredModel?: string;
+  /** When false, never fall back to another model if preferredModel is unavailable or fails. */
+  allowModelFallback?: boolean;
   /** Maximum actual chat-completion requests for this call, across models and recovery. */
   maxAttempts?: number;
   /** One bounded retry only when Groq explicitly reports completion-budget exhaustion. */
@@ -262,7 +266,14 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  // Duplicate slot values are one quota pool and must never be retried as if independent.
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const credential of distinctEntries){
-  for(const model of await resolveModelChain(credential.key))attempts.push({entry:credential,model});
+  const catalogModels = await resolveModelChain(credential.key);
+  const preferredModel = requestOptions?.preferredModel?.trim();
+  const selectedModels = preferredModel
+    ? catalogModels.includes(preferredModel)
+      ? [preferredModel, ...(requestOptions?.allowModelFallback === false ? [] : catalogModels.filter((model) => model !== preferredModel))]
+      : []
+    : catalogModels;
+  for(const model of selectedModels)attempts.push({entry:credential,model});
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
