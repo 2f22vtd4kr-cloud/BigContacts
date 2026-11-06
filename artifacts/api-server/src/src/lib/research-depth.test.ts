@@ -10,7 +10,7 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 4,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(0);
+    })).toBe(8);
 
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
@@ -19,7 +19,7 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 12,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(8);
+    })).toBe(0);
 
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
