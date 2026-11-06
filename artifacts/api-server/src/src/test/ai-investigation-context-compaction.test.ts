@@ -83,8 +83,8 @@ describe("AI investigation context compaction", () => {
     expect(firstOptions?.maxOutputTokens).toBe(1_536);
     expect(repairOptions?.maxOutputTokens).toBe(1_536);
     expect(repairOptions?.maxOutputTokens).toBeGreaterThanOrEqual(firstOptions?.maxOutputTokens ?? 0);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ jobId: null, caseId: null });
   });
 
   it("retries original-source compaction after the provider exhausts the first generation budget", async () => {
@@ -112,8 +112,8 @@ describe("AI investigation context compaction", () => {
     expect(firstOptions?.maxOutputTokens).toBe(1_536);
     expect(repairOptions?.maxOutputTokens).toBe(1_536);
     expect(repairOptions?.maxOutputTokens).toBe(firstOptions?.maxOutputTokens);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ jobId: null, caseId: null });
   });
 
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
@@ -324,7 +324,7 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
     expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(3);
     expect(String(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[1]).toMatchObject({ jobId: null, caseId: null });
     expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", maxOutputTokens: 1_536 });
   });
 
@@ -362,7 +362,7 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[2];
     expect(options?.maxOutputTokens).toBe(1_536);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
+    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
   });
 
 });
