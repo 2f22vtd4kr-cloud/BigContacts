@@ -1,35 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const bossMocks = vi.hoisted(() => ({
-  generateGroqBossText: vi.fn(),
+const memoryMocks = vi.hoisted(() => ({
+  runGroqRightHandMemoryCompaction: vi.fn(),
   getGroqBossLatencyConfig: vi.fn(),
 }));
 
 vi.mock("../lib/groq-boss", () => ({
-  getGroqBossLatencyConfig: bossMocks.getGroqBossLatencyConfig,
+  getGroqBossLatencyConfig: memoryMocks.getGroqBossLatencyConfig,
 }));
 
 vi.mock("../lib/groq-right-hand-reasoning", () => ({
-  runGroqRightHandMemoryCompaction: async (prompt: string, auditContext: any, requestOptions: any) => {
-    const selection = {
-      model: requestOptions?.preferredModel ?? "mock-boss-model",
-      status: "resolved",
-      inspectedKeyCount: 1,
-      candidateCount: 1,
-      candidateModels: requestOptions?.preferredModel ? [requestOptions.preferredModel] : ["mock-boss-model"],
-      keyName: "GROQ_BOSS_API_KEY",
-    };
-    const result = await bossMocks.generateGroqBossText(selection, prompt, {
-      maxOutputTokens: requestOptions?.maxCompletionTokens,
-      thinkingLevel: requestOptions?.reasoningEffort,
-      jobId: auditContext?.jobId ?? null,
-      caseId: auditContext?.caseId ?? null,
-      cognitiveTask: auditContext?.cognitiveTask ?? "context_compaction",
-    });
-    return result?.raw
-      ? { status: "completed", model: result.model, raw: result.raw, error: null }
-      : { status: "unavailable", model: result?.model ?? selection.model, raw: null, error: result?.error ?? "invalid_response" };
-  },
+  runGroqRightHandMemoryCompaction: memoryMocks.runGroqRightHandMemoryCompaction,
 }));
 
 import { extractAiContextUrls, summarizeInvestigatorContextWithBoss } from "../lib/ai-investigation-context-compaction";
@@ -37,7 +18,7 @@ import { extractAiContextUrls, summarizeInvestigatorContextWithBoss } from "../l
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    bossMocks.getGroqBossLatencyConfig.mockReturnValue({
+    memoryMocks.getGroqBossLatencyConfig.mockReturnValue({
       requestTimeoutMs: 1_000,
       overallTimeoutMs: 2_000,
       maximumPromptChars: 20_000,
@@ -54,7 +35,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBeNull();
     expect(bossMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
-    expect(bossMocks.generateGroqBossText).not.toHaveBeenCalled();
+    expect(bossMocks.runGroqRightHandMemoryCompaction).not.toHaveBeenCalled();
   });
 
   it("does not treat an omission marker quoted by an untrusted observation as a corrupted case objective", async () => {
@@ -88,14 +69,14 @@ describe("AI investigation context compaction", () => {
 
     const correctedSummary = "Alice Example is the managing director, appointed on 2024-06-12. Source: " + sourceUrl;
     bossMocks.generateGroqBossText
-      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, status: "completed" })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
     const result = await summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 });
 
     expect(result).toBe(correctedSummary);
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
-    const repairPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
+    const repairPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[0] ?? "");
     expect(repairPrompt).toContain("SOURCE_END_SENTINEL");
     expect(repairPrompt).toContain("appointed director on 2024-06-12");
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
@@ -106,8 +87,8 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("Omit commenter names, profile links, and optional detail");
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(1_536);
-    expect(repairOptions?.maxOutputTokens).toBe(1_920);
+    expect(firstOptions?.maxCompletionTokens).toBe(1_536);
+    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
     expect(repairOptions?.maxOutputTokens).toBeGreaterThanOrEqual(firstOptions?.maxOutputTokens ?? 0);
     expect(firstOptions?.cognitiveTask).toBe("context_compaction");
     expect(repairOptions?.cognitiveTask).toBe("context_compaction");
@@ -154,7 +135,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
 
-    const prompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
+    const prompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("hard limit of 1200 characters");
     expect(prompt).toContain("Aim at or below 780 characters");
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
@@ -180,7 +161,7 @@ describe("AI investigation context compaction", () => {
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(3);
     const firstPrompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
     const secondPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
-    const finalPrompt = String(bossMocks.generateGroqBossText.mock.calls[2]?.[1] ?? "");
+    const finalPrompt = String(bossMocks.generateGroqBossText.mock.calls[2]?.[0] ?? "");
     expect(firstPrompt).toContain("hard limit of 1500 characters");
     expect(secondPrompt).toContain("hard limit of 1500 characters");
     expect(finalPrompt).toContain("MEMORY SEGMENT 1:");
