@@ -59,15 +59,25 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("no named default, fixed source order, or broad discovery exercise");
   });
 
-  it("defaults every canonical launch path to one researched target and the same B2B objective", () => {
+  it("defaults every canonical launch path to one target and the same audited wealth-first objective", () => {
     const launchDefaults = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
     const launchRoute = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+    const launchUi = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
     expect(launchDefaults).toContain("targetCount: 1");
     expect(launchDefaults).toContain("researchLimit: 1");
     expect(launchRoute).toContain("Number(body.targetCount) || 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
-    expect(canonicalDiscoverySource).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting");
-    expect(canonicalDiscoverySource).not.toContain("Discover lesser-known people with credible wealth potential");
+    const uiObjectiveMatch = launchUi.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/);
+    const apiObjectiveMatch = canonicalDiscoverySource.match(/let discoveryObjective = opts\\.discoveryObjective\\?\\.trim\\(\\) \\|\\| ("(?:[^"\\\\]|\\\\.)*");/);
+    expect(uiObjectiveMatch).not.toBeNull();
+    expect(apiObjectiveMatch).not.toBeNull();
+    const uiObjective = JSON.parse(uiObjectiveMatch![1]!);
+    const apiObjective = JSON.parse(apiObjectiveMatch![1]!);
+    expect(uiObjective).toBe(apiObjective);
+    expect(uiObjective.length).toBeLessThanOrEqual(1_200);
+    expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential");
+    expect(uiObjective).toContain("not a search term, name fragment, brand or target type");
+    expect(uiObjective).toContain("A person is the ultimate investor-identification goal");
   });
 
   it("makes the first admitted target an immediate Boss handoff to main research", () => {
