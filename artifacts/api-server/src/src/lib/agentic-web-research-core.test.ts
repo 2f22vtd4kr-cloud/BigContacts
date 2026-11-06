@@ -15,11 +15,17 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
-    expect(systemCore.length).toBeLessThan(2_000);
+    expect(systemCore.length).toBeLessThan(3_600);
     expect(systemCore).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(systemCore).toContain("source class");
     expect(systemCore).toContain("Virtual Globetrotting");
+    expect(systemCore).toContain("SCENARIO RECALL");
+    expect(systemCore).toContain("casinos in Slovenia");
+    expect(systemCore).toContain("SEARCH ECONOMY");
+    expect(systemCore).toContain("one focused discovery query");
+    expect(systemCore).toContain("TARGET-FIRST PROGRESS");
+    expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
   });
 });
 
