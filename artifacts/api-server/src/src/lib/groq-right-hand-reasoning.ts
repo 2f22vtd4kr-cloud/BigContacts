@@ -123,6 +123,8 @@ export type GroqRightHandRequestOptions = {
   };
   /** Prefer one catalog-listed model for a bounded, same-role recovery attempt. */
   preferredModel?: string;
+  /** Use a non-advisory transformation prompt and its matching format-recovery contract. */
+  taskMode?: "advisory" | "memory_compaction";
 };
 export function normalizeGroqRightHandCaseReasoning(parsed: Record<string, unknown> | null, queuedActionIds: readonly string[], model: string): GroqRightHandCaseReasoningResult {
   const expected = ["actionId", "decision", "reason", "confidence"];
@@ -261,8 +263,11 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  let currentUser=normalizedUser;
- const contractRecoveryPrompt="FORMAT RECOVERY: The previous JSON did not satisfy the caller's exact task-specific contract. Re-evaluate the same request and return exactly the required keys with no extras. Keep decision within 300 characters, reason within 1200 characters, focusLanes to at most 8 non-empty strings of at most 160 characters each, and confidence as a number from 0 to 1. Do not change your substantive judgment merely to fit the format.";
- const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
+ const memoryCompactionMode=requestOptions?.taskMode==="memory_compaction";
+ const contractRecoveryPrompt=memoryCompactionMode
+  ?"FORMAT RECOVERY: The previous output did not satisfy the memory-summary JSON contract. Return exactly one JSON object with one string property named summary and no other keys. Preserve only source-supported facts and exact provenance; do not invent or promote evidence."
+  :"FORMAT RECOVERY: The previous JSON did not satisfy the caller\'s exact task-specific contract. Re-evaluate the same request and return exactly the required keys with no extras. Keep decision within 300 characters, reason within 1200 characters, focusLanes to at most 8 non-empty strings of at most 160 characters each, and confidence as a number from 0 to 1. Do not change your substantive judgment merely to fit the format.";
+ const systemPrompt=memoryCompactionMode?system:`${apexOrientationCompact("right_hand")}\n\n${system}`;
  // Keep one attempt pool per distinct credential. Model fallback stays within the Right-hand role;
  // explicit request-quota or authentication failures skip the exhausted credential, while token
  // window/model-specific limits first allow the same credential's other supported model.
@@ -768,6 +773,7 @@ export async function runGroqRightHandMemoryCompaction(
       maxCompletionTokens: requestOptions?.maxCompletionTokens ?? 1_536,
       reasoningEffort: requestOptions?.reasoningEffort ?? "low",
       preferredModel: requestOptions?.preferredModel,
+      taskMode: "memory_compaction",
     },
   );
   return result.raw
