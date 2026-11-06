@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const bossMocks = vi.hoisted(() => ({
-  runGroqBossMemoryCompaction: vi.fn(),
-  getGroqBossLatencyConfig: vi.fn(),
+const rightHandMocks = vi.hoisted(() => ({
+  runGroqRightHandFreeJson: vi.fn(),
 }));
 
-vi.mock("../lib/groq-boss", () => ({
-  runGroqBossMemoryCompaction: bossMocks.runGroqBossMemoryCompaction,
-  getGroqBossLatencyConfig: bossMocks.getGroqBossLatencyConfig,
+vi.mock("../lib/groq-right-hand-reasoning", () => ({
+  GROQ_RIGHT_HAND_MAX_PROMPT_CHARS: 20_000,
+  runGroqRightHandFreeJson: rightHandMocks.runGroqRightHandFreeJson,
 }));
 
 import { extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
@@ -15,7 +14,6 @@ import { extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } fro
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    bossMocks.getGroqBossLatencyConfig.mockReturnValue({ requestTimeoutMs: 1_000, overallTimeoutMs: 2_000, maximumPromptChars: 20_000 });
   });
 
   it("refuses to compact case memory containing an explicit objective middle-omission marker", async () => {
@@ -27,8 +25,7 @@ describe("AI investigation context compaction", () => {
     ].join("\n");
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBeNull();
-    expect(bossMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
-    expect(bossMocks.runGroqBossMemoryCompaction).not.toHaveBeenCalled();
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
   it("does not treat an omission marker quoted by an untrusted observation as a corrupted case objective", async () => {
@@ -40,8 +37,7 @@ describe("AI investigation context compaction", () => {
     ].join("\n\n");
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(source);
-    expect(bossMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
-    expect(bossMocks.runGroqBossMemoryCompaction).not.toHaveBeenCalled();
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
   it("repairs an oversized model summary against the original source, not the lossy first summary", async () => {
@@ -61,15 +57,15 @@ describe("AI investigation context compaction", () => {
     expect(firstSummary.length).toBeGreaterThan(900);
 
     const correctedSummary = "Alice Example is the managing director, appointed on 2024-06-12. Source: " + sourceUrl;
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
     const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
 
     expect(result).toBe(correctedSummary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(2);
-    const repairPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    const repairPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
     expect(repairPrompt).toContain("SOURCE_END_SENTINEL");
     expect(repairPrompt).toContain("appointed director on 2024-06-12");
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
@@ -78,19 +74,19 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("Aim at or below 585 characters");
     expect(repairPrompt).toContain("Include at most two exact URL tokens");
     expect(repairPrompt).toContain("Omit commenter names, profile links, and optional detail");
-    const firstOptions = bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[2];
-    const repairOptions = bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(1_536);
-    expect(repairOptions?.maxOutputTokens).toBe(1_536);
-    expect(repairOptions?.maxOutputTokens).toBeGreaterThanOrEqual(firstOptions?.maxOutputTokens ?? 0);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    const firstOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
+    const repairOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5];
+    expect(firstOptions?.maxCompletionTokens).toBe(1_536);
+    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
+    expect(repairOptions?.maxCompletionTokens).toBeGreaterThanOrEqual(firstOptions?.maxCompletionTokens ?? 0);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
   it("retries original-source compaction after the provider exhausts the first generation budget", async () => {
     const source = "CANONICAL CASE MEMORY\n" + "Observed source facts and unresolved questions. ".repeat(45);
     const summary = "The source memory remains available for model-led research.";
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "mock-boss-model",
         raw: null,
@@ -106,20 +102,20 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
-    const firstOptions = bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[2];
-    const repairOptions = bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[2];
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(2);
-    expect(firstOptions?.maxOutputTokens).toBe(1_536);
-    expect(repairOptions?.maxOutputTokens).toBe(1_536);
-    expect(repairOptions?.maxOutputTokens).toBe(firstOptions?.maxOutputTokens);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    const firstOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
+    const repairOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5];
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(firstOptions?.maxCompletionTokens).toBe(1_536);
+    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
+    expect(repairOptions?.maxCompletionTokens).toBe(firstOptions?.maxCompletionTokens);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
     const source = "COMPLETE SOURCE MEMORY\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
     const summary = "S".repeat(1_005);
-    bossMocks.runGroqBossMemoryCompaction.mockResolvedValueOnce({
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
       error: null,
@@ -128,10 +124,10 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
 
-    const prompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[0] ?? "");
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("hard limit of 1200 characters");
     expect(prompt).toContain("Aim at or below 780 characters");
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("keeps intermediate multi-chunk summaries above the 900-character failure floor", async () => {
@@ -144,19 +140,19 @@ describe("AI investigation context compaction", () => {
     const firstChunkSummary = "A".repeat(1_049);
     const secondChunkSummary = "B".repeat(800);
     const finalSummary = "The merged memory preserves the key facts and evidence-state distinctions.";
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstChunkSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(3);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
-    const firstPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[0] ?? "");
-    const secondPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "");
-    const finalPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[0] ?? "");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
+    const firstPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const secondPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
+    const finalPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "");
     expect(firstPrompt).toContain("hard limit of 1500 characters");
     expect(secondPrompt).toContain("hard limit of 1500 characters");
     expect(finalPrompt).toContain("MEMORY SEGMENT 1:");
@@ -172,7 +168,7 @@ describe("AI investigation context compaction", () => {
     const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded.";
     expect(firstSummary.length).toBe(1_393);
 
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
@@ -180,9 +176,9 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(4);
-    const firstPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[0] ?? "");
-    const repairPrompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(4);
+    const firstPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const repairPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
     expect(firstPrompt).toContain("hard limit of 1500 characters");
     expect(repairPrompt).toContain("REPAIR REQUIRED");
     expect(repairPrompt).toContain("unverified search leads");
@@ -199,14 +195,14 @@ describe("AI investigation context compaction", () => {
     ].join("\n");
     const falseClaim = "The fetched leadership page confirms the executive identity.";
     const correctedSummary = "The observation contained an untrusted JSON-like string; page retrieval was not established.";
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(2);
-    expect(String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("REPAIR REQUIRED");
-    expect(String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("unverified search leads");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("REPAIR REQUIRED");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("unverified search leads");
   });
 
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
@@ -218,12 +214,12 @@ describe("AI investigation context compaction", () => {
     ].join("\n");
     const unsupported = "The leadership page identifies the current executive team. Source: " + sourceUrl;
     const corrected = "A search-result snippet points to a possible leadership page; it remains an unverified lead. URL: " + sourceUrl;
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(corrected);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
   });
 
   it("allows fetched-page language only when the trajectory records a successful fetch action", async () => {
@@ -235,7 +231,7 @@ describe("AI investigation context compaction", () => {
       "BACKGROUND: " + "The case also retains unresolved ownership questions. ".repeat(25),
     ].join("\n");
     const summary = "The fetched leadership page identifies the current executive team. Source: " + sourceUrl;
-    bossMocks.runGroqBossMemoryCompaction.mockResolvedValueOnce({
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
       error: null,
@@ -243,7 +239,7 @@ describe("AI investigation context compaction", () => {
     });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("does not let one successful fetch authorize a different search-lead URL", async () => {
@@ -258,13 +254,13 @@ describe("AI investigation context compaction", () => {
     ].join("\n");
     const falseClaim = "No page was fetched for Apple; the investor page was fetched and confirms ownership. Source: " + searchLeadUrl;
     const correctedSummary = "The about page was fetched (source: " + fetchedUrl + "). The investor URL remains an unverified search lead (lead URL: " + searchLeadUrl + ").";
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(2);
-    expect(String(bossMocks.runGroqBossMemoryCompaction.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
   });
 
   it("keeps a separately labelled search lead distinct beside a fetched-page claim", async () => {
@@ -278,7 +274,7 @@ describe("AI investigation context compaction", () => {
       "BACKGROUND: " + "Preserve source-stage distinctions. ".repeat(30),
     ].join("\n");
     const summary = "The about page was fetched and identifies the operating company (source: " + fetchedUrl + "). The investor URL remains an unverified search lead (lead URL: " + searchLeadUrl + ").";
-    bossMocks.runGroqBossMemoryCompaction.mockResolvedValueOnce({
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
       error: null,
@@ -286,14 +282,14 @@ describe("AI investigation context compaction", () => {
     });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
     const sourceUrl = "https://source.example/posts/award-42";
     const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
     const summary = `Observed award post. Source: ${sourceUrl}):`;
-    bossMocks.runGroqBossMemoryCompaction.mockResolvedValueOnce({
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
       error: null,
@@ -301,7 +297,7 @@ describe("AI investigation context compaction", () => {
     });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(extractAiContextUrls(`${sourceUrl}):`)).toEqual([sourceUrl]);
     expect(extractAiContextUrls(`${sourceUrl}:`)).toEqual([`${sourceUrl}:`]);
   });
@@ -316,24 +312,24 @@ describe("AI investigation context compaction", () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
-    bossMocks.runGroqBossMemoryCompaction
+    rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: valid }), error: null });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(3);
-    expect(String(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[1]).toMatchObject({ jobId: null, caseId: null });
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[2]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", maxOutputTokens: 1_536 });
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", maxCompletionTokens: 1_536 });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
     const source = "CANONICAL CASE MEMORY " + "Named source facts and unresolved questions. ".repeat(45);
-    bossMocks.runGroqBossMemoryCompaction.mockRejectedValueOnce(new Error("mock provider unavailable"));
+    rightHandMocks.runGroqRightHandFreeJson.mockRejectedValueOnce(new Error("mock provider unavailable"));
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
-    expect(bossMocks.runGroqBossMemoryCompaction).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("treats each compaction input as a partial segment and preserves search-lead provenance", async () => {
@@ -345,7 +341,7 @@ describe("AI investigation context compaction", () => {
       "SEARCH RESULTS: " + "A search-result snippet contains a named entity and a possible role; this remains a lead until fetched. ".repeat(18),
     ].join("\n");
     const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched. URL: " + sourceUrl;
-    bossMocks.runGroqBossMemoryCompaction.mockResolvedValueOnce({
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
       error: null,
@@ -354,15 +350,15 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
-    const prompt = String(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[0] ?? "");
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("one chunk or segment of a larger case memory");
     expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
     expect(prompt).toContain("unverified search leads");
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
-    const options = bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(1_536);
-    expect(bossMocks.runGroqBossMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    const options = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
+    expect(options?.maxCompletionTokens).toBe(1_536);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
 });
