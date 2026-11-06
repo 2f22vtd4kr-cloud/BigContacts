@@ -262,6 +262,20 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
   return /invalid_response|invalid_contract|json_validate_failed|failedGenerationBudgetExhausted/i.test(result.error ?? "");
 }
 
+/**
+ * A 20B token-per-minute/model throttle is scoped to that model, not proof that
+ * the Right-hand credential is exhausted. Permit one same-role 120B recovery;
+ * do not use this path for daily token caps, request quotas, auth failures, or
+ * arbitrary provider errors.
+ */
+function recoverableCompactionModelThrottle(error: string | null): boolean {
+  const diagnostic = error ?? "";
+  const modelScoped = /"rateLimitKind"\\s*:\\s*"(?:tokens|model)"/i.test(diagnostic);
+  const shortWindow = /tokens per minute|\\bTPM\\b|model.{0,40}rate.?limit/i.test(diagnostic);
+  const dailyCap = /tokens per day|\\bTPD\\b|daily token quota/i.test(diagnostic);
+  return modelScoped && shortWindow && !dailyCap;
+}
+
 async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
@@ -306,6 +320,23 @@ async function requestSummary(
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
+
+    // Do not spend another 20B request repairing a request that failed because
+    // that model's short token window is exhausted. Recover once on the
+    // already-configured Right-hand 120B model, retaining the same task/role.
+    if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
+      const fallbackPrompt = buildSummaryPrompt(
+        "ORIGINAL SOURCE MEMORY TO COMPACT:\\n" + source,
+        maxChars,
+        "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
+      );
+      if (fallbackPrompt.length > maximumPromptChars) return null;
+      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b");
+      validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
+      if (!validation.issues.length) return validation.summary;
+      logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+      return null;
+    }
     if (!retryableSummaryResponse(primary)) return null;
 
     const repairPrompt = buildSummaryPrompt(
