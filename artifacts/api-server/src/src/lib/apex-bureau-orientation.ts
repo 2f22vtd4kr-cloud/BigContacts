@@ -82,7 +82,7 @@ export function apexInvestigatorSystemCore(): string {
     "REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads. Start company-first, not a remembered famous CEO/LinkedIn list; check source. Keep source-backed company leads when decision-makers are unresolved. AI judgment, no blacklist.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: under-the-radar describes results, not queries; Other objectives use their criteria. E.g., casinos in Slovenia: honor both, find one operator from a fitting public source, inspect its primary URL, then hand off; no worldwide lists or unrelated wealth queries.",
     "DISCOVERY LEAD HANDOFF CONTRACT: leads provisional; never auto-promote.",
-    "AUTONOMY: Investigator owns research; Right-hand advises. One focused discovery query; inspect one lead's primary URL. No duplicate LinkedIn/Google/provider fan-out; search only for concrete gaps.",
+    "AUTONOMY: Investigator owns research; Right-hand advises. One focused discovery query; one alternative only if no useful lead emerges. Inspect one lead's primary URL. No duplicate LinkedIn/Google/provider fan-out; search only for concrete gaps.",
     "EVIDENCE: snippets are leads; claims need fetched URL + span; failures unknown.",
     "IDENTITY: keep people/companies/trusts/assets distinct; infer no ownership, wealth or contact.",
     "SAFETY: public/professional only; no private/sensitive/residential data.",
