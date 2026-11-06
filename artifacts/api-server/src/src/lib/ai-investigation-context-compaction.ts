@@ -227,10 +227,10 @@ function validateSummary(
 ): SummaryValidation {
   const summary = parseSummary(raw);
   const issues: string[] = [];
-  if (!summary) issues.push("missing_or_unparseable_summary");
-  if (summary && summary.length > maxChars) issues.push(`summary_exceeds_character_limit: the previous summary was ${summary.length} characters (maximum ${maxChars})`);
-  if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) issues.push("summary_contains_ungrounded_url");
-  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim");
+  if (!summary) issues.push("missing_or_unparseable_summary: the previous response did not contain a parseable summary");
+  if (summary && summary.length > maxChars) issues.push(`summary_exceeds_character_limit: the previous summary was ${summary.length} characters, exceeding the hard limit of ${maxChars}`);
+  if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) issues.push("summary_contains_ungrounded_url: URL tokens that were not copied exactly from the source were included");
+  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");
   return {
     summary,
     issues,
