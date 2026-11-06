@@ -152,6 +152,8 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(3);
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
     const firstPrompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[0] ?? "");
     const secondPrompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[0] ?? "");
     const finalPrompt = String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[0] ?? "");
@@ -315,9 +317,9 @@ describe("AI investigation context compaction", () => {
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
     memoryMocks.runGroqRightHandMemoryCompaction
-      .mockResolvedValueOnce({ model: "mock-right-hand-model", raw: JSON.stringify({ summary: invalid }), error: null })
-      .mockResolvedValueOnce({ model: "mock-right-hand-model", raw: JSON.stringify({ summary: invalid }), error: null })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: valid }), error: null });
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: valid }), error: null });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(3);
