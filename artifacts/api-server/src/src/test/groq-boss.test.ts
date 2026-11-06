@@ -6,7 +6,7 @@ const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-b
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 import { buildGroqBossDiscoveryPrompt, parseBossDiscoveryResponse } from "../lib/case-bureau";
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
-import { generateGroqBossText } from "../lib/groq-boss";
+import { generateGroqBossText, runGroqBossMemoryCompaction } from "../lib/groq-boss";
 
 describe("Groq Boss discovery prompt grounding", () => {
   it("keeps internal case-memory wording from becoming a false research anchor", () => {
@@ -304,6 +304,34 @@ describe("Groq Boss context-compaction empty output recovery", () => {
     delete process.env.GROQ_BOSS_API_KEY;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
     vi.restoreAllMocks();
+  });
+
+  it("uses Boss GPT-OSS 20B for routine memory compaction on the Boss credential lane", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-memory-compaction-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input) === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body)) as { model: string; messages: Array<{ role: string; content: string }>; max_completion_tokens: number; response_format?: { type?: string } };
+      expect(body.model).toBe("openai/gpt-oss-20b");
+      expect(body.messages[0]?.content).toContain("AI RESEARCH-MEMORY COMPACTION");
+      expect(body.messages[0]?.content).toContain("non-authoritative text transformation");
+      expect(body.max_completion_tokens).toBe(1_024);
+      expect(body.response_format?.type).toBe("json_schema");
+      return new Response(JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ summary: "Search leads remain unverified." }) } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqBossMemoryCompaction(
+      "APEX ATLAS — AI RESEARCH-MEMORY COMPACTION. This is a non-authoritative text transformation.",
+      { jobId: "boss-memory-compaction-test", caseId: 17 },
+      { preferredModel: "openai/gpt-oss-20b", maxOutputTokens: 1_024 },
+    );
+
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(JSON.parse(result.raw ?? "{}").summary).toContain("Search leads remain unverified");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("retries an empty strict-schema compaction response once as JSON-object on the same Boss model", async () => {
