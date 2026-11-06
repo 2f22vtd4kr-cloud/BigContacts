@@ -351,7 +351,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 
   let config;
   try {
-    config = getGroqBossLatencyConfig();
+    const maximumPromptChars = getGroqRightHandPromptLimit();
   } catch {
     return null;
   }
@@ -360,7 +360,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   // or tail. Ordinary multi-chunk contexts are reduced hierarchically by Boss.
   const MAX_SOURCE_CHARS = 2_000_000;
   if (source.length > MAX_SOURCE_CHARS) return null;
-  const chunkLimit = Math.min(12_000, Math.max(4_000, config.maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
+  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
   const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
   if (!sourceChunks.length) return null;
   if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
@@ -382,7 +382,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     partialSummaries.push(summary);
   }
 
-  const promptInputBudget = Math.max(2_000, config.maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
+  const promptInputBudget = Math.max(2_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
   const combine = (summaries: string[]) => summaries
     .map((summary, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + summary)
     .join("\n\n");
