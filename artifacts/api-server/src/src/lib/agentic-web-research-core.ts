@@ -6643,6 +6643,7 @@ if (input.mode === "discovery") {
     emit(action.action, { provider: "none", status: "blocked", summary: "Parallel search is disabled during discovery; no search requests were sent." });
     continue;
   }
+}
 
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
