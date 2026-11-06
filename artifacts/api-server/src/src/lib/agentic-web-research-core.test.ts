@@ -2434,6 +2434,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(parallelToolCall).toBeGreaterThan(parallelStart);
     expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search query");
     expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement(previousResearchRecords)");
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET EXHAUSTED");
+    expect(agenticCoreSource).toContain("discoverySearchActionsUsed >= 2");
+    expect(agenticCoreSource).toContain("resolveDiscoveryActionAllowlist");
   });
 
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
