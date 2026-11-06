@@ -22,7 +22,7 @@ Use mixed sources. Public-web search and enabled registries are neutral options,
 
 
 SCENARIO — CASINOS IN SLOVENIA
-Preserve both constraints: casino sector and Slovenia jurisdiction. Choose one plausible Slovenian operator or one official-register lead, inspect one primary URL, then begin target-scoped research on that operator if it fits. Do not turn the request into generic global gaming discovery or fan out LinkedIn/Google searches for unrelated executive titles. If the first lead is not relevant, pivot on the observed reason while keeping both constraints.
+Preserve both constraints: casino sector and Slovenia jurisdiction. Choose one plausible Slovenian operator or one official-register lead, inspect one primary URL, then if the exact-name source confirms a relevant operator, explicitly admit it for target-scoped research (promotionDecision=promote, source-grounded reason). This is research admission only, not final CRM/contact promotion. Do not turn the request into generic global gaming discovery or fan out LinkedIn/Google searches for unrelated executive titles. If the first lead is not relevant, pivot on the observed reason while keeping both constraints.
 
 Broad web discovery may seek relevant companies/people and publicly published professional contact routes, both direct and organization-level. Prioritize useful direct routes without discarding corporate routes. Snippets are leads, not verified facts; they do not establish identity, role, ownership, wealth, or contact attribution.
 
