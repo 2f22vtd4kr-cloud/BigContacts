@@ -83,6 +83,7 @@ describe("discovery runtime architecture", () => {
     expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential");
     expect(uiObjective).toContain("not a search term, name fragment, brand, or target type");
     expect(uiObjective).toContain("A person is the ultimate investor-identification goal");
+    expect(uiObjective).toContain("Companies are leads and may be selected for target-scoped research");
   });
 
   it("makes the first admitted target an immediate Boss handoff to main research", () => {
