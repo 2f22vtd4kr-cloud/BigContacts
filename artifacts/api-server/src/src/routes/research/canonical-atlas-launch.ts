@@ -180,7 +180,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  const targetCount = Math.max(1, Math.min(20, Math.trunc(Number(body.targetCount) || 3)));
+  const targetCount = Math.max(1, Math.min(20, Math.trunc(Number(body.targetCount) || 1)));
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
     : undefined;

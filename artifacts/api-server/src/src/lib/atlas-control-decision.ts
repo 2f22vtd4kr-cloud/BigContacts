@@ -26,6 +26,24 @@ function completeAtlasControlPromptUrlSamples(values: readonly string[], maxItem
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasTargetType = "person" | "organization";
 export type AtlasAdmittedTargetInput = { name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType };
+/**
+ * Once discovery has produced a source-attributed admitted target, another
+ * broad-discovery/pivot turn is not allowed to postpone target-scoped research.
+ * Boss still chooses which admitted target to investigate.
+ */
+export function atlasEarlyTargetHandoffViolation(
+  action: AtlasControlAction,
+  admittedCandidates: readonly AtlasAdmittedTargetInput[],
+): string | null {
+  const hasSourceBackedTarget = admittedCandidates.some((candidate) =>
+    Boolean(candidate.name.trim()) && candidate.sourceUrls.some((url) => /^https?:\\/\\//i.test(url)),
+  );
+  if (hasSourceBackedTarget && (action === "continue_discovery" || action === "pivot_discovery")) {
+    return "A source-attributed admitted target is already available. The main target-scoped research phase must begin as soon as one worthwhile target is available; choose research_candidate for the most objective-relevant admitted target now, or stop only if every admitted target is demonstrably irrelevant, out of scope, unsafe, or unbound.";
+  }
+  return null;
+}
+
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
 
 /** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
@@ -540,8 +558,8 @@ Allowed actions: continue_discovery | research_candidate | revisit_candidate | p
 Rules:
 - Boss owns the next action. The harness does not infer it from candidate count, score, or phase.
 - For research/revisit, candidateName AND candidateType must exactly match one supplied review target; type is person or organization. A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion. Never invent a target, URL, relationship, contact, or evidence.
-- EARLY REVIEW-TARGET JUDGMENT: when one relevant source-attributed company/person/asset target is available, recommend investigating it now unless a concrete evidence-backed reason makes a different immediate action more valuable. Do not accumulate names or continue broad discovery to build a larger candidate pool. No target-count threshold; any alternate action must answer a concrete unresolved question tied to the human objective. Do not compare or broaden geography.
-- Right-hand is advisory, never an approval gate. If Right-hand is unavailable, make an independent Boss decision from the objective and durable evidence. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice. If adopting its advice, carry it into the structured direction field; narrative text does not change accepted scope.
+- MANDATORY EARLY HANDOFF: if any source-attributed review target is admitted, choose research_candidate for the most objective-relevant one now. The main target-scoped research phase must begin as soon as one worthwhile target is available. Do not continue broad discovery or collect more names. Target-scoped research tests identity, role, ownership/materiality, contradictions, and practical routes. Continue discovery only if no target is admitted; stop only if all admitted targets are out of scope, unsafe, or unusable.
+- Right-hand is advisory, never an approval gate. If Right-hand is unavailable, make an independent Boss decision from the objective and durable evidence. Adopt, modify, or reject advice; if adopted, encode it in the structured direction field. Narrative text never changes accepted scope.
 - On opening, no narrower scope is active until Boss chooses one. A null direction retains the human base objective; an explicit direction activates the accepted scope. On later turns, null keeps the accepted scope.
 - If the preceding Investigator episode executed no external research action, do not silently repeat the same scope after a rejected action. Give a concrete refinement or stop/park.
 - A pivot must be self-contained and executable: name the concrete subject or evidence question and a relevant source class. Use geography only when the human supplied a geographic constraint; do not broaden or switch jurisdictions as a discovery exercise. No fixed provider/tool/query/action sequence.
