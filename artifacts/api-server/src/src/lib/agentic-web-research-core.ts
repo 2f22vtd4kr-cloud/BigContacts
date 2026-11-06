@@ -5344,8 +5344,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       }
     }
     const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
-      const hasCompleteSchema = repaired.includes(requiredFieldList);
-      const requiredAdditions = [
+    const hasCompleteSchema = (value: string) =>
+      /OUTPUT CONTRACT:[\s\S]{0,240}ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider,/.test(value)
+      && value.includes(requiredFieldList);
+    const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
     ].filter(Boolean);
@@ -5365,9 +5367,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (headingIndex < 0) continue;
       const nextSection = repaired.indexOf("\n\n", headingIndex);
       if (nextSection < 0) continue;
+      const candidateSection = repaired.slice(headingIndex, nextSection);
+      // Optional headings never authorize removal of the required action schema,
+      // even if a compaction path placed both clauses in the same paragraph.
+      if (/OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(candidateSection)) continue;
       repaired = (repaired.slice(0, headingIndex).trimEnd() + "\n\n" + repaired.slice(nextSection + 2).trimStart()).trim();
     }
-    if (repaired.length <= maxUserPromptChars) return repaired;
+    if (!hasCompleteSchema(repaired)) {
+      repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\n\n");
+    }
+    if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired)) return repaired;
     throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + repaired.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
@@ -5381,8 +5390,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const latestArgsEnvelope = latestRecord
       ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
       : "";
-    const hasRequiredPromptContract = /OUTPUT CONTRACT:/.test(normalizedBase)
-      && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(normalizedBase);
+    const hasRequiredPromptContract =
+      /OUTPUT CONTRACT:[\s\S]{0,240}ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider,/.test(normalizedBase);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
