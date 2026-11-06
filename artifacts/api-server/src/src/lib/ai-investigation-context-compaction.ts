@@ -259,7 +259,7 @@ function logSummaryValidationFailure(
 
 function retryableSummaryResponse(result: { raw: string | null; error: string | null }): boolean {
   if (typeof result.raw === "string" && result.raw.trim()) return true;
-  return /invalid_response|invalid_contract|json_validate_failed|failedGenerationBudgetExhausted/i.test(result.error ?? "");
+  return /invalid_response|invalid_contract/i.test(result.error ?? "");
 }
 
 async function requestSummary(
@@ -277,7 +277,7 @@ async function requestSummary(
     // Memory compaction is a non-decision transformation. Use the separate
     // Right-hand credential lane so long summaries cannot consume Boss's
     // strategic-control TPM budget immediately before a required Boss decision.
-    const outputBudget = 1_536;
+    const outputBudget = Math.min(1_536, Math.max(1_024, Math.ceil(maxChars * 0.75)));
     const primary = await runGroqRightHandMemoryCompaction(
       prompt,
       { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
@@ -298,7 +298,7 @@ async function requestSummary(
       validation.issues.join("; "),
     );
     if (repairPrompt.length > config.maximumPromptChars) return null;
-    const repairOutputBudget = 1_536;
+    const repairOutputBudget = Math.min(2_048, Math.max(outputBudget, Math.ceil(outputBudget * 1.25)));
     const repair = await runGroqRightHandMemoryCompaction(
       repairPrompt,
       { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
@@ -321,7 +321,7 @@ async function requestSummary(
     const fallback = await runGroqRightHandMemoryCompaction(
       fallbackPrompt,
       { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
-      { maxAttempts: 1, maxCompletionTokens: 1_536, reasoningEffort: "low", preferredModel: "openai/gpt-oss-20b" },
+      { maxAttempts: 1, maxCompletionTokens: 2_048, reasoningEffort: "low", preferredModel: "openai/gpt-oss-20b" },
     );
     validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
