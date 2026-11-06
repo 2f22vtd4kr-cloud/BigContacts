@@ -2469,7 +2469,6 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement(previousResearchRecords)");
     expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: two outbound discovery search actions");
   });
-  });
 
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
