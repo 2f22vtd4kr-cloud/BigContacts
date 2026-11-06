@@ -13,6 +13,8 @@ export type BureauPassAgenticSnapshot = {
   groundingTrajectoryRecords?: AgenticTrajectoryRecord[];
   stopReason?: string;
   consecutiveActionParseFailures?: number;
+  aiCompactedHistoricalContext?: string;
+  aiCompactedHistoricalThroughTurn?: number;
 };
 
 export type BureauPassFailureResult = {
@@ -33,6 +35,8 @@ export type BureauPassFailureResult = {
   stopReason: "UNEXPECTED_ERROR";
   error: string;
   consecutiveActionParseFailures: number;
+  aiCompactedHistoricalContext?: string;
+  aiCompactedHistoricalThroughTurn?: number;
 };
 
 /**
@@ -95,6 +99,8 @@ export function buildBureauAgenticPassFailureResult(input: {
     stopReason: "UNEXPECTED_ERROR",
     error: input.errorSummary,
     consecutiveActionParseFailures: agentic.consecutiveActionParseFailures ?? input.initialConsecutiveActionParseFailures ?? 0,
+    ...(agentic.aiCompactedHistoricalContext ? { aiCompactedHistoricalContext: agentic.aiCompactedHistoricalContext } : {}),
+    ...(Number.isFinite(agentic.aiCompactedHistoricalThroughTurn) ? { aiCompactedHistoricalThroughTurn: agentic.aiCompactedHistoricalThroughTurn } : {}),
   };
 }
 
