@@ -20,6 +20,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(systemCore).toContain("source class");
     expect(systemCore).toContain("Virtual Globetrotting");
+    expect(systemCore).toContain("REALISM / B2B START");
+    expect(systemCore).toContain("not a remembered famous CEO");
     expect(systemCore).toContain("SCENARIO RECALL");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).toContain("SEARCH ECONOMY");
