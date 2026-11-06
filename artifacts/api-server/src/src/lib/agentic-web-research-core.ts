@@ -3145,6 +3145,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
   const isInvestigatorPrompt = mode === "discovery" || mode === "target" || /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
+  const requiredActionFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
+  const hasCompleteActionSchema = (prompt: string) => prompt.includes(requiredActionFieldList);
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
     && (!suppliedMemory || base.includes(suppliedMemory))
@@ -3152,8 +3154,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!/LATEST TRAJECTORY RECORD/.test(base) || /leadUrlsOmittedFromPromptCount/.test(base))
     && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base))
     // A tiny/empty observation is not permission to send an incomplete action
-    // prompt. Fast-return only if the protected structured schema is already there.
-    && (!isInvestigatorPrompt || (/OUTPUT CONTRACT:/.test(base) && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(base)));
+    // prompt. Fast-return only if the complete structured schema is already there.
+    && (!isInvestigatorPrompt || (/OUTPUT CONTRACT:/.test(base) && hasCompleteActionSchema(base)));
   if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
@@ -3359,7 +3361,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
   const compactedWithMarkers = [compacted, ...protectedRules, leadGuidance, urlInventory, aiMemorySection, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceClaimExcerpt, fetchedSourceExcerpt, ...durableRecordSummaries, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
-  if (observationBudget >= 40 && combined.length <= limit) return combined;
+  // The observation fast path must not let a partial/legacy output heading bypass
+  // the complete provider action schema. If fields are missing, continue into the
+  // fallback assembler, whose protected contract rehydrates the full field list.
+  if (
+    observationBudget >= 40
+    && combined.length <= limit
+    && (!isInvestigatorPrompt || (/OUTPUT CONTRACT:/.test(combined) && hasCompleteActionSchema(combined)))
+  ) return combined;
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
   // normal prompt plus observation exceeds the provider ceiling. Never silently
   // fall back to the base prompt alone, which loses the latest durable action.
