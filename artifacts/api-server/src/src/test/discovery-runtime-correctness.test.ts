@@ -463,7 +463,7 @@ describe("discovery runtime architecture", () => {
       leadUrls: ["https://operator.example.si/about"], findings: [],
     }])).toMatchObject({
       allowed: false,
-      reason: expect.stringContaining("inspect one relevant lead"),
+      reason: expect.stringContaining("Inspect one relevant lead"),
     });
   });
 
