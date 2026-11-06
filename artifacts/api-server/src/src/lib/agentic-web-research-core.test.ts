@@ -120,6 +120,18 @@ describe("model-owned discovery relevance reasoning", () => {
 });
 
 describe("discovery single-query guard", () => {
+  it("uses the filtered action allowlist in the structured schema", () => {
+    const discoverySchema = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search", "registry_search", "visit"]) as {
+      json_schema?: { schema?: { properties?: { action?: { enum?: string[] } } } };
+    };
+    const targetSchema = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit"]) as {
+      json_schema?: { schema?: { properties?: { action?: { enum?: string[] } } } };
+    };
+    expect(discoverySchema.json_schema?.schema?.properties?.action?.enum).toEqual(["web_search", "registry_search", "visit"]);
+    expect(targetSchema.json_schema?.schema?.properties?.action?.enum).toContain("parallel_web_search");
+    expect(targetSchema.json_schema?.schema?.properties?.action?.enum).toContain("parallel_registry_search");
+  });
+
   it("removes parallel search actions from discovery schemas and blocks them at runtime", () => {
     expect(discoveryParallelSearchActionReason("discovery", "parallel_web_search")).toContain("unavailable during discovery");
     expect(discoveryParallelSearchActionReason("discovery", "parallel_registry_search")).toContain("unavailable during discovery");
