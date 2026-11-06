@@ -350,15 +350,15 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return source;
 
-  let config;
+  let maximumPromptChars: number;
   try {
-    const maximumPromptChars = getGroqRightHandPromptLimit();
+    maximumPromptChars = getGroqRightHandPromptLimit();
   } catch {
     return null;
   }
 
   // Reject only pathological inputs by size; never silently discard their middle
-  // or tail. Ordinary multi-chunk contexts are reduced hierarchically by Boss.
+  // or tail. Ordinary multi-chunk contexts are reduced hierarchically by the AI memory compactor.
   const MAX_SOURCE_CHARS = 2_000_000;
   if (source.length > MAX_SOURCE_CHARS) return null;
   const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
