@@ -67,12 +67,17 @@ describe("discovery runtime architecture", () => {
     expect(launchDefaults).toContain("researchLimit: 1");
     expect(launchRoute).toContain("Number(body.targetCount) || 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
-    const uiObjectiveMatch = launchUi.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/);
-    const apiObjectiveMatch = canonicalDiscoverySource.match(/let discoveryObjective = opts\\.discoveryObjective\\?\\.trim\\(\\) \\|\\| ("(?:[^"\\\\]|\\\\.)*");/);
-    expect(uiObjectiveMatch).not.toBeNull();
-    expect(apiObjectiveMatch).not.toBeNull();
-    const uiObjective = JSON.parse(uiObjectiveMatch![1]!);
-    const apiObjective = JSON.parse(apiObjectiveMatch![1]!);
+    const uiObjectiveLine = launchUi.split("\\n").find((line) => line.startsWith("export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "));
+    const apiObjectiveLine = canonicalDiscoverySource.split("\\n").find((line) => line.includes("let discoveryObjective = opts.discoveryObjective?.trim() ||"));
+    expect(uiObjectiveLine).toBeDefined();
+    expect(apiObjectiveLine).toBeDefined();
+    const parseDefaultObjective = (line: string): string => {
+      const start = line.indexOf('"', line.indexOf("="));
+      const end = line.lastIndexOf('";') + 1;
+      return JSON.parse(line.slice(start, end)) as string;
+    };
+    const uiObjective = parseDefaultObjective(uiObjectiveLine!);
+    const apiObjective = parseDefaultObjective(apiObjectiveLine!);
     expect(uiObjective).toBe(apiObjective);
     expect(uiObjective.length).toBeLessThanOrEqual(1_200);
     expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential");
