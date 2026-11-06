@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
-import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
   it("splits only for transport and retains every source character and repeated URL", () => {
