@@ -168,18 +168,15 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
 
 function summaryResponseFormat(): Record<string, unknown> {
   return {
-    type: "json_schema",
-    json_schema: {
-      name: "apex_investigation_memory_summary",
-      strict: true,
-      schema: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-        },
-        required: ["summary"],
-        additionalProperties: false,
+    type: "text",
+    mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
       },
+      required: ["summary"],
+      additionalProperties: false,
     },
   };
 }
