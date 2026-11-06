@@ -294,6 +294,7 @@ async function generateGroqBossTextImpl(
     iteration?: number | null;
     decisionId?: string | null;
     cognitiveTask?: string | null;
+    modelCandidates?: string[];
   },
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
@@ -310,7 +311,10 @@ async function generateGroqBossTextImpl(
 
   const config = getGroqBossLatencyConfig();
   const deadline = Date.now() + config.overallTimeoutMs;
-  const candidates = [selection.model, ...(selection.candidateModels ?? []), ...GROQ_BOSS_FALLBACK_MODELS]
+  const candidateSource = options?.modelCandidates?.length
+    ? options.modelCandidates
+    : [selection.model, ...(selection.candidateModels ?? []), ...GROQ_BOSS_FALLBACK_MODELS];
+  const candidates = candidateSource
     .filter((model, index, list) => model && list.indexOf(model) === index)
     .slice(0, MAX_MODEL_ATTEMPTS);
   const boundedPrompt = boundedBossPrompt(prompt, config.maximumPromptChars);
@@ -599,9 +603,74 @@ export function generateGroqBossText(
     iteration?: number | null;
     decisionId?: string | null;
     cognitiveTask?: string | null;
+    modelCandidates?: string[];
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));
+}
+
+/**
+ * Run a source-faithful, non-decision memory transformation on the Boss
+ * credential/model lane. Routine compaction uses the lower-cost 20B model so
+ * the 120B model remains available for strategic control decisions.
+ */
+export async function runGroqBossMemoryCompaction(
+  prompt: string,
+  context?: { jobId?: string | null; caseId?: number | null },
+  options?: {
+    preferredModel?: typeof GROQ_BOSS_MODEL | (typeof GROQ_BOSS_FALLBACK_MODELS)[number];
+    maxOutputTokens?: number;
+  },
+): Promise<GroqBossTextGenerationResult> {
+  const selection = await resolveGroqBossModel();
+  if (selection.status !== "resolved") {
+    return {
+      model: selection.model,
+      raw: null,
+      error: "Groq Boss model selection is unavailable for memory compaction.",
+      attempts: [],
+    };
+  }
+  const preferredModel = options?.preferredModel ?? GROQ_BOSS_FALLBACK_MODELS[0];
+  const availableModels = new Set([
+    selection.model,
+    ...(selection.candidateModels ?? []),
+    ...GROQ_BOSS_FALLBACK_MODELS,
+  ]);
+  if (!availableModels.has(preferredModel)) {
+    return {
+      model: selection.model,
+      raw: null,
+      error: "The requested same-role Boss memory-compaction model is not in the resolved model set.",
+      attempts: [],
+    };
+  }
+  const responseFormat = {
+    type: "json_schema",
+    json_schema: {
+      name: "apex_investigation_memory_summary",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: { summary: { type: "string" } },
+        required: ["summary"],
+        additionalProperties: false,
+      },
+    },
+  };
+  return generateGroqBossText(
+    { ...selection, model: preferredModel, candidateModels: [preferredModel] },
+    prompt,
+    {
+      responseFormat,
+      maxOutputTokens: options?.maxOutputTokens ?? 1_536,
+      thinkingLevel: "low",
+      jobId: context?.jobId ?? null,
+      caseId: context?.caseId ?? null,
+      cognitiveTask: "context_compaction",
+      modelCandidates: [preferredModel],
+    },
+  );
 }
 
 export function getGroqBossStatus(): GroqBossStatus {

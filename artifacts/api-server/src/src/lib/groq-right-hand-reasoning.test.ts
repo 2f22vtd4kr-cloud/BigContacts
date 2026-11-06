@@ -84,6 +84,72 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     resetGroqRightHandRequestGateForTests();
   });
 
+  it("uses a strict preferred model on the Right-hand credential lane without falling back to 120B", async () => {
+    const chatBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] });
+      }
+      chatBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Compact the supplied source-faithful memory.",
+      "Perform only a non-authoritative memory text transformation.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-memory-compaction-model-test", caseId: 46, cognitiveTask: "context_compaction" },
+      {
+        maxCompletionTokens: 1_536,
+        reasoningEffort: "low",
+        maxAttempts: 1,
+        preferredModel: "openai/gpt-oss-20b",
+        allowModelFallback: false,
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(chatBodies).toHaveLength(1);
+    expect(chatBodies[0].model).toBe("openai/gpt-oss-20b");
+    const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+    expect((chatCall?.[1]?.headers as Record<string, string>)?.Authorization).toBe("Bearer test-right-hand-key");
+  });
+
+  it("fails closed when the strict preferred Right-hand model is absent from the live catalog", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }] });
+      }
+      throw new Error("chat completion must not be attempted without the preferred model");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Compact the supplied source-faithful memory.",
+      "Perform only a non-authoritative memory text transformation.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-memory-compaction-model-unavailable-test", caseId: 47, cognitiveTask: "context_compaction" },
+      {
+        maxCompletionTokens: 1_536,
+        reasoningEffort: "low",
+        maxAttempts: 1,
+        preferredModel: "openai/gpt-oss-20b",
+        allowModelFallback: false,
+      },
+    );
+
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain("no compatible configured model");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("retries a documented completion-budget exhaustion with lower reasoning and a bounded larger output budget", async () => {
     const chatBodies: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

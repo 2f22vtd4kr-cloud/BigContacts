@@ -14,8 +14,8 @@ import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
-import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory } from "./investigation-context-compaction";
-import { summarizeInvestigatorContextWithBoss } from "./ai-investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
+import { summarizeInvestigatorContextWithAiCompactor } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -6339,8 +6339,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         sourceChars: initialMemorySource.length,
         priorContextChars: input.priorContext?.length ?? 0,
       });
-      const shouldUpdateAiMemory = Boolean(aiCompactedHistoricalContext)
-        && (pendingHistoricalRecords.length >= 1 || objective.length > 1_600 || (input.priorContext?.length ?? 0) > 800);
+      const shouldUpdateAiMemory = shouldUpdateInvestigatorResearchMemory({
+        hasExistingMemory: Boolean(aiCompactedHistoricalContext),
+        pendingHistoricalRecordCount: pendingHistoricalRecords.length,
+      });
       if (shouldCreateAiMemory || shouldUpdateAiMemory) {
         const memorySource = shouldCreateAiMemory
           ? initialMemorySource
@@ -6356,7 +6358,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
               "NEWLY AGED DURABLE TRAJECTORY RECORDS (chronological; merge these into the memory without dropping material facts):\n"
                 + pendingHistoricalRecords.map((record) => JSON.stringify(renderMemoryRecord(record))).join("\n"),
             ].join("\n\n");
-        const compactedMemory = await summarizeInvestigatorContextWithBoss({
+        const compactedMemory = await summarizeInvestigatorContextWithAiCompactor({
           rawContext: memorySource,
           maxChars: 1_800,
           jobId: input.jobId,
@@ -6412,7 +6414,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         const cacheKey = String(promptRecord.turn) + ":" + createHash("sha256").update(sourceToSummarize).digest("hex");
         let compactedObservation = aiCompactedObservationBySource.get(cacheKey);
         if (!compactedObservation) {
-          compactedObservation = await summarizeInvestigatorContextWithBoss({
+          compactedObservation = await summarizeInvestigatorContextWithAiCompactor({
             rawContext: sourceToSummarize,
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
@@ -6436,7 +6438,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         const cacheKey = "observation-only:" + createHash("sha256").update(sourceToSummarize).digest("hex");
         let compactedObservation = aiCompactedObservationBySource.get(cacheKey);
         if (!compactedObservation) {
-          compactedObservation = await summarizeInvestigatorContextWithBoss({
+          compactedObservation = await summarizeInvestigatorContextWithAiCompactor({
             rawContext: sourceToSummarize,
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
@@ -6483,7 +6485,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // rebuild once. If it still cannot fit alongside the action/schema contracts,
       // stop this turn rather than silently lose prior research.
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
-        const shorterMemory = await summarizeInvestigatorContextWithBoss({
+        const shorterMemory = await summarizeInvestigatorContextWithAiCompactor({
           rawContext: aiCompactedHistoricalContext,
           maxChars: 1_200,
           jobId: input.jobId,

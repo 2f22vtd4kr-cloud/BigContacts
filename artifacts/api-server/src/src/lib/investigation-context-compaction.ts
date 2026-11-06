@@ -69,6 +69,20 @@ const MAX_MAX_CHARS = 12_000;
  * turn one must remain direct context and must not trigger a synthetic memory
  * pass when there are no prior Investigator observations to compact.
  */
+/**
+ * Refresh a Boss-generated historical memory only when new durable records
+ * have aged out of the live trajectory window. The current objective and
+ * Boss/Right-hand direction are injected separately into every Investigator
+ * prompt, so their length alone must not trigger an identical full-history
+ * compaction on every turn.
+ */
+export function shouldUpdateInvestigatorResearchMemory(input: {
+  hasExistingMemory: boolean;
+  pendingHistoricalRecordCount: number;
+}): boolean {
+  return input.hasExistingMemory && input.pendingHistoricalRecordCount > 0;
+}
+
 export function shouldCreateInvestigatorResearchMemory(input: {
   hasExistingMemory: boolean;
   historicalRecordCount: number;
@@ -77,7 +91,7 @@ export function shouldCreateInvestigatorResearchMemory(input: {
 }): boolean {
   if (input.hasExistingMemory || input.historicalRecordCount <= 0) return false;
   // Any older record will be reduced by the bounded archive projection below.
-  // Hand it to Boss first, even when the raw payload is small: the compactor
+  // Hand it to the AI memory compactor first, even when the raw payload is small: the compactor
   // returns small inputs losslessly and semantically summarizes larger ones.
   return true;
 }
