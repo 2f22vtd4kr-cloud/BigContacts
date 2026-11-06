@@ -326,7 +326,7 @@ async function requestSummary(
     // already-configured Right-hand 120B model, retaining the same task/role.
     if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
       const fallbackPrompt = buildSummaryPrompt(
-        "ORIGINAL SOURCE MEMORY TO COMPACT:\\n" + source,
+        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
         maxChars,
         "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
       );
