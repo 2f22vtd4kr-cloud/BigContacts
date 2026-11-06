@@ -112,8 +112,8 @@ describe("AI investigation context compaction", () => {
     expect(firstOptions?.maxCompletionTokens).toBe(1_536);
     expect(repairOptions?.maxCompletionTokens).toBe(1_920);
     expect(repairOptions?.maxCompletionTokens).toBe(firstOptions?.maxCompletionTokens);
-    expect(firstOptions?.cognitiveTask).toBe("context_compaction");
-    expect(repairOptions?.cognitiveTask).toBe("context_compaction");
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
   });
 
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
@@ -362,7 +362,7 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[2];
     expect(options?.maxCompletionTokens).toBe(1_536);
-    expect(options?.cognitiveTask).toBe("context_compaction");
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
     expect(options?.maxCompletionTokens).toBe(1_536);
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
   });
