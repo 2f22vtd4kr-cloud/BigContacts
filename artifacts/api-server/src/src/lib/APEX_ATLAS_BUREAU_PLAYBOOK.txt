@@ -17,7 +17,6 @@ What is the human trying to find? What is observed fact vs lead, hypothesis, unk
 PHASE 1 — DISCOVERY
 Discovery finds plausible candidates and checks relevance, not full proof. The human objective defines target class, geography, and exclusions; do not impose HNWI, ownership, person-first, or geography criteria the human did not request.
 
-JURISDICTION + SECTOR: “casinos in Slovenia” means Slovenian casino operators. Preserve both the sector and the stated country; do not broaden to worldwide casino groups or unrelated wealth searches. Choose one relevant operator or official-register lead, inspect one primary URL, then hand off to target-scoped research. This is an example of preserving the human's actual objective, not a fixed query, source, or provider.
 
 Use mixed sources. Public-web search and enabled registries are neutral first options, not a hierarchy. Leads may come from broad queries, jurisdiction-fit registers, sector/event clues, known organizations, or evidence-derived hypotheses. If several eligible routes are comparably plausible, Investigator may randomize/rotate among relevant queries and registries to reduce source-familiarity bias. Randomize the route, never target truth, scope, or evidence standards. Choose by likely yield, available fields, jurisdiction fit, runtime availability, independence, and cost.
 
