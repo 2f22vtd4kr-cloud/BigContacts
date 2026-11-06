@@ -310,7 +310,7 @@ describe("AI investigation context compaction", () => {
     expect(extractAiContextUrls(sourceUrl + String.raw`\r\nNext field: additional context`)).toEqual([sourceUrl]);
   });
 
-  it("uses one Right-hand 20B fallback after primary and original-source repair summaries fail validation", async () => {
+  it("uses one Right-hand 120B recovery after primary and original-source 20B repair summaries fail validation", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
@@ -323,7 +323,7 @@ describe("AI investigation context compaction", () => {
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(3);
     expect(String(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
-    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-20b", maxAttempts: 1, maxCompletionTokens: 1_536 });
+    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[2]?.[2]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", maxAttempts: 1, maxCompletionTokens: 1_536 });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
