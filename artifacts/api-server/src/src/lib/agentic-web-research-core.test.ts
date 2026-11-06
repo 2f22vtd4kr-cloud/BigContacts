@@ -73,7 +73,7 @@ describe("model-owned discovery relevance reasoning", () => {
       trajectoryRecords: [],
       lastObservation: "",
       findings: [],
-      actionAllowlist: ["web_search", "visit"],
+      actionAllowlist: ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit"],
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     expect(discoveryPrompt).toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
@@ -94,6 +94,9 @@ describe("model-owned discovery relevance reasoning", () => {
     const discoveryActions = discoveryPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
     expect(discoveryActions).not.toContain("parallel_web_search");
     expect(discoveryActions).not.toContain("parallel_registry_search");
+    const targetActions = targetPrompt.match(/AVAILABLE ACTIONS: ([^\\n]+)/)?.[1] ?? "";
+    expect(targetActions).toContain("parallel_web_search");
+    expect(targetActions).toContain("parallel_registry_search");
     expect(discoveryPrompt).not.toContain("Parallel web searches need 2–4");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
