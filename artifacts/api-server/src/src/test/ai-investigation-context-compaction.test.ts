@@ -148,8 +148,8 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
 
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b" });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b", allowModelFallback: false });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-20b", allowModelFallback: false });
     const firstPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
     const secondPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
     const finalPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "");
@@ -320,7 +320,7 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[1]).toMatchObject({ jobId: null, caseId: null });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({ jobId: null, caseId: null, cognitiveTask: "context_compaction" });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", maxCompletionTokens: 1_536 });
   });
 
