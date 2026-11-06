@@ -61,6 +61,14 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
+  it("preserves sector and jurisdiction together in the live setup prompts", () => {
+    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Preserve both the sector and the stated country");
+    expect(apexInvestigatorSystemCore()).toContain("casinos in Slovenia");
+    expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
