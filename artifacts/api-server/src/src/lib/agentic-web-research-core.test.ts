@@ -91,12 +91,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("One focused web_search or registry_search action");
     expect(discoveryPrompt).toContain("casinos in Slovenia means preserve both constraints");
     expect(discoveryPrompt).toContain("parallel_web_search and parallel_registry_search are unavailable");
-    const discoveryActions = discoveryPrompt.match(/AVAILABLE ACTIONS: ([^\\n]+)/)?.[1] ?? "";
+    const discoveryActions = discoveryPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
     expect(discoveryActions).not.toContain("parallel_web_search");
     expect(discoveryActions).not.toContain("parallel_registry_search");
     expect(discoveryPrompt).not.toContain("Parallel web searches need 2–4");
-    expect(targetPrompt).toContain("Target research may use 2–4 independent query objects");
-    expect(targetPrompt).toContain("parallel_web_search = serper | tavily | exa");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
@@ -105,6 +103,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
+    expect(targetPrompt).toContain("Target research may use 2–4 independent query objects");
+    expect(targetPrompt).toContain("parallel_web_search = serper | tavily | exa");
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
     expect(targetPrompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
     expect(targetPrompt).toContain("locale is language only, never geography");
