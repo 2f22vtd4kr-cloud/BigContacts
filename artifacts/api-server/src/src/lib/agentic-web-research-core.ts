@@ -3322,7 +3322,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie the source/query to the entity, role, relationship or materiality required by the active objective. A generic publisher homepage or broad leadership list alone is off-mission without a same-case evidence link. Investigator chooses sources/actions; no fixed sequence."
     : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY / REALISM: Follow the exact active objective and Boss-approved scope; people, operating companies, assets and relationships are distinct target classes. Do not select incidental celebrity/household-name people or infer access from prominence; use AI judgment, no name blacklist. Start from a source-backed, objective-relevant operator/company/asset, not a famous-name or generic leadership-list query. One worthwhile source-attributed review lead is enough to start target-stage research; do not accumulate a list while leaving the first candidate under-researched. Do not impose ownership or wealth requirements unless the objective calls for them."
+    ? "DISCOVERY TARGETABILITY / REALISM: Objective and scope set target class. No incidental celebrity/household-name leads or inferred access; no blacklist. One source-backed relevant lead starts target research; do not accumulate lists. No extra wealth/ownership criteria unless requested."
     : "";
   const protectedRuleCandidates = [
     "Press/profile pages may support a named person or organization review lead when you judge it relevant; the page itself is not a contact route unless it provides a legitimate public professional contact path.",
@@ -3349,7 +3349,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const hasSearchLeadContext = Boolean(latestSearchMarker)
     || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|unvisited lead|search results returned a potentially useful/i.test(searchLeadContext)
     || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[\s*"https?:\/\//i.test(searchLeadContext);
-  const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (advisory): consider inspecting a promising in-scope lead URL when it offers more information than another search. Search-result URLs remain leads until fetched." : "";
+  const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, aiMemorySection, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceClaimExcerpt, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   // Never reduce a current correction/source excerpt below a useful minimum
   // merely because static policy text is repeated in the suffix; if this exceeds
