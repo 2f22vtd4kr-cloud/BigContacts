@@ -291,10 +291,11 @@ async function requestSummary(
       validation.issues.join("; "),
     );
     if (repairPrompt.length > maximumPromptChars) return null;
+    const repairOutputBudget = 1_536;
     const repair = await runGroqRightHandMemoryCompaction(
       repairPrompt,
       { jobId: input.jobId ?? null, caseId: input.caseId ?? null, cognitiveTask: "context_compaction" },
-      { maxAttempts: 3, maxCompletionTokens: outputBudget, reasoningEffort: "low" },
+      { maxAttempts: 3, maxCompletionTokens: repairOutputBudget, reasoningEffort: "low" },
     );
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
