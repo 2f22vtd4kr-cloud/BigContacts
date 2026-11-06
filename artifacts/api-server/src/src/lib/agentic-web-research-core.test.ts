@@ -2436,6 +2436,18 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBe(2);
     expect(countDiscoverySearchActions(records)).toBe(2);
+    const agedHistory = [
+      ...records,
+      ...Array.from({ length: 100 }, (_, index) => ({
+        ...livenessRecord("visit", "success"),
+        turn: index + 10,
+      })),
+    ];
+    expect(countDiscoverySearchActions(agedHistory)).toBe(2);
+    expect(discoveryLeadInspectionRequirement(agedHistory)).toEqual({
+      leadUrl: "https://www.ohiosos.gov/business/search",
+      searchTurn: 1,
+    });
   });
 
   it("puts the search economy and Slovenia sector/jurisdiction example in the live discovery prompt", () => {
@@ -2457,8 +2469,8 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
-    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords)");
-    const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions(previousResearchRecords) >= MAX_DISCOVERY_SEARCH_ACTIONS");
+    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
+    const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS");
     const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search" || action.action === "parallel_registry_search")');
     const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {');
     expect(guardStart).toBeGreaterThan(-1);
