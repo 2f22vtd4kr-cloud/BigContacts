@@ -1,4 +1,4 @@
-import { getGroqBossLatencyConfig, runGroqBossMemoryCompaction } from "./groq-boss";
+import { GROQ_RIGHT_HAND_MAX_PROMPT_CHARS, runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { logger } from "./logger";
 
 export type AiInvestigationContextCompactionInput = {
@@ -265,6 +265,31 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
   return /invalid_response|invalid_contract|json_validate_failed|failedGenerationBudgetExhausted/i.test(result.error ?? "");
 }
 
+async function requestRightHandSummary(
+  prompt: string,
+  input: AiInvestigationContextCompactionInput,
+  preferredModel: "openai/gpt-oss-20b" | "openai/gpt-oss-120b",
+): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
+  return runGroqRightHandFreeJson(
+    prompt,
+    "Perform a non-authoritative, source-faithful memory text transformation only. Do not advise on strategy, choose targets, browse, or use tools. Return exactly the requested JSON summary.",
+    summaryResponseFormat(),
+    (raw) => parseSummary(raw) !== null,
+    {
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      cognitiveTask: "context_compaction",
+    },
+    {
+      maxCompletionTokens: 1_536,
+      reasoningEffort: "low",
+      maxAttempts: 3,
+      preferredModel,
+      allowModelFallback: false,
+    },
+  );
+}
+
 async function requestSummary(
   source: string,
   allowedSource: string,
@@ -273,19 +298,14 @@ async function requestSummary(
   successfulFetchUrls: ReadonlySet<string> = sourceSuccessfulFetchUrls(allowedSource),
 ): Promise<string | null> {
   try {
-    const maximumPromptChars = getGroqBossLatencyConfig().maximumPromptChars;
+    const maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
     const prompt = buildSummaryPrompt(source, maxChars);
     if (prompt.length > maximumPromptChars) return null;
 
     // Memory compaction is a non-decision transformation. Use the separate
-    // Boss GPT-OSS 20B lane so long summaries cannot consume Boss's
-    // strategic-control TPM budget immediately before a required Boss decision.
-    const outputBudget = 1_536;
-    const primary = await runGroqBossMemoryCompaction(
-      prompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
-      { maxOutputTokens: outputBudget, preferredModel: "openai/gpt-oss-20b" },
-    );
+    // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
+    // Boss strategic-control quota or Right-hand 120B advisory capacity.
+    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b");
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
@@ -297,12 +317,7 @@ async function requestSummary(
       validation.issues.join("; "),
     );
     if (repairPrompt.length > maximumPromptChars) return null;
-    const repairOutputBudget = 1_536;
-    const repair = await runGroqBossMemoryCompaction(
-      repairPrompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
-      { maxOutputTokens: repairOutputBudget, preferredModel: "openai/gpt-oss-20b" },
-    );
+    const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b");
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
@@ -314,11 +329,7 @@ async function requestSummary(
       "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary",
     );
     if (fallbackPrompt.length > maximumPromptChars) return null;
-    const fallback = await runGroqBossMemoryCompaction(
-      fallbackPrompt,
-      { jobId: input.jobId ?? null, caseId: input.caseId ?? null },
-      { maxOutputTokens: outputBudget, preferredModel: "openai/gpt-oss-120b" },
-    );
+    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b");
     validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
