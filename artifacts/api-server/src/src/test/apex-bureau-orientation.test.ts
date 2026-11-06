@@ -64,6 +64,8 @@ describe("objective-led institutional orientation", () => {
   it("carries explicit sector-and-jurisdiction scenarios into every role prompt", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("casinos in Slovenia");
     expect(APEX_WHAT_IS_ATLAS).toContain("preserve both the casino sector and Slovenia as binding scope");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR SCENARIO");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
     expect(apexInvestigatorSystemCore()).toContain("One focused discovery query");
     expect(apexInvestigatorSystemCore()).toContain("No duplicate LinkedIn/Google/provider fan-out");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
