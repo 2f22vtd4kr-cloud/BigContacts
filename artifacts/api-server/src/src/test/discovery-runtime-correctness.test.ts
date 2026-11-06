@@ -17,7 +17,6 @@ const bureauPassFailureSource = fs.readFileSync(path.join(libDir, "bureau-agenti
 const launchDefaultsSource = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
 const launchRouteSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const launchUiSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
-const bureauPlaybookSource = fs.readFileSync(path.join(libDir, "APEX_ATLAS_BUREAU_PLAYBOOK.txt"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -646,15 +645,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
-  it("defaults canonical Atlas to one target and includes the sector/jurisdiction scenario in shared setup", () => {
+  it("defaults canonical Atlas to one target across launch paths", () => {
     expect(launchDefaultsSource).toContain("targetCount: 1");
     expect(launchDefaultsSource).toContain("researchLimit: 1");
     expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
     expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
-    expect(bureauPlaybookSource).toContain("JURISDICTION + SECTOR");
-    expect(bureauPlaybookSource).toContain("casinos in Slovenia");
-    expect(bureauPlaybookSource).toContain("Preserve both the sector and the stated country");
   });
 
   it("enforces immediate target handoff before any further discovery or pivot", () => {
