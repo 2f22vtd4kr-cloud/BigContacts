@@ -81,6 +81,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
+    expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
+    expect(discoveryPrompt).toContain("One worthwhile source-attributed review lead is enough to start target-stage research");
+    expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
     expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
@@ -2392,6 +2395,17 @@ Choose each next action yourself from the available capabilities and observed ev
       leadUrl: "https://www.ohiosos.gov/business/search",
       searchTurn: 1,
     });
+    const discoveryPrompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "Search results returned a potentially useful unvisited lead.",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(discoveryPrompt).toContain("DISCOVERY LEAD-INSPECTION GATE");
+    expect(discoveryPrompt).toContain("Runtime blocks search fan-out");
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
