@@ -5330,7 +5330,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (!repaired.includes(latestFetchedSourceClaimMarker)) {
         repaired = [repaired.trim(), claimBlock].filter(Boolean).join("\n\n");
       }
-      const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
+    }
+    const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
       const hasCompleteSchema = repaired.includes(requiredFieldList);
       const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
