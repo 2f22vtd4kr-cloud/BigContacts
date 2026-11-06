@@ -2400,7 +2400,7 @@ Choose each next action yourself from the available capabilities and observed ev
       objective,
       history: [],
       trajectoryRecords: records,
-      lastObservation: "Search results returned a potentially useful unvisited lead.",
+      lastObservation: "DISCOVERY LEAD-INSPECTION GATE: a usable lead URL is waiting from a successful search. Runtime blocks search fan-out until one such lead is attempted.",
       findings: [],
       mode: "discovery",
     });
