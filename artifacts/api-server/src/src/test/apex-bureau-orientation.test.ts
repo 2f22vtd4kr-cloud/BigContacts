@@ -63,7 +63,7 @@ describe("objective-led institutional orientation", () => {
 
   it("carries explicit sector-and-jurisdiction scenarios into every role prompt", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("casinos in Slovenia");
-    expect(APEX_WHAT_IS_ATLAS).toContain("keep both constraints");
+    expect(APEX_WHAT_IS_ATLAS).toContain("keep scope");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
     expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
     expect(apexInvestigatorSystemCore()).toContain("One focused discovery query");
