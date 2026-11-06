@@ -5,6 +5,7 @@ import {
   ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
+  atlasEarlyTargetHandoffViolation,
   atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
@@ -405,5 +406,14 @@ describe("Right-hand advisory authority", () => {
     });
     expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
   });
+  it("requires immediate target research after one source-attributed candidate is admitted", () => {
+    const admitted = [{ name: "Regional Casino Operator", role: null, targetType: "organization" as const, sourceUrls: ["https://operator.example.si/about"] }];
+    expect(atlasEarlyTargetHandoffViolation("continue_discovery", admitted)).toContain("main target-scoped research phase must begin");
+    expect(atlasEarlyTargetHandoffViolation("pivot_discovery", admitted)).toContain("choose research_candidate");
+    expect(atlasEarlyTargetHandoffViolation("research_candidate", admitted)).toBeNull();
+    expect(atlasEarlyTargetHandoffViolation("continue_discovery", [])).toBeNull();
+    expect(atlasEarlyTargetHandoffViolation("continue_discovery", [{ ...admitted[0], sourceUrls: [] }])).toBeNull();
+  });
+
 });
 
