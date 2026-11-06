@@ -430,6 +430,13 @@ describe("discovery runtime architecture", () => {
     expect(resolveDiscoveryActionAllowlist({
       mode: "discovery", availableActions: available, trajectoryRecords: [searched, attemptedFetch],
     })).toEqual(["web_search", "registry_search", "visit", "browser_fetch", "done"]);
+
+    const secondSearch = {
+      ...searched, turn: 3, args: { query: "different in-scope operator source", provider: "serper" },
+    };
+    expect(resolveDiscoveryActionAllowlist({
+      mode: "discovery", availableActions: available, trajectoryRecords: [searched, attemptedFetch, secondSearch],
+    })).toEqual(["visit", "browser_fetch", "done"]);
   });
 
   it("blocks discovery completion while a surfaced primary URL has not been inspected", async () => {
