@@ -12,6 +12,8 @@ const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-sourc
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
+const bureauAgenticPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
+const bureauPassFailureSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass-failure.ts"), "utf8");
 const launchDefaultsSource = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
 const launchRouteSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const launchUiSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
@@ -631,6 +633,17 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('runtimePhase === "cancellation_check"');
     expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "job_state_or_lease", error })');
     expect(researchCoreSource).toContain('phase=${runtimePhase}');
+  });
+
+  it("reuses AI-compacted historical memory across discovery and quota-recovery episodes", () => {
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext?:string");
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext:input.aiCompactedHistoricalContext");
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext:agentic.aiCompactedHistoricalContext");
+    expect(bureauPassFailureSource).toContain("aiCompactedHistoricalContext: agentic.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalContext: result.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("recovered.aiCompactedHistoricalContext ?? failed.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
   it("defaults canonical Atlas to one target and includes the sector/jurisdiction scenario in shared setup", () => {
