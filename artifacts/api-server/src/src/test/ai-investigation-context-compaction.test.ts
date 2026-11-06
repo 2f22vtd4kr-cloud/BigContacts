@@ -384,11 +384,13 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-20b",
       allowModelFallback: false,
+      maxAttempts: 2,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
       maxCompletionTokens: 1_536,
+      maxAttempts: 1,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({
       jobId: null,
@@ -416,11 +418,19 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 2 });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
       maxCompletionTokens: 1_536,
+      maxAttempts: 1,
     });
+  });
+
+  it("fails closed before issuing a compaction request burst for an oversized source history", async () => {
+    const source = "COMPLETE CASE HISTORY " + "source fact and URL state. ".repeat(6_500);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
   it("does not invoke 120B recovery for a daily token cap", async () => {
@@ -434,6 +444,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 2 });
   });
 
 });
