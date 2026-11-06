@@ -415,7 +415,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   // Keep the prompt envelope efficient while bounding model calls for pathological
   // case histories. A 57k audit context becomes four sequential chunks, not a burst.
   const MAX_COMPACTION_SOURCE_CHUNKS = 8;
-  const chunkLimit = Math.min(16_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
+  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
   const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
   if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
     logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
