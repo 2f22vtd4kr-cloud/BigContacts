@@ -5163,7 +5163,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const latestFetchedSourceClaimMarker = latestSuccessfulFetchRecord
     ? (() => {
         const raw = typeof latestSuccessfulFetchRecord.observation === "string"
-            ? latestSuccessfulFetchRecord.observation.replace(/\s+/g, " ").replace(/https?:\/\/[^\s"'<>]+/gi, "[URL recorded in observedUrls]").trim()
+            ? latestSuccessfulFetchRecord.observation.replace(/ +/g, " ").replace(/https?:[/][/][^ "'<>]+/gi, "[URL recorded in observedUrls]").trim()
           : "";
         const tail = raw.slice(-320);
         return tail
