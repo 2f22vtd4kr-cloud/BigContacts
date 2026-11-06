@@ -6041,14 +6041,19 @@ export function discoveryLeadInspectionRequirement(
   for (let i = records.length - 1; i >= 0; i -= 1) {
     const search = records[i]!;
     if (search.execution !== "success" || !searchActions.has(search.action) || !Array.isArray(search.leadUrls)) continue;
+    const normalizeLeadKey = (raw: unknown): string | null => {
+      const normalized = normalizedActionResourceUrl(raw);
+      if (!normalized) return null;
+      return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+    };
     const leadUrls = search.leadUrls
-      .map((raw) => normalizedActionResourceUrl(raw))
+      .map(normalizeLeadKey)
       .filter((url): url is string => Boolean(url) && validateDiscoverySourceUrl(url!).allowed);
     if (!leadUrls.length) continue;
     const leadSet = new Set(leadUrls);
     const inspected = records.slice(i + 1).some((record) => {
       if ((record.action !== "visit" && record.action !== "browser_fetch") || !fetchAttempts.has(record.execution)) return false;
-      const requested = normalizedActionResourceUrl(record.args?.url);
+      const requested = normalizeLeadKey(record.args?.url);
       return requested !== null && leadSet.has(requested);
     });
     return inspected ? null : { leadUrl: leadUrls[0]!, searchTurn: search.turn };
