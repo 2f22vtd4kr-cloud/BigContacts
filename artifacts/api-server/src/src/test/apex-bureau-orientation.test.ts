@@ -61,6 +61,17 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
+  it("carries explicit sector-and-jurisdiction scenarios into every role prompt", () => {
+    expect(APEX_WHAT_IS_ATLAS).toContain("casinos in Slovenia");
+    expect(APEX_WHAT_IS_ATLAS).toContain("preserve both the casino sector and Slovenia as binding scope");
+    expect(apexInvestigatorSystemCore()).toContain("One focused discovery query");
+    expect(apexInvestigatorSystemCore()).toContain("No duplicate LinkedIn/Google/provider fan-out");
+    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+      expect(apexOrientationCompact(role)).toContain("casinos in Slovenia");
+      expect(apexOrientationFor(role)).toContain("casinos in Slovenia");
+    }
+  });
+
   it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
