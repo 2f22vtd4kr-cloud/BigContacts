@@ -32,11 +32,17 @@ const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
 
 const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
 const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
-const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.MODEL_SELECTABLE_AGENT_ACTIONS\]/.test(agentic);
+const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*availableActions/.test(agentic)
+  && agentic.includes("function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[])")
+  && agentic.includes("const availableActions = actionAllowlist ? selectableActions : browserProviders.length");
 const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + availableActions.join(" | ")') || agentic.includes('"AVAILABLE ACTIONS: " + MODEL_SELECTABLE_AGENT_ACTIONS.join(" | ")'))
-  && agentic.includes("input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions()")
-  && agentic.includes("const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length")
+  && agentic.includes("const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions()")
+  && agentic.includes("const availableActions = (input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length")
   && agentic.includes('selectableActions.filter((action) => action !== "browser_fetch")')
+  && agentic.includes('input.mode !== "discovery" || !["parallel_web_search", "parallel_registry_search"].includes(action)')
+  && agentic.includes("actionAllowlistForTurn = getModelSelectableAgentActions()")
+  && agentic.includes("buildActionParseFailureObservation(parseFailure, input.mode)")
+  && agentic.includes("structuredActionResponseFormat(model, actionAllowlist)")
   && agentic.includes("getAvailableBrowserFetchProviders()");
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
@@ -60,6 +66,7 @@ pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discove
 pass("historical deterministic Atlas orchestrator is removed", orchestrator === "");
 pass("first Investigator action is not seeded with web_search", !/Begin\. Choose an initial web_search query/i.test(agentic) && !/\(none — begin with web_search\)/i.test(agentic));
 pass("prompt, strict schema and parser share only executable model actions", schemaUsesSharedActionList && promptUsesSharedActionList && nonExecutablePythonActions.every((action) => !modelSelectableActions.includes(`"${action}"`)));
+pass("discovery excludes parallel web/registry actions while target research retains them", agentic.includes("discoveryParallelSearchActionReason") && agentic.includes('input.mode !== "discovery" || !["parallel_web_search", "parallel_registry_search"].includes(action)') && agentic.includes("enum: availableActions"));
 pass("unavailable capability metadata is retained but hidden from compact model guidance", nonExecutablePythonActions.every((action) => capabilityRegistry.includes(`action:"${action}"`) && capabilityRegistry.includes("investigatorSelectable:false")) && capabilityRegistry.includes("filter((c) => c.investigatorSelectable !== false)"));
 pass("compound username action is gone", !/action === "footprint_username"/.test(agentic));
 pass("Maigret receives run cancellation", /runMaigret\([^\n]*signal:\s*runController\.signal/.test(agentic));

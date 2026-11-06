@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryParallelSearchActionReason, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -12,6 +12,7 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauPlaybookSource = readFileSync(resolve(process.cwd(), "src/src/lib/APEX_ATLAS_BUREAU_PLAYBOOK.txt"), "utf8");
 describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
@@ -42,6 +43,10 @@ const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/sr
 describe("canonical Atlas discovery path isolation", () => {
   it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
     expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalAtlasDiscoverySource).toContain("opts.targetCount ?? 1");
+    expect(canonicalAtlasDiscoverySource).toContain("Math.ceil(depth.agenticMaxIterations * 0.6)");
+    expect(canonicalAtlasDiscoverySource).toContain("Math.min(3, discoveryIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalAtlasLaunchRouteSource).toContain("Number(body.targetCount) || 1");
     expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
     expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
     expect(canonicalAtlasDiscoverySource).not.toContain('from "./discovery-agent"');
@@ -68,7 +73,7 @@ describe("model-owned discovery relevance reasoning", () => {
       trajectoryRecords: [],
       lastObservation: "",
       findings: [],
-      actionAllowlist: ["web_search", "visit"],
+      actionAllowlist: ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit"],
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     expect(discoveryPrompt).toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
@@ -83,6 +88,17 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
+    expect(discoveryPrompt).toContain("set promotionDecision=promote and promotionReason");
+    expect(discoveryPrompt).toContain("This admits the company for target-scoped research only");
+    expect(discoveryPrompt).toContain("not final CRM/contact promotion");
+    expect(agenticCoreSource).toContain("when it directly names a relevant exact organization, set promotionDecision=promote");
+    expect(discoveryPrompt).toContain("One focused web_search or registry_search action");
+    expect(discoveryPrompt).toContain("casinos in Slovenia means preserve both constraints");
+    expect(discoveryPrompt).toContain("parallel_web_search and parallel_registry_search are unavailable");
+    const discoveryActions = discoveryPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
+    expect(discoveryActions).not.toContain("parallel_web_search");
+    expect(discoveryActions).not.toContain("parallel_registry_search");
+    expect(discoveryPrompt).not.toContain("Parallel web searches need 2–4");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
@@ -91,10 +107,44 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
+    const targetActions = targetPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
+    expect(targetActions).toContain("parallel_web_search");
+    expect(targetActions).toContain("parallel_registry_search");
+    expect(targetPrompt).toContain("Target research may use 2–4 independent query objects");
+    expect(targetPrompt).toContain("parallel_web_search = serper | tavily | exa");
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
     expect(targetPrompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
     expect(targetPrompt).toContain("locale is language only, never geography");
     expect(targetPrompt).toContain("Avoid stale years unless the objective is explicitly historical");
+  });
+});
+
+describe("discovery single-query guard", () => {
+  it("uses the filtered action allowlist in the structured schema", () => {
+    const discoverySchema = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search", "registry_search", "visit"]) as {
+      json_schema?: { schema?: { properties?: { action?: { enum?: string[] } } } };
+    };
+    const targetSchema = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit"]) as {
+      json_schema?: { schema?: { properties?: { action?: { enum?: string[] } } } };
+    };
+    expect(discoverySchema.json_schema?.schema?.properties?.action?.enum).toEqual(["web_search", "registry_search", "visit"]);
+    expect(targetSchema.json_schema?.schema?.properties?.action?.enum).toContain("parallel_web_search");
+    expect(targetSchema.json_schema?.schema?.properties?.action?.enum).toContain("parallel_registry_search");
+  });
+
+  it("removes parallel search actions from discovery schemas and blocks them at runtime", () => {
+    expect(discoveryParallelSearchActionReason("discovery", "parallel_web_search")).toContain("unavailable during discovery");
+    expect(discoveryParallelSearchActionReason("discovery", "parallel_registry_search")).toContain("unavailable during discovery");
+    expect(discoveryParallelSearchActionReason("target", "parallel_web_search")).toBeNull();
+    expect(agenticCoreSource).toContain("discoveryParallelSearchActionReason(input.mode, action.action)");
+    expect(agenticCoreSource).toContain('input.mode !== "discovery" || !["parallel_web_search", "parallel_registry_search"].includes(action)');
+    expect(buildActionParseFailureObservation("action=parallel_web_search", "discovery")).toContain("unavailable during discovery");
+  });
+
+  it("keeps the jurisdiction-and-sector scenario in the Investigator setup prompt", () => {
+    expect(apexInvestigatorSystemCore()).toContain("casinos in Slovenia");
+    expect(bureauPlaybookSource).toContain("one focused query, inspect one useful lead");
+    expect(bureauPlaybookSource).toContain("No parallel fan-out");
   });
 });
 
