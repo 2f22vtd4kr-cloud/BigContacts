@@ -6062,6 +6062,18 @@ export function discoveryLeadInspectionRequirement(
   return null;
 }
 
+export const MAX_DISCOVERY_SEARCH_ACTIONS = 2;
+const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+
+/** Count outbound discovery search attempts across the complete durable trajectory. */
+export function countDiscoverySearchActions(records: readonly AgenticTrajectoryRecord[]): number {
+  return records.filter((record) =>
+    DISCOVERY_SEARCH_ACTIONS.has(record.action)
+    && record.execution !== "blocked"
+    && record.execution !== "selected",
+  ).length;
+}
+
 /**
  * Restrict discovery to target finding, not a multi-provider search campaign.
  * Parallel batches are removed from the action schema, a useful lead must be
@@ -6078,13 +6090,8 @@ export function resolveDiscoveryActionAllowlist(input: {
   const singleQueryActions = available.filter((action) =>
     action !== "parallel_web_search" && action !== "parallel_registry_search",
   );
-  const searchActions = new Set([
-    "web_search", "parallel_web_search", "registry_search", "parallel_registry_search",
-  ]);
-  const searchCount = input.trajectoryRecords.filter((record) =>
-    searchActions.has(record.action) && record.execution !== "blocked",
-  ).length;
-  if (searchCount >= 2) return singleQueryActions.filter((action) => !searchActions.has(action));
+  const searchCount = countDiscoverySearchActions(input.trajectoryRecords);
+  if (searchCount >= MAX_DISCOVERY_SEARCH_ACTIONS) return singleQueryActions.filter((action) => !DISCOVERY_SEARCH_ACTIONS.has(action));
   if (discoveryLeadInspectionRequirement(input.trajectoryRecords)) {
     return singleQueryActions.filter((action) => action !== "web_search" && action !== "registry_search");
   }
@@ -6653,11 +6660,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     runtimeStage = "model_action_validation";
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
 if (input.mode === "discovery") {
-  const discoverySearchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
-  const discoverySearchActionsUsed = previousResearchRecords.filter((item) =>
-    discoverySearchActions.has(item.action) && item.execution !== "blocked",
-  ).length;
-  if (discoverySearchActionsUsed >= 2 && discoverySearchActions.has(action.action)) {
+  const completeResearchRecords = [...completePriorTrajectoryRecords, ...records.slice(0, -1)];
+  if (DISCOVERY_SEARCH_ACTIONS.has(action.action) && countDiscoverySearchActions(completeResearchRecords) >= MAX_DISCOVERY_SEARCH_ACTIONS) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
@@ -6668,7 +6672,7 @@ if (input.mode === "discovery") {
     emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search cap reached; no provider request sent." });
     continue;
   }
-  const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords);
+  const pendingLead = discoveryLeadInspectionRequirement(completeResearchRecords);
   if (pendingLead && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action.action)) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
