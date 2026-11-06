@@ -629,6 +629,17 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('phase=${runtimePhase}');
   });
 
+  it("enforces immediate target handoff before any further discovery or pivot", () => {
+    expect(atlasControlDecisionSource).toContain("MANDATORY EARLY HANDOFF");
+    expect(atlasControlDecisionSource).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
+    const handoffGate = canonicalDiscoverySource.indexOf("atlasEarlyTargetHandoffViolation(decision.action, admittedCandidateSources)");
+    const nextDiscoveryBranch = canonicalDiscoverySource.indexOf('if (decision.action === "continue_discovery" || decision.action === "pivot_discovery")');
+    expect(handoffGate).toBeGreaterThan(-1);
+    expect(nextDiscoveryBranch).toBeGreaterThan(handoffGate);
+    expect(canonicalDiscoverySource).toContain('kind: "target_handoff"');
+    expect(canonicalDiscoverySource).toContain("Boss repeated the invalid discovery continuation twice");
+  });
+
   it("does not blacklist public figures or targets by deterministic name heuristics", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(researchCoreSource).not.toContain("isUntargetableDiscoveryPersonName");
