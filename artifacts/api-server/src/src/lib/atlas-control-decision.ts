@@ -37,7 +37,7 @@ export function atlasEarlyTargetHandoffViolation(
   admittedCandidates: readonly AtlasAdmittedTargetInput[],
 ): string | null {
   const hasSourceBackedTarget = admittedCandidates.some((candidate) =>
-    Boolean(candidate.name.trim()) && candidate.sourceUrls.some((url) => /^https:\/\//i.test(url)),
+    Boolean(candidate.name.trim()) && candidate.sourceUrls.some((url) => /^https?:\/\//i.test(url)),
   );
   if (hasSourceBackedTarget && (action === "continue_discovery" || action === "pivot_discovery")) {
     return "A source-attributed admitted target is already available. The main target-scoped research phase must begin as soon as one worthwhile target is available; choose research_candidate for the most objective-relevant admitted target now, or stop only if every admitted target is demonstrably irrelevant, out of scope, unsafe, or unbound.";
