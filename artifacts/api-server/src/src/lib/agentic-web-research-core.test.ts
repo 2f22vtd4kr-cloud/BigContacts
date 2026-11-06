@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -3808,4 +3808,28 @@ describe("restricted community source content boundary", () => {
     expect(source).toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
     expect(source).toContain("observedPageIdentity: restrictedCommunitySource ? null");
   });
+  it("counts only outbound discovery searches across the full compacted trajectory", () => {
+    const search = (turn: number, execution: "success" | "error" | "blocked" | "selected") => ({
+      turn, model: "groq", action: "web_search", args: { query: "licensed casino operators Slovenia", provider: "serper" },
+      execution, observation: "", observedUrls: [], findings: [],
+    } satisfies AgenticTrajectoryRecord);
+    const oldHistory = [
+      search(1, "success"),
+      search(2, "blocked"),
+      search(3, "selected"),
+      search(4, "error"),
+    ];
+    const compactedRecent = Array.from({ length: 40 }, (_, i) => ({
+      turn: i + 5, model: "groq", action: "visit", args: { url: "https://operator.example.si/about" },
+      execution: "success" as const, observation: "Fetched page.", observedUrls: ["https://operator.example.si/about"], findings: [],
+    }));
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBe(2);
+    expect(countDiscoverySearchActions([...oldHistory, ...compactedRecent])).toBe(2);
+    expect(resolveDiscoveryActionAllowlist({
+      mode: "discovery",
+      availableActions: ["web_search", "registry_search", "parallel_web_search", "visit", "done"],
+      trajectoryRecords: [...oldHistory, ...compactedRecent],
+    })).toEqual(["visit", "done"]);
+  });
+
 });
