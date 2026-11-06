@@ -91,6 +91,9 @@ describe("discovery runtime architecture", () => {
     expect(atlasControlDecisionSource).toContain("MANDATORY EARLY HANDOFF");
     expect(atlasControlDecisionSource).toContain("choose research_candidate for the most objective-relevant one now");
     expect(atlasControlDecisionSource).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
+    expect(canonicalDiscoverySource).toContain("atlasEarlyTargetHandoffViolation(decision.action, admittedCandidateSources)");
+    expect(canonicalDiscoverySource).toContain("targetHandoffSafetyStop");
+
   });
 
   it("preserves explicit sector and jurisdiction in the live discovery prompt", async () => {
@@ -106,7 +109,7 @@ describe("discovery runtime architecture", () => {
       mode: "discovery",
     });
     expect(prompt).toContain(objective);
-    expect(prompt).toContain("Other objectives use their own evidence criteria");
+    expect(prompt).toContain("Other objectives use their own criteria");
     expect(prompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
   });
