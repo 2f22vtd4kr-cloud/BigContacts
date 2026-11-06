@@ -344,7 +344,7 @@ async function requestSummary(
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
-export async function summarizeInvestigatorContextWithAiCompactor(
+export async function summarizeInvestigatorContextWithBoss(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
@@ -382,9 +382,9 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
   const successfulFetchUrls = new Set<string>();
-  // Keep independent memory segments sequential to avoid compaction bursts.
-  // The separate Right-hand credential lane leaves Boss capacity for strategic
-  // control decisions; the Investigator still owns all research actions.
+  // Boss compaction shares the control model's TPM budget with opening and
+  // oversight decisions. Serialize independent segments to avoid a burst of
+  // concurrent summary reservations; the Investigator still owns research actions.
   for (const chunk of sourceChunks) {
     const chunkSuccessfulFetchUrls = sourceSuccessfulFetchUrls(chunk);
     for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
@@ -438,6 +438,3 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   }
   return null;
 }
-
-/** Backward-compatible name for older call sites; this is not a Boss decision. */
-export const summarizeInvestigatorContextWithBoss = summarizeInvestigatorContextWithAiCompactor;
