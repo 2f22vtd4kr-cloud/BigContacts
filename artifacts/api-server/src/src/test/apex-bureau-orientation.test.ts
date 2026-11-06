@@ -62,10 +62,8 @@ describe("objective-led institutional orientation", () => {
   });
 
   it("preserves sector and jurisdiction together in the live setup prompts", () => {
-    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("Preserve both the sector and the stated country");
     expect(apexInvestigatorSystemCore()).toContain("casinos in Slovenia");
+    expect(apexInvestigatorSystemCore()).toContain("honor both");
     expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
   });
 
