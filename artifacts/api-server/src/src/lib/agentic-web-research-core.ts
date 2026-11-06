@@ -6027,6 +6027,35 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   return boundedPrompt;
 }
 
+/**
+ * Discovery must inspect one concrete result from the latest successful
+ * lead-producing search before spending another search request. This is a
+ * bounded anti-fan-out guard, not a target/source preference: it never chooses
+ * a target or executes a fetch, and a failed fetch counts as an attempted check.
+ */
+export function discoveryLeadInspectionRequirement(
+  records: readonly AgenticTrajectoryRecord[],
+): { leadUrl: string; searchTurn: number } | null {
+  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  const fetchAttempts = new Set(["success", "partial", "http_error", "timeout", "error"]);
+  for (let i = records.length - 1; i >= 0; i -= 1) {
+    const search = records[i]!;
+    if (search.execution !== "success" || !searchActions.has(search.action) || !Array.isArray(search.leadUrls)) continue;
+    const leadUrls = search.leadUrls
+      .map((raw) => normalizedActionResourceUrl(raw))
+      .filter((url): url is string => Boolean(url) && validateDiscoverySourceUrl(url!).allowed);
+    if (!leadUrls.length) continue;
+    const leadSet = new Set(leadUrls);
+    const inspected = records.slice(i + 1).some((record) => {
+      if ((record.action !== "visit" && record.action !== "browser_fetch") || !fetchAttempts.has(record.execution)) return false;
+      const requested = normalizedActionResourceUrl(record.args?.url);
+      return requested !== null && leadSet.has(requested);
+    });
+    return inspected ? null : { leadUrl: leadUrls[0]!, searchTurn: search.turn };
+  }
+  return null;
+}
+
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
   const recent = records.slice(-12);
   let successfulSearchesSinceObservedSource = 0;
@@ -6573,6 +6602,31 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
+if (input.mode === "discovery") {
+  const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords);
+  if (pendingLead && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action.action)) {
+    record.execution = "blocked";
+    record.failureDomain = "tool_execution";
+    record.failureKind = "request_failure";
+    record.observation = "DISCOVERY LEAD-INSPECTION GATE: a successful search at turn " + pendingLead.searchTurn + " already produced a usable source URL, but no lead from that result has been attempted. No search/provider request was sent. Choose one observed lead URL, preferably " + pendingLead.leadUrl + ", and inspect it with visit/browser_fetch; if the fetch fails or is blocked, then pivot to a materially different query/source. Do not fan out another search while a usable lead is waiting.";
+    lastObservation = record.observation;
+    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_lead_inspection_required");
+    await emitSanitizedTrajectoryRecord(record);
+    emit(action.action, { provider: "none", status: "blocked", summary: "Search held until one existing discovery lead is inspected." });
+    continue;
+  }
+  if (action.action === "parallel_web_search") {
+    record.execution = "blocked";
+    record.failureDomain = "tool_execution";
+    record.failureKind = "request_failure";
+    record.observation = "DISCOVERY SEARCH DISCIPLINE: use one focused web_search query in this discovery action, not a multi-query/provider fan-out. Inspect one useful returned lead before another search. This restriction applies only to discovery; target research may use justified independent searches.";
+    lastObservation = record.observation;
+    pushHistory("step" + (i + 1) + ": parallel_web_search execution=blocked reason=discovery_single_query");
+    await emitSanitizedTrajectoryRecord(record);
+    emit("parallel_web_search", { provider: "none", status: "blocked", summary: "Discovery allows one focused query per action; no parallel searches were sent." });
+    continue;
+  }
+}
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
