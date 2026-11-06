@@ -141,10 +141,10 @@ describe("discovery single-query guard", () => {
     expect(buildActionParseFailureObservation("action=parallel_web_search", "discovery")).toContain("unavailable during discovery");
   });
 
-  it("keeps the jurisdiction-and-sector scenario in the Bureau setup reference", () => {
-    expect(bureauPlaybookSource).toContain("SCENARIO — CASINOS IN SLOVENIA");
-    expect(bureauPlaybookSource).toContain("one plausible Slovenian operator or one official-register lead");
-    expect(bureauPlaybookSource).toContain("Do not fan out parallel searches");
+  it("keeps the jurisdiction-and-sector scenario in the Investigator setup prompt", () => {
+    expect(apexInvestigatorSystemCore()).toContain("casinos in Slovenia");
+    expect(bureauPlaybookSource).toContain("one focused query, inspect one useful lead");
+    expect(bureauPlaybookSource).toContain("No parallel fan-out");
   });
 });
 
