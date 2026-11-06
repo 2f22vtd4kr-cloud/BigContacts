@@ -15,18 +15,18 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
-    expect(systemCore.length).toBeLessThan(3_600);
+    expect(systemCore.length).toBeLessThan(2_000);
     expect(systemCore).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(systemCore).toContain("source class");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM / B2B START");
+    expect(systemCore).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
     expect(systemCore).toContain("not a remembered famous CEO");
-    expect(systemCore).toContain("SCENARIO RECALL");
+    expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(systemCore).toContain("casinos in Slovenia");
-    expect(systemCore).toContain("SEARCH ECONOMY");
+    expect(systemCore).toContain("No duplicate LinkedIn/Google/provider fan-out");
     expect(systemCore).toContain("one focused discovery query");
-    expect(systemCore).toContain("TARGET-FIRST PROGRESS");
+    expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
     expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
   });
 });
