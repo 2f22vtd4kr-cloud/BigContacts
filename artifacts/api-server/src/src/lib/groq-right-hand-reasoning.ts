@@ -571,6 +571,8 @@ function boundedDiscoveryPrompt(file: DiscoveryCaseFile, iteration: number): str
   }) + suffix;
   return minimal; 
 }
+export function getGroqRightHandPromptLimit(): number { return MAX_PROMPT_CHARS; }
+
 export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
 type GroqReadinessAttemptDiagnostic = {
   keyName: string;
