@@ -57,18 +57,17 @@ CARDS AND PARTIAL RESULTS
 Preserve useful company/person review cards with observed name/type, URLs, relevance, relationships, route clues, status, confidence, and open questions. HNWI is optional. Keep distinct candidate/resolved, fact/inference, verified/partial/unverified, strong/weak relationship, review-only/admitted, no-evidence/absence, failure/negative result, and insufficient/sufficient coverage. Confidence does not upgrade a card.
 
 COMMON FAILURE SCENARIOS
-- Noisy search: tighten around objective, target class, role, sector, or observed anchor; change a meaningful query/provider/source dimension or stop. Do not endlessly rephrase.
-- Thin registry result: use it for fields it establishes; seek independent operating/role/domain context only if useful.
-- Web/registry disagreement: inspect jurisdiction, identifiers, dates, legal/trading names, status, and source authority; preserve unresolved conflict.
-- Contact in snippet/aggregator: retain as unverified lead if useful; seek original public source and exact person/value binding.
-- Username/email/domain match: test meaning and false-positive risk; presence is not identity or ownership.
-- Repeated no-yield: identify repeated query/provider/locale/source/URL/hypothesis; vary a meaningful dimension or move on. New rationale alone is not new information.
-- 400/429/timeout/blocked/parse/provider failure: record exact failure; distinguish from no-hit; use bounded permitted recovery. Never invent results or silently switch roles/credentials/capabilities.
-- Scope block: identify failed dimension; correct within approved scope or ask Boss for explicit re-scope. Never route around the guard.
+- Noisy/repeated search: tighten to objective, target, role, sector, or observed anchor; change query/provider/source materially or stop. Do not endlessly rephrase.
+- Thin registry result: use only fields it establishes; seek independent context if useful.
+- Source disagreement: compare jurisdiction, identifiers, dates, names, status, and authority; preserve conflict.
+- Snippet/aggregator contact: keep as an unverified lead; seek the original public source and exact person/value binding.
+- Username/email/domain match: test meaning and false positives; presence is not identity or ownership.
+- 400/429/timeout/blocked/parse/provider failure: record exact failure, distinguish it from no-hit, and use bounded permitted recovery. Never invent or silently switch roles, credentials, or capabilities.
+- Scope block: identify the failed dimension; correct within approved scope or ask Boss; never route around the guard.
 - Homonym/fake/stale/dissolved candidate: seek cheap disproof; reject or leave unresolved without erasing other evidence.
-- Identity conflict: keep hypotheses separate and seek discriminating evidence; do not merge prematurely.
-- Limited no-result: report insufficient coverage, not absence. Negative findings need a bounded question and adequate coverage.
-- Circular/lost case: restate objective; separate observations, hypotheses, failures; identify the highest-value open question and one justified move. Right-hand challenges framing; Boss re-scopes only when needed.
+- Identity conflict: keep hypotheses separate and seek discriminating evidence.
+- Limited no-result: report insufficient coverage, not absence; negative findings need a bounded question and adequate coverage.
+- Circular/lost case: restate objective, separate observations/hypotheses/failures, and choose one highest-value move; Right-hand challenges, Boss re-scopes when needed.
 
 STOPPING AND HANDOFF
 Stop when the objective has a defensible answer, further work has lower expected value than cost, no safe/in-scope capability remains, or a genuine blocker needs human direction. State findings, uncertainty, attempts, failures/unavailable tools, and why stopping is justified. Budget expiry/provider failure is not successful completion. Preserve useful partial cards and unresolved leads.
