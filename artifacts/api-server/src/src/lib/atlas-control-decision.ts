@@ -26,6 +26,24 @@ function completeAtlasControlPromptUrlSamples(values: readonly string[], maxItem
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasTargetType = "person" | "organization";
 export type AtlasAdmittedTargetInput = { name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType };
+/**
+ * Once discovery has produced a source-attributed admitted target, another
+ * broad-discovery/pivot turn is not allowed to postpone target-scoped research.
+ * Boss still chooses which admitted target to investigate.
+ */
+export function atlasEarlyTargetHandoffViolation(
+  action: AtlasControlAction,
+  admittedCandidates: readonly AtlasAdmittedTargetInput[],
+): string | null {
+  const hasSourceBackedTarget = admittedCandidates.some((candidate) =>
+    Boolean(candidate.name.trim()) && candidate.sourceUrls.some((url) => /^https?:\\/\\//i.test(url)),
+  );
+  if (hasSourceBackedTarget && (action === "continue_discovery" || action === "pivot_discovery")) {
+    return "A source-attributed admitted target is already available. The main target-scoped research phase must begin as soon as one worthwhile target is available; choose research_candidate for the most objective-relevant admitted target now, or stop only if every admitted target is demonstrably irrelevant, out of scope, unsafe, or unbound.";
+  }
+  return null;
+}
+
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
 
 /** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
