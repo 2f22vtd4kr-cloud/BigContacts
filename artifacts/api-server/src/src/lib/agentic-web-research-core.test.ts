@@ -24,6 +24,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("not a remembered famous CEO");
     expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(systemCore).toContain("casinos in Slovenia");
+    expect(systemCore).toContain("inspect one lead before searching again");
     expect(systemCore).toContain("No duplicate LinkedIn/Google/provider fan-out");
     expect(systemCore).toContain("One focused discovery query");
     expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
@@ -2408,7 +2409,7 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
-    const guardStart = agenticCoreSource.indexOf("DISCOVERY LEAD-INSPECTION GATE");
+    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords)");
     const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search") {');
     const parallelToolCall = agenticCoreSource.indexOf("toolWebSearch(search.query", parallelStart);
     expect(guardStart).toBeGreaterThan(-1);
