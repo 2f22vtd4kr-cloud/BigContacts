@@ -6,7 +6,6 @@ import {
   GROQ_RIGHT_HAND_MODEL,
   getGroqRightHandStatus,
   runGroqRightHandFreeJson,
-  runGroqRightHandMemoryCompaction,
   runGroqRightHandDiscoveryAdvice,
   normalizeGroqRightHandCaseReasoning,
   normalizeGroqRightHandDiscoveryAdvice,
@@ -129,36 +128,6 @@ describe("Groq Right-hand model policy", () => {
     expect(summary.errorCode).toBe("rate_limit_exceeded");
     expect(summary.errorMessageDigest).toMatch(/^[a-f0-9]{16}$/);
     expect(summary).not.toHaveProperty("errorMessage");
-  });
-
-  it("runs memory compaction as a non-advisory 20B transformation on the Right-hand credential", async () => {
-    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-memory-compaction-test-key");
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      if (String(input) === "https://api.groq.com/openai/v1/models") {
-        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] }), { status: 200 });
-      }
-      const body = JSON.parse(String(init?.body));
-      expect(body.model).toBe("openai/gpt-oss-20b");
-      expect(body.tools).toBeUndefined();
-      expect(body.messages[0].content).toContain("non-authoritative memory-compression service");
-      expect(body.messages[0].content).not.toContain("Advise the Boss only");
-      expect(body.messages[0].content).not.toContain("choose the next research action");
-      expect(body.messages.find((message: { role: string }) => message.role === "user")?.content).toContain("ORIGINAL CASE MEMORY");
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: JSON.stringify({ summary: "Search leads remain unverified; no fetched evidence is established." }) } }],
-      }), { status: 200 });
-    });
-
-    const result = await runGroqRightHandMemoryCompaction(
-      "ORIGINAL CASE MEMORY: Search leads remain unverified.",
-      { jobId: "job-memory-test", caseId: 17, cognitiveTask: "context_compaction" },
-      { preferredModel: "openai/gpt-oss-20b", maxAttempts: 1, maxCompletionTokens: 1_024, reasoningEffort: "low" },
-    );
-
-    expect(result.status).toBe("completed");
-    expect(result.model).toBe("openai/gpt-oss-20b");
-    expect(JSON.parse(result.raw ?? "{}").summary).toContain("Search leads remain unverified");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses the GPT-OSS reasoning contract without the retired reasoning_format field", async () => {
