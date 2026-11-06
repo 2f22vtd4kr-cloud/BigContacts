@@ -2427,7 +2427,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
   it("caps discovery at two outbound search actions and excludes blocked/preflight attempts", () => {
     const records = [
-      livenessRecord("web_search", "success"),
+      { ...livenessRecord("web_search", "success"), leadUrls: ["https://www.ohiosos.gov/business/search"] },
       livenessRecord("parallel_registry_search", "blocked"),
       livenessRecord("visit", "error"),
       livenessRecord("registry_search", "error"),
@@ -2478,7 +2478,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(budgetGuard).toBeLessThan(parallelStart);
     expect(parallelStart).toBeLessThan(registryDispatch);
     expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search or registry_search query");
-    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement(previousResearchRecords)");
+    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
     expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: two outbound discovery search actions");
   });
 
