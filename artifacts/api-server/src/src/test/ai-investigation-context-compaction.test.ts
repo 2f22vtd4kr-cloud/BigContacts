@@ -110,7 +110,7 @@ describe("AI investigation context compaction", () => {
     const repairOptions = memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[2];
     expect(memoryMocks.runGroqRightHandMemoryCompaction).toHaveBeenCalledTimes(2);
     expect(firstOptions?.maxCompletionTokens).toBe(1_536);
-    expect(repairOptions?.maxCompletionTokens).toBe(1_920);
+    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
     expect(repairOptions?.maxCompletionTokens).toBe(firstOptions?.maxCompletionTokens);
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[1]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
@@ -361,8 +361,6 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[2];
-    expect(options?.maxCompletionTokens).toBe(1_536);
-    expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
     expect(options?.maxCompletionTokens).toBe(1_536);
     expect(memoryMocks.runGroqRightHandMemoryCompaction.mock.calls[0]?.[1]).toMatchObject({ cognitiveTask: "context_compaction" });
   });

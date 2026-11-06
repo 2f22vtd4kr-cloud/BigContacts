@@ -146,9 +146,15 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
   // before it. Split other clauses so a negative statement cannot mask a
   // separate affirmative claim, and so separately labelled leads stay distinct.
   const clauses = summary.split(/(?:[.!?]\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|;\s+(?!(?:source(?:\s+url)?|url|lead\s+url)\s*:)|,\s+but\s+|\bhowever\b)/i);
-  const affirmativeClaims = clauses.filter((clause) =>
-    retrievalClaim.test(clause) && !negativeRetrieval.test(clause),
-  );
+  const affirmativeClaims = clauses.filter((clause) => {
+    const retrievalIndex = clause.search(retrievalClaim);
+    if (retrievalIndex < 0) return false;
+    const negativeIndex = clause.search(negativeRetrieval);
+    // A later phrase such as "without a fetched URL" does not negate an
+    // earlier affirmative claim that a page was fetched; the claim still
+    // requires a successful-fetch URL. A leading "no page was fetched" does.
+    return negativeIndex < 0 || negativeIndex > retrievalIndex;
+  });
   if (!affirmativeClaims.length) return false;
 
   // Each affirmative claim must carry an exact URL from a successful
@@ -222,7 +228,7 @@ function validateSummary(
   const summary = parseSummary(raw);
   const issues: string[] = [];
   if (!summary) issues.push("missing_or_unparseable_summary");
-  if (summary && summary.length > maxChars) issues.push("summary_exceeds_character_limit");
+  if (summary && summary.length > maxChars) issues.push(`summary_exceeds_character_limit: the previous summary was ${summary.length} characters (maximum ${maxChars})`);
   if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) issues.push("summary_contains_ungrounded_url");
   if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim");
   return {
