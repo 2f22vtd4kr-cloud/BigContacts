@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
-import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
   it("splits only for transport and retains every source character and repeated URL", () => {
@@ -54,6 +54,12 @@ describe("investigator context compaction", () => {
 
   it("does not invoke AI memory compaction on a fresh first turn with no historical Investigator records", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 0, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
+  });
+
+  it("does not repeatedly recompact unchanged memory just because objective or Boss context is long", () => {
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: true, pendingHistoricalRecordCount: 0 })).toBe(false);
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: true, pendingHistoricalRecordCount: 1 })).toBe(true);
+    expect(shouldUpdateInvestigatorResearchMemory({ hasExistingMemory: false, pendingHistoricalRecordCount: 5 })).toBe(false);
   });
 
   it("routes every older record through Boss before the deterministic archive projection can omit detail", () => {
