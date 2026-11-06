@@ -94,9 +94,6 @@ describe("model-owned discovery relevance reasoning", () => {
     const discoveryActions = discoveryPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
     expect(discoveryActions).not.toContain("parallel_web_search");
     expect(discoveryActions).not.toContain("parallel_registry_search");
-    const targetActions = targetPrompt.match(/AVAILABLE ACTIONS: ([^\\n]+)/)?.[1] ?? "";
-    expect(targetActions).toContain("parallel_web_search");
-    expect(targetActions).toContain("parallel_registry_search");
     expect(discoveryPrompt).not.toContain("Parallel web searches need 2–4");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
@@ -106,6 +103,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
+    const targetActions = targetPrompt.match(/AVAILABLE ACTIONS: ([^\n]+)/)?.[1] ?? "";
+    expect(targetActions).toContain("parallel_web_search");
+    expect(targetActions).toContain("parallel_registry_search");
     expect(targetPrompt).toContain("Target research may use 2–4 independent query objects");
     expect(targetPrompt).toContain("parallel_web_search = serper | tavily | exa");
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
