@@ -3843,23 +3843,23 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Preserve current scope, runtime actions, provider identity and lead handoff
-    // before optional observations; these are required for a valid next decision.
+    // Reserve the complete human objective immediately; then pack current scope,
+    // the live action allowlist and current evidence before optional narration.
+    appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
-    appendBudgeted("MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved topic/geography; never broaden.", 180, "[scope priority omitted]");
+    appendBudgeted("SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence; correct subject, geography or source class without broadening or silently pivoting. Preserve the Boss-approved source class.", 240, "[scope guard detail omitted]");
+    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
+    appendBudgeted("No fixed action sequence.", 80, "[action autonomy detail omitted]");
     appendBudgeted("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.", 120, "[provider detail omitted]");
-    appendBudgeted("DISCOVERY LEAD HANDOFF CONTRACT: preserve source-backed leads as review-only, not every result; snippets remain leads, not evidence.", 190, "[lead handoff detail omitted]");
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[review-lead qualification detail omitted]");
-    appendBudgeted("SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence; correct the subject/geography/source-class mismatch without broadening or silently pivoting. Preserve the Boss-approved source class.", 240, "[scope guard detail omitted]");
-    appendBudgeted("No fixed action sequence. The Investigator chooses actions based on the objective and observed evidence.", 120, "[action autonomy detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 300, "[PDF retrieval detail omitted]");
     appendBudgeted(minimumTargetVerificationRule, 220, "[target verification rule omitted]");
     appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
-    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
     appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
     appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
+    appendBudgeted("PARTIAL FINDINGS: retain source-backed people and companies as review-only when relevant; snippets remain leads, not evidence. Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.", 460, "[lead qualification detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
@@ -3868,7 +3868,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(header + " " + observationTail, 320, "[latest observation detail omitted]");
     appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
-    appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]");
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; never broaden. No fixed action sequence; the Investigator chooses.",
