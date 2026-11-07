@@ -2189,7 +2189,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
-    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
+    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted. Discovery remains capped at");
+    expect(canonicalAtlasDiscoverySource).toContain("the protected target-research reserve is not released for additional broad discovery");
     expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
