@@ -11,6 +11,7 @@ const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", im
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 const runtimeProofVerifier = readFileSync(new URL("../../../../../scripts/verify-canonical-card-proof.mjs", import.meta.url), "utf8");
 const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+const launchDefaults = readFileSync(new URL("../lib/atlas-launch-defaults.ts", import.meta.url), "utf8");
 const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-union.ts", import.meta.url), "utf8");
 const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
@@ -243,10 +244,12 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the default discovery objective consistent with organization target selection", () => {
-    expect(canonicalAtlas).toContain("Companies are leads and may be selected for target-scoped research");
-    expect(canonicalAtlas).toContain("A person is the ultimate investor-identification goal");
-    expect(canonicalAtlas).toContain("The Investigator chooses each action; no fixed sequence.");
+  it("keeps the default discovery objective aligned with B2B company-and-decision-maker selection", () => {
+    expect(launchDefaults).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalAtlas).not.toContain("Discover lesser-known people with credible wealth potential");
     expect(canonicalAtlas).not.toContain("People—not companies or executive prestige—are the target; companies are leads.");
   });
 
