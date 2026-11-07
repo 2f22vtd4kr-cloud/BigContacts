@@ -277,7 +277,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
 
 router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
   const {
-    maxCompanies = 10_000,
+    maxCompanies = 5_572,
     includePeople = true,
     includeVisualLead = true,
   } = (req.body ?? {}) as {
@@ -285,7 +285,7 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
     includePeople?: boolean;
     includeVisualLead?: boolean;
   };
-  const safeMax = Math.min(Math.max(Math.trunc(Number(maxCompanies) || 10_000), 1), 10_000);
+  const safeMax = Math.min(Math.max(Math.trunc(Number(maxCompanies) || 5_572), 1), 5_572);
   if (typeof includePeople !== "boolean" || typeof includeVisualLead !== "boolean") {
     res.status(400).json({ error: "includePeople and includeVisualLead must be booleans when supplied." });
     return;
