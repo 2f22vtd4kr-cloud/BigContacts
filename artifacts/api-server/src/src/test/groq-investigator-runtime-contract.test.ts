@@ -217,7 +217,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("No extra wealth/ownership criteria unless requested.");
     expect(submitted).toContain("Investigator chooses actions; no fixed recovery sequence.");
-    expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class follows evidence.");
+    expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
     expect(submitted).toContain('"url":null');
