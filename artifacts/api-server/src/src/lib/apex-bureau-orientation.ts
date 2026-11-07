@@ -87,7 +87,6 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1], never null; only done may null them.",
     "IDENTITY: people, companies, trusts, assets stay distinct; infer no ownership/wealth/links/routes.",
     "SAFETY: public professional routes only; exclude private/sensitive data.",
-    "COMMUNITY: Virtual Globetrotting/user pages are not evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only; unavailable is not a no-hit; no registry preference.",
     "TARGET: Apply only objective-required criteria. B2B requires a fetched decision-maker role/company link; Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority.",
     "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text PDFs; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted and malformed PDFs differ.",
