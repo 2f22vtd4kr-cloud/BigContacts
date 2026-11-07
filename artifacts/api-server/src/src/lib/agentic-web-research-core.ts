@@ -3963,6 +3963,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const finalPrompt = joinPromptParts(finalParts);
   if (finalPrompt.length <= limit) return finalPrompt;
   throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
+}
 
 /**
  * Enforce an accepted Boss pivot at the outbound action boundary. Prompt instructions
