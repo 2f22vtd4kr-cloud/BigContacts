@@ -3838,9 +3838,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       appendBudgeted(minimumSnippetEvidenceRule, 100, "[snippet evidence rule omitted]");
     }
     // Keep latest source evidence and action feedback ahead of optional policy memory.
-    appendBudgeted(fetchedSourceLabel, 110, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
-    appendBudgeted(minimumScopeContext, 240, "[scope detail omitted]");
+    // Scope and fetched source were already protected ahead of optional policy text.
     appendBudgeted(minimumAvailableActionsSection, 0, "[duplicate action list omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 200, "[PDF retrieval detail omitted]");
@@ -4976,6 +4974,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; match an attested capability to a grounded public identifier; never invent identifiers; worker outputs are leads, not proof."
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
+    "DISCOVERY MODE: no person or entity target is implied.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: tie the query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link.",
+    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY. No registry is preferred; choose by evidence. Preserve human-supplied geography and sector/jurisdiction, e.g. casinos in Slovenia. One source-backed relevant lead starts target research.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): Investigator selects relevant people/company leads for review-only, not every result; keep exact observed name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional review lead; never auto-promote.",
+    "Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
+    "Search snippets are leads, not evidence. Failures and blocked fetches are unknown, not negative evidence.",
+    "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
     "MISSION PRIORITY: human objective and active Boss scope govern; preserve topic/geography; never broaden.",
     "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link; the Investigator chooses the source, target and action.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
@@ -5818,18 +5827,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const blockedScopeMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
         ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; revise query/resource to active Boss scope. No request was sent; not negative evidence."
         : "";
-      const finalEmergencyAssignment = [
-        ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY: DISCOVERY MODE: no person or entity target is implied. Follow the human objective/Boss scope; source class must fit. No fixed action sequence; no celebrity default, name blacklist or invented geography. MODEL-OWNED RELEVANCE SELF-CHECK: generic publishers need an objective-relevant same-case link. DISCOVERY TARGETABILITY / REALISM: one source-backed relevant lead starts target research; wealth only if required. No registry is preferred; choose by evidence.",
-          "DISCOVERY SEARCH ECONOMY: at most two outbound search actions across this case; one focused web_search or registry_search query per action; no parallel search. LEAD-INSPECTION: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector/jurisdiction, e.g. casinos in Slovenia.",
-          "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant source-backed person/company leads as review-only, not every result. Exact observed name, stated role or null, associated HTTPS URL; person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Never auto-promote; target research verifies objective-required claims and public/professional routes.",
-          "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.",
-          ...((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
-          blockedScopeMarker,
-        ] : [
-          "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.",
-        ]),
-      ].filter(Boolean).join(" ");
+      const finalEmergencyAssignment = input.mode === "discovery"
+        ? "APEX INVESTIGATOR — DISCOVERY: Follow the human objective and Boss scope. The Investigator owns target, source, query and action choice; no fixed itinerary. " + compactEmergencyDiscoveryContractParts.join(" ")
+          + ((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? " LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched." : "")
+          + (blockedScopeMarker ? " " + blockedScopeMarker : "")
+        : "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.";
       const finalEmergencyObjective = [
         authoritativeCaseObjective,
         activeBossScopeSection,
@@ -5837,6 +5839,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalEmergencyPrefix = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
+        compactEmergencyDiscoveryContractParts.join(" "),
         compactResearchContract,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
@@ -5881,7 +5884,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const boundedMinimumObjective = buildObjectiveAndScope(0, 360);
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,
-        boundedMinimumObjective,
+        finalEmergencyObjective,
+        compactEmergencyDiscoveryContractParts.join(" "),
         compactResearchContract,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
@@ -5912,6 +5916,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const preservedLatestRecordTail = buildLatestRecordTail(300, 2);
       const finalFallbackParts = [
         finalEmergencyAssignment,
+        finalEmergencyObjective,
         ...compactEmergencyDiscoveryContractParts,
         finalScope,
         aiHistoricalMemorySection,
@@ -5956,6 +5961,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". " + (terminalContract.requireFalsification ? "Seek counter-evidence before done. " : "") + "This is not a prescribed action sequence.",
         compactPageFormatGuidance,
+        compactFetchedSourceContext,
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate ?? "", minimalDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
         minimalTail,
@@ -6038,6 +6044,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
+        compactFetchedSourceContext,
         "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary, but no silent pivot. After a block revise only the failed dimension or request new scope from Boss; failure is not disproof.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
