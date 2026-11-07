@@ -3875,21 +3875,94 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(markerSuffix, 70, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
-  const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
-  let minimumTail = mandatoryMinimumTail;
-  if (compactCaseObjective && !minimumTail.includes(compactCaseObjective)) {
-    const candidate = joinPromptParts([minimumTail, compactCaseObjective]);
-    if (candidate.length <= optionalTailBudget) minimumTail = candidate;
-  }
-  const minimumBaseBudget = Math.max(0, limit - minimumTail.length - 2);
-  const minimumBase = minimumBaseBudget >= 160
-    ? boundInvestigatorPromptSection(contractText, minimumBaseBudget)
+  // Last-resort assembly is deliberately priority-based. Do not feed a
+  // mandatory prompt contract back through a generic head/tail slicer: that was
+  // dropping live scope, runtime tools, search leads and fetched-source claims.
+  const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
+  const discoveryTargetabilityRule = isDiscoveryPrompt
+    ? "DISCOVERY TARGETABILITY / REALISM: follow the objective-required target class and geography; companies, people and assets stay distinct; no celebrity defaults or invented geography."
     : "";
-  const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
-  if (lastResort.length <= limit) return lastResort;
-  if (minimumTail.length <= limit) return minimumTail;
+  const discoveryRelevanceRule = isDiscoveryPrompt
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; tie each query/source to the objective-required entity, role, relationship or materiality. Other objectives use their own evidence criteria."
+    : "";
+  const discoverySearchRule = isDiscoveryPrompt
+    ? "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. Inspect one in-scope lead before another search. The Investigator chooses the sequence."
+    : "";
+  const discoveryLeadRule = isDiscoveryPrompt
+    ? "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only, not every result. Keep exact observed names, stated role or null, and associated public HTTPS URL. Snippets remain leads, not evidence; never auto-promote."
+    : "";
+  const requiredInvariantParts = [
+    fallbackOutputContract,
+    compactCaseObjective,
+    minimumScopeContext,
+    minimumAvailableActionsSection,
+    minimumProviderRule,
+    minimumRegistryEvidenceRule,
+    minimumBinaryUrlRule,
+    terminalEvidenceRule,
+    scopeRecoveryRule,
+    discoveryTargetabilityRule,
+    discoverySearchRule,
+    discoveryRelevanceRule,
+    discoveryLeadRule,
+    fallbackEvidenceContract,
+  ].filter(Boolean);
+  const invariantPrompt = joinPromptParts(requiredInvariantParts);
+  if (invariantPrompt.length > limit) {
+    // Shed only duplicated narrative, never the structured output envelope or
+    // the live Boss scope/action contract. The mode-specific compact handoff
+    // contract replaces the longer qualification paragraph at this ceiling.
+    const hardMinimumParts = [
+      fallbackOutputContract,
+      compactCaseObjective,
+      minimumScopeContext,
+      minimumAvailableActionsSection,
+      minimumProviderRule,
+      "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (typeof registryIds === "string" ? registryIds.trim() : "use only the current runtime registry allowlist") + ". Unavailable is not a no-hit.",
+      terminalEvidenceRule,
+      scopeRecoveryRule,
+      discoveryTargetabilityRule,
+      discoverySearchRule,
+      discoveryRelevanceRule,
+      discoveryLeadRule,
+      isDiscoveryPrompt ? "QUALIFICATION: B2B roles/routes and wealth/ownership evidence are required only when the active objective asks for them. Never infer wealth from seniority." : fallbackEvidenceContract,
+    ].filter(Boolean);
+    const hardMinimum = joinPromptParts(hardMinimumParts);
+    if (hardMinimum.length > limit) {
+      throw new Error("Cannot preserve the live objective, Boss scope, runtime action schema and discovery handoff within maxPromptChars=" + limit + ".");
+    }
+    requiredInvariantParts.splice(0, requiredInvariantParts.length, ...hardMinimumParts);
+  }
+  const finalParts = [...requiredInvariantParts];
+  let finalLength = invariantPrompt.length > limit ? joinPromptParts(finalParts).length : invariantPrompt.length;
+  const appendIfFits = (part: string, cap?: number) => {
+    if (!part) return;
+    const candidate = typeof cap === "number" && part.length > cap
+      ? compactPromptSectionPreservingUrlTokens(part, cap, "[middle omitted; full detail remains durable]")
+      : part;
+    const nextLength = finalLength + (finalParts.length ? 2 : 0) + candidate.length;
+    if (nextLength <= limit) {
+      finalParts.push(candidate);
+      finalLength = nextLength;
+    }
+  };
+  // Decision inputs next: exact search-result URLs, the last fetched evidence
+  // claim, the latest action/observation, then historical memory.
+  appendIfFits(urlInventory, 760);
+  const fetchedSourceContext = fetchedSourceExcerptLabel
+    ? fetchedSourceExcerptLabel + (fetchedSourceClaimExcerpt || fetchedSourceExcerpt
+      ? " " + (fetchedSourceClaimExcerpt || fetchedSourceExcerpt)
+      : "")
+    : "";
+  appendIfFits(fetchedSourceContext, 520);
+  appendIfFits(markerSuffix, 180);
+  appendIfFits(leadGuidance, 220);
+  appendIfFits(durableRecordSummaries.slice(-1).join("\n\n"), 520);
+  appendIfFits(header + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 360);
+  appendIfFits(aiMemorySection, 420);
+  const finalPrompt = joinPromptParts(finalParts);
+  if (finalPrompt.length <= limit) return finalPrompt;
   throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
-}
 
 /**
  * Enforce an accepted Boss pivot at the outbound action boundary. Prompt instructions
