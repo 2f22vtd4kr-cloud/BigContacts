@@ -5761,7 +5761,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions across this case; one focused web_search or registry_search query per action; no parallel search. LEAD-INSPECTION: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector/jurisdiction, e.g. casinos in Slovenia.",
           "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed company/person leads as review-only; Investigator selects, not every result. DISCOVERY LEAD HANDOFF CONTRACT: no auto-promotion; target research verifies objective-required claims and public/professional routes.",
           "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.",
-          ...(leadGuidance ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
+          ...((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
           blockedScopeMarker,
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.",
