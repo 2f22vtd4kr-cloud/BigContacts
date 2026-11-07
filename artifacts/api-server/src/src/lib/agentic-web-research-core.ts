@@ -5360,6 +5360,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE",
       "PAGE FORMAT / RETRIEVAL LIMITS:",
       "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS",
+      "Conditional specialist OSINT actions:",
+      "DISCOVERY TARGETABILITY:",
     ];
     for (const heading of optionalHeadings) {
       if (repaired.length <= maxUserPromptChars) break;
