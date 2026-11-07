@@ -4979,7 +4979,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         maxChars: 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
-  const cognitiveState = boundInvestigatorPromptSection(input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.", 420);
+  const cognitiveState = boundInvestigatorPromptSection(
+    input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
+    900,
+  );
   const availableBrowserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
   const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
