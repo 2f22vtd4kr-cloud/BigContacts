@@ -5154,7 +5154,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     observation: (() => {
       const latestFetchNeedsEvidenceExcerpt = record.execution === "success"
         && (record.action === "visit" || record.action === "browser_fetch");
-      const observationLimit = latestFetchNeedsEvidenceExcerpt ? Math.max(observationChars, 700) : Math.max(observationChars, 40);
+      const observationLimit = latestFetchNeedsEvidenceExcerpt ? Math.max(observationChars, 220) : Math.max(observationChars, 40);
       const compactObservation = compactEmergencyTrajectoryObservation(record.observation ?? "", observationLimit);
       // Guard summaries encode recovery instructions and must remain intact.
       // Successful fetched pages retain a useful excerpt even in emergency compaction.
