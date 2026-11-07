@@ -3636,7 +3636,7 @@ describe("prompt composition recovery integrity", () => {
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);
     expect(recovery).not.toContain("boundInvestigatorPromptSection(memorySection, memoryBudget)");
-    expect(recovery).toContain("throw new Error(\"Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory");
+    expect(recovery).toContain("throw new Error(\"Emergency Investigator prompt cannot preserve the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
   });
 });
 
