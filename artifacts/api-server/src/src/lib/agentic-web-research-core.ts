@@ -3150,6 +3150,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Enforce the full field list whenever a prompt contains an action-schema marker;
   // synthetic/non-contract prompt fragments must still retain their exact prefix.
   const requiresCompleteActionSchema = isInvestigatorPrompt && (mode === "discovery" || mode === "target" || /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(base));
+  const discoveryContractRequested = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
+  const hasSemanticInvestigatorContract = (prompt: string): boolean => {
+    if (!requiresCompleteActionSchema) return true;
+    const common = hasCompleteActionSchema(prompt) && /OUTPUT CONTRACT:/.test(prompt) && /AVAILABLE ACTIONS:/.test(prompt) && /VALID PROVIDERS:/.test(prompt) && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt) && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt) && /RESEARCH TERMINAL GATE/.test(prompt);
+    if (!common || !discoveryContractRequested) return common;
+    return prompt.includes("DISCOVERY MODE: no person or entity target is implied") && prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && prompt.includes("Other objectives use their own evidence criteria") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK") && prompt.includes("No registry is preferred; choose by evidence.") && /search snippets are leads, not (?:evidence|claim-grade evidence)|snippets remain leads, not evidence/i.test(prompt);
+  };
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
     && (!suppliedMemory || base.includes(suppliedMemory))
@@ -3158,8 +3165,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base))
     // A tiny/empty observation is not permission to send an incomplete action
     // prompt. Fast-return only if a present structured schema is complete.
-    && (!requiresCompleteActionSchema || (/OUTPUT CONTRACT:/.test(base) && hasCompleteActionSchema(base)));
-  if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext) return base;
+    && (!requiresCompleteActionSchema || hasSemanticInvestigatorContract(combined))
+  if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext && hasSemanticInvestigatorContract(base)) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...combinedSourceText.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
@@ -3467,11 +3474,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
-  const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base) ? "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: human objective/Boss scope determines people, company or asset target class and geography. No incidental celebrity targets, invented targets/geography or blacklist. One relevant sourced lead starts target research; ownership/wealth only when required. Web and enabled registries have equal standing: No registry is preferred; choose by evidence. Form a concrete, falsifiable objective-linked hypothesis. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance and chooses the exact target, query, source and action; generic publisher homepage needs a same-case evidence link. Preserve sector/jurisdiction, e.g. casinos in Slovenia. Other objectives use their own evidence criteria." : "";
+  const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base) ? "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: human objective/Boss scope determines people, company or asset target class and geography. No incidental celebrity targets, invented targets/geography or blacklist. One relevant sourced lead starts target research; ownership/wealth only when required. SOURCE-NEUTRAL MIXED TARGET DISCOVERY: all enabled registries and public-web search are neutral options. Web and enabled registries have equal standing: No registry is preferred; choose by evidence. Form a concrete, falsifiable objective-linked hypothesis. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance and chooses the exact target, query, source and action; generic publisher homepage needs a same-case evidence link. Preserve sector/jurisdiction, e.g. casinos in Slovenia. Search snippets are leads, not evidence. Other objectives use their own evidence criteria." : "";
   const scopeRecoveryRule = isInvestigatorPrompt ? "SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence. Correct the actual subject/geography/source-class mismatch; choose a materially different in-scope query or observed aligned URL. Do not broaden geography or silently pivot; ask Boss/Right-hand if no in-scope path remains. Investigator chooses actions; no fixed recovery sequence." : "";
   const protectedTail = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule] : []),
     compactCaseObjective,
     ...(leadGuidance ? [leadGuidance] : []),
     conditionalCapabilityRule,
@@ -3518,7 +3526,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       && fallback.includes("No registry is preferred; choose by evidence.")
     ))
   );
-  if (fallback.length <= limit && hasCompleteEmergencyContract) return fallback;
+  if (fallback.length <= limit && hasCompleteEmergencyContract && hasSemanticInvestigatorContract(fallback)) return fallback;
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
