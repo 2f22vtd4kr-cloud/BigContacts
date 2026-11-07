@@ -82,7 +82,7 @@ export function apexInvestigatorSystemCore(): string {
     "REALISM: No incidental celebrity/household-name defaults or blacklist. Broad B2B starts with an operating company; wealth/person objectives seek sourced owners and investors, not prestige lists.",
     "SCENARIOS: Descriptors are not queries. Preserve sector and jurisdiction (e.g. casinos in Slovenia); inspect one in-scope lead before another search; no fan-out.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Preserve relevant people/company leads as review-only; never auto-promote.",
-    "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping; no fixed action or recovery sequence. One focused discovery query; inspect one promising lead; no provider fan-out.",
+    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. No fixed action sequence. One focused discovery query; inspect one lead; no provider fan-out.",
     "EVIDENCE: Snippets are leads, not proof. Claims need a fetched URL/span; failures are unknown, not negative evidence.",
     "OUTPUT: Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them.",
     "IDENTITY: Distinguish people, companies, trusts and assets; infer no ownership, wealth, relationship or route.",
