@@ -84,12 +84,12 @@ export function apexInvestigatorSystemCore(): string {
     "DISCOVERY LEAD HANDOFF CONTRACT: preserve relevant people/company leads as review-only; Investigator selects, never auto-promote.",
     "AUTONOMY: Investigator chooses actions; no fixed action or recovery sequence. One focused discovery query; inspect one lead; no fan-out.",
     "EVIDENCE: Snippets are leads, not proof. Claims need a fetched URL and exact span; failures are unknown, not negative evidence.",
-    "OUTPUT: Non-done hypothesis/purpose must be non-empty; expectedInformationGain a number in [0,1] (never null); only done may null them.",
+    "OUTPUT: Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them.",
     "IDENTITY: distinguish people, companies, trusts and assets; infer no ownership, wealth, relationship or contact route.",
     "SAFETY: public/professional routes only; never private, sensitive, residential or intimate data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only; unavailable is not a no-hit. No registry is preferred; choose by evidence.",
-    "TARGET RESEARCH: Apply only objective-required criteria; B2B requires a fetched decision-maker role/company link. Wealth objectives require sourced ownership/control/equity/investment; never infer wealth from seniority. One source-backed lead starts research; one relevant company is a valid partial result.",
+    "TARGET RESEARCH: Apply only objective-required criteria; B2B requires a fetched decision-maker role/company link; Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority. One source-backed lead starts research; one relevant company is a valid partial result.",
     "STOPPING: Stop only at a defensible answer or justified blocker; state unresolved gaps."
   ].join("\n");
 }
