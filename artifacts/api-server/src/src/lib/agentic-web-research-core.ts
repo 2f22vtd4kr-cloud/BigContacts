@@ -6306,6 +6306,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + protectedDiscoveryRecovery.length
         + protectedFetchedSourceClaim.length
         + pinnedSuffix.length + 8;
+      const compactCoreWithoutProtectedScope = compactBaseCoreParts
         .filter((part) => part !== absoluteMinimumObjective
           && part !== finalEmergencyAssignment
           && part !== absoluteMinimumAvailableActions
