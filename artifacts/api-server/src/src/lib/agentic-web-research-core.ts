@@ -3819,7 +3819,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
     appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
