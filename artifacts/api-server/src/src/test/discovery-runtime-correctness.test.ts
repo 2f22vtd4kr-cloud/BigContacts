@@ -61,7 +61,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
     expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
     expect(researchCoreSource).toContain("do not broaden geography");
-    expect(researchCoreSource).toContain("no named default, fixed source order, or broad discovery exercise");
+    expect(researchCoreSource).toContain("no named default, geography sweep, fixed order or registry-first rule");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -653,11 +653,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
-    expect(uiObjectiveLiteral).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    expect(uiObjectiveLiteral).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
+    expect(uiObjectiveLiteral.slice(1, -1).length).toBeLessThanOrEqual(1_200);
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
-    expect(canonicalDiscoverySource).not.toContain("Discover lesser-known people with credible wealth potential");
+    expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
   });
 
   it("enforces immediate target handoff before any further discovery or pivot", () => {
