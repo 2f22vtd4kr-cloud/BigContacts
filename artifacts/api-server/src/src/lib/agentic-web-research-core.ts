@@ -3390,7 +3390,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /MISSION PRIORITY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|LEAD FOLLOW-UP GUIDANCE(?::| \(non-binding\):)|DISCOVERY TARGETABILITY \/ REALISM|DISCOVERY SEARCH DISCIPLINE|DISCOVERY LEAD-INSPECTION GATE|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
-  const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
+  const compactCaseObjective = caseObjective ? (caseObjective.length <= 360 ? caseObjective : boundInvestigatorPromptSection(caseObjective, 260)) : "";
   const availableActionsSection = baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
   const observedActiveScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]?.trim() ?? "";
   const baseObjectiveForScope = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
@@ -3463,11 +3463,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackOutputContract = isInvestigatorPrompt
     ? "APEX INVESTIGATOR: human objective and Boss scope govern. Investigator chooses actions; no fixed recovery sequence. OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
     : "";
-  const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant people/company leads as review-only, not every result; keep exact observed name, role or null, and associated public HTTPS URL. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
+  const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant people/company leads as review-only, not every result; keep exact observed name, role or null, and associated public HTTPS URL. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not claim-grade evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
-  const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base) ? "DISCOVERY TARGETABILITY: human objective/Boss scope determines people, company or asset target class and geography. No incidental celebrity targets, invented targets/geography or blacklist. One relevant sourced lead starts target research; ownership/wealth only when required. Web and enabled registries have equal standing: No registry is preferred; choose by evidence. Form a concrete, falsifiable objective-linked hypothesis; The Investigator decides relevance and chooses the exact target, query, source and action. Other objectives use their own evidence criteria." : "";
+  const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base) ? "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: human objective/Boss scope determines people, company or asset target class and geography. No incidental celebrity targets, invented targets/geography or blacklist. One relevant sourced lead starts target research; ownership/wealth only when required. Web and enabled registries have equal standing: No registry is preferred; choose by evidence. Form a concrete, falsifiable objective-linked hypothesis. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance and chooses the exact target, query, source and action; generic publisher homepage needs a same-case evidence link. Preserve sector/jurisdiction, e.g. casinos in Slovenia. Other objectives use their own evidence criteria." : "";
   const scopeRecoveryRule = isInvestigatorPrompt ? "SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence. Correct the actual subject/geography/source-class mismatch; choose a materially different in-scope query or observed aligned URL. Do not broaden geography or silently pivot; ask Boss/Right-hand if no in-scope path remains. Investigator chooses actions; no fixed recovery sequence." : "";
   const protectedTail = [
     fallbackOutputContract,
@@ -3499,7 +3499,26 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? contractText
     : boundInvestigatorPromptSection(contractText, contractBudget);
   const fallback = [boundedContract, protectedTail].filter(Boolean).join("\n\n");
-  if (fallback.length <= limit) return fallback;
+  const hasCompleteEmergencyContract = !isInvestigatorPrompt || (
+    hasCompleteActionSchema(fallback)
+    && fallback.includes("AVAILABLE ACTIONS:")
+    && fallback.includes("VALID PROVIDERS:")
+    && fallback.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY")
+    && fallback.includes("PAGE FORMAT / RETRIEVAL LIMITS")
+    && fallback.includes("RESEARCH TERMINAL GATE (authoritative)")
+    && (!isDiscoveryPrompt || (
+      fallback.includes("DISCOVERY MODE: no person or entity target is implied")
+      && fallback.includes("DISCOVERY SEARCH ECONOMY")
+      && fallback.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES")
+      && fallback.includes("Other objectives use their own evidence criteria")
+      && fallback.includes("DISCOVERY LEAD HANDOFF CONTRACT")
+      && fallback.includes("PARTIAL FINDINGS")
+      && fallback.includes("MODEL-OWNED RELEVANCE SELF-CHECK")
+      && fallback.includes("The Investigator decides relevance")
+      && fallback.includes("No registry is preferred; choose by evidence.")
+    ))
+  );
+  if (fallback.length <= limit && hasCompleteEmergencyContract) return fallback;
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
