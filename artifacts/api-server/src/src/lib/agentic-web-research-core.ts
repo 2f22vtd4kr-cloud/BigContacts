@@ -5596,11 +5596,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let repaired = insertMemory(sections);
     if (repaired.length <= maxUserPromptChars) return preserveFetchedClaimAtProviderBoundary(repaired);
     const optionalSectionPatterns = [
-      /^SOURCE COVERAGE \(not a checklist\):/
-      /^CAPABILITY GUIDANCE:/
-      /^DISCOVERY TARGETABILITY(?: \/ REALISM| GATE)?/
-      /^DISCOVERY SEARCH DISCIPLINE:/
-      /^VALID REVIEW-LEAD SHAPE/
+      /^SOURCE COVERAGE \(not a checklist\):/,
+      /^CAPABILITY GUIDANCE:/,
+      /^DISCOVERY TARGETABILITY(?: \/ REALISM| GATE)?/,
+      /^DISCOVERY SEARCH DISCIPLINE:/,
+      /^VALID REVIEW-LEAD SHAPE/,
       /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
       /^\[AUXILIARY CONTEXT BOUND:/,
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
@@ -5762,7 +5762,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY: DISCOVERY MODE: no person or entity target is implied. Follow the human objective/Boss scope; source class must fit.
+          "APEX INVESTIGATOR — DISCOVERY: DISCOVERY MODE: no person or entity target is implied. Follow the human objective/Boss scope; source class must fit. No fixed action sequence; no celebrity default, name blacklist or invented geography. MODEL-OWNED RELEVANCE SELF-CHECK: generic publishers need an objective-relevant same-case link. DISCOVERY TARGETABILITY / REALISM: one source-backed relevant lead starts target research; wealth only if required. No registry is preferred; choose by evidence.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions across this case; one focused web_search or registry_search query per action; no parallel search. LEAD-INSPECTION: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector/jurisdiction, e.g. casinos in Slovenia.",
           "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant source-backed person/company leads as review-only, not every result. Exact observed name, stated role or null, associated HTTPS URL; person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Never auto-promote; target research verifies objective-required claims and public/professional routes.",
           "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.",
