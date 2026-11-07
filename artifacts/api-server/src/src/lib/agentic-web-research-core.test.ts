@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -16,19 +16,18 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
     expect(systemCore.length).toBeLessThan(2_000);
-    expect(systemCore).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(systemCore).toContain("source class");
+    expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
+    expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
-    expect(systemCore).toContain("not a remembered famous CEO");
-    expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
+    expect(systemCore).toContain("REALISM: No incidental celebrity/household-name defaults");
+    expect(systemCore).toContain("Broad B2B starts with an operating company");
+    expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).toContain("casinos in Slovenia");
-    expect(systemCore).toContain("inspect one lead before searching again");
-    expect(systemCore).toContain("No duplicate LinkedIn/Google/provider fan-out");
+    expect(systemCore).toContain("before another search");
+    expect(systemCore).toContain("no provider fan-out");
     expect(systemCore).toContain("One focused discovery query");
-    expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
-    expect(systemCore).toContain("A single relevant company is a worthwhile partial result");
+    expect(systemCore).toContain("one relevant company is a valid partial result");
+    expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
 });
 
@@ -2190,7 +2189,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
-    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
+    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted. Discovery remains capped at");
+    expect(canonicalAtlasDiscoverySource).toContain("the protected target-research reserve is not released for additional broad discovery");
     expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
@@ -2425,15 +2425,69 @@ Choose each next action yourself from the available capabilities and observed ev
     ])).toBeNull();
   });
 
+  it("caps discovery at two outbound search actions and excludes blocked/preflight attempts", () => {
+    const records = [
+      { ...livenessRecord("web_search", "success"), leadUrls: ["https://www.ohiosos.gov/business/search"] },
+      livenessRecord("parallel_registry_search", "blocked"),
+      livenessRecord("visit", "error"),
+      livenessRecord("registry_search", "error"),
+      livenessRecord("web_search", "blocked"),
+      livenessRecord("parallel_web_search", "blocked"),
+    ];
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBe(2);
+    expect(countDiscoverySearchActions(records)).toBe(2);
+    const agedHistory = [
+      ...records,
+      ...Array.from({ length: 100 }, (_, index) => ({
+        ...livenessRecord("visit", "success"),
+        turn: index + 10,
+      })),
+    ];
+    expect(countDiscoverySearchActions(agedHistory)).toBe(2);
+    expect(discoveryLeadInspectionRequirement(agedHistory)).toEqual({
+      leadUrl: "https://www.ohiosos.gov/business/search",
+      searchTurn: 1,
+    });
+  });
+
+  it("puts the search economy and Slovenia sector/jurisdiction example in the live discovery prompt", () => {
+    const objective = "Identify licensed casino operators in Slovenia and investigate one relevant operator.";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain(objective);
+    expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
+    expect(prompt).toContain("at most two outbound search actions");
+    expect(prompt).toContain("casinos in Slovenia");
+    expect(prompt).toContain("Other objectives use their own evidence criteria");
+  });
+
+  it("removes parallel web and registry actions from discovery while retaining them for target research", () => {
+    const actions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "done"];
+    expect(discoveryActionAllowlist("discovery", actions)).toEqual([
+      "web_search", "visit", "registry_search", "done",
+    ]);
+    expect(discoveryActionAllowlist("target", actions)).toEqual(actions);
+  });
+
   it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
-    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement(previousResearchRecords)");
-    const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search") {');
-    const parallelToolCall = agenticCoreSource.indexOf("toolWebSearch(search.query", parallelStart);
+    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
+    const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS");
+    const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search" || action.action === "parallel_registry_search")');
+    const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {');
     expect(guardStart).toBeGreaterThan(-1);
-    expect(guardStart).toBeLessThan(parallelStart);
-    expect(parallelToolCall).toBeGreaterThan(parallelStart);
-    expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search query");
-    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement(previousResearchRecords)");
+    expect(guardStart).toBeLessThan(budgetGuard);
+    expect(budgetGuard).toBeLessThan(parallelStart);
+    expect(parallelStart).toBeLessThan(registryDispatch);
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search or registry_search query");
+    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: two outbound discovery search actions");
   });
 
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
@@ -3550,6 +3604,7 @@ describe("combined-main emergency discovery contract", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("No registry is preferred; choose by evidence.");
+    expect(prompt).toContain("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
@@ -3672,7 +3727,7 @@ describe("small emergency observation budgets", () => {
     expect(agenticCoreSource).toContain("const emergencyObservation = buildEmergencyPriorTrajectoryObservation(");
     expect(agenticCoreSource).toContain("pinnedInventoryCandidate,");
     expect(agenticCoreSource).toContain("...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),");
-    expect(agenticCoreSource).toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420),");
+    expect(agenticCoreSource).toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420)");
     expect(agenticCoreSource).toContain("emergencyTrajectoryRecordSummary,");
     expect(agenticCoreSource).toContain(
       "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory)",

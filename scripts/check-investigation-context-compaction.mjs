@@ -3,6 +3,8 @@ import fs from "node:fs";
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const canonicalDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const launchDefaults = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-launch-defaults.ts", "utf8");
+const launchUi = fs.readFileSync("artifacts/apex-finder/src/lib/launch-atlas.ts", "utf8");
 const discoveryContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const aiCompaction = fs.readFileSync("artifacts/api-server/src/src/lib/ai-investigation-context-compaction.ts", "utf8");
 const rightHand = fs.readFileSync("artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts", "utf8");
@@ -18,8 +20,8 @@ const checks = [
   ["emergency provider-size reducer exists", /export function tightenInvestigatorPrompt/.test(source) && /EMERGENCY REQUEST-SIZE COMPACTION/.test(source)],
   ["mounted durable context has its own bounded section", /priorContext\?: string/.test(source) && /PRIOR DURABLE CASE CONTEXT/.test(source) && /trim\(input\.priorContext, 1_000\)/.test(source)],
   ["explicit model-facing context budget override exists", /maxChars\?: number/.test(source) && /input\.maxChars/.test(source)],
-  ["canonical Investigator prompt requests a bounded working-context layer", /maxChars: 3_500/.test(core)],
-  ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(\s*input\.intelligenceContext[\s\S]*?1_200/.test(core)],
+  ["canonical Investigator prompt requests a bounded working-context layer", /maxChars: 3_000/.test(core)],
+  ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(\s*input\.intelligenceContext[\s\S]*?900/.test(core)],
   ["current findings retain both early and recent entries", /headTail\(input\.findings, 6\)/.test(source)],
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["shared URL-safe reducer enforces requested prompt bounds", /export function compactPromptSectionPreservingUrlTokens/.test(source) && /const limit = Math\.max\(0, requested\)/.test(source) && /source\.length <= limit/.test(source) && /return source\.slice\(0, limit\)/.test(source)],
@@ -36,9 +38,21 @@ const checks = [
   ["emergency latest-record projection preserves a two-ended observation excerpt", core.includes("compactEmergencyTrajectoryObservation(parsed.observation, 300)")],
   ["smallest emergency record tail retains a useful two-ended observation excerpt", core.includes("compactRecordEnvelope(latestRecord, 300, 2)")],
   ["no emergency Investigator tier falls back to a head-only 20–80 character observation", !/buildLatestRecordTail\((?:20|24|60),/.test(core) && !/compactEmergencyTrajectoryObservation\(observationWithoutCarriedSource, (?:60|80)\)/.test(core) && core.includes("buildLatestRecordTail(300, 2)")],
-  ["latest durable record carries enough bounded observation context into emergency prompt assembly", core.includes("const latestRecordTail = buildLatestRecordTail(520, 3)")],
+  ["latest durable record carries enough bounded observation context into emergency prompt assembly", core.includes("buildLatestRecordTail(520, 3)") && core.includes("LATEST_OBSERVATION_START") && core.includes("LATEST_OBSERVATION_END")],
   ["Investigator prompt fallbacks obey the active objective while preserving conditional wealth qualification", !/people are the ultimate mission|People—not companies or executive prestige|CASE OBJECTIVE: source-backed real-person research|CASE OBJECTIVE: find real people with credible ownership evidence|Seek source-backed ownership\/equity\/control\/investment clues during target research|owner\/operator, ownership\/investment or transaction signal/.test(core) && core.includes("Follow the active case objective and Boss-approved scope") && core.includes("B2B decision-makers need a fetched source binding a current role") && core.includes("wealth/investor targets also need source-backed ownership/control/equity/investment") && core.includes("const buildObjectiveAndScope =")],
-  ["canonical default discovery objective remains wealth-first and clarifies that lesser-known is descriptive, not a query", canonicalDiscovery.includes("Discover lesser-known people with credible wealth potential") && canonicalDiscovery.includes("not a search term, name fragment, brand, or target type") && canonicalDiscovery.includes("A person is the ultimate investor-identification goal")],
+  ["canonical launch defaults preserve the same caller-owned objective across UI and API", (() => {
+    const objectiveLiteral = (text) => text.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1] ?? null;
+    const uiObjective = objectiveLiteral(launchUi);
+    const apiObjective = objectiveLiteral(launchDefaults);
+    return Boolean(uiObjective)
+      && uiObjective.includes("Discover lesser-known people with credible wealth potential and public/professional routes.")
+      && uiObjective.length <= 1_202
+      && uiObjective.includes("use only human-specified geography")
+      && apiObjective === uiObjective
+      && launchDefaults.includes("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
+      && canonicalDiscovery.includes("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
+      && !canonicalDiscovery.includes("Discover lesser-known people with credible wealth potential");
+  })()],
   ["human case objective has explicit verbatim protection markers", source.includes("VERBATIM_CASE_OBJECTIVE_BEGIN") && source.includes("VERBATIM_CASE_OBJECTIVE_END") && source.includes("export function buildAuthoritativeCaseObjectiveBlock") && source.includes("containsVerbatimCaseObjective")],
   ["canonical Investigator prompt separates the complete objective from bounded auxiliary context", core.includes("buildAuthoritativeCaseObjectiveBlock(input.objective)") && core.includes("authoritativeCaseObjective") && core.includes("objective: \"\"") && core.includes("Cannot preserve the complete human case objective")],
   ["wealth-discovery relevance guidance rejects mission descriptors as query hypotheses without prescribing a source or sequence", core.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && core.includes("concrete, falsifiable public-evidence hypothesis") && core.includes("Other objectives use their own evidence criteria")],

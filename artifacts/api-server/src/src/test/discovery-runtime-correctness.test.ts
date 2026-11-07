@@ -12,6 +12,11 @@ const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-sourc
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
+const bureauAgenticPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
+const bureauPassFailureSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass-failure.ts"), "utf8");
+const launchDefaultsSource = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
+const launchRouteSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const launchUiSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -56,7 +61,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
     expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
     expect(researchCoreSource).toContain("do not broaden geography");
-    expect(researchCoreSource).toContain("no named default, fixed source order, or broad discovery exercise");
+    expect(researchCoreSource).toContain("no named default, geography sweep, fixed order or registry-first rule");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -486,12 +491,12 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("releases the target-stage reserve until a lead qualifies, then protects the remaining target budget", () => {
+  it("caps discovery early and protects the target-stage reserve even before admission", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
+    expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.6)))");
     expect(canonicalSource).toContain("const discoveryIterationCeiling = depth.agenticMaxIterations");
     expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
-    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(3, discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     const openingRecoveryCall = canonicalSource.slice(
@@ -512,8 +517,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
     expect(canonicalSource).toContain('kind: "discovery_budget"');
     expect(canonicalSource).toContain("The global ${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate.");
-    expect(canonicalSource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
-    expect(canonicalSource).toContain("Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.");
+    expect(canonicalSource).toContain("No candidate has been admitted. Discovery remains capped at ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} actions; the protected target-research reserve is not released for additional broad discovery.");
+    expect(canonicalSource).toContain("Discovery reached its ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)}-action allocation without an admitted candidate; target research remains unauthorized without a qualifying lead.");
   });
   it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
@@ -627,6 +632,46 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('runtimePhase === "cancellation_check"');
     expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "job_state_or_lease", error })');
     expect(researchCoreSource).toContain('phase=${runtimePhase}');
+  });
+
+  it("reuses AI-compacted historical memory across discovery and quota-recovery episodes", () => {
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext?:string");
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext:input.aiCompactedHistoricalContext");
+    expect(bureauAgenticPassSource).toContain("aiCompactedHistoricalContext:agentic.aiCompactedHistoricalContext");
+    expect(bureauPassFailureSource).toContain("aiCompactedHistoricalContext: agentic.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalContext: result.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("recovered.aiCompactedHistoricalContext ?? failed.aiCompactedHistoricalContext");
+    expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
+  });
+
+  it("defaults canonical Atlas to one target and the same human objective across launch paths", () => {
+    expect(launchDefaultsSource).toContain("targetCount: 1");
+    expect(launchDefaultsSource).toContain("researchLimit: 1");
+    expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
+    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
+    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
+    const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
+    const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
+    expect(uiObjectiveLiteral).toBeDefined();
+    const uiObjective = uiObjectiveLiteral ?? "";
+    expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
+    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_200);
+    expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
+    expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
+  });
+
+  it("enforces immediate target handoff before any further discovery or pivot", () => {
+    expect(atlasControlDecisionSource).toContain("MANDATORY EARLY HANDOFF");
+    expect(atlasControlDecisionSource).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
+    const handoffGate = canonicalDiscoverySource.indexOf("atlasEarlyTargetHandoffViolation(decision.action, admittedCandidateSources)");
+    const nextDiscoveryBranch = canonicalDiscoverySource.indexOf('if (decision.action === "continue_discovery" || decision.action === "pivot_discovery")');
+    expect(handoffGate).toBeGreaterThan(-1);
+    expect(nextDiscoveryBranch).toBeGreaterThan(handoffGate);
+    expect(canonicalDiscoverySource).toContain('kind: "target_handoff"');
+    expect(canonicalDiscoverySource).toContain("Boss repeated the invalid discovery continuation twice");
   });
 
   it("does not blacklist public figures or targets by deterministic name heuristics", () => {
