@@ -3165,7 +3165,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base))
     // A tiny/empty observation is not permission to send an incomplete action
     // prompt. Fast-return only if a present structured schema is complete.
-    && (!requiresCompleteActionSchema || hasSemanticInvestigatorContract(combined))
+    && (!requiresCompleteActionSchema || hasSemanticInvestigatorContract(base));
   if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext && hasSemanticInvestigatorContract(base)) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
