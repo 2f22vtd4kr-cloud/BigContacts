@@ -3828,7 +3828,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted("Target-specific names must come from observed same-case sources, not model memory. No fixed action sequence.", 150, "[target grounding detail omitted]");
     appendBudgeted("DISCOVERY LEAD HANDOFF CONTRACT: source-backed leads may be retained as review-only; snippets are leads, not evidence.", 180, "[lead handoff detail omitted]");
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
-    appendBudgeted(compactFetchedExcerpt, 420, "[fetched-source excerpt omitted]");
+    appendBudgeted(fetchedSourceExcerpt, 420, "[fetched-source excerpt omitted]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     // The final tier is a semantic contract, not a generic head/tail excerpt.
     // Keep the complete runtime allowlist and compact objective/relevance rules
