@@ -3720,19 +3720,22 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         terminalEvidenceRule,
         scopeRecoveryRule,
         compactScope,
-        minimumAvailableActionsSection
-          ? compactPromptSectionPreservingUrlTokens(minimumAvailableActionsSection, 360, "[action detail omitted]")
-          : "",
-        // Exact observed URLs remain intact. Compress secondary narration first
-        // to reserve space for the newest successful fetched-page claim; without
-        // this reserve the last-resort tier silently drops the only evidence
-        // capable of grounding the next partial finding.
-        urlInventory,
-        aiMemorySection
-          ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]")
-          : "",
+        // The action allowlist is an exact runtime capability boundary, not
+        // optional narration; never truncate it in the final emergency tier.
+        minimumAvailableActionsSection,
+        minimumRelevanceMarker,
+        compactFallbackDiscoveryRule,
         minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
+        // Keep the latest fetched source label and claim ahead of memory or
+        // summaries so source-backed partial findings remain possible.
+        fetchedSourceLabel,
+        compactFetchedExcerpt
+          ? compactPromptSectionPreservingUrlTokens(compactFetchedExcerpt, 420, "[source excerpt detail omitted]")
+          : "",
+        // Exact observed URLs remain intact. Compress secondary narration only
+        // after the source facts and objective-bound action contract.
+        urlInventory,
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
         latestSearchMarker,
@@ -3744,9 +3747,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
               "[lead guidance omitted]",
             )
           : "",
-        fetchedSourceLabel,
-        compactFetchedExcerpt
-          ? compactPromptSectionPreservingUrlTokens(compactFetchedExcerpt, 260, "[source excerpt detail omitted]")
+        aiMemorySection
+          ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 180, "[older memory omitted; durable ledger remains authoritative]")
           : "",
       ].filter(Boolean);
       const dynamicReserve = Math.min(620, Math.max(420, Math.floor(limit * 0.12)));
@@ -3853,7 +3855,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 250, "[older trajectory detail omitted]");
     appendBudgeted(markerSuffix, 70, "[marker omitted]");
-    appendBudgeted(markerSuffix, 70, "[marker omitted]");    mandatoryMinimumTail = finalParts.join("\n\n");
+    mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
   let minimumTail = mandatoryMinimumTail;
