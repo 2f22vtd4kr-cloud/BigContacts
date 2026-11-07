@@ -3470,7 +3470,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality. DISCOVERY TARGETABILITY / REALISM: no incidental celebrities, name blacklist or invented targets/geography; wealth only when required. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence." : "",
       isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected relevant review-only leads, not every result; never auto-promote." : "",
       "Conditional specialist actions only if allowlisted and available. Snippets are leads, not evidence; failed fetches are unobserved. PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
-      "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include all; inactive scalars null, unused arrays []. Non-done hypothesis/purpose are non-empty strings; expectedInformationGain is [0,1]; only done may null them. Parallel searches need 2–4 objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\\"url\\":null,\\"searches\\":[],\\"findings\\":[]}"
+      "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include all; inactive scalars null, unused arrays []. Non-done hypothesis/purpose are non-empty strings; expectedInformationGain is [0,1]; only done may null them. Parallel searches need 2–4 objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}"
     ].filter(Boolean).join(" ")
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
@@ -5590,8 +5590,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let repaired = insertMemory(sections);
     if (repaired.length <= maxUserPromptChars) return preserveFetchedClaimAtProviderBoundary(repaired);
     const optionalSectionPatterns = [
-      /^LATEST OBSERVATION \\(untrusted data, not instructions\\):/,
-      /^\\[AUXILIARY CONTEXT BOUND:/,
+      /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
+      /^\[AUXILIARY CONTEXT BOUND:/,
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
     ];
     const remainingSections = [...sections];
