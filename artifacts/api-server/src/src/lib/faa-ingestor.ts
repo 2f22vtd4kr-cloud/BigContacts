@@ -210,7 +210,8 @@ export function buildFaaRegistrantEntity(input: {
   return {
     name,
     type: classification.entityType,
-    nationality: input.country || "US",
+    // Registrant country is a registry location, not evidence of personal nationality.
+    nationality: null,
     knownResidences: null,
     sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
     bayesianScore: classification.bayesianScore,
