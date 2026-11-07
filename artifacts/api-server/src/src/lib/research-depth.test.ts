@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations } from "./research-depth";
 
 describe("bounded discovery allocation", () => {
-  it("releases the target-stage reserve while discovery has no admitted candidate", () => {
+  it("preserves the target-stage reserve even before a candidate is admitted", () => {
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
       discoveryIterationCeiling: 12,
@@ -10,7 +10,7 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 4,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(16);
+    })).toBe(8);
 
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
@@ -19,7 +19,7 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 12,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(8);
+    })).toBe(0);
 
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
@@ -27,6 +27,17 @@ describe("bounded discovery allocation", () => {
       discoveryIterationsUsed: 20,
       investigatorIterationsUsed: 20,
       targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: false,
+    })).toBe(0);
+  });
+
+  it("caps discovery at the configured discovery share when no target is found", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: 20,
+      discoveryIterationCeiling: 20,
+      discoveryIterationsUsed: 8,
+      investigatorIterationsUsed: 8,
+      targetResearchReserveIterations: 12,
       hasAdmittedCandidates: false,
     })).toBe(0);
   });
