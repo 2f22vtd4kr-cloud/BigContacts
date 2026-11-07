@@ -3539,6 +3539,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && fallback.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY")
     && fallback.includes("PAGE FORMAT / RETRIEVAL LIMITS")
     && fallback.includes("RESEARCH TERMINAL GATE (authoritative)")
+    // A structurally complete prompt is not recoverable if it silently drops
+    // current scope, the verbatim objective, or the newest source/trajectory.
+    && (!compactCaseObjective || fallback.includes(compactCaseObjective))
+    && (!activeScopeContext || fallback.includes(activeScopeContext))
+    && (!urlInventory || fallback.includes(urlInventory))
+    && (!carriedFetchedSourceSummary || fallback.includes(carriedFetchedSourceSummary))
+    && (!fetchedSourceLabel || fallback.includes(fetchedSourceLabel))
+    && (!markerSuffix || fallback.includes(markerSuffix))
+    && (!observationTail || fallback.includes(header))
     && (!isDiscoveryPrompt || (
       fallback.includes("DISCOVERY MODE: no person or entity target is implied")
       && fallback.includes("DISCOVERY SEARCH ECONOMY")
