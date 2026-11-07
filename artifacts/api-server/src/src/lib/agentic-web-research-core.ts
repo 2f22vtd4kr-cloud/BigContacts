@@ -3155,7 +3155,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (!requiresCompleteActionSchema) return true;
     const common = hasCompleteActionSchema(prompt) && /OUTPUT CONTRACT:/.test(prompt) && /AVAILABLE ACTIONS:/.test(prompt) && /VALID PROVIDERS:/.test(prompt) && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt) && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt) && /RESEARCH TERMINAL GATE/.test(prompt);
     if (!common || !discoveryContractRequested) return common;
-    return prompt.includes("DISCOVERY MODE: no person or entity target is implied") && prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && prompt.includes("Other objectives use their own evidence criteria") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK") && prompt.includes("generic publisher homepage") && prompt.includes("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion") && prompt.includes("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact") && prompt.includes("No registry is preferred; choose by evidence.") && /search snippets are leads, not (?:evidence|claim-grade evidence)|snippets remain leads, not evidence/i.test(prompt);
+    return prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK");
   };
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
@@ -3398,10 +3398,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const requiredSections = baseSections.filter((part) =>
     /MISSION PRIORITY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|LEAD FOLLOW-UP GUIDANCE(?::| \(non-binding\):)|DISCOVERY TARGETABILITY \/ REALISM|DISCOVERY SEARCH DISCIPLINE|DISCOVERY LEAD-INSPECTION GATE|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
-  const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
-  const verbatimCaseObjective = caseObjective?.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
+  const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
+  const verbatimCaseObjective = base.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
   const compactCaseObjective = verbatimCaseObjective || (caseObjective ? (caseObjective.length <= 360 ? caseObjective : boundInvestigatorPromptSection(caseObjective, 260)) : "");
-  const availableActionsSection = baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
+  const availableActionsSection = base.match(/AVAILABLE ACTIONS:\\s*[a-z][a-z0-9_]*(?:\\s*\\|\\s*[a-z][a-z0-9_]*)*\\./i)?.[0] ?? baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
   const observedActiveScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]?.trim() ?? "";
   const baseObjectiveForScope = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
   const extractedObjectiveScope = baseObjectiveForScope
@@ -3471,7 +3471,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "APEX INVESTIGATOR: human objective and Boss scope govern; Investigator chooses actions, no fixed recovery sequence. OUTPUT CONTRACT: one JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose non-empty; expectedInformationGain [0,1]. Parallel web searches: 2–4 objects, each query/provider/locale/market/purpose. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
+    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: human objective and Boss scope govern; Investigator chooses actions, no fixed recovery sequence. OUTPUT CONTRACT: one JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose non-empty; expectedInformationGain [0,1]. Parallel web searches: 2–4 objects, each query/provider/locale/market/purpose. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}.");
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant people/company leads as review-only, not every result; keep exact observed name, role or null, and associated public HTTPS URL. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not claim-grade evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
@@ -3594,7 +3594,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   });
   const minimumAvailableActionsSection = availableActionsSection;
-  const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries. Other objectives use their own evidence criteria. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity/role/materiality; generic publisher homepage needs same-case evidence. SOURCE-NEUTRAL MIXED TARGET DISCOVERY: no strategy exercise, broad sector comparison or geography expansion; choose a relevant person/company/asset via any enabled web or registry source. No registry is preferred; choose by evidence. The Investigator decides relevance. DISCOVERY LEAD HANDOFF CONTRACT: selected people/company leads remain review-only, not every result; PARTIAL FINDINGS; no auto-promotion; one useful company may be a partial result. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Search snippets are leads, not evidence. Preserve sector/jurisdiction, e.g. casinos in Slovenia." : "";
+  const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. SOURCE-NEUTRAL MIXED TARGET DISCOVERY: all enabled registries and public-web search have equal standing; No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. SEARCH: market only if country in objective/scope; locale=language. DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS: Investigator selects relevant exact-name people/company leads for review-only, not every result; keep the exact observed name, role or null, and associated public HTTPS URL. No fetch/ownership proof is required for a provisional lead; no auto-promotion. One relevant company is a valid partial result. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Search snippets are leads, not evidence. " + terminalEvidenceRule + " " + minimumRegistryEvidenceRule + " " + minimumBinaryUrlRule : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
     : "";
@@ -3826,7 +3826,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumAvailableActionsSection, 600, "[additional runtime actions omitted]");
     if (isDiscoveryPrompt) {
-      appendBudgeted(minimumDiscoveryContract, 1_150, "[discovery contract detail omitted]");
+      appendBudgeted(minimumDiscoveryContract, 1_850, "[discovery contract detail omitted]");
       appendBudgeted(minimumOrganizationTargetabilityMarker, 170, "[organization review status omitted]");
       appendBudgeted(minimumTargetVerificationRule, 170, "[target verification rule omitted]");
       appendBudgeted(minimumSnippetEvidenceRule, 100, "[snippet evidence rule omitted]");
@@ -5671,15 +5671,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    // Historical memory is a semantic summary, not raw evidence. If the complete
-    // summary cannot fit beside the live objective, source URLs, latest observation and full action contract, it is omitted for this turn; durable evidence remains authoritative.
-    // objective, source URLs, latest observation and full action contract, do not
-    // fail the Investigator turn: the durable evidence graph remains authoritative.
-    const memoryOmissionNote = "HISTORICAL MEMORY NOT INCLUDED IN THIS TURN: consult the durable evidence graph; omissions are not negative evidence.";
-    if (appended.length + memoryOmissionNote.length + 2 <= maxUserPromptChars) {
-      return preserveFetchedClaimAtProviderBoundary(appended + "\n\n" + memoryOmissionNote);
-    }
-    return preserveFetchedClaimAtProviderBoundary(appended);
+    // Historical memory is a semantic summary written by Boss. Do not silently
+    // discard or deterministically excerpt it when it cannot fit beside the live
+    // objective, source URLs, latest observation and full action contract.
+    throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
