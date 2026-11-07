@@ -3328,23 +3328,23 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumRelevanceMarker = isDiscoveryPrompt
-    ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie the source/query to the entity, role, relationship or materiality required by the active objective. A generic publisher homepage or broad leadership list alone is off-mission without a same-case evidence link. Investigator chooses sources/actions; no fixed sequence."
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence."
     : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY / REALISM: Objective and scope set target class. No incidental celebrity/household-name leads or inferred access; no blacklist. One source-backed relevant lead starts target research; do not accumulate lists. No extra wealth/ownership criteria unless requested."
+    ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. Preserve relevant sourced leads; no extra wealth/ownership criteria unless required."
     : "";
   const protectedRuleCandidates = [
-    "Press/profile pages may support a named person or organization review lead when you judge it relevant; the page itself is not a contact route unless it provides a legitimate public professional contact path.",
-    "Target-scoped research independently corroborates or falsifies the claims required by the active objective and verifies any relevant public/professional route before qualification or contact-route conclusions.",
-    "Target-stage research tests match the admitted target type (person, organization, trust, or asset), tests the role, relationship, company relevance or materiality required by the active objective, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
-    "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+    "Press/profile pages may support review leads; they are not contact routes unless they publish a legitimate professional contact path.",
+    "Target research independently corroborates/falsifies objective-required claims and verifies relevant public/professional routes before qualification.",
+    "Target-stage research verifies target type, objective-required role/relationship/materiality, counter-evidence and public/professional route before promotion.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
+    "BINARY URL POLICY: use visit for PDF/binary documents; browser_fetch is HTML-only. Failed extraction is unobserved; do not retry the same binary URL.",
     "LEAD FOLLOW-UP GUIDANCE: during discovery, runtime requires one observed lead URL to be attempted before another search; during target research, choose follow-up by expected information gain. URLs/snippets remain leads until fetched.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
-    "After successful visit/browser_fetch, YOU decide whether an organization named in the fetched text is worth a provisional review card. If selected, retain that fetched URL and describe only what the page establishes; a material ownership/transaction fact is not required merely to preserve the card.",
-    "After a successful web/parallel/registry search, YOU decide whether an observed organization is worth a provisional review card. If selected, emit scope=organization with its exact observed name and a public HTTPS URL associated with that observation; snippets are leads, not evidence.",
-    "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
+    "After visit/browser_fetch, YOU decide whether a fetched organization merits a provisional review card; retain its fetched URL and state only what the page establishes.",
+    "After search/registry results, YOU decide whether an observed organization merits a provisional review card; use its exact name and associated public HTTPS URL; snippets remain leads.",
+    "Third-party people-search/profile aggregators are leads only; unattributed contact facts are not identity evidence.",
     minimumRelevanceMarker,
     minimumTargetabilityMarker,
   ];
