@@ -3919,7 +3919,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         .filter(Boolean).join(" ")
     : "";
   const compactProviderRule = isInvestigatorPrompt
-    ? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson."
+    ? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=" + (getAvailableBrowserFetchProviders().join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson."
     : "";
   const compactPdfRule = isInvestigatorPrompt
     ? "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs need unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved."
