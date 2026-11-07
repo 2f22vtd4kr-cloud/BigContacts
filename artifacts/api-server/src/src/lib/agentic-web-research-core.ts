@@ -3878,7 +3878,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Last-resort assembly is deliberately priority-based. Do not feed a
   // mandatory prompt contract back through a generic head/tail slicer: that was
   // dropping live scope, runtime tools, search leads and fetched-source claims.
-  const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
+  const joinEmergencyInvariantParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
   const discoveryTargetabilityRule = isDiscoveryPrompt
     ? "DISCOVERY TARGETABILITY / REALISM: follow the objective-required target class and geography; companies, people and assets stay distinct; no celebrity defaults or invented geography."
     : "";
@@ -3907,7 +3907,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     discoveryLeadRule,
     fallbackEvidenceContract,
   ].filter(Boolean);
-  const invariantPrompt = joinPromptParts(requiredInvariantParts);
+  const invariantPrompt = joinEmergencyInvariantParts(requiredInvariantParts);
   if (invariantPrompt.length > limit) {
     // Shed only duplicated narrative, never the structured output envelope or
     // the live Boss scope/action contract. The mode-specific compact handoff
@@ -3927,14 +3927,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       discoveryLeadRule,
       isDiscoveryPrompt ? "QUALIFICATION: B2B roles/routes and wealth/ownership evidence are required only when the active objective asks for them. Never infer wealth from seniority." : fallbackEvidenceContract,
     ].filter(Boolean);
-    const hardMinimum = joinPromptParts(hardMinimumParts);
+    const hardMinimum = joinEmergencyInvariantParts(hardMinimumParts);
     if (hardMinimum.length > limit) {
       throw new Error("Cannot preserve the live objective, Boss scope, runtime action schema and discovery handoff within maxPromptChars=" + limit + ".");
     }
     requiredInvariantParts.splice(0, requiredInvariantParts.length, ...hardMinimumParts);
   }
   const finalParts = [...requiredInvariantParts];
-  let finalLength = invariantPrompt.length > limit ? joinPromptParts(finalParts).length : invariantPrompt.length;
+  let finalLength = invariantPrompt.length > limit ? joinEmergencyInvariantParts(finalParts).length : invariantPrompt.length;
   const appendIfFits = (part: string, cap?: number) => {
     if (!part) return;
     const candidate = typeof cap === "number" && part.length > cap
@@ -3960,7 +3960,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   appendIfFits(durableRecordSummaries.slice(-1).join("\n\n"), 520);
   appendIfFits(header + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 360);
   appendIfFits(aiMemorySection, 420);
-  const finalPrompt = joinPromptParts(finalParts);
+  const finalPrompt = joinEmergencyInvariantParts(finalParts);
   if (finalPrompt.length <= limit) return finalPrompt;
   throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
 }
