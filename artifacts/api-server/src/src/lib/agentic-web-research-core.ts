@@ -5308,10 +5308,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "searches", "findings"] as const;
   const hasCompleteSchema = (value: string): boolean => {
-    const markerIndex = value.indexOf("ALL REQUIRED TOP-LEVEL FIELDS");
-    if (markerIndex < 0) return false;
-    const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
-    return requiredFieldNames.every((field) => fieldSection.includes(field));
+    const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
+    let markerIndex = value.indexOf(marker);
+    while (markerIndex >= 0) {
+      const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
+      if (requiredFieldNames.every((field) => fieldSection.includes(field))) return true;
+      markerIndex = value.indexOf(marker, markerIndex + marker.length);
+    }
+    return false;
   };
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
