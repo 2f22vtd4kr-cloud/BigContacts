@@ -5297,6 +5297,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
     let repaired = prompt;
+    if (latestFetchedSourceClaimMarker) {
+      const firstClaimIndex = repaired.indexOf(latestFetchedSourceClaimMarker);
+      if (firstClaimIndex >= 0) {
+        const claimEnd = firstClaimIndex + latestFetchedSourceClaimMarker.length;
+        repaired = repaired.slice(0, claimEnd) + repaired.slice(claimEnd).split(latestFetchedSourceClaimMarker).join("");
+      }
+    }
     if (latestFetchedSourceClaimMarker && !repaired.includes(latestFetchedSourceClaimMarker)) {
       const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.find((value) => /^https?:\/\//i.test(value)) ?? "";
       const claimBlock = [
