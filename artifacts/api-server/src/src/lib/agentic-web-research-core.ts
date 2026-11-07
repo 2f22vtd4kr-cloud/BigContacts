@@ -5671,7 +5671,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    // Historical memory is a semantic summary written by Boss. Do not silently
+    // Historical memory is a semantic summary, not raw evidence. Do not silently
     // discard or deterministically excerpt it when it cannot fit beside the live
     // objective, source URLs, latest observation and full action contract.
     throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
