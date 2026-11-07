@@ -3879,17 +3879,35 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // mandatory prompt contract back through a generic head/tail slicer: that was
   // dropping live scope, runtime tools, search leads and fetched-source claims.
   const joinEmergencyInvariantParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
+  const discoveryModeRule = isDiscoveryPrompt
+    ? "DISCOVERY MODE: no person or entity target is implied."
+    : "";
   const discoveryTargetabilityRule = isDiscoveryPrompt
     ? "DISCOVERY TARGETABILITY / REALISM: follow the objective-required target class and geography; companies, people and assets stay distinct; no celebrity defaults or invented geography."
     : "";
   const discoveryRelevanceRule = isDiscoveryPrompt
-    ? "MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; tie each query/source to the objective-required entity, role, relationship or materiality. Other objectives use their own evidence criteria."
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; tie each query/source to the objective-required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria."
+    : "";
+  const discoveryDescriptorRule = isDiscoveryPrompt
+    ? "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete evidence hypothesis tied to the active objective."
+    : "";
+  const discoveryScenarioRule = isDiscoveryPrompt
+    ? "Preserve sector and jurisdiction together, e.g. casinos in Slovenia; use the human-specified scope and source class."
+    : "";
+  const discoveryRegistryRule = isDiscoveryPrompt
+    ? "No registry is preferred; choose by evidence."
     : "";
   const discoverySearchRule = isDiscoveryPrompt
-    ? "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. Inspect one in-scope lead before another search. The Investigator chooses the sequence."
+    ? "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. Inspect one in-scope lead before another search. The Investigator chooses each action; no fixed action sequence. This is not a prescribed action sequence."
     : "";
   const discoveryLeadRule = isDiscoveryPrompt
     ? "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only, not every result. Keep exact observed names, stated role or null, and associated public HTTPS URL. Snippets remain leads, not evidence; never auto-promote."
+    : "";
+  const discoveryLeadAdvisory = isDiscoveryPrompt
+    ? "LEAD FOLLOW-UP GUIDANCE (non-binding): an in-scope lead URL may be useful to inspect; it is not evidence or a mandated next action. The Investigator retains action choice."
+    : "";
+  const scopeClassRule = isInvestigatorPrompt
+    ? "SCOPE: preserve active subject, geography and source class; a blocked request is not evidence and must not trigger a silent pivot."
     : "";
   const requiredInvariantParts = [
     fallbackOutputContract,
@@ -3901,10 +3919,17 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumBinaryUrlRule,
     terminalEvidenceRule,
     scopeRecoveryRule,
+    scopeClassRule,
+    conditionalCapabilityRule,
+    discoveryModeRule,
     discoveryTargetabilityRule,
-    discoverySearchRule,
     discoveryRelevanceRule,
+    discoveryDescriptorRule,
+    discoveryScenarioRule,
+    discoveryRegistryRule,
+    discoverySearchRule,
     discoveryLeadRule,
+    discoveryLeadAdvisory,
     fallbackEvidenceContract,
   ].filter(Boolean);
   const invariantPrompt = joinEmergencyInvariantParts(requiredInvariantParts);
@@ -3921,10 +3946,17 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (typeof registryIds === "string" ? registryIds.trim() : "use only the current runtime registry allowlist") + ". Unavailable is not a no-hit.",
       terminalEvidenceRule,
       scopeRecoveryRule,
+      scopeClassRule,
+      conditionalCapabilityRule,
+      discoveryModeRule,
       discoveryTargetabilityRule,
-      discoverySearchRule,
       discoveryRelevanceRule,
+      discoveryDescriptorRule,
+      discoveryScenarioRule,
+      discoveryRegistryRule,
+      discoverySearchRule,
       discoveryLeadRule,
+      discoveryLeadAdvisory,
       isDiscoveryPrompt ? "QUALIFICATION: B2B roles/routes and wealth/ownership evidence are required only when the active objective asks for them. Never infer wealth from seniority." : fallbackEvidenceContract,
     ].filter(Boolean);
     const hardMinimum = joinEmergencyInvariantParts(hardMinimumParts);
