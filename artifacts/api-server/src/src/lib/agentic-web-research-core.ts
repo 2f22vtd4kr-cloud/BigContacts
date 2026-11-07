@@ -3349,7 +3349,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
-    ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
+    ? protectedRuleCandidates.filter((rule) =>
+        !base.includes(rule)
+        // These semantic contracts are already present in longer, authoritative
+        // discovery sections. Re-adding compact duplicates wastes the last-resort
+        // budget without adding a new invariant or improving model comprehension.
+        && !(rule === minimumRelevanceMarker && /MODEL-OWNED RELEVANCE SELF-CHECK/.test(base))
+        && !(rule === minimumTargetabilityMarker && /DISCOVERY TARGETABILITY(?: GATE| \/ REALISM)?/.test(base))
+      )
     : [];
   // Follow-up advice is only actionable when the current-scope observation
   // actually contains a successful search/lead inventory. A generic discovery
