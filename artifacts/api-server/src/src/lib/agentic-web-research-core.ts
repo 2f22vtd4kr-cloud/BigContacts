@@ -5735,8 +5735,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
         const minimumState = boundedAuxiliaryState(dynamicState, minimalBudget);
-        const compactEmergencyPrompt = [minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\\n\\n");
-        const withRegistryCoverage = [minimalEmergencyPrefix, compactRegistryCoveragePromptGuidance, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\\n\\n");
+        const compactEmergencyPrompt = [minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\n\n");
+        const withRegistryCoverage = [minimalEmergencyPrefix, compactRegistryCoveragePromptGuidance, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\n\n");
         return finalizeEmergencyPrompt(withRegistryCoverage.length <= maxUserPromptChars ? withRegistryCoverage : compactEmergencyPrompt);
       }
       
