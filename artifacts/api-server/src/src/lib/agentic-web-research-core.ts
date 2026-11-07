@@ -3823,6 +3823,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    appendBudgeted("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.", 120, "[provider detail omitted]");
+    appendBudgeted("SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence; correct the subject/geography/source-class mismatch without broadening or silently pivoting.", 220, "[scope guard detail omitted]");
+    appendBudgeted("Target-specific names must come from observed same-case sources, not model memory. No fixed action sequence.", 150, "[target grounding detail omitted]");
+    appendBudgeted("DISCOVERY LEAD HANDOFF CONTRACT: source-backed leads may be retained as review-only; snippets are leads, not evidence.", 180, "[lead handoff detail omitted]");
+    appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
+    appendBudgeted(compactFetchedExcerpt, 420, "[fetched-source excerpt omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     // The final tier is a semantic contract, not a generic head/tail excerpt.
     // Keep the complete runtime allowlist and compact objective/relevance rules
     // ahead of optional context so the model can still choose a valid next act.
