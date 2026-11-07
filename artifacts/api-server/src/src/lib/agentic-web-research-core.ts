@@ -3721,7 +3721,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           : "",
         minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
-    minimumOrganizationTargetabilityMarker,
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
         latestSearchMarker,
