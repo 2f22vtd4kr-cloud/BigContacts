@@ -3875,124 +3875,106 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(markerSuffix, 70, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
-  // Last-resort assembly is deliberately priority-based. Do not feed a
-  // mandatory prompt contract back through a generic head/tail slicer: that was
-  // dropping live scope, runtime tools, search leads and fetched-source claims.
-  const joinEmergencyInvariantParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
-  const discoveryModeRule = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied."
+  // Last-resort composition keeps the action schema and current case state
+  // intact, then allocates any remaining budget to fresh source/trajectory data.
+  const joinEmergencyParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
+  const compactOutput = isInvestigatorPrompt
+    ? "APEX INVESTIGATOR: Follow the active human case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human objective and approved scope. No fixed action sequence. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose; parallel registry searches need 2–4 objects with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\\\"url\\\":null,\\\"searches\\\":[],\\\"findings\\\":[]}."
     : "";
-  const discoveryTargetabilityRule = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY / REALISM: follow the objective-required target class and geography; companies, people and assets stay distinct; no celebrity defaults or invented geography."
+  const compactDiscoveryContract = isDiscoveryPrompt
+    ? [
+        "DISCOVERY MODE: no person or entity target is implied.",
+        "MISSION PRIORITY: objective/scope govern; preserve the human objective, accepted Boss topic, geography and source class; never broaden.",
+        "No fixed action sequence.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
+        "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope lead URL before another search; failed/blocked fetch counts as an attempt.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete evidence hypothesis. Other objectives use their own evidence criteria.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; one source-backed relevant lead starts target research; no celebrity defaults or invented geography.",
+        "MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; tie query/source to the required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link.",
+        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: retain source-backed leads selected by the Investigator as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL. Snippets are leads, not evidence; never auto-promote.",
+        "LEAD FOLLOW-UP GUIDANCE (non-binding): a lead URL may be useful to inspect; it is not evidence or a mandated next action. The Investigator retains action choice.",
+        "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
+      ].join(" ");
     : "";
-  const discoveryRelevanceRule = isDiscoveryPrompt
-    ? "MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; tie each query/source to the objective-required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria."
+  const compactQualificationRule = isInvestigatorPrompt
+    ? "Qualification follows the active objective: B2B decision-makers need fetched current role, company connection and a public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority."
     : "";
-  const discoveryDescriptorRule = isDiscoveryPrompt
-    ? "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete evidence hypothesis tied to the active objective."
+  const compactRegistryRule = isInvestigatorPrompt
+    ? [runtimeRegistryIdsRule, "Unavailable/failed registries are unknown, not no-hits; never invent registry IDs or assume ownership fields."]
+        .filter(Boolean).join(" ")
     : "";
-  const discoveryScenarioRule = isDiscoveryPrompt
-    ? "Preserve sector and jurisdiction together, e.g. casinos in Slovenia; use the human-specified scope and source class."
+  const compactProviderRule = isInvestigatorPrompt
+    ? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson."
     : "";
-  const discoveryRegistryRule = isDiscoveryPrompt
-    ? "No registry is preferred; choose by evidence."
+  const compactPdfRule = isInvestigatorPrompt
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs need unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved."
     : "";
-  const discoverySearchRule = isDiscoveryPrompt
-    ? "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. Inspect one in-scope lead before another search. The Investigator chooses each action; no fixed action sequence. This is not a prescribed action sequence."
+  const compactTerminalRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + recoveryTerminalContract.minEvidence
+    + "; minIndependentSourceUnits=" + recoveryTerminalContract.minIndependentSourceUnits
+    + "; requireExactSpanForFindings=" + recoveryTerminalContract.requireExactSpanForFindings
+    + "; requireFalsification=" + recoveryTerminalContract.requireFalsification
+    + "; done only when this mode-specific gate passes.";
+  const compactScopeGuard = isInvestigatorPrompt
+    ? "SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence. Correct the subject, geography or source class without broadening or silently pivoting; ask Boss/Right-hand if no in-scope path remains."
     : "";
-  const discoveryLeadRule = isDiscoveryPrompt
-    ? "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only, not every result. Keep exact observed names, stated role or null, and associated public HTTPS URL. Snippets remain leads, not evidence; never auto-promote."
+  const compactCapabilityRule = isInvestigatorPrompt
+    ? "Conditional specialist OSINT actions: only when that exact action appears in this turn's AVAILABLE ACTIONS; unavailable actions must not be requested or inferred."
     : "";
-  const discoveryLeadAdvisory = isDiscoveryPrompt
-    ? "LEAD FOLLOW-UP GUIDANCE (non-binding): an in-scope lead URL may be useful to inspect; it is not evidence or a mandated next action. The Investigator retains action choice."
+  const compactTargetStageRule = isInvestigatorPrompt
+    ? "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
     : "";
-  const scopeClassRule = isInvestigatorPrompt
-    ? "SCOPE: preserve active subject, geography and source class; a blocked request is not evidence and must not trigger a silent pivot."
+  const compactSnippetRule = isInvestigatorPrompt
+    ? "Search snippets are leads, not evidence; failed fetches are unobserved."
     : "";
-  const requiredInvariantParts = [
-    fallbackOutputContract,
+  const compactInvariantParts = [
+    compactOutput,
     compactCaseObjective,
     minimumScopeContext,
     minimumAvailableActionsSection,
-    minimumProviderRule,
-    minimumRegistryEvidenceRule,
-    minimumBinaryUrlRule,
-    terminalEvidenceRule,
-    scopeRecoveryRule,
-    scopeClassRule,
-    conditionalCapabilityRule,
-    discoveryModeRule,
-    discoveryTargetabilityRule,
-    discoveryRelevanceRule,
-    discoveryDescriptorRule,
-    discoveryScenarioRule,
-    discoveryRegistryRule,
-    discoverySearchRule,
-    discoveryLeadRule,
-    discoveryLeadAdvisory,
-    fallbackEvidenceContract,
+    compactProviderRule,
+    compactRegistryRule,
+    compactPdfRule,
+    compactTerminalRule,
+    compactScopeGuard,
+    compactCapabilityRule,
+    compactDiscoveryContract,
+    compactQualificationRule,
+    compactTargetStageRule,
+    compactSnippetRule,
   ].filter(Boolean);
-  const invariantPrompt = joinEmergencyInvariantParts(requiredInvariantParts);
+  const invariantPrompt = joinEmergencyParts(compactInvariantParts);
   if (invariantPrompt.length > limit) {
-    // Shed only duplicated narrative, never the structured output envelope or
-    // the live Boss scope/action contract. The mode-specific compact handoff
-    // contract replaces the longer qualification paragraph at this ceiling.
-    const hardMinimumParts = [
-      fallbackOutputContract,
-      compactCaseObjective,
-      minimumScopeContext,
-      minimumAvailableActionsSection,
-      minimumProviderRule,
-      "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (typeof registryIds === "string" ? registryIds.trim() : "use only the current runtime registry allowlist") + ". Unavailable is not a no-hit.",
-      terminalEvidenceRule,
-      scopeRecoveryRule,
-      scopeClassRule,
-      conditionalCapabilityRule,
-      discoveryModeRule,
-      discoveryTargetabilityRule,
-      discoveryRelevanceRule,
-      discoveryDescriptorRule,
-      discoveryScenarioRule,
-      discoveryRegistryRule,
-      discoverySearchRule,
-      discoveryLeadRule,
-      discoveryLeadAdvisory,
-      isDiscoveryPrompt ? "QUALIFICATION: B2B roles/routes and wealth/ownership evidence are required only when the active objective asks for them. Never infer wealth from seniority." : fallbackEvidenceContract,
-    ].filter(Boolean);
-    const hardMinimum = joinEmergencyInvariantParts(hardMinimumParts);
-    if (hardMinimum.length > limit) {
-      throw new Error("Cannot preserve the live objective, Boss scope, runtime action schema and discovery handoff within maxPromptChars=" + limit + ".");
-    }
-    requiredInvariantParts.splice(0, requiredInvariantParts.length, ...hardMinimumParts);
+    throw new Error("Cannot preserve the live objective, Boss scope, runtime action schema and discovery handoff within maxPromptChars=" + limit + ".");
   }
-  const finalParts = [...requiredInvariantParts];
-  let finalLength = invariantPrompt.length > limit ? joinEmergencyInvariantParts(finalParts).length : invariantPrompt.length;
-  const appendIfFits = (part: string, cap?: number) => {
+
+  const finalParts = [...compactInvariantParts];
+  let finalLength = invariantPrompt.length;
+  const appendIfFits = (part: string) => {
     if (!part) return;
-    const candidate = typeof cap === "number" && part.length > cap
-      ? compactPromptSectionPreservingUrlTokens(part, cap, "[middle omitted; full detail remains durable]")
-      : part;
-    const nextLength = finalLength + (finalParts.length ? 2 : 0) + candidate.length;
+    const nextLength = finalLength + (finalParts.length ? 2 : 0) + part.length;
     if (nextLength <= limit) {
-      finalParts.push(candidate);
+      finalParts.push(part);
       finalLength = nextLength;
     }
   };
-  // Decision inputs next: exact search-result URLs, the last fetched evidence
-  // claim, the latest action/observation, then historical memory.
-  appendIfFits(urlInventory, 760);
+  // Reserve a compact evidence tail before optional URL inventories/history.
+  // Exact fetched facts and the newest observed action are more decision-relevant
+  // than explanatory or historical narration.
   const fetchedSourceContext = fetchedSourceExcerptLabel
     ? fetchedSourceExcerptLabel + (fetchedSourceClaimExcerpt || fetchedSourceExcerpt
       ? " " + (fetchedSourceClaimExcerpt || fetchedSourceExcerpt)
       : "")
-    : "";
-  appendIfFits(fetchedSourceContext, 520);
-  appendIfFits(markerSuffix, 180);
-  appendIfFits(leadGuidance, 220);
-  appendIfFits(durableRecordSummaries.slice(-1).join("\n\n"), 520);
-  appendIfFits(header + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 360);
-  appendIfFits(aiMemorySection, 420);
-  const finalPrompt = joinEmergencyInvariantParts(finalParts);
+    : carriedFetchedSourceSummary;
+  appendIfFits(fetchedSourceContext);
+  appendIfFits(header + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420));
+  appendIfFits(minimumDurableRecordSummaries.slice(-1).join("\n\n"));
+  appendIfFits(markerSuffix);
+  appendIfFits(urlInventory);
+  appendIfFits(carriedFetchedSourceSummary);
+  appendIfFits(leadGuidance);
+  appendIfFits(aiMemorySection);
+  const finalPrompt = joinEmergencyParts(finalParts);
   if (finalPrompt.length <= limit) return finalPrompt;
   throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
 }
