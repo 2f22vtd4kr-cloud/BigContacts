@@ -5630,10 +5630,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ].filter(Boolean);
     if (requiredRecoveryMarkers.length) {
       const outputAt = repaired.indexOf("OUTPUT CONTRACT:");
-      const markerBlock = requiredRecoveryMarkers.join("\\n\\n");
+      const markerBlock = requiredRecoveryMarkers.join("\n\n");
       repaired = outputAt >= 0
-        ? repaired.slice(0, outputAt).trimEnd() + "\\n\\n" + markerBlock + "\\n\\n" + repaired.slice(outputAt).trimStart()
-        : [repaired, markerBlock].filter(Boolean).join("\\n\\n");
+        ? repaired.slice(0, outputAt).trimEnd() + "\n\n" + markerBlock + "\n\n" + repaired.slice(outputAt).trimStart()
+        : [repaired, markerBlock].filter(Boolean).join("\n\n");
     }
     if (!hasCompleteSchema(repaired)) {
       repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\\n\\n");
