@@ -5375,7 +5375,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       for (const heading of ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE:", "DISCOVERY TARGETABILITY GATE:"]) {
         let headingIndex = repaired.indexOf(heading);
         while (headingIndex >= 0 && repaired.length > maxUserPromptChars) {
-          const sectionEnd = repaired.indexOf("\\n\\n", headingIndex);
+          const sectionEnd = repaired.indexOf("\n\n", headingIndex);
           if (sectionEnd < 0) break;
           const nextHeading = repaired.indexOf("DISCOVERY LEAD HANDOFF CONTRACT", headingIndex);
           if (nextHeading >= 0 && nextHeading < sectionEnd) break;
