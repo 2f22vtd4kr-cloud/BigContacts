@@ -3626,7 +3626,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   });
   const minimumAvailableActionsSection = availableActionsSection;
-  const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/scope govern; preserve the human objective and Boss-approved topic/geography; never broaden. Retain useful source-backed leads as review-only, not every result. No fixed action sequence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; generic publisher homepage needs a same-case evidence link. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; one source-backed relevant lead starts target research. SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. SEARCH: market only if country in objective/scope; locale=language. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL. No fetch/ownership proof required for provisional lead; never auto-promote. One relevant company is a valid partial result. Search snippets are leads, not evidence." + " " + terminalEvidenceRule + " " + minimumRegistryEvidenceRule + " " + minimumBinaryUrlRule : "";
+  const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/scope govern; preserve the human objective and Boss-approved topic/geography; never broaden. No fixed action sequence; Investigator chooses. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis; These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the required entity, role, relationship or materiality; generic publisher homepage needs a same-case evidence link. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. One source-backed relevant lead starts target research; no name blacklist or incidental celebrities. No registry is preferred; choose by evidence. Preserve sector/jurisdiction, e.g. casinos in Slovenia. SEARCH: market only if country in objective/scope; locale=language. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL. No fetch/ownership proof required for provisional lead; never auto-promote. One relevant company is a valid partial result. A relevant exact-name organization may be promoted for target research only, not final CRM/contact. Search snippets/URLs are leads, not evidence; failures are unknown." + " " + terminalEvidenceRule + " " + minimumRegistryEvidenceRule + " " + minimumBinaryUrlRule : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
     : "";
@@ -3636,10 +3636,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetVerificationRule,
     minimumSnippetEvidenceRule,
     compactCaseObjective,
-    minimumTargetabilityMarker,
-    minimumOrganizationTargetabilityMarker,
     minimumDiscoveryContract,
-    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule, minimumRelevanceMarker] : []),
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
     conditionalCapabilityRule,
@@ -3694,7 +3691,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       fallbackEvidenceContract,
       compactCaseObjective,
       minimumDiscoveryContract,
-      minimumOrganizationTargetabilityMarker,
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
       conditionalCapabilityRule,
@@ -3755,10 +3751,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // The action allowlist is an exact runtime capability boundary, not
         // optional narration; never truncate it in the final emergency tier.
         minimumAvailableActionsSection,
-        minimumRelevanceMarker,
-        compactFallbackDiscoveryRule,
-        minimumTargetabilityMarker,
-        minimumOrganizationTargetabilityMarker,
+        minimumDiscoveryContract,
         // Keep the latest fetched source label and claim ahead of memory or
         // summaries so source-backed partial findings remain possible.
         fetchedSourceLabel,
@@ -3878,23 +3871,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumBinaryUrlRule, 300, "[PDF retrieval detail omitted]");
     appendBudgeted(minimumTargetVerificationRule, 220, "[target verification rule omitted]");
     appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
-    appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
-    appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
     appendBudgeted("PARTIAL FINDINGS: retain source-backed people and companies as review-only when relevant; snippets remain leads, not evidence. Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.", 460, "[lead qualification detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     appendBudgeted(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]");
     if (isDiscoveryPrompt) {
-      const compactDiscoverySections = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; never broaden. No fixed action sequence; the Investigator chooses.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; one relevant source-backed lead starts target research.",
-        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. SEARCH: market only if country in objective/scope; locale=language.",
-      ];
-      for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
-      appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
-      appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
-      appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
       appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
       appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
     } else {
