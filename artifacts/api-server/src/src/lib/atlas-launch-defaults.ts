@@ -12,6 +12,8 @@
  * not: starting only Phase J, not: mock mode.
  */
 
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Identify real operating companies and their current business decision-makers for B2B prospecting. No sector or country is specified; keep discovery broad. A source-backed operating company is a valid finding even if its decision-maker remains unresolved; preserve its company card and state the gap. Identify people only when fetched public company or professional sources support their current decision-maker role and company connection. Seek legitimate public professional or company contact routes when published; do not use private or personal contact details or infer wealth. Treat snippets and search results as unverified leads, not evidence. Let Boss and Investigator choose targets, hypotheses, providers, sources, queries, actions, pivots and stopping from evidence; do not impose a fixed research sequence.";
+
 export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
   discoveryFirst: true,
@@ -22,6 +24,7 @@ export const CANONICAL_ATLAS_LAUNCH_BODY = {
    * merely because researchLimit is smaller.
    */
   targetCount: 1,
+  discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
   /**
    * Full target-scoped research budget. In the canonical flow this matches
    * targetCount: each admitted discovery target gets researched. The
