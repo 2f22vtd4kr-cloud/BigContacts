@@ -3155,7 +3155,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (!requiresCompleteActionSchema) return true;
     const common = hasCompleteActionSchema(prompt) && /OUTPUT CONTRACT:/.test(prompt) && /AVAILABLE ACTIONS:/.test(prompt) && /VALID PROVIDERS:/.test(prompt) && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt) && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt) && /RESEARCH TERMINAL GATE/.test(prompt);
     if (!common || !discoveryContractRequested) return common;
-    return prompt.includes("DISCOVERY MODE: no person or entity target is implied") && prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && prompt.includes("Other objectives use their own evidence criteria") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK") && prompt.includes("No registry is preferred; choose by evidence.") && /search snippets are leads, not (?:evidence|claim-grade evidence)|snippets remain leads, not evidence/i.test(prompt);
+    return prompt.includes("DISCOVERY MODE: no person or entity target is implied") && prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && prompt.includes("Other objectives use their own evidence criteria") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK") && prompt.includes("generic publisher homepage") && prompt.includes("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion") && prompt.includes("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact") && prompt.includes("No registry is preferred; choose by evidence.") && /search snippets are leads, not (?:evidence|claim-grade evidence)|snippets remain leads, not evidence/i.test(prompt);
   };
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
@@ -3399,7 +3399,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /MISSION PRIORITY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|LEAD FOLLOW-UP GUIDANCE(?::| \(non-binding\):)|DISCOVERY TARGETABILITY \/ REALISM|DISCOVERY SEARCH DISCIPLINE|DISCOVERY LEAD-INSPECTION GATE|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
-  const verbatimCaseObjective = caseObjective?.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
+  const verbatimCaseObjective = caseObjective?.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
   const compactCaseObjective = verbatimCaseObjective || (caseObjective ? (caseObjective.length <= 360 ? caseObjective : boundInvestigatorPromptSection(caseObjective, 260)) : "");
   const availableActionsSection = baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
   const observedActiveScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]?.trim() ?? "";
@@ -3485,7 +3485,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule, minimumRelevanceMarker, minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker] : []),
     minimumTargetVerificationRule,
     minimumSnippetEvidenceRule,
-    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule] : []),
     compactCaseObjective,
     ...(leadGuidance ? [leadGuidance] : []),
     conditionalCapabilityRule,
@@ -3608,6 +3607,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
     minimumDiscoveryContract,
+    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule, minimumRelevanceMarker] : []),
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
     conditionalCapabilityRule,
@@ -3821,6 +3821,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    appendBudgeted(compactFallbackDiscoveryRule, 1_200, "[discovery strategy detail omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
+    appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
+    appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
+    appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
     appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
     appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
     appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
