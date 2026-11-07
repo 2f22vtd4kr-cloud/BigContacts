@@ -2005,11 +2005,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     // Treat the opening discovery episode like every Boss-directed continuation: a bounded act, not the entire job-wide Investigator budget. This leaves the model-owned Boss control loop room to assess evidence and direct a continuation or target investigation instead of consuming the global ceiling before the first control decision.
-    const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)));
+    const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.6)));
     // Protect the target-stage reserve from the first discovery act. If no qualifying lead is admitted by the discovery allocation, stop/park rather than spending the reserved research budget on more broad discovery.
     const discoveryIterationCeiling = depth.agenticMaxIterations;
     const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
-    const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling);
+    const openingInvestigatorIterations = Math.min(3, discoveryIterationsPerAct, discoveryIterationCeiling);
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
     discovery = await runDiscoveryWithQuotaRecovery(
@@ -2454,7 +2454,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           discoveryResourceLimited = true;
           phaseSummary.discoveryIterationCeiling = admittedCandidateSources.length > 0
             ? `Discovery allocation exhausted at ${discoveryIterationsUsed}/${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} discovery actions; remaining global actions are protected for target-scoped research.`
-            : `Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.`;
+            : `Discovery reached its ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)}-action allocation without an admitted candidate; target research remains unauthorized without a qualifying lead.`;
           rejectedControlDecision = { controlTurn: controlTurns, reason: "The bounded discovery-action budget is exhausted; no further discovery episode can execute.", kind: "discovery_budget" };
           priorAction = previousAcceptedAction;
           priorCandidate = previousAcceptedCandidate;
