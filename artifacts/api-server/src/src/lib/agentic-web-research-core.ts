@@ -5370,6 +5370,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       }
     }
 
+    // Under pressure, compact repeated policy paragraphs in place. Preserve each
+    // invariant and heading while avoiding duplicate prose competing with the
+    // verbatim objective, latest fetched claim, and complete JSON schema.
+    if (repaired.length > maxUserPromptChars) {
+      repaired = repaired
+        .replace(/MODEL-OWNED RELEVANCE SELF-CHECK:[^\\n]*/g,
+          "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence.")
+        .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\\n]*/g,
+          "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class; no incidental celebrities, blacklist or inferred access. Preserve relevant sourced leads; impose wealth/ownership only when the objective requires it.")
+        .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\\n]*/g,
+          "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a relevant in-scope lead when useful; URLs/snippets remain leads until fetched; the Investigator chooses the action.")
+        .replace(/Conditional specialist OSINT actions:[^\\n]*/g,
+          "Conditional specialist OSINT actions: only actions allowlisted for this turn are available.");
+    }
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
