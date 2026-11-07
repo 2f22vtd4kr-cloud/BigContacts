@@ -5548,13 +5548,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (repaired.length > maxUserPromptChars) {
       repaired = repaired
         .replace(/MODEL-OWNED RELEVANCE SELF-CHECK:[^\n]*/g,
-          "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence.")
+          "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link. No fixed action sequence.")
         .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
-          "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class; no incidental celebrities, blacklist or inferred access. Preserve relevant source-backed leads; impose wealth/ownership only when required. No registry is preferred; choose by evidence.")
+          "DISCOVERY TARGETABILITY / REALISM: objective/scope govern. One source-backed relevant lead starts target research; no name blacklist. No incidental celebrities. No registry is preferred; choose by evidence.")
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
-          "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a relevant in-scope lead when useful; URLs/snippets remain leads until fetched; the Investigator chooses the action.")
+          "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a relevant in-scope lead when useful; URLs remain leads until fetched.")
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
-          "Conditional specialist OSINT actions: only actions allowlisted for this turn are available.");
+          "Conditional specialist OSINT actions: allowlisted actions only.");
     }
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
@@ -5580,10 +5580,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       };
       compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.", ["DISCOVERY LEAD-INSPECTION GATE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
       compactClause("DISCOVERY LEAD-INSPECTION GATE:", "DISCOVERY LEAD-INSPECTION GATE: after a successful search, inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector and jurisdiction, e.g. casinos in Slovenia.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
-      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms. Other objectives use their own evidence criteria.", ["DISCOVERY MODE:"]);
+      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis; descriptors are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.", ["DISCOVERY MODE:"]);
       compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
       compactClause("DISCOVERY LEAD HANDOFF CONTRACT:", "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant review-only leads, not every result; never auto-promote. A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.", ["Conditional specialist actions only", "Conditional specialist OSINT actions:"]);
-      compactClause("PAGE FORMAT / RETRIEVAL LIMITS:", "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.", ["OUTPUT CONTRACT:"]);
+      compactClause("PAGE FORMAT / RETRIEVAL LIMITS:", "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text PDFs; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted/malformed PDFs are distinct failures.", ["OUTPUT CONTRACT:"]);
       for (const heading of ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE:", "DISCOVERY TARGETABILITY GATE:"]) {
         let headingIndex = repaired.indexOf(heading);
         while (headingIndex >= 0 && repaired.length > maxUserPromptChars) {
