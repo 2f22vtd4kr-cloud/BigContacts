@@ -90,6 +90,7 @@ export function apexInvestigatorSystemCore(): string {
     "COMMUNITY: Virtual Globetrotting and user-submitted location pages are not claim-grade evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only; unavailable is not a no-hit; no registry preference.",
     "TARGET: Apply only objective-required criteria. No extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link; Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority.",
+    "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
     "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text PDFs; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted and malformed PDFs differ.",
     "STOPPING: Stop only at a defensible answer or justified blocker."
   ].join("\n");
