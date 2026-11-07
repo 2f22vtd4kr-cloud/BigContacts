@@ -17,6 +17,10 @@ It is a model-led research bureau, not a fixed enrichment script:
 - **Groq Investigator** owns the actual research trajectory.
 - Deterministic runtime code enforces safety, authorization, provenance, identity, persistence, cancellation, and resource limits.
 
+## Public registry seed data
+
+The versioned BRREG snapshot and explicit FAA/BRREG import procedure are documented in [docs/REGISTRY_SEED_IMPORT.md](./docs/REGISTRY_SEED_IMPORT.md). Imports are operator-triggered and preserve the canonical review-only evidence model.
+
 ## Canonical branch
 
 **`main` is the canonical working and integration branch for all future Apex Atlas work.**
