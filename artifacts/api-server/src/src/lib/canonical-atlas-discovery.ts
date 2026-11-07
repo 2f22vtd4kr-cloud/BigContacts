@@ -2006,7 +2006,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     // Treat the opening discovery episode like every Boss-directed continuation: a bounded act, not the entire job-wide Investigator budget. This leaves the model-owned Boss control loop room to assess evidence and direct a continuation or target investigation instead of consuming the global ceiling before the first control decision.
     const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)));
-    // Until a candidate is admitted, all globally bounded Investigator actions remain available to discovery. The target-stage reserve becomes real only after a qualifying lead exists.
+    // Protect the target-stage reserve from the first discovery act. If no qualifying lead is admitted by the discovery allocation, stop/park rather than spending the reserved research budget on more broad discovery.
     const discoveryIterationCeiling = depth.agenticMaxIterations;
     const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
     const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling);
