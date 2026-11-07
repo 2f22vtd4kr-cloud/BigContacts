@@ -3491,7 +3491,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose; parallel registry searches need 2–4 objects with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
+    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. The Investigator chooses actions. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose; parallel registry searches need 2–4 objects with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads and Investigator-selected relevant people/company leads as review-only, not every result; keep exact observed name, role or null, and associated public HTTPS URL. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not claim-grade evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
@@ -3843,15 +3843,21 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Reserve the complete human objective immediately; then pack current scope,
-    // the live action allowlist and current evidence before optional narration.
+    // Keep the compact discovery rules and full human objective ahead of
+    // optional context. This is the smallest valid next-action contract.
+    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
-    appendBudgeted("SCOPE GUARD BLOCKED ACTION: blocked requests are not evidence; correct subject, geography or source class without broadening or silently pivoting. Preserve the Boss-approved source class.", 240, "[scope guard detail omitted]");
-    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
-    appendBudgeted("No fixed action sequence.", 80, "[action autonomy detail omitted]");
-    appendBudgeted("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.", 120, "[provider detail omitted]");
+    // Live evidence and exact source identities outrank historical memory.
+    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
+    appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
+    appendBudgeted(header + " " + observationTail, 320, "[latest observation detail omitted]");
+    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 300, "[PDF retrieval detail omitted]");
     appendBudgeted(minimumTargetVerificationRule, 220, "[target verification rule omitted]");
@@ -3861,13 +3867,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
     appendBudgeted("PARTIAL FINDINGS: retain source-backed people and companies as review-only when relevant; snippets remain leads, not evidence. Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.", 460, "[lead qualification detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
-    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
-    appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
-    appendBudgeted(header + " " + observationTail, 320, "[latest observation detail omitted]");
-    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]");
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
