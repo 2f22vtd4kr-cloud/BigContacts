@@ -85,7 +85,7 @@ export function apexInvestigatorSystemCore(): string {
     "one relevant company is a valid partial result.",
     "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping; no fixed action or recovery sequence.",
     "EVIDENCE: Snippets are leads, not proof; claims need a fetched URL and exact source span. Failures are unknown, not negative evidence.",
-    "OUTPUT: Full JSON envelope. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null). Parallel web searches need 2–4 query/provider/locale/market/purpose objects.",
+    "OUTPUT: Full JSON envelope. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 query/provider/locale/market/purpose objects.",
     "IDENTITY: distinguish people, companies, trusts and assets; infer no ownership, wealth or routes.",
     "SAFETY: Public professional routes only; exclude private/sensitive data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not claim-grade evidence.",
