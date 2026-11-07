@@ -6312,7 +6312,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             action: latestSuccessfulFetchRecord.action,
             execution: latestSuccessfulFetchRecord.execution,
             observedUrls: latestSuccessfulFetchRecord.observedUrls,
-          }) + "\\n" + latestFetchedSourceClaimMarker
+          }) + "\n" + latestFetchedSourceClaimMarker
         : "";
       const emergencyObservation = buildEmergencyPriorTrajectoryObservation(
         [
@@ -6322,7 +6322,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           ...(latestRecord && String(latestRecord.observation ?? "").trim() === suppliedObservation.trim()
             ? []
             : [compactEmergencyTrajectoryObservation(suppliedObservation, 420)]),
-        ].filter(Boolean).join("\\n\\n"),
+        ].filter(Boolean).join("\n\n"),
         emergencyTrajectoryRecordSummary,
       );
       return finalizeEmergencyPrompt(appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory));
