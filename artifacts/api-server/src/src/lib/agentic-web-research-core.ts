@@ -5010,6 +5010,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryCoverageGuidance = renderRegistryCoverageGuidance(availableRegistryIds);
+  const registryCoveragePromptGuidance = registryCoverageGuidance
+    ? "SOURCE COVERAGE (not a checklist): available evidence routes, not a prescribed order; choose by case relevance and expected information gain. " + registryCoverageGuidance
+    : "SOURCE COVERAGE (not a checklist): no native registry adapters are currently available; use relevant public-web sources.";
+  const compactRegistryCoveragePromptGuidance = boundInvestigatorPromptSection(registryCoveragePromptGuidance, 600);
   const registryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}. Never invent adapter IDs; public agency sites without native adapters may be web-searched but are not registry adapters. Never assume records expose owners, shareholders, members or managers without observed documentation. Asset registrants need not be beneficial owners; failure/withholding is not a no-hit.`;
   const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): ${registryIdList}. Never invent an adapter ID; unintegrated public sources may be searched on the web. Results are leads until fetched. Do not assume records expose owners, shareholders, members, or managers without observed documentation.`;
   const providerGuidance = "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = " + (availableBrowserProviders.join(" | ") || "unavailable") + "; domain_lookup = rdap | whoisjson. market=null unless objective/Boss scope names a country; locale is language only, never geography.";
@@ -5032,6 +5036,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
     registryGuidance,
+    registryCoveragePromptGuidance,
     providerGuidance,
     "",
     "CAPABILITY GUIDANCE:",
@@ -5719,6 +5724,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
+        compactRegistryCoveragePromptGuidance,
         providerGuidance,
         compactTerminalContractGuidance,
         compactPageFormatGuidance,
