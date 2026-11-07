@@ -5713,7 +5713,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Historical memory is a semantic summary, not raw evidence. Do not silently
     // discard or deterministically excerpt it when it cannot fit beside the live
     // objective, source URLs, latest observation and full action contract.
-    throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
+    // Historical memory is a semantic summary, but the provider budget is hard.
+    // Preserve both ends (and whole URL tokens) rather than failing the research turn;
+    // the explicit omission marker keeps absent middle material classified as unknown.
+    const memoryBase = remainingSections.join("\n\n");
+    const memorySeparatorCost = memoryBase ? 2 : 0;
+    const memoryBudget = maxUserPromptChars - memoryBase.length - memorySeparatorCost;
+    if (memoryBudget >= 180) {
+      const boundedMemorySection = compactPromptSectionPreservingUrlTokens(
+        memorySection,
+        memoryBudget,
+        "[middle of historical memory omitted; beginning and ending retained; omissions are unknown]",
+      );
+      const boundedRepair = insertMemory(remainingSections).replace(memorySection, boundedMemorySection);
+      if (boundedRepair.length <= maxUserPromptChars) return preserveFetchedClaimAtProviderBoundary(boundedRepair);
+    }
+    throw new Error("Emergency Investigator prompt cannot preserve the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
