@@ -5723,7 +5723,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. One relevant sourced lead starts target research; no fixed sequence.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. One relevant sourced lead starts target research. No fixed action sequence.",
+          "DISCOVERY SEARCH ECONOMY: at most two outbound searches, one query per action, no parallel batches; inspect one result URL before another search; preserve sector and jurisdiction (e.g. casinos in Slovenia).",
           "DISCOVERY LEAD-INSPECTION GATE: inspect one observed in-scope lead before another search; failed/blocked fetch counts as an attempt.",
           "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected leads as review-only; never auto-promote.",
           blockedScopeMarker,
