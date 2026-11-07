@@ -2448,7 +2448,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           hasAdmittedCandidates: admittedCandidateSources.length > 0,
         });
         if (admittedCandidateSources.length === 0) {
-          phaseSummary.discoveryBudgetPolicy = `No candidate has been admitted, so the unused target-stage reserve is released for additional discovery within the global ${depth.agenticMaxIterations}-action and hard-timeout limits.`;
+          phaseSummary.discoveryBudgetPolicy = `No candidate has been admitted. Discovery remains capped at ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} actions; the protected target-research reserve is not released for additional broad discovery.`;
         }
         if (remainingInvestigatorIterations <= 0) {
           discoveryResourceLimited = true;
