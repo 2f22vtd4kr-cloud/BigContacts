@@ -30,7 +30,7 @@ For aircraft, use the existing official FAA importer separately:
 POST /api/ingest/faa
 Content-Type: application/json
 
-{"maxRecords":30000}
+{"maxRecords":200000}
 ```
 
 Poll the returned job in the same way. This downloads the official FAA Releasable Aircraft Database ZIP. The importer creates aircraft assets separately from registrants, and uses `REGISTERED_TO` rather than claiming beneficial ownership.
