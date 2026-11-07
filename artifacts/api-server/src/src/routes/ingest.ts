@@ -223,13 +223,14 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
 // ── POST /ingest/faa ──────────────────────────────────────────────────────────
 router.post("/ingest/faa", async (req, res): Promise<void> => {
   const {
-    maxRecords = 30_000,
+    maxRecords = 100_000,
     forceRefresh = false,
     clearDedup: doClean = false,
     force = false,
   } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
 
-  const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
+  // A complete current FAA pass can exceed 100k qualifying aircraft; keep the operator bound explicit.
+  const safeMax = Math.min(Math.max(Number(maxRecords) || 100_000, 100), 200_000);
 
   if (!force) {
     const existingJobId = await getActiveJob("faa");
