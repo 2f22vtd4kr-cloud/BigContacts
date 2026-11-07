@@ -3331,7 +3331,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence."
     : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. Preserve relevant sourced leads; no extra wealth/ownership criteria unless required."
+    ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; no extra wealth/ownership criteria unless required."
     : "";
   const protectedRuleCandidates = [
     "Press/profile pages may support review leads; they are not contact routes unless they publish a legitimate professional contact path.",
