@@ -5302,7 +5302,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     return parts.join("\n\n");
   };
-  const latestRecordTail = buildLatestRecordTail(520, 3);
+  const latestObservationBoundaryMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"]
+    .filter((marker) => String(input.lastObservation ?? "").includes(marker)
+      || Boolean(latestRecord?.observation?.includes(marker)));
+  const latestRecordTail = [
+    buildLatestRecordTail(520, 3),
+    latestObservationBoundaryMarkers.join(" "),
+  ].filter(Boolean).join("\n");
   const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
