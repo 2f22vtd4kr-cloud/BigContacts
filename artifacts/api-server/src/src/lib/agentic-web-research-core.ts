@@ -3173,6 +3173,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // prompt. Fast-return only if a present structured schema is complete.
     && (!requiresCompleteActionSchema || hasSemanticInvestigatorContract(base));
   if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext && hasSemanticInvestigatorContract(base)) return base;
+  // Generic prompt fragments are used by non-Investigator callers/tests too.
+  // Preserve their original base verbatim and append only a bounded observation;
+  // the stricter Apex schema/scope path below applies only to Investigator prompts.
+  if (!isInvestigatorPrompt) {
+    if (base.length > limit) {
+      throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
+    }
+    if (!observation) return base;
+    const genericBudget = limit - base.length - 2 - header.length;
+    if (genericBudget < 40) return base;
+    const genericObservation = compactEmergencyTrajectoryObservation(observation, Math.min(1_000, genericBudget));
+    const genericPrompt = [base, header + genericObservation].filter(Boolean).join("\\n\\n");
+    return genericPrompt.length <= limit ? genericPrompt : base;
+  }
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...combinedSourceText.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
@@ -3945,7 +3959,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   ].filter(Boolean);
   const invariantPrompt = joinEmergencyParts(compactInvariantParts);
   if (invariantPrompt.length > limit) {
-    throw new Error("Cannot preserve the live objective, Boss scope, runtime action schema and discovery handoff within maxPromptChars=" + limit + ".");
+    throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
   }
 
   const finalParts = [...compactInvariantParts];
