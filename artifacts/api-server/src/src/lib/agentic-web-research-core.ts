@@ -4978,6 +4978,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     "DISCOVERY MODE: no person or entity target is implied.",
+    "MISSION PRIORITY: follow the human objective and active Boss scope; preserve topic/geography; never broaden.",
+    "No fixed action sequence. The Investigator chooses the target, query, source, provider and action.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
+    "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt.",
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: tie the query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link.",
+    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY. No registry is preferred; choose by evidence. Preserve human-supplied geography and sector/jurisdiction, e.g. casinos in Slovenia. One source-backed relevant lead starts target research.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): Investigator selects relevant people/company leads for review-only, not every result; keep exact observed name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional review lead; never auto-promote. One relevant company is a valid partial result.",
+    "Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
+    "Search snippets are leads, not evidence. Failures and blocked fetches are unknown, not negative evidence.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
+    "OUTPUT CONTRACT: one root JSON object; use the full required action schema and exact allowlist.",
+    "DISCOVERY MODE: no person or entity target is implied.",
     "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
     "MODEL-OWNED RELEVANCE SELF-CHECK: tie the query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link.",
@@ -5831,6 +5845,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; revise query/resource to active Boss scope. No request was sent; not negative evidence."
         : "";
       const finalEmergencyAssignment = input.mode === "discovery"
+        ? "APEX INVESTIGATOR — DISCOVERY: follow the active case objective and Boss-approved scope; the Investigator chooses actions."
+        : "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.";
         ? "APEX INVESTIGATOR — DISCOVERY: Follow the human objective and Boss scope. The Investigator owns target, source, query and action choice; no fixed itinerary. " + compactEmergencyDiscoveryContractParts.join(" ")
           + ((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? " LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched." : "")
           + (blockedScopeMarker ? " " + blockedScopeMarker : "")
@@ -5842,7 +5858,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalEmergencyPrefix = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
-        compactEmergencyDiscoveryContractParts.join(" "),
+        ...compactEmergencyDiscoveryContractParts,
         compactResearchContract,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
@@ -5888,7 +5904,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
-        compactEmergencyDiscoveryContractParts.join(" "),
+        ...compactEmergencyDiscoveryContractParts,
         compactResearchContract,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
