@@ -5596,6 +5596,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let repaired = insertMemory(sections);
     if (repaired.length <= maxUserPromptChars) return preserveFetchedClaimAtProviderBoundary(repaired);
     const optionalSectionPatterns = [
+      /^SOURCE COVERAGE \(not a checklist\):/
+      /^CAPABILITY GUIDANCE:/
+      /^DISCOVERY TARGETABILITY(?: \/ REALISM| GATE)?/
+      /^DISCOVERY SEARCH DISCIPLINE:/
+      /^VALID REVIEW-LEAD SHAPE/
       /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
       /^\[AUXILIARY CONTEXT BOUND:/,
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
@@ -5735,6 +5740,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         providerGuidance,
         compactTerminalContractGuidance,
         compactPageFormatGuidance,
+        compactOrganizationTargetabilityMarker,
         compactFetchedSourceContext,
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate, minimalDiscoveryAdmissionContract] : []),
         aiHistoricalMemorySection,
@@ -5782,6 +5788,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactPageFormatGuidance,
         compactLatestTrajectoryMarker,
         compactFetchedSourceContext,
+        compactOrganizationTargetabilityMarker,
+        aiHistoricalMemorySection,
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
 
       ].filter(Boolean).join("\n\n");
@@ -5825,6 +5833,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactPageFormatGuidance,
         compactLatestTrajectoryMarker,
         compactFetchedSourceContext,
+        compactOrganizationTargetabilityMarker,
+        aiHistoricalMemorySection,
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const smallestEmergencyPrompt = [smallestEmergencyPrefix, compactOutputContract, absoluteMinimumLatestTail].join("\n\n");
@@ -5845,6 +5855,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalFallbackParts = [
         finalEmergencyAssignment,
         finalScope,
+        aiHistoricalMemorySection,
         finalEvidenceRules,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
