@@ -3603,6 +3603,7 @@ describe("combined-main emergency discovery contract", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("No registry is preferred; choose by evidence.");
+    expect(prompt).toContain("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
