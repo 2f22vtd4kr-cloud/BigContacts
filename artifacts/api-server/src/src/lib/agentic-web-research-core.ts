@@ -5025,41 +5025,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     "DISCOVERY MODE: no person or entity target is implied.",
-    "MISSION PRIORITY: objective/scope govern; preserve the human objective and active Boss scope, topic/geography; never broaden.",
+    "MISSION PRIORITY: objective/scope govern; preserve the human objective, Boss scope, topic and geography; never broaden.",
     "No fixed action sequence. The Investigator chooses the target, query, source, provider and action.",
     "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
     "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
-    "MODEL-OWNED RELEVANCE SELF-CHECK: tie the query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link.",
-    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY. No registry is preferred; choose by evidence. Preserve human-supplied geography and sector/jurisdiction, e.g. casinos in Slovenia. One source-backed relevant lead starts target research.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): Investigator selects relevant people/company leads for review-only, not every result; keep exact observed name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional review lead; never auto-promote. One relevant company is a valid partial result.",
-    "Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
-    "Search snippets are leads, not evidence. Failures and blocked fetches are unknown, not negative evidence.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
-    "OUTPUT CONTRACT: one root JSON object; use the full required action schema and exact allowlist.",
-    "DISCOVERY MODE: no person or entity target is implied.",
-    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
-    "MODEL-OWNED RELEVANCE SELF-CHECK: tie the query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link.",
-    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY. No registry is preferred; choose by evidence. Preserve human-supplied geography and sector/jurisdiction, e.g. casinos in Slovenia. One source-backed relevant lead starts target research.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): Investigator selects relevant people/company leads for review-only, not every result; keep exact observed name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional review lead; never auto-promote.",
-    "Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
-    "Search snippets are leads, not evidence. Failures and blocked fetches are unknown, not negative evidence.",
-    "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
-    "MISSION PRIORITY: human objective and active Boss scope govern; preserve topic/geography; never broaden.",
-    "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link; the Investigator chooses the source, target and action.",
-    "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete evidence hypothesis, not a descriptor query.",
-    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY: All enabled registries and public-web search are neutral options; no named default, geography sweep, fixed order or registry-first rule; do not broaden geography. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. Preserve sector and jurisdiction, e.g. casinos in Slovenia; wealth only when required.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required. Leave promotionDecision unset for a review-only person lead.",
-    "Qualification follows the active objective: B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible potential; other objectives use their own evidence criteria.",
-    "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
-    "DISCOVERY LEAD-INSPECTION GATE: inspect one in-scope URL before another search; failed/blocked fetch counts as an attempt.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned PDF OCR is unavailable; encrypted and malformed PDFs differ."
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; generic publisher homepages need a same-case evidence link.",
+    "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. One source-backed relevant lead starts target research; no name blacklist or incidental celebrities. No registry is preferred; choose by evidence. Preserve supplied sector/jurisdiction, e.g. casinos in Slovenia. SEARCH: market only if country in objective/scope; locale=language.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result. Keep exact observed name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional lead; never auto-promote.",
+    "Qualification follows the active objective: B2B needs fetched current role, company connection and public/professional route; wealth needs source-backed ownership/control/equity/investment and credible potential; other objectives use their own criteria. Never infer wealth from seniority.",
+    "A relevant exact-name organization confirmed by a fetched/registry source may be promoted for target research only, not final CRM/contact.",
+    "Search snippets/URLs are leads, not evidence. Failed/blocked fetches are unknown, not negative evidence.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly.",
+    "OUTPUT CONTRACT: one root JSON object; use the full required action schema and exact allowlist."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
@@ -5552,7 +5530,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
           "DISCOVERY TARGETABILITY / REALISM: one source-backed relevant lead starts target research; no name blacklist or incidental celebrities. No registry is preferred; choose by evidence.")
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
-          "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a relevant lead when useful; unfetched URLs remain leads.")
+          "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; unfetched URLs remain leads.")
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
           "Conditional specialist OSINT actions: allowlisted only.");
     }
