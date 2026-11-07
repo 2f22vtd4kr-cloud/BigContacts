@@ -6,7 +6,8 @@
  *
  * POST /registry-search          — live registry lookup (public, no auth)
  * POST /ingest/western-hnwi     — SEC EDGAR / CH / BRREG mass ingestion
- * POST /ingest/faa               — FAA Releasable Aircraft Database
+ * POST /ingest/faa               — official FAA Releasable Aircraft Database
+ * POST /ingest/brreg-snapshot    — screened BRREG companies + managing-director roles
  * GET  /ingest/job/:jobId        — poll job status + log tail
  * GET  /ingest/status            — overall ingestion status
  * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
@@ -38,6 +39,7 @@ import {
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
+import { runBrregSnapshotIngestion } from "../lib/brreg-snapshot-ingestor";
 import { runOccrpEnrichment } from "../lib/enrichment/structured-verification";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
@@ -272,6 +274,83 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   });
 });
 
+
+router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
+  const {
+    maxCompanies = 10_000,
+    includePeople = true,
+    includeVisualLead = true,
+  } = (req.body ?? {}) as {
+    maxCompanies?: number;
+    includePeople?: boolean;
+    includeVisualLead?: boolean;
+  };
+  const safeMax = Math.min(Math.max(Math.trunc(Number(maxCompanies) || 10_000), 1), 10_000);
+  if (typeof includePeople !== "boolean" || typeof includeVisualLead !== "boolean") {
+    res.status(400).json({ error: "includePeople and includeVisualLead must be booleans when supplied." });
+    return;
+  }
+
+  const existingJobId = await getActiveJob("brreg-snapshot");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "A BRREG snapshot ingestion job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("brreg-snapshot");
+  if (!(await claimIngestionJobOrRespond("brreg-snapshot", jobId, res))) return;
+
+  void (async () => {
+    try {
+      await updateJob(jobId, {
+        status: "running",
+        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0),
+        message: "Importing the versioned BRREG company and managing-director snapshot…",
+      });
+      const result = await runBrregSnapshotIngestion({
+        jobId,
+        maxCompanies: safeMax,
+        includePeople,
+        includeVisualLead,
+        batchSize: 100,
+      });
+      const inserted = result.companiesInserted + result.peopleInserted + result.assetsInserted;
+      const skipped = result.companiesSkipped + result.peopleSkipped;
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted,
+        skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: "BRREG snapshot complete — " + result.companiesInserted.toLocaleString()
+          + " companies, " + result.peopleInserted.toLocaleString()
+          + " managing-director review candidates, " + result.relationshipsInserted.toLocaleString()
+          + " MANAGES links, and " + result.assetsInserted.toLocaleString()
+          + " unresolved visual asset leads inserted. Company contacts remain organization-scoped; no wealth or beneficial-ownership claims were inferred.",
+        result: JSON.stringify(result),
+      });
+    } catch (err: any) {
+      logger.error({ err: err?.message, jobId }, "BRREG snapshot ingestion job failed");
+      await updateJob(jobId, {
+        status: "failed",
+        message: err?.message ?? "BRREG snapshot ingestion failed",
+        finishedAt: new Date().toISOString(),
+      });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: "BRREG snapshot ingestion started (up to " + safeMax.toLocaleString() + " companies).",
+    pollUrl: "/api/ingest/job/" + jobId,
+    note: "Explicit operator-triggered import; no startup auto-import. People remain review-only PersonCandidate records. FAA aircraft data is handled separately by POST /api/ingest/faa.",
+  });
+});
+
 // ── GET /ingest/job/active/:type ───────────────────────────────────────────────
 // Safety-lock probe for queue runners / operators. Must be registered BEFORE
 // /ingest/job/:jobId so "active" is not captured as a jobId.
@@ -341,26 +420,30 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
 router.get("/ingest/status", async (_req, res): Promise<void> => {
   let activeWhnwi: string | null;
   let activeFaa: string | null;
+  let activeBrreg: string | null;
   let activeWJob: Awaited<ReturnType<typeof getJobStrict>> = null;
   let activeFJob: Awaited<ReturnType<typeof getJobStrict>> = null;
+  let activeBrregJob: Awaited<ReturnType<typeof getJobStrict>> = null;
   try {
     await enablePermanentRedis();
-    const activeByType = await getActiveJobs(["western-hnwi", "faa"]);
+    const activeByType = await getActiveJobs(["western-hnwi", "faa", "brreg-snapshot"]);
     activeWhnwi = activeByType.get("western-hnwi") ?? null;
     activeFaa = activeByType.get("faa") ?? null;
-    [activeWJob, activeFJob] = await Promise.all([
+    activeBrreg = activeByType.get("brreg-snapshot") ?? null;
+    [activeWJob, activeFJob, activeBrregJob] = await Promise.all([
       activeWhnwi ? getJobStrict(activeWhnwi) : Promise.resolve(null),
       activeFaa ? getJobStrict(activeFaa) : Promise.resolve(null),
+      activeBrreg ? getJobStrict(activeBrreg) : Promise.resolve(null),
     ]);
   } catch {
     res.status(503).json({ error: "Job state is unavailable; ingestion status cannot confirm whether either lane is active.", code: "JOB_STATE_UNAVAILABLE" });
     return;
   }
-  if ((activeWhnwi && !activeWJob) || (activeFaa && !activeFJob)) {
+  if ((activeWhnwi && !activeWJob) || (activeFaa && !activeFJob) || (activeBrreg && !activeBrregJob)) {
     res.status(503).json({
       error: "An ingestion active-job lock exists without a readable durable job record; status is inconsistent.",
       code: "JOB_STATE_INCONSISTENT",
-      jobIds: { westernHnwi: activeWhnwi, faa: activeFaa },
+      jobIds: { westernHnwi: activeWhnwi, faa: activeFaa, brregSnapshot: activeBrreg },
     });
     return;
   }
@@ -379,7 +462,7 @@ router.get("/ingest/status", async (_req, res): Promise<void> => {
     hnwiCount: entityCount,
     assetCount,
     faaAircraftCount: faaCount,
-    jobs: { westernHnwi: activeWJob, faa: activeFJob },
+    jobs: { westernHnwi: activeWJob, faa: activeFJob, brregSnapshot: activeBrregJob },
   });
 });
 
