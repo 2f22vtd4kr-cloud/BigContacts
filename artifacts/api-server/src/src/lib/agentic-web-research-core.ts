@@ -3795,30 +3795,32 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-
-    appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
-    appendBudgeted(minimumScopeContext, 300, "[scope detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 420, "[additional runtime actions omitted]");
+    // Keep the live model contract first; optional evidence history is budgeted only after it.
+    appendBudgeted(compactCaseObjective, 2_000, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumScopeContext, 320, "[scope detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 800, "[additional runtime actions omitted]");
     if (isDiscoveryPrompt) {
-      appendBudgeted(minimumDiscoveryContract, 900, "[discovery qualification detail omitted]");
-      appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
+      appendBudgeted(minimumDiscoveryContract, 1_500, "[discovery detail omitted]");
+      appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
+      appendBudgeted(minimumTargetabilityMarker, 260, "[targetability detail omitted]");
       appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review rule omitted]");
     } else {
       appendBudgeted(fallbackEvidenceContract, 1_000, "[review-lead qualification detail omitted]");
     }
-    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 160, "[terminal detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 180, "[registry detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability detail omitted]");
-    appendBudgeted(minimumProviderRule, 140, "[provider detail omitted]");
-    appendBudgeted(scopeRecoveryRule, 220, "[scope recovery detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 320, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
+    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 260, "[scope recovery detail omitted]");
     appendBudgeted(urlInventory, 900, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 300, "[older trajectory detail omitted]");
-    appendBudgeted(fetchedSourceLabel, 100, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 220, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 260, "[latest observation detail omitted]");
-    appendBudgeted(aiMemorySection, 700, "[older memory omitted; durable ledger remains authoritative]");
-    appendBudgeted(markerSuffix, 60, "[marker omitted]");
+    appendBudgeted(leadGuidance, 200, "[lead guidance omitted]");
+    appendBudgeted(fetchedSourceLabel, 110, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 320, "[latest observation detail omitted]");
+    appendBudgeted(aiMemorySection, 650, "[older memory omitted; durable ledger remains authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 320, "[older trajectory detail omitted]");
+    appendBudgeted(markerSuffix, 70, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
