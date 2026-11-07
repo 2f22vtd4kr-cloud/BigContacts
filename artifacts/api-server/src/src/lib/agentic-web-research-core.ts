@@ -5298,6 +5298,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const latestRecordTail = buildLatestRecordTail(520, 3);
   const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
+  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "searches", "findings"] as const;
+  const hasCompleteSchema = (value: string): boolean => {
+    const markerIndex = value.indexOf("ALL REQUIRED TOP-LEVEL FIELDS");
+    if (markerIndex < 0) return false;
+    const fieldSection = value.slice(markerIndex, markerIndex + 720);
+    return requiredFieldNames.every((field) => fieldSection.includes(field));
+  };
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
     const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
@@ -5356,7 +5363,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       }
     }
 
-    const hasCompleteSchema = (value: string) => value.includes(requiredFieldList);
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
@@ -5402,7 +5408,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const latestArgsEnvelope = latestRecord
       ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
       : "";
-    const hasRequiredPromptContract = normalizedBase.includes(requiredFieldList);
+    const hasRequiredPromptContract = hasCompleteSchema(normalizedBase);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
