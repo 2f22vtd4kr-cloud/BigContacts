@@ -3814,13 +3814,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
     appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[older trajectory detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[older trajectory detail omitted]");
     appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
     appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 300, "[latest observation detail omitted]");
     appendBudgeted(aiMemorySection, 900, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(markerSuffix, 80, "[marker omitted]");
-    mandatoryMinimumTail = finalParts.join("\\n\\n");
+    mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
   let minimumTail = mandatoryMinimumTail;
@@ -5566,7 +5566,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       latestTrajectoryRecovery,
       carriedSearchLeadRecovery,
       pinnedInventoryRecovery && !normalizedBase.includes(pinnedInventoryRecovery) ? pinnedInventoryRecovery : "",
-    ].filter(Boolean).join("\\n\\n");
+    ].filter(Boolean).join("\n\n");
     const appended = appendEmergencyObservationContext(
       basePrompt,
       recoveryObservation,
@@ -5731,7 +5731,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactPageFormatGuidance,
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate, minimalDiscoveryAdmissionContract] : []),
         aiHistoricalMemorySection,
-      ].filter(Boolean).join("\\n\\n");
+      ].filter(Boolean).join("\n\n");
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
         const minimumState = boundedAuxiliaryState(dynamicState, minimalBudget);
@@ -5781,7 +5781,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalLatestRecordTail = [
         buildLatestRecordTail(300, 2),
         latestObservationBoundaryMarkers.join(" "),
-      ].filter(Boolean).join("\\n");
+      ].filter(Boolean).join("\n");
       const finalFixedChars = finalEmergencyPrefix.length + stateLabel.length + compactOutputContract.length + finalLatestRecordTail.length + separators;
       const finalStateBudget = maxUserPromptChars - finalFixedChars;
       if (finalStateBudget >= 0) {
@@ -6120,7 +6120,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (prior successful search; carried lead URLs): " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 300, 2)),
           ].join("\n\n")
         : "";
-      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary, latestRecord ? "" : compactLatestTrajectoryMarker].filter(Boolean).join("\\n\\n");
+      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary, latestRecord ? "" : compactLatestTrajectoryMarker].filter(Boolean).join("\n\n");
       // The absolute-minimum prompt used to preserve only the newest action.
       // When that action was a search, this silently dropped an earlier fetched
       // page containing the exact span needed for a grounded partial finding.
