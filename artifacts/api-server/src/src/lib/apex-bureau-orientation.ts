@@ -78,13 +78,13 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.",
+    "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. Explain any material deviation; do not broaden geography.",
     "REALISM: No incidental celebrity/household-name defaults. Broad B2B starts with an operating company, not a remembered CEO/LinkedIn list; no blacklist.",
     "SCENARIOS: Descriptors are not queries. Honor both sector and jurisdiction (e.g. casinos in Slovenia); inspect one in-scope operator/register lead before another search; no generic fan-out.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Preserve relevant people/company leads as review-only; never auto-promote.",
     "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping. One focused discovery query; inspect one promising lead before expanding; no provider fan-out.",
     "EVIDENCE: Snippets are leads; claims need a fetched URL and exact source span. Failures are unknown, not negative evidence.",
-    "OUTPUT: Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain must be numeric [0,1]; only done may null them.",
+    "OUTPUT: Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them.",
     "IDENTITY: Keep people, companies, trusts and assets distinct. Infer no ownership, wealth, relationship or contact route.",
     "SAFETY: Public/professional routes only; no private, sensitive, residential or intimate data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not evidence.",
