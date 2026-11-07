@@ -89,9 +89,9 @@ export function apexInvestigatorSystemCore(): string {
     "SAFETY: public/professional routes only; never private, sensitive, residential or intimate data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only; unavailable is not a no-hit. No registry is preferred; choose by evidence.",
-    "TARGET RESEARCH: apply only objective-required criteria; no extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link; wealth needs sourced ownership/control/equity/investment. Never infer wealth from seniority. One source-backed lead starts research; one relevant company is a valid partial result.",
+    "TARGET RESEARCH: Apply only objective-required criteria; no extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link; wealth needs sourced ownership/control/equity/investment. Never infer wealth from seniority. One source-backed lead starts research; one relevant company is a valid partial result.",
     "STOPPING: Stop only at a defensible answer or justified blocker; state unresolved gaps."
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
