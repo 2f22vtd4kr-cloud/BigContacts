@@ -4949,6 +4949,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     "MISSION PRIORITY: human objective and active Boss scope govern; preserve topic/geography; never broaden.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link; the Investigator chooses the source, target and action.",
+    "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete evidence hypothesis, not a descriptor query.",
     "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY chooses relevant people, companies or assets from enabled registry/public web; no registry-first sequence. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. Preserve sector and jurisdiction, e.g. casinos in Slovenia; wealth only when required.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required.",
@@ -4960,7 +4962,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   ] : [];
   const compactEmergencyDiscoveryContract = compactEmergencyDiscoveryContractParts.join(" ");;
   const emergencyAssignment = input.mode === "discovery"
-    ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link. No fixed action sequence. " + compactEmergencyDiscoveryContract + " " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
+    ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -5797,7 +5799,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.",
           ...((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
           blockedScopeMarker,
-        ...compactEmergencyDiscoveryContractParts,
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.",
         ]),
@@ -5884,6 +5885,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const preservedLatestRecordTail = buildLatestRecordTail(300, 2);
       const finalFallbackParts = [
         finalEmergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         finalScope,
         aiHistoricalMemorySection,
         finalEvidenceRules,
@@ -5972,6 +5974,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestAdmission = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: preserve relevant source-backed company/person leads as review-only; Investigator selects, not every result. Keep exact observed name, stated role or null, and associated public HTTPS URL; a lead is not proof of identity, ownership, wealth or contact. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth potential. Other objectives use their own evidence criteria. Never infer wealth from seniority. Official staff/filing pages must directly bind exact name and role; aggregators and unattributed contact facts are leads, not identity evidence. Target research independently corroborates/falsifies objective-required claims and verifies public/professional routes before promotion. Search snippets are leads; failed fetches are unobserved. Never use placeholders such as CompanyName, companywebsite.com, or example.com." : "";
       const shortestPrompt = [
         finalEmergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         shortestScope,
         "SCOPE RECOVERY: honor the human objective and any explicitly supplied geography; do not invent or broaden geographic scope. After a block revise the failed source/query dimension or request new scope from Boss; failure is not disproof. Registry jurisdiction must match the actual record. No named registry default or registry-first sequence; registries and public-web search are neutral discovery options; blocks are not evidence.",
         shortestActionsGuidance,
