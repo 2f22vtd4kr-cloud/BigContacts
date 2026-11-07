@@ -3639,7 +3639,7 @@ describe("prompt composition recovery integrity", () => {
     expect(recovery).toContain("const memoryOmissionMarker =");
     expect(recovery).toContain("AI historical memory omitted under the hard prompt budget");
     expect(recovery).toContain("return preserveFetchedClaimAtProviderBoundary(");
-    expect(recovery).not.toContain("throw new Error("Emergency Investigator prompt cannot preserve the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");
+    expect(recovery).not.toContain('throw new Error("Emergency Investigator prompt cannot preserve the live objective, source URLs, latest observation and action contract within the provider budget; no action should be sent.");');
   });
 });
 
