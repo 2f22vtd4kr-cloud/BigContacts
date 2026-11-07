@@ -218,7 +218,8 @@ export function buildFaaRegistrantEntity(input: {
   return {
     name,
     type: classification.entityType,
-    nationality: input.country || "US",
+    // FAA registrant country is a registration field, not evidence of nationality.
+    nationality: null,
     knownResidences: null,
     sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
     bayesianScore: classification.bayesianScore,
@@ -256,8 +257,8 @@ export function buildFaaRegistrantEntity(input: {
       nameValidationStatus: "pending_investigator_resolution",
       nameNormalizationStatus: "title_case_only_raw_order_preserved",
       rawRegistrantName: input.registrantName,
-      otherRegistrantNames: input.otherRegistrantNames,
-      registrantMailingAddress: input.mailingAddress || null,
+      // FAA mailing addresses are intentionally not copied into person/company cards.
+      registrantAddressRetention: "not_imported",
       registrantState: input.state || null,
       country: input.country || "US",
       typeAircraft: input.typeAircraft,
