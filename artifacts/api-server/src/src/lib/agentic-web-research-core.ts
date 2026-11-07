@@ -5306,13 +5306,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   // Reserve room for the non-discardable schema and objective-specific qualification clause.
-  const promptAssemblyMaxChars = Math.max(1_000, maxUserPromptChars - requiredOutputSchema.length - (input.mode === "discovery" ? 420 : 0) - 2);
+  const promptAssemblyMaxChars = Math.max(1_000, maxUserPromptChars - requiredOutputSchema.length - 2);
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "searches", "findings"] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const markerIndex = value.indexOf("ALL REQUIRED TOP-LEVEL FIELDS");
     if (markerIndex < 0) return false;
-    const fieldSection = value.slice(markerIndex, markerIndex + 720);
+    const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
     return requiredFieldNames.every((field) => fieldSection.includes(field));
   };
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
