@@ -13,6 +13,8 @@ The company screen uses legal form, active-register status, bankruptcy/liquidati
 
 ## Run the explicit imports
 
+All `/api/ingest/*` routes are protected by operator authentication. Use an authenticated Apex session or send `Authorization: Bearer <configured APEX_API_AUTH_TOKEN>`; never paste the token into tracked files or logs. Confirm the deployed SHA, database/Redis health, and idle Atlas job lock before starting an import.
+
 After this code and its bundled data are deployed to the Replit workspace, trigger the BRREG snapshot import once:
 
 ```http
