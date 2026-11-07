@@ -4933,6 +4933,8 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
 
 // SOURCE-NEUTRAL MIXED TARGET DISCOVERY: choose among enabled web/registry evidence routes by fit and yield.
 // YOU decide whether any observed organization is worth preserving as a provisional review card; never admit every result.
+// All enabled registries and public-web search are neutral options; no named default, geography sweep, fixed order or registry-first rule.
+// Leave promotionDecision unset for a review-only person lead; explain any material deviation from the active Boss scope.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
@@ -4952,8 +4954,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link; the Investigator chooses the source, target and action.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete evidence hypothesis, not a descriptor query.",
-    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY chooses relevant people, companies or assets from enabled registry/public web; no registry-first sequence. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. Preserve sector and jurisdiction, e.g. casinos in Slovenia; wealth only when required.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required.",
+    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY: All enabled registries and public-web search are neutral options; no named default, geography sweep, fixed order or registry-first rule; do not broaden geography. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. Preserve sector and jurisdiction, e.g. casinos in Slovenia; wealth only when required.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required. Leave promotionDecision unset for a review-only person lead.",
     "Qualification follows the active objective: B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible potential; other objectives use their own evidence criteria.",
     "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
     "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
