@@ -3327,10 +3327,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
-  const minimumRelevanceMarker = isDiscoveryPrompt
+  const minimumRelevanceMarker = isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; generic publishers need a same-case link. One relevant company is a valid partial result; no fixed action sequence." : "";
     ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No fixed action sequence."
     : "";
-  const minimumTargetabilityMarker = isDiscoveryPrompt
+  const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; preserve sector/jurisdiction, e.g. casinos in Slovenia; no extra wealth/ownership criteria unless required." : "";
+  const minimumOrganizationTargetabilityMarker = isDiscoveryPrompt ? "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact." : "";
     ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; no extra wealth/ownership criteria unless required."
     : "";
   const protectedRuleCandidates = [
@@ -3348,6 +3349,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Third-party people-search/profile aggregators are leads only; unattributed contact facts are not identity evidence.",
     minimumRelevanceMarker,
     minimumTargetabilityMarker,
+    minimumOrganizationTargetabilityMarker,
+    minimumOrganizationTargetabilityMarker,
+    minimumOrganizationTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) =>
@@ -3581,7 +3585,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumAvailableActionsSection = availableActionsSection
     ? compactPromptSectionPreservingUrlTokens(availableActionsSection, 700, "[action detail omitted; see available action list above]")
     : "";
-      const minimumDiscoveryContract = isDiscoveryPrompt
+  const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and active Boss scope govern; keep people, companies and assets distinct. DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected source-backed leads as review-only, not every result; exact observed name, stated role or null, associated public HTTPS URL. Do not require fetch/ownership proof for provisional leads. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. One source-backed relevant lead starts target research. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. No registry is preferred; choose by evidence. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve supplied topic and geography; choose target, source, provider and action freely; no fixed sequence." : "";
     ? "DISCOVERY LEAD HANDOFF / TARGETABILITY: Follow the human objective and Boss scope; keep people, companies and assets distinct. No incidental celebrity/household-name defaults or blacklist. One relevant sourced lead may start target research; ownership/wealth criteria apply only when requested. Investigator selects provisional review leads, not every result; target research tests only the objective-required role, relationship or materiality and verifies a public/professional route before promotion. Descriptive labels such as under-the-radar and generic nouns are not queries; form a concrete, falsifiable evidence hypothesis. Honor the supplied topic and geography. Choose the target, source, provider and action; no fixed order or repeated no-hit registry."
     : "";
   const minimumObservationTail = observationTail
@@ -3782,44 +3786,30 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // then spend the remaining provider budget on scope, source identity and
     // the newest observed evidence. Never cut a URL token or fail a research
     // turn merely because optional context is verbose.
-    const finalParts: string[] = [];
-    const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
-    const appendBudgeted = (raw: string, cap: number, omission: string) => {
-      const value = raw.trim();
-      if (!value) return;
-      const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
-      const budget = Math.min(cap, remaining);
-      const isVerbatimObjective = containsVerbatimCaseObjective(value);
-      if (isVerbatimObjective && value.length > budget) {
-        throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
-      }
-      if (budget < 80) return;
-      const selected = isVerbatimObjective || value.length <= budget
-        ? value
-        : compactPromptSectionPreservingUrlTokens(value, budget, omission);
-      if (selected && selected.length <= budget) finalParts.push(selected);
-    };
-    // This complete required model-action envelope is never sliced.
-    if (fallbackOutputContract.length > limit) {
-      throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
-    }
     finalParts.push(fallbackOutputContract);
     appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
-    appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
-    appendBudgeted(fallbackEvidenceContract, 1_200, "[review-lead qualification detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
-    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
-    appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[older trajectory detail omitted]");
-    appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 300, "[latest observation detail omitted]");
-    appendBudgeted(aiMemorySection, 900, "[older memory omitted; durable ledger remains authoritative]");
-    appendBudgeted(markerSuffix, 80, "[marker omitted]");
+    appendBudgeted(minimumScopeContext, 300, "[scope detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 420, "[additional runtime actions omitted]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(minimumDiscoveryContract, 900, "[discovery qualification detail omitted]");
+      appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
+      appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review rule omitted]");
+    } else {
+      appendBudgeted(fallbackEvidenceContract, 1_000, "[review-lead qualification detail omitted]");
+    }
+    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 160, "[terminal detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 180, "[registry detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability detail omitted]");
+    appendBudgeted(minimumProviderRule, 140, "[provider detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 220, "[scope recovery detail omitted]");
+    appendBudgeted(urlInventory, 900, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 300, "[older trajectory detail omitted]");
+    appendBudgeted(fetchedSourceLabel, 100, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 220, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 260, "[latest observation detail omitted]");
+    appendBudgeted(aiMemorySection, 700, "[older memory omitted; durable ledger remains authoritative]");
+    appendBudgeted(markerSuffix, 60, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
