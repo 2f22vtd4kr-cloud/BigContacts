@@ -3536,7 +3536,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
   const minimumProviderRule = isInvestigatorPrompt
-    ? "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson."
+    ? (fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson.")
     : "";
   // The final layout keeps a complete minimal schema/evidence contract independent
   // of the larger, lossy base sections. Drop optional duplicated guidance first.
