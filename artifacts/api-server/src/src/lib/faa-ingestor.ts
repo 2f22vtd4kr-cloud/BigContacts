@@ -5,11 +5,11 @@
  * Updated: daily by the FAA. Free download, no API key required.
  *
  * Downloads the official ZIP, extracts MASTER.txt (pipe-delimited), and
- * ingests aircraft owners who are individuals/LLCs/partnerships operating
- * turbine-powered or multi-engine aircraft. These are the highest-confidence
- * HNWI proxies in the US — private jet and helicopter owners.
+ * ingests qualifying aircraft assets and source-designated registrant
+ * candidates. Registrants are not assumed to be beneficial owners or HNWIs;
+ * individual records remain PersonCandidate review leads with wealth unassessed.
  *
- * NO synthetic data. Every record is a real FAA registrant.
+ * NO synthetic data. Every record is a real FAA registry observation.
  * Dedup by N-NUMBER via Redis Upstash to prevent re-insertion.
  */
 
