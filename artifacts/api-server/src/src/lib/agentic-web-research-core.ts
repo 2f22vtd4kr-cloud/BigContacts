@@ -5708,37 +5708,38 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const compactOutputContract = "OUTPUT CONTRACT: one root JSON object; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Null irrelevant scalars; [] unused arrays. Except done, hypothesis/purpose are non-empty and expectedInformationGain is [0,1]. Inactive shape: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel web searches: 2–4 objects with query/provider/locale/market/purpose. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const compactResearchContract = "MISSION/SCOPE: human objective and Boss scope govern; preserve supplied geography, never invent or broaden. Failures/unavailable sources are unknown, not disproof. Add wealth/ownership criteria only when required. Keep people, companies and assets distinct. No registry is preferred; choose by evidence. Ground URLs; snippets are leads, not evidence.";
-      const compactActionLiveness = "DISCOVERY SEARCH ECONOMY: at most two outbound searches; one focused query per action; no parallel search. DISCOVERY LEAD-INSPECTION GATE: inspect one in-scope URL before another search; blocked/failed fetch counts as an attempt. ACTION LIVENESS: repeat only for changed evidence or rationale.";
+      const compactActionLiveness = "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no parallel search. Inspect one in-scope lead URL before another search; blocked/failed fetch counts as an attempt. The Investigator chooses each action; no fixed sequence.";
       const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY / REALISM: follow objective/Boss scope and its target class/geography; no incidental celebrities, preset targets, name blacklist or invented geography. One source-backed relevant lead starts target research; wealth/ownership only when required. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the required entity, role, relationship or materiality. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES; descriptors are not query terms. Other objectives use their own evidence criteria. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. SEARCH: market only if country in objective/scope; locale=language. Choose the next action freely; no fixed sequence." : null;
-      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY / REALISM: objective/Boss scope sets target class and geography. Preserve relevant people, company and asset leads; wealth/ownership only if required. Tie sources to objective-required role, relationship or materiality. Choose evidence-led actions freely; never invent targets/geography. " + descriptorSearchGuidance : null;
-      const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed exact-name people/company leads as review-only; Investigator selects, not every result. Keep observed name, stated role or null, and associated public HTTPS URL. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Do not require a fetch or ownership clue for a provisional lead. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact span. Qualification follows the active objective: B2B needs fetched role/company and professional route; wealth needs sourced ownership/equity/control and credible wealth potential; other objectives use their own criteria. Never infer wealth from seniority. Target research corroborates/falsifies required claims and verifies role/relationship/materiality and public/professional route before promotion. Never invent." : null;
+      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY / REALISM: objective/Boss scope sets target class and geography; preserve the supplied sector/jurisdiction. No incidental celebrities, preset targets, name blacklist or invented geography. One source-backed relevant lead starts target research; wealth/ownership only if required. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES; form a concrete evidence hypothesis rather than repeating descriptors as query terms. The Investigator chooses targets, sources and actions; no fixed sequence." : null;
+      const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected relevant exact-name people/company leads as review-only, not every result. Keep exact observed name, stated role or null, and associated public HTTPS URL. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. No fetch or ownership clue is required for a provisional lead. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact span. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): this suggestion does not mandate visiting, browsing, or any particular provider." : null;
       // The authoritative objective is already carried verbatim in its own
       // section. Do not reconstruct a clipped, duplicate emergency objective.
+      // Compact provider-boundary contract: preserve the full objective, live
+      // action allowlist, provider/registry/PDF rules, mode-specific terminal
+      // gate, discovery lead admission and output schema without duplicating
+      // the same policy in several overlapping emergency sections.
       const minimalEmergencyPrefix = [
         emergencyAssignment,
         authoritativeCaseObjective,
-        activeBossScopeSection,
-        compactResearchContract,
         compactActionLiveness,
         availableActionsGuidance,
         compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
-        compactRegistryCoveragePromptGuidance,
         providerGuidance,
         compactTerminalContractGuidance,
         compactPageFormatGuidance,
-        compactLatestTrajectoryMarker,
-        ...(((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0) ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
-        compactFetchedSourceContext,
-        ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate] : []),
-        ...(minimalDiscoveryAdmissionContract ? [minimalDiscoveryAdmissionContract] : []),
-      ].filter(Boolean).join("\n\n");
+        ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate, minimalDiscoveryAdmissionContract] : []),
+        aiHistoricalMemorySection,
+      ].filter(Boolean).join("\\n\\n");
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
         const minimumState = boundedAuxiliaryState(dynamicState, minimalBudget);
-        return finalizeEmergencyPrompt([minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\n\n"));
+        const compactEmergencyPrompt = [minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\\n\\n");
+        const withRegistryCoverage = [minimalEmergencyPrefix, compactRegistryCoveragePromptGuidance, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\\n\\n");
+        return finalizeEmergencyPrompt(withRegistryCoverage.length <= maxUserPromptChars ? withRegistryCoverage : compactEmergencyPrompt);
       }
+      
       // The rich and emergency prompts can still overflow when the latest durable
       // observation is unusually large. Drop advisory and duplicated mission prose
       // before ever abandoning a model-owned turn; the full output schema and
