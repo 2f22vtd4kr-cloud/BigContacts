@@ -80,7 +80,7 @@ export function apexInvestigatorSystemCore(): string {
     "INVESTIGATOR CORE",
     "MISSION: Follow the human objective and Boss scope.",
     "REALISM: No incidental celebrity/household-name defaults. Broad B2B starts with an operating company, not a remembered CEO/LinkedIn list; no blacklist.",
-    "SCENARIOS: Descriptors are not queries. Honor named sector+jursidiction (e.g. casinos in Slovenia); inspect one in-scope operator/register lead before another search; no generic fan-out.",
+    "SCENARIOS: Descriptors are not queries. Honor named sector and jurisdiction (e.g. casinos in Slovenia); inspect one in-scope operator/register lead before another search; no generic fan-out.",
     "LEADS: Preserve relevant people/company leads as review-only; never auto-promote.",
     "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping. One focused discovery query; inspect one promising lead before expanding; no provider fan-out.",
     "EVIDENCE: Snippets are leads; claims need a fetched URL and exact source span. Failures are unknown, not negative evidence.",
@@ -90,7 +90,7 @@ export function apexInvestigatorSystemCore(): string {
     "TOOLS: OSINT only when allowlisted; registry IDs are runtime-only; unavailable is not a no-hit.",
     "TARGET RESEARCH: Apply only objective-required criteria. B2B needs a fetched current role/company link; wealth needs sourced ownership/control/equity/investment. Never infer wealth from seniority; one relevant company is a valid partial result.",
     "STOPPING: Stop only at a defensible answer or justified blocker; state unresolved gaps."
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
