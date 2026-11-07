@@ -651,8 +651,10 @@ describe("discovery runtime architecture", () => {
     expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
     expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
-    expect(launchUiSource).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
-    expect(launchDefaultsSource).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
+    const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
+    expect(uiObjectiveLiteral).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).not.toContain("Discover lesser-known people with credible wealth potential");
