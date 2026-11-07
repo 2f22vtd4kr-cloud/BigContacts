@@ -5684,7 +5684,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           })
         : "";
       const compactOutputContract = "OUTPUT CONTRACT: one root JSON object; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Null irrelevant scalars; [] unused arrays. Except done, hypothesis/purpose are non-empty and expectedInformationGain is [0,1]. Inactive shape: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel web searches: 2–4 objects with query/provider/locale/market/purpose. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
-      const compactResearchContract = "MISSION: human objective/Boss scope govern; preserve supplied geography, never invent or broaden. Blocks, no-hits and unavailable sources are not negative evidence; explain material deviations. Add no wealth/ownership criteria unless requested. After failure revise the failed source/query, not geography/jurisdiction. People, companies and assets are distinct; web/registries have neutral standing and no fixed order. Use enabled adapters and grounded URLs. Snippets are leads, not evidence. PDFs: visit extracts text; browser_fetch is HTML-only; scanned/image-only needs unavailable OCR; encrypted and malformed are distinct failures.";
+      const compactResearchContract = "MISSION/SCOPE: human objective and Boss scope govern; preserve supplied geography, never invent or broaden. Failures, no-hits and unavailable sources are unknown, not disproof. Add no wealth/ownership criteria unless requested. People, companies and assets stay distinct. No registry is preferred; choose by evidence from enabled adapters. Use grounded URLs; snippets are leads, not evidence. PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only OCR is unavailable; encrypted and malformed are distinct failures.";
       const compactActionLiveness = "ACTION LIVENESS: Block exact repeats unless hypothesis/purpose, provider/market/resource, or new evidence changes.";
       const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: objective/Boss scope set target class and geography. Preserve relevant people, company and asset leads; no incidental celebrities, invented targets/geography, or wealth gate unless required. Tie query/source to the role, relationship or materiality the objective requires. Mission descriptors are not query terms; form a concrete, falsifiable public-evidence hypothesis. Choose sources/actions freely; no fixed sequence." : null;
       const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active objective and Boss scope; prioritize its named target classes. Do not impose wealth/ownership criteria unless required. Preserve relevant review leads, tie sources to the role/relationship/materiality the objective requires, and choose evidence-led actions without a fixed sequence. Do not invent geography or targets. " + descriptorSearchGuidance : null;
@@ -5723,15 +5723,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. One relevant sourced lead starts target research. No fixed action sequence.",
-          "DISCOVERY SEARCH ECONOMY: at most two outbound searches, one query per action, no parallel batches; inspect one result URL before another search; preserve sector and jurisdiction (e.g. casinos in Slovenia).",
-          "DISCOVERY LEAD-INSPECTION GATE: inspect one observed in-scope lead before another search; failed/blocked fetch counts as an attempt.",
-          "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected leads as review-only; never auto-promote.",
+          "APEX INVESTIGATOR — DISCOVERY: objective/scope govern; names only from brief or same-case evidence. Tie query/source to the required entity, role, relationship or materiality; generic publisher pages need a same-case link. One relevant sourced lead starts target research; no fixed sequence.",
+          "DISCOVERY SEARCH ECONOMY: at most two outbound searches; one focused query per action; no parallel batches. Inspect one in-scope lead URL before another search (failed/blocked fetch counts as an attempt); preserve sector and jurisdiction, e.g. casinos in Slovenia.",
+          "PARTIAL FINDINGS (not terminal-only) / DISCOVERY LEAD HANDOFF: preserve selected leads as review-only; never auto-promote.",
           blockedScopeMarker,
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain, with no fixed action sequence.",
         ]),
-        "Specialist OSINT actions: allowlist only.",
+        "Conditional specialist OSINT actions: allowlisted actions only.",
       ].filter(Boolean).join(" ");
       const finalEmergencyObjective = [
         authoritativeCaseObjective,
