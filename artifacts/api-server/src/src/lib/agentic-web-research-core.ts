@@ -5409,7 +5409,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/MODEL-OWNED RELEVANCE SELF-CHECK:[^\n]*/g,
           "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence.")
         .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
-          "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class; no incidental celebrities, blacklist or inferred access. Preserve relevant sourced leads; impose wealth/ownership only when the objective requires it.")
+          "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class; no incidental celebrities, blacklist or inferred access. Preserve relevant source-backed leads; impose wealth/ownership only when required. No registry is preferred; choose by evidence.")
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
           "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a relevant in-scope lead when useful; URLs/snippets remain leads until fetched; the Investigator chooses the action.")
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
@@ -5433,8 +5433,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const boundaries = [...following, "OUTPUT CONTRACT:", "ALL REQUIRED TOP-LEVEL FIELDS:"]
           .map((marker) => repaired.indexOf(marker, start + heading.length))
           .filter((index) => index > start);
-        const blankBoundary = repaired.indexOf("\\n\\n", start + heading.length);
-        if (blankBoundary > start) boundaries.push(blankBoundary);
         const end = boundaries.length ? Math.min(...boundaries) : repaired.length;
         if (end <= start) return;
         repaired = repaired.slice(0, start) + replacement + " " + repaired.slice(end).trimStart();
@@ -5558,11 +5556,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + ": " + JSON.stringify(compactRecordEnvelope(latestRecord, 320, 2))
         : buildLatestRecordTail(320, 2)
       : "";
+    const carriedSearchLeadRecovery = carryForwardSuccessfulSearch?.leadUrls?.length
+      && !carryForwardSuccessfulSearch.leadUrls.every((url) => normalizedBase.includes(url))
+      ? "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + ": "
+        + JSON.stringify({ leadUrls: compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2).leadUrls })
+      : "";
     const pinnedInventoryRecovery = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     const recoveryObservation = [
       latestFetchedSourceRecovery,
       latestObservationRecovery,
       latestTrajectoryRecovery,
+      carriedSearchLeadRecovery,
       pinnedInventoryRecovery && !normalizedBase.includes(pinnedInventoryRecovery) ? pinnedInventoryRecovery : "",
     ].filter(Boolean).join("\\n\\n");
     const appended = appendEmergencyObservationContext(
