@@ -5632,16 +5632,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
       : "";
     const hasRequiredPromptContract = hasCompleteSchema(normalizedBase);
-    const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
+    const latestRecordMarker = latestRecord ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn : "";
+    const hasLatestRecordContext = !latestRecord || normalizedBase.includes(latestRecordMarker);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
-      || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
+      || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
     const hasFetchedSourceClaimContext = !latestFetchedSourceClaimMarker
       || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE CLAIM");
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
     const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
     const hasAuthoritativeObjective = !authoritativeCaseObjective || containsVerbatimCaseObjective(normalizedBase);
+    const hasDiscoveryContract = input.mode !== "discovery" || (
+      normalizedBase.includes("DISCOVERY MODE: no person or entity target is implied")
+      && normalizedBase.includes("at most two outbound search actions")
+      && normalizedBase.includes("No fixed action sequence.")
+    );
     const hasGeographicScope = requiredGeographies.every((geography) => normalizedBase.toLowerCase().includes(geography.toLowerCase()));
     const requiresRecoveryContext = Boolean(
       latestRecord
@@ -5666,6 +5672,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasLeadFollowupContext
       && hasHistoricalMemoryContext
       && hasAuthoritativeObjective
+      && hasDiscoveryContract
       && hasGeographicScope
     ) return preserveFetchedClaimAtProviderBoundary(normalizedBase);
     // The final provider-boundary pass runs a second compaction only when a
