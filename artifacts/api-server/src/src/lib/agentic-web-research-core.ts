@@ -3328,7 +3328,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumRelevanceMarker = isDiscoveryPrompt
-    ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; generic publishers/directories need a same-case link. No fixed action sequence."
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No fixed action sequence."
     : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt
     ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; no extra wealth/ownership criteria unless required."
