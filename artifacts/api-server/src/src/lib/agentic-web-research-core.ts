@@ -3889,7 +3889,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(markerSuffix, 70, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
-
+  return mandatoryMinimumTail;
 }
 
 /**
