@@ -5433,7 +5433,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "LEAD FOLLOW-UP GUIDANCE (non-binding):",
       "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE",
       "PAGE FORMAT / RETRIEVAL LIMITS:",
-      "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS",
+      // Keep exact lead URLs when no fetched page follows; they are the discovery-to-research handoff.
+
       "Conditional specialist OSINT actions:",
       "DISCOVERY TARGETABILITY:",
     ];
@@ -5750,7 +5751,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
 
       ].filter(Boolean).join("\n\n");
-      const finalLatestRecordTail = buildLatestRecordTail(300, 2);
+      const finalLatestRecordTail = [
+        buildLatestRecordTail(300, 2),
+        latestObservationBoundaryMarkers.join(" "),
+      ].filter(Boolean).join("\\n");
       const finalFixedChars = finalEmergencyPrefix.length + stateLabel.length + compactOutputContract.length + finalLatestRecordTail.length + separators;
       const finalStateBudget = maxUserPromptChars - finalFixedChars;
       if (finalStateBudget >= 0) {
