@@ -3855,10 +3855,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Keep the compact discovery rules and full human objective ahead of
-    // optional context. This is the smallest valid next-action contract.
+    // Preserve the latest fetched-source envelope and trajectory marker before
+    // optional history, while keeping the complete objective and approved scope.
     appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
+    appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
+    appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
+    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
@@ -6308,13 +6312,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             action: latestSuccessfulFetchRecord.action,
             execution: latestSuccessfulFetchRecord.execution,
             observedUrls: latestSuccessfulFetchRecord.observedUrls,
-          }) + "\\n" + latestFetchedSourceClaimMarker
-        : "";
-      const emergencyObservation = buildEmergencyPriorTrajectoryObservation(
-        [
-          pinnedInventoryCandidate,
-          ...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),
-          ...(!latestFetchedSourceSummary && latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
+          }) + "\n" + latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
           ...(latestRecord && String(latestRecord.observation ?? "").trim() === suppliedObservation.trim()
             ? []
             : [compactEmergencyTrajectoryObservation(suppliedObservation, 420)]),
