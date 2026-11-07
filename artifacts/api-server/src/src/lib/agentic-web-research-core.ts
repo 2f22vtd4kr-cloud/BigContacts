@@ -3824,7 +3824,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable scope remains authoritative]");
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source claim omitted]");
-    appendBudgeted(latestFetchedSourceClaimMarker, 260, "[fetched-source claim omitted]");
+
     // Preserve the exact human objective before allocating space to optional policy
     // summaries or historical context. The case objective is never head/tail-trimmed.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
