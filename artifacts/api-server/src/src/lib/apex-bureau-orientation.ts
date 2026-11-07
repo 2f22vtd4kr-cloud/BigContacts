@@ -88,7 +88,7 @@ export function apexInvestigatorSystemCore(): string {
     "SAFETY: Public/professional routes only; no private, sensitive, residential or intimate data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not evidence.",
     "TOOLS: OSINT only when allowlisted; registry IDs are runtime-only; unavailable is not a no-hit.",
-    "TARGET RESEARCH: Apply only objective-required criteria. B2B requires a fetched decision-maker role/company link; Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority; avoid generic wealth/net-worth/private-equity-profile searches alone unless in scope. one relevant company is a valid partial result.",
+    "TARGET RESEARCH: Apply only objective-required criteria. No extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link; Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority; avoid generic wealth/net-worth/private-equity-profile searches alone unless in scope. One source-backed relevant lead starts target research; one relevant company is a valid partial result.",
     "STOPPING: Stop only at a defensible answer or justified blocker; state unresolved gaps."
   ].join("\n");
 }
