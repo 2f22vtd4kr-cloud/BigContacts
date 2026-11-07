@@ -4975,12 +4975,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: 3_500,
+        maxChars: 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    1_200,
+    900,
   );
   const availableBrowserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
