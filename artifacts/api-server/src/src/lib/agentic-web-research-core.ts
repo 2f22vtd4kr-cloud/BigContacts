@@ -5510,7 +5510,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
           "DISCOVERY TARGETABILITY / REALISM: one source-backed relevant lead starts target research; no name blacklist or incidental celebrities. No registry is preferred; choose by evidence.")
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
-          "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; unfetched URLs remain leads.")
+          "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; unfetched URLs remain leads; action choice stays with the Investigator; this is advisory, not evidence or a mandated next action.")
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
           "Conditional specialist OSINT actions: allowlisted only.");
     }
@@ -5549,6 +5549,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "VALID PROVIDERS:",
           "Conditional specialist OSINT actions:",
           "DISCOVERY LEAD HANDOFF CONTRACT:",
+          "MODEL-OWNED RELEVANCE SELF-CHECK:",
+          "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
+          "DISCOVERY TARGETABILITY / REALISM:",
+          "LEAD FOLLOW-UP GUIDANCE (non-binding):",
+          "SCOPE RECOVERY:",
           "PAGE FORMAT / RETRIEVAL LIMITS:",
           "LATEST OBSERVATION",
           "LATEST TRAJECTORY RECORD",
