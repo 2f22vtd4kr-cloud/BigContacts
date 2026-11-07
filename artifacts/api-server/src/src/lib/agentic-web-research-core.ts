@@ -3536,7 +3536,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
   const minimumProviderRule = isInvestigatorPrompt
-    ? "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson."
+    ? "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson."
     : "";
   // The final layout keeps a complete minimal schema/evidence contract independent
   // of the larger, lossy base sections. Drop optional duplicated guidance first.
@@ -3821,41 +3821,38 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    appendBudgeted(compactFallbackDiscoveryRule, 1_200, "[discovery strategy detail omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
-    appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
-    appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
-    appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
-    appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
-    appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
-    // Keep the live model contract first; optional evidence history is budgeted only after it.
-    appendBudgeted(compactCaseObjective, 2_000, "[objective detail omitted; full objective remains in durable case state]");
-    appendBudgeted(minimumScopeContext, 320, "[scope detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 800, "[additional runtime actions omitted]");
+    // Preserve the exact human objective before allocating space to optional policy
+    // summaries or historical context. The case objective is never head/tail-trimmed.
+    appendBudgeted(compactCaseObjective, 2_500, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumAvailableActionsSection, 600, "[additional runtime actions omitted]");
     if (isDiscoveryPrompt) {
-      appendBudgeted(minimumDiscoveryContract, 1_500, "[discovery detail omitted]");
-      appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
-      appendBudgeted(minimumTargetabilityMarker, 260, "[targetability detail omitted]");
-      appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review rule omitted]");
-    } else {
+      appendBudgeted(compactFallbackDiscoveryRule, 1_050, "[discovery strategy detail omitted]");
       appendBudgeted(fallbackEvidenceContract, 1_000, "[review-lead qualification detail omitted]");
+      appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
+      appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
+      appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
+      appendBudgeted(minimumRelevanceMarker, 240, "[relevance detail omitted]");
+      appendBudgeted(minimumTargetabilityMarker, 240, "[targetability detail omitted]");
+    } else {
+      appendBudgeted(fallbackEvidenceContract, 1_200, "[review-lead qualification detail omitted]");
+      appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
+      appendBudgeted(minimumSnippetEvidenceRule, 110, "[snippet evidence rule omitted]");
     }
-    appendBudgeted(minimumRegistryEvidenceRule, 320, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
-    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
-    appendBudgeted(scopeRecoveryRule, 260, "[scope recovery detail omitted]");
-    appendBudgeted(urlInventory, 900, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(leadGuidance, 200, "[lead guidance omitted]");
-    appendBudgeted(fetchedSourceLabel, 110, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 320, "[latest observation detail omitted]");
-    appendBudgeted(aiMemorySection, 650, "[older memory omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 320, "[older trajectory detail omitted]");
-    appendBudgeted(markerSuffix, 70, "[marker omitted]");
-    mandatoryMinimumTail = finalParts.join("\n\n");
+    appendBudgeted(minimumScopeContext, 260, "[scope detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 280, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 210, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
+    appendBudgeted(minimumProviderRule, 160, "[provider detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 220, "[scope recovery detail omitted]");
+    appendBudgeted(urlInventory, 650, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(leadGuidance, 180, "[lead guidance omitted]");
+    appendBudgeted(fetchedSourceLabel, 100, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 220, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 300, "[latest observation detail omitted]");
+    appendBudgeted(aiMemorySection, 380, "[older memory omitted; durable ledger remains authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 260, "[older trajectory detail omitted]");
+    appendBudgeted(markerSuffix, 70, "[marker omitted]");    mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
   let minimumTail = mandatoryMinimumTail;
@@ -5673,10 +5670,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    // Historical memory is a semantic summary, not raw evidence. If the complete
-    // summary cannot fit beside the protected action schema/current scope/source,
-    // fail closed rather than deterministically clipping the model's summary.
-    throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the required action contract within the provider budget; no action should be sent.");
+    // Historical memory is secondary context. If it cannot fit beside the live
+    // objective, source URLs, latest observation and full action contract, do not
+    // fail the Investigator turn: the durable evidence graph remains authoritative.
+    const memoryOmissionNote = "HISTORICAL MEMORY NOT INCLUDED IN THIS TURN: consult the durable evidence graph; omissions are not negative evidence.";
+    if (appended.length + memoryOmissionNote.length + 2 <= maxUserPromptChars) {
+      return preserveFetchedClaimAtProviderBoundary(appended + "\n\n" + memoryOmissionNote);
+    }
+    return preserveFetchedClaimAtProviderBoundary(appended);
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
