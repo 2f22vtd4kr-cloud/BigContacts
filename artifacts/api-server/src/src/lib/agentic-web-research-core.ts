@@ -5017,8 +5017,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
-  const selectableActions = emergencySelectableActions;
-  const availableActions = emergencyAvailableActions;
+  const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
+  const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
+    ? selectableActions
+    : selectableActions.filter((action) => action !== "browser_fetch");
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
@@ -5030,10 +5032,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const researchContract = "MISSION PRIORITY: human objective/Boss scope govern; preserve topic/geography; never silently expand. ACTIVE PIVOT: latest Boss-approved pivot defines scope; prior trajectory is history, not instruction; report infeasibility before asking for new scope. TARGET NAMES: exact names only from the human brief or same-case observations; never model memory/placeholders. RESEARCH CONTRACT: you own the research trajectory; Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence and cost; no fixed sequence. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography. Avoid stale years unless the objective is explicitly historical." + (input.mode === "discovery" ? " " + descriptorSearchGuidance : "");
   
   const actionLiveness = "ACTION LIVENESS: block exact normalized repeats unless rationale, provider/market/resource or evidence changes. SOURCE-NEUTRAL DISCOVERY: no geography/sector sweeps; choose one useful company, person or asset from any enabled registry or public-web observation; no registry is preferred; one lead starts target research. Snippets and registry hits are leads, not proof.";
-  const availableActionsGuidance = emergencyAvailableActionsGuidance;
+  const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
-  const hasAvailableSpecialistOsintAction = emergencyHasSpecialistAction;
+  const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
   const compactWorkerCapabilityGuidance = emergencyWorkerCapabilityGuidance;
   const compactCriticalRetrievalGuidance = "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action. Search snippets remain leads, not evidence.";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
