@@ -5413,7 +5413,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // When the full objective is long, compact duplicated discovery guidance rather
     // than trimming the verbatim objective, source claim, scope, or JSON envelope.
-    const compactDiscoveryGate = "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: Objective and Boss scope govern target class and geography; prioritize named classes. No incidental celebrities, invented targets, or invented geography. A relevant source-backed lead may be preserved for review without proof beyond the active objective. Do not impose wealth/ownership criteria unless required. The Investigator chooses query, source, provider and action; no fixed action sequence.";
+    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: Objective and Boss scope govern target class/geography; prioritize named classes. No incidental celebrities or invented targets/geography. Preserve relevant sourced leads for review; apply wealth/ownership only when required. Investigator chooses query, source, provider and action.";
     if (repaired.length > maxUserPromptChars) {
       for (const heading of ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE:", "DISCOVERY TARGETABILITY GATE:"]) {
         let headingIndex = repaired.indexOf(heading);
