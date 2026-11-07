@@ -3824,6 +3824,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Preserve the exact human objective before allocating space to optional policy
     // summaries or historical context. The case objective is never head/tail-trimmed.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; full scope remains in durable case state]");
+    appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source claim omitted]");
     appendBudgeted(minimumAvailableActionsSection, 600, "[additional runtime actions omitted]");
     if (isDiscoveryPrompt) {
       appendBudgeted(minimumDiscoveryContract, 1_850, "[discovery contract detail omitted]");
@@ -5915,6 +5918,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // recovery instructions and lead URLs the earlier compaction tiers protected.
       const preservedLatestRecordTail = buildLatestRecordTail(300, 2);
       const finalFallbackParts = [
+        compactFetchedSourceContext,
         finalEmergencyAssignment,
         finalEmergencyObjective,
         ...compactEmergencyDiscoveryContractParts,
@@ -5950,6 +5954,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const minimalTail = buildLatestRecordTail(300, 2);
       const minimalFallback = [
+        finalEmergencyObjective,
+        ...compactEmergencyDiscoveryContractParts,
+        compactFetchedSourceContext,
         finalEmergencyAssignment,
         buildObjectiveAndScope(220, 140),
         "SCOPE: web discovery must match subject/geography; source class need not appear in every discovery query. Registry adapter must match jurisdiction; visit only observed URLs. Blocks are not evidence.",
@@ -6006,6 +6013,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestDiscoveryGate = input.mode === "discovery" ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: Follow the active case objective and Boss-approved scope, including explicit overrides. People, operating companies, and assets are distinct target classes; prioritize those the objective names. No incidental celebrity/household-name targets; no name blacklist. One sourced lead starts target research; ownership/wealth only if the objective requires it. Preserve a relevant source-attributed lead without requiring ownership proof before a review card; do not infer wealth from seniority. Honor only the human-supplied scope; if no geography was supplied, do not invent or broaden one. MIXED TARGET DISCOVERY: choose one concrete company/person/asset candidate from any enabled registry or public-web search; all sources have neutral standing, with no named default, geography sweep, fixed order or registry-first rule. News/articles are leads, not targets. do not treat rankings or global-brand leadership directories as targets by themselves; tie them to an objective-relevant company, role or relationship. Never use placeholders such as CompanyName, companywebsite.com, or example.com. " + descriptorSearchGuidance : "";
       const shortestAdmission = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: preserve relevant source-backed company/person leads as review-only; Investigator selects, not every result. Keep exact observed name, stated role or null, and associated public HTTPS URL; a lead is not proof of identity, ownership, wealth or contact. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth potential. Other objectives use their own evidence criteria. Never infer wealth from seniority. Official staff/filing pages must directly bind exact name and role; aggregators and unattributed contact facts are leads, not identity evidence. Target research independently corroborates/falsifies objective-required claims and verifies public/professional routes before promotion. Search snippets are leads; failed fetches are unobserved. Never use placeholders such as CompanyName, companywebsite.com, or example.com." : "";
       const shortestPrompt = [
+        finalEmergencyObjective,
+        compactFetchedSourceContext,
         finalEmergencyAssignment,
         ...compactEmergencyDiscoveryContractParts,
         shortestScope,
@@ -6064,6 +6073,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // This last form uses fewer trajectory fields and keeps the complete output envelope.
 
       const ultraCompactEmergencyPrompt = [
+        finalEmergencyObjective,
+        ...compactEmergencyDiscoveryContractParts,
+        compactFetchedSourceContext,
         finalEmergencyAssignment,
         finalEmergencyObjective,
         buildObjectiveAndScope(180, 100),
