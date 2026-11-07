@@ -3399,9 +3399,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /MISSION PRIORITY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|LEAD FOLLOW-UP GUIDANCE(?::| \(non-binding\):)|DISCOVERY TARGETABILITY \/ REALISM|DISCOVERY SEARCH DISCIPLINE|DISCOVERY LEAD-INSPECTION GATE|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
-  const verbatimCaseObjective = base.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
+  const verbatimCaseObjective = base.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
   const compactCaseObjective = verbatimCaseObjective || (caseObjective ? (caseObjective.length <= 360 ? caseObjective : boundInvestigatorPromptSection(caseObjective, 260)) : "");
-  const availableActionsSection = base.match(/AVAILABLE ACTIONS:\\s*[a-z][a-z0-9_]*(?:\\s*\\|\\s*[a-z][a-z0-9_]*)*\\./i)?.[0] ?? baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
+  const availableActionsSection = base.match(/AVAILABLE ACTIONS:\s*[a-z][a-z0-9_]*(?:\s*\|\s*[a-z][a-z0-9_]*)*\./i)?.[0] ?? baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
   const observedActiveScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]?.trim() ?? "";
   const baseObjectiveForScope = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
   const extractedObjectiveScope = baseObjectiveForScope
