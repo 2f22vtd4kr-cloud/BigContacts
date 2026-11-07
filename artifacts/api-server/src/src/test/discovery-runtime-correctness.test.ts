@@ -653,8 +653,10 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
-    expect(uiObjectiveLiteral).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
-    expect(uiObjectiveLiteral.slice(1, -1).length).toBeLessThanOrEqual(1_200);
+    expect(uiObjectiveLiteral).toBeDefined();
+    const uiObjective = uiObjectiveLiteral ?? "";
+    expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
+    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_200);
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
