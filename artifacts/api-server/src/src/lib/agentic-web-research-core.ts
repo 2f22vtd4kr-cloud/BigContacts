@@ -6579,8 +6579,14 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
-        promptRecord.observation = compactedObservation;
-        if (isLatestPromptRecord) promptLastObservation = compactedObservation;
+        const protectedObservationMarkers = isLatestPromptRecord
+          ? ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"].filter((marker) =>
+              (rawObservation.includes(marker) || combinedLastObservation.includes(marker))
+              && !compactedObservation.includes(marker))
+          : [];
+        const compactedObservationWithMarkers = [compactedObservation, ...protectedObservationMarkers].filter(Boolean).join(" ");
+        promptRecord.observation = compactedObservationWithMarkers;
+        if (isLatestPromptRecord) promptLastObservation = compactedObservationWithMarkers;
       }
       if (!latestPromptRecord && combinedLastObservation.length > 900) {
         const sourceToSummarize = [
