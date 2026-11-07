@@ -159,7 +159,8 @@ export function buildBrregCompanyEntity(row: CsvRecord): InsertEntity {
     name: clean(row.organization),
     type: "Corporation",
     bayesianScore: 0.2,
-    nationality: "Norwegian",
+    // Company jurisdiction is not a personal nationality attribute.
+    nationality: null,
     estimatedNetWorth: null,
     knownResidences: null,
     email,
@@ -182,7 +183,8 @@ export function buildBrregManagingDirectorCandidate(row: CsvRecord): InsertEntit
     || "https://data.brreg.no/enhetsregisteret/api/enheter/" + organizationNumber + "/roller";
   const harvested: HarvestedPerson = {
     name: personName,
-    nationality: "Norwegian",
+    // BRREG role data establishes a Norwegian business appointment, not citizenship.
+    nationality: "",
     location: "",
     sourceRegistry: BRREG_SOURCE,
     role: "Managing Director (BRREG: Daglig leder)",
@@ -237,6 +239,7 @@ export function buildBrregManagingDirectorCandidate(row: CsvRecord): InsertEntit
   };
   return {
     ...built,
+    nationality: null,
     email: null,
     phone: null,
     phoneSource: null,
