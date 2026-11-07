@@ -3821,43 +3821,38 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable scope remains authoritative]");
-    appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source claim omitted]");
-
-    // Preserve the exact human objective before allocating space to optional policy
-    // summaries or historical context. The case objective is never head/tail-trimmed.
+    // The final tier is a semantic contract, not a generic head/tail excerpt.
+    // Keep the complete runtime allowlist and compact objective/relevance rules
+    // ahead of optional context so the model can still choose a valid next act.
+    appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; full scope remains in durable case state]");
-    appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source claim omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 600, "[additional runtime actions omitted]");
+    appendBudgeted(fallbackEvidenceContract, 900, "[review-lead qualification detail omitted]");
     if (isDiscoveryPrompt) {
-      appendBudgeted(minimumDiscoveryContract, 1_850, "[discovery contract detail omitted]");
-      appendBudgeted(minimumOrganizationTargetabilityMarker, 170, "[organization review status omitted]");
-      appendBudgeted(minimumTargetVerificationRule, 170, "[target verification rule omitted]");
-      appendBudgeted(minimumSnippetEvidenceRule, 100, "[snippet evidence rule omitted]");
-      appendBudgeted(minimumRelevanceMarker, 200, "[relevance detail omitted]");
-      appendBudgeted(minimumTargetabilityMarker, 180, "[targetability detail omitted]");
+      const compactDiscoveryContract = "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; never broaden. No fixed action sequence; the Investigator chooses. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; one relevant source-backed lead starts target research. No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. SEARCH: market only if country in objective/scope; locale=language.";
+      appendBudgeted(compactDiscoveryContract, 1_550, "[discovery detail omitted]");
+      appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
+      appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
+      appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
+      appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
+      appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
     } else {
-      appendBudgeted(fallbackEvidenceContract, 900, "[review-lead qualification detail omitted]");
-      appendBudgeted(minimumTargetVerificationRule, 170, "[target verification rule omitted]");
-      appendBudgeted(minimumSnippetEvidenceRule, 100, "[snippet evidence rule omitted]");
+      appendBudgeted(minimumTargetVerificationRule, 180, "[target verification rule omitted]");
+      appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
     }
-    // Keep latest source evidence and action feedback ahead of optional policy memory.
-    // Scope and fetched source were already protected ahead of optional policy text.
-    appendBudgeted(minimumAvailableActionsSection, 0, "[duplicate action list omitted]");
+    // Keep current source/action facts ahead of optional historical narration.
     appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 200, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 170, "[terminal detail omitted]");
-    appendBudgeted(minimumProviderRule, 170, "[provider detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 150, "[conditional specialist capability omitted]");
-    appendBudgeted(scopeRecoveryRule, 180, "[scope recovery detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
+    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability omitted]");
+    appendBudgeted(scopeRecoveryRule, 200, "[scope recovery detail omitted]");
     appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(leadGuidance, 160, "[lead guidance omitted]");
+    appendBudgeted(leadGuidance, 180, "[lead guidance omitted]");
     appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 300, "[latest observation detail omitted]");
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 250, "[older trajectory detail omitted]");
+    appendBudgeted(markerSuffix, 70, "[marker omitted]");
     appendBudgeted(markerSuffix, 70, "[marker omitted]");    mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
