@@ -3350,7 +3350,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumRelevanceMarker,
     minimumTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
-    minimumOrganizationTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) =>
@@ -3651,6 +3650,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       fallbackEvidenceContract,
       compactCaseObjective,
       minimumDiscoveryContract,
+      minimumOrganizationTargetabilityMarker,
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
       conditionalCapabilityRule,
@@ -3675,6 +3675,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         fallbackEvidenceContract,
         compactCaseObjective,
         minimumDiscoveryContract,
+        minimumOrganizationTargetabilityMarker,
         minimumRegistryEvidenceRule,
         minimumBinaryUrlRule,
         conditionalCapabilityRule,
@@ -3719,6 +3720,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]")
           : "",
         minimumTargetabilityMarker,
+        minimumOrganizationTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
@@ -3787,7 +3789,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // then spend the remaining provider budget on scope, source identity and
     // the newest observed evidence. Never cut a URL token or fail a research
     // turn merely because optional context is verbose.
-    finalParts.push(fallbackOutputContract);
     const finalParts: string[] = [];
     const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
@@ -3811,6 +3812,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (isDiscoveryPrompt) {
       appendBudgeted(minimumDiscoveryContract, 900, "[discovery qualification detail omitted]");
       appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
+      appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review rule omitted]");
     } else {
       appendBudgeted(fallbackEvidenceContract, 1_000, "[review-lead qualification detail omitted]");
     }
