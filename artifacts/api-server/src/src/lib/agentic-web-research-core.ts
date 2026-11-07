@@ -3626,6 +3626,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   });
   const minimumAvailableActionsSection = availableActionsSection;
+  // Emergency discovery compaction must preserve approved geography; do not broaden geography.
   const minimumDiscoveryContract = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: preserve objective/scope; never broaden. No fixed action sequence. DISCOVERY TARGETABILITY / REALISM: One source-backed relevant lead starts target research; no name blacklist. No registry is preferred; choose by evidence. e.g. casinos in Slovenia. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as attempt. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required role/relationship/materiality; generic publisher homepage needs same-case evidence link. SEARCH: market only if country in objective/scope; locale=language." : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
