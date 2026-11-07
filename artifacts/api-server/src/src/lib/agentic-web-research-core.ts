@@ -6306,6 +6306,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + protectedDiscoveryRecovery.length
         + protectedFetchedSourceClaim.length
         + pinnedSuffix.length + 8;
+      // The live action allowlist is a control-plane contract and must remain atomic.
+      const absoluteMinimumAvailableActions = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
       const compactCoreWithoutProtectedScope = compactBaseCoreParts
         .filter((part) => part !== absoluteMinimumObjective
           && part !== finalEmergencyAssignment
