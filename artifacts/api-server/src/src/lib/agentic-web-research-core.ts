@@ -5042,7 +5042,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     || extractBossOpeningDirectionForCompactPrompt(input.objective)
     // Some live Boss briefs carry an explicit scope constraint without the older
     // structured pivot heading. Preserve that accepted scope in every prompt tier.
-    || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\\s*([\\s\\S]*?)(?=\\nPursue this question|\\n\\nChoose each next action|$)/i)?.[1]?.trim()
+    || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
   const activeBossScopeSection = activeBossDirection
     ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
