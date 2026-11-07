@@ -4960,7 +4960,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "DISCOVERY LEAD-INSPECTION GATE: inspect one in-scope URL before another search; failed/blocked fetch counts as an attempt.",
     "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned PDF OCR is unavailable; encrypted and malformed PDFs differ."
   ] : [];
-  const compactEmergencyDiscoveryContract = compactEmergencyDiscoveryContractParts.join(" ");;
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
