@@ -172,4 +172,47 @@ describe("canonical seeded target binding", () => {
     expect(binding.evidence).toEqual([]);
     expect(binding.sourceRegistries).toBe("Companies House");
   });
+
+  it("carries BRREG company and managing-director source context into future Bureau research", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 501,
+      entityName: "Kari Example",
+      entityType: "PersonCandidate",
+      sourceRegistries: JSON.stringify(["BRREG Norway — Enhetsregisteret"]),
+      metadata: JSON.stringify({
+        sourceRecordId: "brreg:123456789:person:kariexample",
+        sourceName: "BRREG Norway — Enhetsregisteret",
+        sourceUrl: "https://data.brreg.no/enhetsregisteret/api/enheter/123456789/roller",
+        sourceSnapshotId: "brreg-sector-screen-2026-11-07",
+        organizationNumber: "123456789",
+        companyRegistryId: "123456789",
+        companyName: "LOCAL HOTEL AS",
+        role: "Managing Director",
+        roleOriginal: "Daglig leder",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_level_contact_assessed",
+        wealthStatus: "unverified",
+        hnwiQualificationStatus: "unverified",
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "brreg:123456789:person:kariexample",
+        sourceSnapshotId: "brreg-sector-screen-2026-11-07",
+        organizationNumber: "123456789",
+        companyRegistryId: "123456789",
+        companyName: "LOCAL HOTEL AS",
+        role: "Managing Director",
+        roleOriginal: "Daglig leder",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_level_contact_assessed",
+        wealthStatus: "unverified",
+        hnwiQualificationStatus: "unverified",
+        reviewOnly: true,
+      },
+    });
+  });
+
 });
