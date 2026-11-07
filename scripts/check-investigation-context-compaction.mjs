@@ -45,7 +45,9 @@ const checks = [
     const uiObjective = objectiveLiteral(launchUi);
     const apiObjective = objectiveLiteral(launchDefaults);
     return Boolean(uiObjective)
-      && uiObjective.includes("Identify real operating companies and their current business decision-makers") && uiObjective.includes("Use no country or sector unless the human objective or Boss-approved scope supplies it")
+      && uiObjective.includes("Discover lesser-known people with credible wealth potential and public/professional routes.")
+      && uiObjective.length <= 1_202
+      && uiObjective.includes("Use only human-specified geography")
       && apiObjective === uiObjective
       && launchDefaults.includes("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
       && canonicalDiscovery.includes("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
