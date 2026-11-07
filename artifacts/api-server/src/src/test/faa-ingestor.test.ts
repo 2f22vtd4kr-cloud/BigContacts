@@ -77,6 +77,7 @@ describe("FAA MASTER parser and candidate projection", () => {
   it("creates an unverified PersonCandidate from an FAA individual registrant, not an HNWI", () => {
     const entity = buildFaaRegistrantEntity(base);
     expect(entity?.type).toBe("PersonCandidate");
+    expect(entity?.nationality).toBeNull();
     expect(entity?.estimatedNetWorth).toBeNull();
     expect(entity?.bayesianScore).toBe(0.05);
     expect(entity?.isHot).toBe(false);
@@ -126,6 +127,12 @@ describe("FAA MASTER parser and candidate projection", () => {
   });
 });
 
+
+  it("does not infer nationality from FAA registrant country", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity?.nationality).toBeNull();
+    expect(JSON.parse(entity?.metadata ?? "{}").country).toBe("US");
+  });
 
   it("does not persist FAA registrant mailing addresses or additional co-registrant names", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
