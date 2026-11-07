@@ -90,7 +90,7 @@ export function apexInvestigatorSystemCore(): string {
     "SAFETY: Public professional routes only; exclude private/sensitive data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not claim-grade evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable is not a no-hit. No registry is preferred; choose by evidence.",
-    "TARGET: Apply only objective-required criteria. B2B needs a fetched role/company link. Wealth objectives require sourced ownership/control/equity/investment evidence. Never infer wealth from seniority.",
+    "TARGET: Apply only objective-required criteria. B2B requires a fetched decision-maker role/company link. Wealth objectives require sourced ownership/control/equity/investment evidence. Never infer wealth from seniority.",
     "TARGET RESEARCH: verify objective-required role/relationship/materiality, counter-evidence and public/professional route before promotion.",
     "STOP: Stop only at a defensible answer or justified blocker."
   ].join("\n");
