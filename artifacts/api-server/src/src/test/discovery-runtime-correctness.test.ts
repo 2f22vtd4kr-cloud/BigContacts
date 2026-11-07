@@ -517,8 +517,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
     expect(canonicalSource).toContain('kind: "discovery_budget"');
     expect(canonicalSource).toContain("The global ${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate.");
-    expect(canonicalSource).toContain("No candidate has been admitted. Discovery remains capped and the protected target-research reserve is not released for additional broad discovery");
-    expect(canonicalSource).toContain("Discovery reached its bounded discovery allocation without an admitted candidate; target research remains unauthorized without a qualifying lead.");
+    expect(canonicalSource).toContain("No candidate has been admitted. Discovery remains capped at ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} actions; the protected target-research reserve is not released for additional broad discovery.");
+    expect(canonicalSource).toContain("Discovery reached its ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)}-action allocation without an admitted candidate; target research remains unauthorized without a qualifying lead.");
   });
   it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
