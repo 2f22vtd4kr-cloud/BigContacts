@@ -46,6 +46,29 @@ describe("BRREG snapshot record parsing and realism", () => {
     })).toBe(false);
   });
 
+  it("stores registry jurisdiction without inventing company or director nationality", () => {
+    const company = buildBrregCompanyEntity({
+      organization: "LOCAL HOTEL AS",
+      organization_number: "123456789",
+      legal_form: "AS",
+      business_email: "post@example.no",
+      business_phone: "+47 12345678",
+      country: "Norway",
+    });
+    expect(company.nationality).toBeNull();
+    expect(JSON.parse(company.metadata ?? "{}").country).toBe("Norway");
+
+    const person = buildBrregManagingDirectorCandidate({
+      person_name: "Kari Example",
+      organization: "LOCAL HOTEL AS",
+      organization_number: "123456789",
+      business_role: "Daglig leder",
+      source_url: "https://data.brreg.no/enhetsregisteret/api/enheter/123456789/roller",
+    });
+    expect(person.nationality).toBeNull();
+    expect(JSON.parse(person.metadata ?? "{}").country).toBe("NO");
+  });
+
   it("stores public business contacts on the company only and does not infer wealth", () => {
     const entity = buildBrregCompanyEntity({
       organization: "LOCAL HOTEL AS",
