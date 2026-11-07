@@ -3464,7 +3464,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
     ? [
-      "APEX INVESTIGATOR: preserve mission, evidence law and complete JSON contract. MISSION PRIORITY: human objective and Boss scope govern; source class must fit the objective. No fixed action sequence.",
+      "APEX INVESTIGATOR: preserve mission, evidence law and complete JSON contract. Follow the active case objective and Boss-approved scope. MISSION PRIORITY: human objective and Boss scope govern; source class must fit the objective. No fixed action sequence.",
       isDiscoveryPrompt ? "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused discovery query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: after a successful search with URLs, attempt one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector and jurisdiction, e.g. casinos in Slovenia." : "",
       isDiscoveryPrompt ? "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptive labels are not query terms. Other objectives use their own evidence criteria. DISCOVERY MODE: names come from the human brief or same-case observations, never model memory." : "",
       isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; generic publisher pages need a same-case link. DISCOVERY TARGETABILITY / REALISM: no incidental celebrities, invented targets or geography; preserve relevant source-backed leads for review; no wealth gate unless required." : "",
