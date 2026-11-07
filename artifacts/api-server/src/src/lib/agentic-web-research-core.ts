@@ -3829,10 +3829,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; full scope remains in durable case state]");
-    appendBudgeted(fallbackEvidenceContract, 900, "[review-lead qualification detail omitted]");
+    appendBudgeted(fallbackEvidenceContract, 1_400, "[review-lead qualification detail omitted]");
     if (isDiscoveryPrompt) {
-      const compactDiscoveryContract = "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; never broaden. No fixed action sequence; the Investigator chooses. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; one relevant source-backed lead starts target research. No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. SEARCH: market only if country in objective/scope; locale=language.";
-      appendBudgeted(compactDiscoveryContract, 1_550, "[discovery detail omitted]");
+      const compactDiscoverySections = [
+        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; never broaden. No fixed action sequence; the Investigator chooses.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; one relevant source-backed lead starts target research.",
+        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Preserve sector and jurisdiction, e.g. casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. SEARCH: market only if country in objective/scope; locale=language.",
+      ];
+      for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
       appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
       appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
       appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
