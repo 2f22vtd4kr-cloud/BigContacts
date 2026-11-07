@@ -3351,7 +3351,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
-    minimumOrganizationTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) =>
@@ -3596,6 +3595,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     fallbackEvidenceContract,
     compactCaseObjective,
     minimumTargetabilityMarker,
+    minimumOrganizationTargetabilityMarker,
     minimumDiscoveryContract,
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
@@ -3719,6 +3719,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]")
           : "",
         minimumTargetabilityMarker,
+    minimumOrganizationTargetabilityMarker,
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
         latestSearchMarker,
@@ -3787,13 +3788,29 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // the newest observed evidence. Never cut a URL token or fail a research
     // turn merely because optional context is verbose.
     finalParts.push(fallbackOutputContract);
+    const finalParts: string[] = [];
+    const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
+    const appendBudgeted = (raw: string, cap: number, omission: string) => {
+      const value = raw.trim();
+      if (!value) return;
+      const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
+      const budget = Math.min(cap, remaining);
+      const isVerbatimObjective = containsVerbatimCaseObjective(value);
+      if (isVerbatimObjective && value.length > budget) {
+        throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+      }
+      if (budget < 80) return;
+      const selected = isVerbatimObjective || value.length <= budget
+        ? value
+        : compactPromptSectionPreservingUrlTokens(value, budget, omission);
+      if (selected && selected.length <= budget) finalParts.push(selected);
+    };
     appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
     appendBudgeted(minimumScopeContext, 300, "[scope detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 420, "[additional runtime actions omitted]");
     if (isDiscoveryPrompt) {
       appendBudgeted(minimumDiscoveryContract, 900, "[discovery qualification detail omitted]");
       appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
-      appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review rule omitted]");
     } else {
       appendBudgeted(fallbackEvidenceContract, 1_000, "[review-lead qualification detail omitted]");
     }
