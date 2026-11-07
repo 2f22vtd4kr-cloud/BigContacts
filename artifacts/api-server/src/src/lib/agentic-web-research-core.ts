@@ -5340,7 +5340,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (authoritativeAvailableActions) {
       const existingActionLines = repaired.split("\n").filter((line) => line.startsWith("AVAILABLE ACTIONS:"));
       if (existingActionLines.length !== 1 || existingActionLines[0] !== authoritativeAvailableActions) {
-        repaired = repaired.replace(/^AVAILABLE ACTIONS:.*(?:\\n|$)/gm, "").trim();
+        repaired = repaired.split("\n").filter((line) => !line.startsWith("AVAILABLE ACTIONS:")).join("\n").trim();
         const outputAt = repaired.indexOf("OUTPUT CONTRACT:");
         repaired = outputAt >= 0
           ? repaired.slice(0, outputAt).trimEnd() + "\n\n" + authoritativeAvailableActions + "\n\n" + repaired.slice(outputAt).trimStart()
