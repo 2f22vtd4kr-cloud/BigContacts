@@ -6249,7 +6249,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         absoluteMinimumPdfGuidance,
         "SCOPE RECOVERY: preserve Boss-approved subject and geography; source class may vary, but never silently pivot to homonyms, unrelated sectors or another jurisdiction. After a block revise only the failed dimension; failure is not disproof; request Boss approval if no in-scope path remains. No registry-first sequence; the Investigator chooses actions.",
         absoluteMinimumTerminalContract,
-        absoluteMinimumDiscoveryContext,
         (latestRecord?.leadUrls?.length || carryForwardSuccessfulSearch?.leadUrls?.length) ? "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; URLs/snippets remain leads until fetched. The Investigator retains action choice; this is not evidence or a mandated next action." : "",
         absoluteMinimumOutputContract,
       ].filter(Boolean);
@@ -6279,7 +6278,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         absoluteMinimumPdfGuidance,
         "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary; no silent pivot. After a block revise only the failed dimension or request Boss scope approval; failure is not disproof. No registry-first sequence; the Investigator chooses actions.",
         absoluteMinimumTerminalContract,
-        absoluteMinimumDiscoveryContext,
         shortestLeadFollowUp,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
