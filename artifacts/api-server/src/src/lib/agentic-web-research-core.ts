@@ -3895,7 +3895,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "DISCOVERY LEAD HANDOFF CONTRACT: retain source-backed leads selected by the Investigator as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL. Snippets are leads, not evidence; never auto-promote.",
         "LEAD FOLLOW-UP GUIDANCE (non-binding): a lead URL may be useful to inspect; it is not evidence or a mandated next action. The Investigator retains action choice.",
         "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
-      ].join(" ");
+      ].join(" ")
     : "";
   const compactQualificationRule = isInvestigatorPrompt
     ? "Qualification follows the active objective: B2B decision-makers need fetched current role, company connection and a public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority."
