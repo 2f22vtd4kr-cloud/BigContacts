@@ -84,6 +84,7 @@ export function apexInvestigatorSystemCore(): string {
     "DISCOVERY LEAD HANDOFF CONTRACT: Preserve relevant people/company leads as review-only; never auto-promote.",
     "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping. One focused discovery query; inspect one promising lead before expanding; no provider fan-out.",
     "EVIDENCE: Snippets are leads; claims need a fetched URL and exact source span. Failures are unknown, not negative evidence.",
+    "OUTPUT: Non-done hypothesis/purpose must be non-empty; expectedInformationGain must be numeric [0,1]; only done may null them.",
     "IDENTITY: Keep people, companies, trusts and assets distinct. Infer no ownership, wealth, relationship or contact route.",
     "SAFETY: Public/professional routes only; no private, sensitive, residential or intimate data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages are not evidence.",
