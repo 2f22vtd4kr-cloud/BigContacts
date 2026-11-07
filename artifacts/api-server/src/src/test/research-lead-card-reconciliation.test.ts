@@ -244,12 +244,13 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the default discovery objective aligned with B2B company-and-decision-maker selection", () => {
-    expect(launchDefaults).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+  it("keeps the default discovery objective broad across people, companies and professional mediators", () => {
+    expect(launchDefaults).toContain("Discover a broad, evidence-led pool of real people and entities");
+    expect(launchDefaults).toContain("HNWI status is additional, not required");
+    expect(launchDefaults).toContain("notaries, geometri, architects, engineers");
     expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
-    expect(canonicalAtlas).not.toContain("Discover lesser-known people with credible wealth potential");
     expect(canonicalAtlas).not.toContain("People—not companies or executive prestige—are the target; companies are leads.");
   });
 
