@@ -215,4 +215,37 @@ describe("canonical seeded target binding", () => {
     });
   });
 
+
+  it("passes only organization-scoped registry contacts into canonical Bureau context", () => {
+    const company = buildCanonicalSeededTargetBinding({
+      entityId: 701,
+      entityName: "LOCAL HOTEL AS",
+      entityType: "Corporation",
+      email: "post@localhotel.no",
+      phone: "+47 555 00 000",
+      contactOutcome: "organization_contact",
+      contactConfidence: 20,
+    });
+    expect(company.sourceMetadata).toMatchObject({
+      organizationContact: {
+        email: "post@localhotel.no",
+        phone: "+47 555 00 000",
+        contactOutcome: "organization_contact",
+        contactConfidence: 20,
+        scope: "organization_only",
+      },
+    });
+
+    const person = buildCanonicalSeededTargetBinding({
+      entityId: 702,
+      entityName: "Kari Example",
+      entityType: "PersonCandidate",
+      email: "person@example.no",
+      phone: "+47 555 00 001",
+      contactOutcome: "direct_contact_candidate",
+      contactConfidence: 70,
+    });
+    expect(person.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
 });
