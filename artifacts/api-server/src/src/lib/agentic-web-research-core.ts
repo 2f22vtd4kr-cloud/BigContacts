@@ -3548,8 +3548,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!fetchedSourceLabel || fallback.includes(fetchedSourceLabel))
     && (!markerSuffix || fallback.includes(markerSuffix))
     && (!observationTail || fallback.includes(header))
+    && (!/LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(combinedSourceText) || fallback.includes("LAST SUCCESSFUL FETCHED SOURCE EXCERPT"))
+    && (!/LATEST TRAJECTORY RECORD — TURN \d+/.test(combinedSourceText) || /LATEST TRAJECTORY RECORD — TURN \d+/.test(fallback))
     && (!isDiscoveryPrompt || (
       fallback.includes("DISCOVERY MODE: no person or entity target is implied")
+      && fallback.includes("at most two outbound search actions")
       && fallback.includes("DISCOVERY SEARCH ECONOMY")
       && fallback.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES")
       && fallback.includes("Other objectives use their own evidence criteria")
