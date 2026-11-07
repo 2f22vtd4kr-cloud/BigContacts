@@ -1,3 +1,9 @@
+## 2026-11-07 registry seed integration (pending merge and operator import)
+
+A versioned BRREG snapshot is being added to the canonical BigContacts repository: 5,572 screened active Norwegian AS company records, 336 managing-director role records linked to 330 organizations, and one unresolved Virtual Globetrotting visual asset lead. Company email/phone fields are organization-scoped only; managing directors remain review-only `PersonCandidate` records with no personal contact or wealth claim. Import is explicit via `POST /api/ingest/brreg-snapshot`; no startup auto-import or automatic research queue is added. See [REGISTRY_SEED_IMPORT.md](./REGISTRY_SEED_IMPORT.md).
+
+The existing official FAA importer remains the aviation source path at `POST /api/ingest/faa`. Its registry entities/assets keep ownership unresolved, and the current patch removes personal mailing addresses and additional co-registrant names from persisted metadata. This is code-level behavior pending CI/merge, not a claim that the live Replit database has been seeded.
+
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-10-30<br>
