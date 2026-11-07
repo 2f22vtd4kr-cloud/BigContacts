@@ -5709,14 +5709,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // before ever abandoning a model-owned turn; the full output schema and
       // admission/falsification laws remain non-discardable.
       const blockedScopeMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-        ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; revise query/resource to active Boss scope. No request was sent; this is not negative evidence."
+        ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; revise query/resource to active Boss scope. No request was sent; not negative evidence."
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/Boss scope govern. Names only from brief or same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: query/source must fit required entity, role, relationship or materiality; generic publisher homepage needs a same-case evidence link. One source-backed relevant lead starts target research. No fixed action sequence.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/Boss scope govern. Names only from brief or same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; generic publisher homepage needs a same-case evidence link. One source-backed relevant lead starts target research. No fixed action sequence.",
           "DISCOVERY LEAD-INSPECTION GATE: inspect one observed unvisited in-scope lead before another discovery search; failed/blocked fetch counts as an attempt.",
+          "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected person/company leads as review-only; never auto-promote.",
           blockedScopeMarker,
-          "DISCOVERY LEAD HANDOFF CONTRACT: preserve relevant observed person/company leads as review-only with exact name, stated role or null, and associated public HTTPS URL. Not identity/ownership/wealth/contact proof; never auto-promote. Qualification follows the objective; after fetch bind only that URL and exact span; target-stage verifies required claims, counter-evidence and professional route.",
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain, with no fixed action sequence.",
         ]),
