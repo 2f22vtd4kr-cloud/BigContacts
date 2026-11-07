@@ -5319,7 +5319,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // The canonical objective block is authoritative and must remain verbatim,
     // but some emergency paths can carry the same block twice (once in the
     // composed prompt and again in the recovery prefix). Keep one exact copy.
-    const objectiveBlocks = [...repaired.matchAll(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>([\\s\\S]*?)<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/g)];
+    const objectiveBlocks = [...repaired.matchAll(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>([\s\S]*?)<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/g)];
     const seenObjectiveBlocks = new Set<string>();
     for (const block of objectiveBlocks) {
       const exactBlock = block[0];
