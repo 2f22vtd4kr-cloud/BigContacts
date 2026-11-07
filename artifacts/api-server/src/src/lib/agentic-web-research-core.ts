@@ -5424,6 +5424,27 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // than trimming the verbatim objective, source claim, scope, or JSON envelope.
     const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: Objective and Boss scope govern target class/geography; prioritize named classes. No incidental celebrities or invented targets/geography. Preserve relevant sourced leads for review; apply wealth/ownership only when required. Investigator chooses query, source, provider and action.";
     if (repaired.length > maxUserPromptChars) {
+      // Compact verbose discovery clauses independently even when a fallback
+      // assembler joined them into one paragraph. Stop at the next known clause,
+      // especially OUTPUT CONTRACT, so the schema is never consumed as prose.
+      const compactClause = (heading: string, replacement: string, following: string[]) => {
+        const start = repaired.indexOf(heading);
+        if (start < 0) return;
+        const boundaries = [...following, "OUTPUT CONTRACT:", "ALL REQUIRED TOP-LEVEL FIELDS:"]
+          .map((marker) => repaired.indexOf(marker, start + heading.length))
+          .filter((index) => index > start);
+        const blankBoundary = repaired.indexOf("\\n\\n", start + heading.length);
+        if (blankBoundary > start) boundaries.push(blankBoundary);
+        const end = boundaries.length ? Math.min(...boundaries) : repaired.length;
+        if (end <= start) return;
+        repaired = repaired.slice(0, start) + replacement + " " + repaired.slice(end).trimStart();
+      };
+      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound searches; one focused query per action; no provider fan-out.", ["DISCOVERY LEAD-INSPECTION GATE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
+      compactClause("DISCOVERY LEAD-INSPECTION GATE:", "DISCOVERY LEAD-INSPECTION GATE: after a successful search, inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector and jurisdiction, e.g. casinos in Slovenia.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
+      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms. Other objectives use their own evidence criteria.", ["DISCOVERY MODE:"]);
+      compactClause("DISCOVERY MODE:", "DISCOVERY MODE: target names come from the human brief or same-case observations, never model memory.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
+      compactClause("DISCOVERY LEAD HANDOFF CONTRACT:", "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant review-only leads, not every result; never auto-promote. A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.", ["Conditional specialist actions only", "Conditional specialist OSINT actions:"]);
+      compactClause("PAGE FORMAT / RETRIEVAL LIMITS:", "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted and malformed PDFs are distinct failures.", ["OUTPUT CONTRACT:"]);
       for (const heading of ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE:", "DISCOVERY TARGETABILITY GATE:"]) {
         let headingIndex = repaired.indexOf(heading);
         while (headingIndex >= 0 && repaired.length > maxUserPromptChars) {
