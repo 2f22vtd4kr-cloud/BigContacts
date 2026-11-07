@@ -4820,6 +4820,8 @@ export function discoveryPivotScopeKey(objective: string): string | null {
  * localized aliases may establish equivalence but never expand the approved scope.
  * Passing this guard authorizes an action, not a claim or a candidate admission.
  */
+// If the Boss wording explicitly orders dependent source stages, enforce that dependency without selecting a provider.
+// This constrains scope, not tool or provider choice.
 export function discoveryPivotAlignmentReason(
   objective: string,
   action: string,
@@ -4922,6 +4924,8 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
   return { allowed, rejected };
 }
 
+// SOURCE-NEUTRAL MIXED TARGET DISCOVERY: choose among enabled web/registry evidence routes by fit and yield.
+// YOU decide whether any observed organization is worth preserving as a provisional review card; never admit every result.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
