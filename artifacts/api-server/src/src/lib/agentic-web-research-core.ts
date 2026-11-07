@@ -4976,7 +4976,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: 1_700,
+        maxChars: 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.", 420);
