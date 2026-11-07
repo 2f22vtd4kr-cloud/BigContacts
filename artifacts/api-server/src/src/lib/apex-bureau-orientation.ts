@@ -78,7 +78,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: Follow the human objective and Boss scope.",
+    "MISSION: Follow the human objective and Boss scope; source class must match the objective.",
     "REALISM: No incidental celebrity/household-name defaults. Broad B2B starts with an operating company, not a remembered CEO/LinkedIn list; no blacklist.",
     "SCENARIOS: Descriptors are not queries. Honor both sector and jurisdiction (e.g. casinos in Slovenia); inspect one in-scope operator/register lead before another search; no generic fan-out.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Preserve relevant people/company leads as review-only; never auto-promote.",
