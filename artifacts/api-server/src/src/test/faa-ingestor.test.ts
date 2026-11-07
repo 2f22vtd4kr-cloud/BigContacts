@@ -95,6 +95,16 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(metadata.rawRegistrantName).toBe("SMITH, WALTER");
   });
 
+  it("does not mislabel registrant country as nationality or copy FAA mailing addresses into cards", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity?.nationality).toBeNull();
+    const metadata = JSON.parse(entity?.metadata ?? "{}");
+    expect(metadata.country).toBe("US");
+    expect(metadata.registrantAddressRetention).toBe("not_imported");
+    expect(metadata.registrantMailingAddress).toBeUndefined();
+    expect(metadata.otherRegistrantNames).toBeUndefined();
+  });
+
   it("classifies legal-entity registrants as Corporation candidates and co-owned registrants as unresolved", () => {
     expect(buildFaaRegistrantEntity({ ...base, registrantTypeCode: "3" })?.type).toBe("Corporation");
     expect(buildFaaRegistrantEntity({ ...base, registrantTypeCode: "7" })?.type).toBe("Corporation");
