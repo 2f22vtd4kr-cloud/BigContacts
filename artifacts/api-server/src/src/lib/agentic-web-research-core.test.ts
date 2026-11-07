@@ -16,7 +16,7 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
     expect(systemCore.length).toBeLessThan(2_000);
-    expect(systemCore).toContain("MISSION: Follow the human objective and Boss scope");
+    expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class follows evidence.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
     expect(systemCore).toContain("REALISM: No incidental celebrity/household-name defaults");
