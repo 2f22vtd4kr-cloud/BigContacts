@@ -3149,7 +3149,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const hasCompleteActionSchema = (prompt: string) => prompt.includes(requiredActionFieldList);
   // Enforce the full field list whenever a prompt contains an action-schema marker;
   // synthetic/non-contract prompt fragments must still retain their exact prefix.
-  const requiresCompleteActionSchema = isInvestigatorPrompt && /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(base);
+  const requiresCompleteActionSchema = isInvestigatorPrompt;
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
     && (!suppliedMemory || base.includes(suppliedMemory))
@@ -3806,22 +3806,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
     finalParts.push(fallbackOutputContract);
     appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
-    appendBudgeted(leadGuidance, 180, "[lead guidance omitted]");
-    appendBudgeted("PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures.", 220, "[PDF retrieval detail omitted]");
-    // The authoritative mission outranks auxiliary guidance and memory narration.
+    appendBudgeted(fallbackEvidenceContract, 1_200, "[review-lead qualification detail omitted]");
     appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
     appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
-    // Reserve the irreducible model/evidence contracts before optional context.
-    // Keep current source URLs and the latest observation ahead of memory narration.
-    const minimumInvestigatorEvidenceContract = "DISCOVERY LEAD HANDOFF CONTRACT: PARTIAL FINDINGS (not terminal-only): preserve source-backed leads as review-only person/company findings when relevant; Investigator selects, not every result. Keep exact name, stated role or null, and associated public HTTPS URL. B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible wealth potential; Other objectives use their own evidence criteria. No registry is preferred; choose by evidence. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim.";
-      "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads as review-only person/company findings when relevant; Investigator selects, not every result. B2B decision-makers need a fetched source binding current role, company connection and public/professional route; wealth targets need source-backed ownership/control/equity/investment and credible wealth potential; other objectives use their own criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Person search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Exact observed name, stated role or null, and public HTTPS URL.";
-    appendBudgeted(minimumInvestigatorEvidenceContract, 1_300, "[review-lead detail omitted]");
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
-    appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
     appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[older trajectory detail omitted]");
     appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
@@ -5334,7 +5326,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     return false;
   };
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
-    const requiredQualification = "Qualification follows the active objective: B2B needs fetched role/company and public route; wealth needs sourced ownership/equity/control; other objectives use their own criteria.";
+    const requiredQualification = "B2B decision-makers need a fetched source binding a current role, company connection and public/professional route";
     let repaired = prompt;
     const authoritativeAvailableActions = availableActions.length ? "AVAILABLE ACTIONS: " + availableActions.join(" | ") + "." : "";
     if (authoritativeAvailableActions) {
