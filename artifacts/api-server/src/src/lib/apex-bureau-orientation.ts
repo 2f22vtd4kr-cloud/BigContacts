@@ -94,7 +94,7 @@ export function apexInvestigatorSystemCore(): string {
     "TARGET: Apply only objective-required criteria. No extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link. Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority.",
     "TARGET RESEARCH: Verify objective-required role/relationship/materiality, counter-evidence and public/professional route before promotion.",
     "STOP: Defensible answer or justified blocker only.",
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
