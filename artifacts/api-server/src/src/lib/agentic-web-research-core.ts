@@ -1713,7 +1713,7 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 /** Give the model a minimal, action-specific correction without selecting its next research action. */
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
-  const rationaleContract = "HARD RULE: except action=done, top-level hypothesis/purpose must be non-empty strings and expectedInformationGain a finite number in [0,1]; never null these fields. Only done may use null for these three. Null unused fields only when irrelevant to the chosen action.";
+  const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings and expectedInformationGain a finite number in [0,1]; never null these fields. Only action=done may use null for these three. Null unused fields only when irrelevant to the chosen action.";
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 2–4 objects. Each item must include a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}], "provider":null, "locale":null, "market":null, and "purpose" (a string or null for that nested registry-search item). A missing, null, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Return exactly one JSON object and no prose.`;
@@ -5717,7 +5717,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; generic publishers need same-case evidence. One relevant sourced lead starts target research; no fixed sequence.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. One relevant sourced lead starts target research; no fixed sequence.",
           "DISCOVERY LEAD-INSPECTION GATE: inspect one observed in-scope lead before another search; failed/blocked fetch counts as an attempt.",
           "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected leads as review-only; never auto-promote.",
           blockedScopeMarker,
