@@ -5529,7 +5529,31 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactClause = (heading: string, replacement: string, following: string[]) => {
         const start = repaired.indexOf(heading);
         if (start < 0) return;
-        const boundaries = [...following, "OUTPUT CONTRACT:", "ALL REQUIRED TOP-LEVEL FIELDS:"]
+        // Never let compaction of a policy clause consume adjacent objective,
+        // geography, source, URL, capability or durable-observation sections.
+        const protectedMarkers = [
+          "<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>",
+          "CASE OBJECTIVE:",
+          "ACTIVE BOSS SCOPE:",
+          "ACTIVE SCOPE CONSTRAINT:",
+          "ACTIVE BOSS-DIRECTED QUESTION:",
+          "BOSS-DIRECTED RESEARCH QUESTION",
+          "AVAILABLE ACTIONS:",
+          "VALID PROVIDERS:",
+          "Conditional specialist OSINT actions:",
+          "DISCOVERY LEAD HANDOFF CONTRACT:",
+          "PAGE FORMAT / RETRIEVAL LIMITS:",
+          "LATEST OBSERVATION",
+          "LATEST TRAJECTORY RECORD",
+          "LAST SUCCESSFUL FETCHED SOURCE",
+          "LAST SUCCESSFUL FETCHED SOURCE CLAIM",
+          "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS",
+          "EXACT DURABLE URL INVENTORY",
+          "PINNED DURABLE URL INVENTORY",
+          "OUTPUT CONTRACT:",
+          "ALL REQUIRED TOP-LEVEL FIELDS:",
+        ];
+        const boundaries = [...following, ...protectedMarkers]
           .map((marker) => repaired.indexOf(marker, start + heading.length))
           .filter((index) => index > start);
         const end = boundaries.length ? Math.min(...boundaries) : repaired.length;
