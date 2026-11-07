@@ -5717,14 +5717,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/Boss scope govern. Names only from brief or same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; generic publisher homepage needs a same-case evidence link. One source-backed relevant lead starts target research. No fixed action sequence.",
-          "DISCOVERY LEAD-INSPECTION GATE: inspect one observed unvisited in-scope lead before another discovery search; failed/blocked fetch counts as an attempt.",
-          "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected person/company leads as review-only; never auto-promote.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no target implied; objective/scope govern. Names only from brief/same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to required entity, role, relationship or materiality; generic publishers need same-case evidence. One relevant sourced lead starts target research; no fixed sequence.",
+          "DISCOVERY LEAD-INSPECTION GATE: inspect one observed in-scope lead before another search; failed/blocked fetch counts as an attempt.",
+          "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected leads as review-only; never auto-promote.",
           blockedScopeMarker,
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain, with no fixed action sequence.",
         ]),
-        "Conditional specialist OSINT actions are available only when explicitly allowlisted for this turn.",
+        "Specialist OSINT actions: allowlist only.",
       ].filter(Boolean).join(" ");
       const finalEmergencyObjective = [
         authoritativeCaseObjective,
