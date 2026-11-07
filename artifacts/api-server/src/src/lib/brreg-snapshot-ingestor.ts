@@ -284,7 +284,7 @@ function entitySourceId(entity: { name: string; metadata: string | null }): stri
     ? metadata.organizationNumber
     : typeof metadata.orgnr === "string" ? metadata.orgnr : null;
   if (!orgnr) return null;
-  if (metadata.role || metadata.roleOriginal) {
+  if (metadata.role || metadata.roleOriginal || metadata.roleCode || metadata.roleDesc || metadata.groupCode) {
     return "brreg:" + orgnr + ":person:" + normalizedName(entity.name);
   }
   return "brreg:" + orgnr;
