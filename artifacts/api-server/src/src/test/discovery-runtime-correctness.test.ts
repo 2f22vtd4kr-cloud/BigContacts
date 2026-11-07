@@ -645,12 +645,17 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
-  it("defaults canonical Atlas to one target across launch paths", () => {
+  it("defaults canonical Atlas to one target and the same human objective across launch paths", () => {
     expect(launchDefaultsSource).toContain("targetCount: 1");
     expect(launchDefaultsSource).toContain("researchLimit: 1");
     expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
     expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
     expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
+    expect(launchUiSource).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    expect(launchDefaultsSource).toContain("Identify real operating companies and their current business decision-makers for B2B prospecting.");
+    expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).not.toContain("Discover lesser-known people with credible wealth potential");
   });
 
   it("enforces immediate target handoff before any further discovery or pivot", () => {
