@@ -3330,8 +3330,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumRelevanceMarker = isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality; generic publishers need a same-case link. One relevant company is a valid partial result; no fixed action sequence." : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; preserve sector/jurisdiction, e.g. casinos in Slovenia; no extra wealth/ownership criteria unless required." : "";
   const minimumOrganizationTargetabilityMarker = isDiscoveryPrompt ? "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact." : "";
-    ? "DISCOVERY TARGETABILITY / REALISM: objective/scope set target class. No incidental celebrities, inferred access or blacklist. One source-backed relevant lead starts target research; no extra wealth/ownership criteria unless required."
-    : "";
   const protectedRuleCandidates = [
     "Press/profile pages may support review leads; they are not contact routes unless they publish a legitimate professional contact path.",
     "Target research independently corroborates/falsifies objective-required claims and verifies relevant public/professional routes before qualification.",
