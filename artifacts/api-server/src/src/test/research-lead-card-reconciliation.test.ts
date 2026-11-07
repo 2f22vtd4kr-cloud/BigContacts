@@ -244,10 +244,10 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the default discovery objective broad across people, companies and professional mediators", () => {
-    expect(launchDefaults).toContain("Discover a broad, evidence-led pool of real people and entities");
-    expect(launchDefaults).toContain("HNWI status is additional, not required");
-    expect(launchDefaults).toContain("notaries, geometri, architects, engineers");
+  it("keeps the wealth-first default objective and the company-to-owner research bridge", () => {
+    expect(launchDefaults).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
+    expect(launchDefaults).toContain("A person is the ultimate investor-identification goal.");
+    expect(launchDefaults).toContain("Companies are leads and may be selected for target-scoped research to identify owners");
     expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
