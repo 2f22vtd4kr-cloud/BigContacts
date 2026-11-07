@@ -47,7 +47,7 @@ const checks = [
     return Boolean(uiObjective)
       && uiObjective.includes("Discover lesser-known people with credible wealth potential and public/professional routes.")
       && uiObjective.length <= 1_202
-      && uiObjective.includes("Use only human-specified geography")
+      && uiObjective.includes("use only human-specified geography")
       && apiObjective === uiObjective
       && launchDefaults.includes("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
       && canonicalDiscovery.includes("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
