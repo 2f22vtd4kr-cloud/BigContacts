@@ -5169,7 +5169,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const raw = typeof latestSuccessfulFetchRecord.observation === "string"
             ? latestSuccessfulFetchRecord.observation.replaceAll("  ", " ").trim()
           : "";
-        const tail = raw.slice(-320);
+        const tail = raw.slice(-180);
         return tail
           ? "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording): " + tail
           : "";
