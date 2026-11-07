@@ -4919,7 +4919,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + input.targetName;
   const emergencyAssignment = input.mode === "discovery"
-    ? assignment
+    ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link. No fixed action sequence."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -5297,6 +5297,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   };
   const latestRecordTail = buildLatestRecordTail(520, 3);
   const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
+  const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
     const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
@@ -5354,9 +5355,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         repaired = [repaired.trim(), claimBlock].filter(Boolean).join("\n\n");
       }
     }
-    const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
+
     const hasCompleteSchema = (value: string) =>
-      /OUTPUT CONTRACT:[\s\S]{0,240}ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider,/.test(value)
+      value.includes("OUTPUT CONTRACT:")
       && value.includes(requiredFieldList);
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
@@ -5404,7 +5405,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
       : "";
     const hasRequiredPromptContract =
-      /OUTPUT CONTRACT:[\s\S]{0,240}ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider,/.test(normalizedBase);
+      normalizedBase.includes("OUTPUT CONTRACT:")
+      && normalizedBase.includes(requiredFieldList);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
@@ -5658,12 +5660,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission/falsification laws remain non-discardable.
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no person or entity target is implied. Follow the active case objective and Boss-approved scope; target-specific names must come from the human brief or same-case observations, never model memory.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no target is implied; follow the human objective and Boss-approved scope. Names come only from the brief or same-case observations. MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie queries/sources to required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No fixed action sequence.",
         ] : [
-          "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions from AVAILABLE ACTIONS by evidence and information gain, with no fixed action sequence.",
+          "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain, with no fixed action sequence.",
         ]),
-        "Conditional specialist OSINT actions are permitted ONLY when the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.",
-        "DISCOVERY LEAD HANDOFF CONTRACT / PARTIAL FINDINGS (not terminal-only): preserve relevant model-selected source-backed leads as company/person review leads on the action that reveals them; use the exact observed name and associated public HTTPS URL; a person's role may be null when unknown. A review lead is not proof of wealth, ownership, identity or contact. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority. After a successful visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched source span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion; it matches the admitted target type (person, organization, trust, or asset) and independently corroborates/falsifies the lead. SCOPE GUARD BLOCKED ACTION is a control state, not negative evidence; explain any material deviation; failure is not disproof. RUNTIME-AVAILABLE REGISTRY IDS ONLY (RUNTIME-CALLABLE REGISTRY IDS): never invent an ID based on a jurisdiction; unavailable/failed is not a no-hit. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction; password-protected and malformed PDFs are distinct failures; scanned/image-only PDFs require OCR (unavailable). LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when useful; action choice remains with the Investigator. RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; do not claim done unless the gate passes.",
+        "Conditional specialist OSINT actions are available only when explicitly allowlisted for this turn.",
+        "DISCOVERY LEAD HANDOFF CONTRACT / PARTIAL FINDINGS (not terminal-only): preserve relevant model-selected company/person leads as review-only findings when observed; retain exact name, stated role or null, and associated public HTTPS URL. Review leads do not prove identity, ownership, wealth or contact and are never auto-promoted. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own criteria; never infer wealth from seniority. After visit/browser_fetch, bind sourceUrls=[that fetched URL only] and claims to its exact source span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
       ].join(" ");
       const finalEmergencyObjective = [
         authoritativeCaseObjective,
