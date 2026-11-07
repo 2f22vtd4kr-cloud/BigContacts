@@ -3799,6 +3799,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : compactPromptSectionPreservingUrlTokens(value, budget, omission);
       if (selected && selected.length <= budget) finalParts.push(selected);
     };
+    if (fallbackOutputContract.length > limit) {
+      throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
+    }
+    finalParts.push(fallbackOutputContract);
+
     appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
     appendBudgeted(minimumScopeContext, 300, "[scope detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 420, "[additional runtime actions omitted]");
@@ -4942,9 +4947,18 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const emergencyWorkerCapabilityGuidance = emergencyHasSpecialistAction
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; match an attested capability to a grounded public identifier; never invent identifiers; worker outputs are leads, not proof."
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
-  const compactEmergencyDiscoveryContract = input.mode === "discovery"
-    ? "MISSION PRIORITY: human objective and active Boss scope govern; preserve topic/geography; never broaden. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete evidence hypothesis, not a descriptor query. SOURCE-NEUTRAL MIXED TARGET DISCOVERY: choose relevant people, companies or assets from enabled registry/public web; no registry first. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required. Qualification follows the active objective: B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible potential; other objectives use their own evidence criteria. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact. DISCOVERY LEAD-INSPECTION GATE: inspect one in-scope URL before another search; failed/blocked fetch counts as an attempt. PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned PDF OCR is unavailable; encrypted and malformed PDFs differ."
-    : "";
+  const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
+    "MISSION PRIORITY: human objective and active Boss scope govern; preserve topic/geography; never broaden.",
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete evidence hypothesis, not a descriptor query.",
+    "DISCOVERY TARGETABILITY / REALISM: SOURCE-NEUTRAL MIXED TARGET DISCOVERY chooses relevant people, companies or assets from enabled registry/public web; no registry-first sequence. No registry is preferred; choose by evidence. One source-backed relevant lead starts target research; one relevant company is a valid partial result. Preserve sector and jurisdiction, e.g. casinos in Slovenia; wealth only when required.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant source-backed people/company leads as review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL; no fetch/ownership proof is required.",
+    "Qualification follows the active objective: B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible potential; other objectives use their own evidence criteria.",
+    "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+    "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.",
+    "DISCOVERY LEAD-INSPECTION GATE: inspect one in-scope URL before another search; failed/blocked fetch counts as an attempt.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned PDF OCR is unavailable; encrypted and malformed PDFs differ."
+  ] : [];
+  const compactEmergencyDiscoveryContract = compactEmergencyDiscoveryContractParts.join(" ");;
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. A generic publisher homepage needs a same-case evidence link. No fixed action sequence. " + compactEmergencyDiscoveryContract + " " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
@@ -5684,6 +5698,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Drop advisory/auxiliary material before falling back to a minimal prompt.
       const emergencyPrefix = [
         emergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         authoritativeCaseObjective,
         activeBossScopeSection,
         researchContract,
@@ -5741,6 +5756,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // the same policy in several overlapping emergency sections.
       const minimalEmergencyPrefix = [
         emergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         authoritativeCaseObjective,
         activeBossScopeSection,
         compactActionLiveness,
@@ -5779,6 +5795,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures.",
           ...((latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0) || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0 ? ["LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched."] : []),
           blockedScopeMarker,
+        ...compactEmergencyDiscoveryContractParts,
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions by evidence and information gain. No fixed action sequence.",
         ]),
@@ -6052,6 +6069,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const absoluteMinimumTerminalContract = "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         absoluteMinimumObjective,
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
@@ -6081,6 +6099,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const basePromptBudget = Math.max(700, maxUserPromptChars - emergencyObservationReserveChars - 2);
       const compactAbsoluteMinimumBaseParts = [
         finalEmergencyAssignment,
+        ...compactEmergencyDiscoveryContractParts,
         absoluteMinimumObjective,
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
