@@ -146,6 +146,64 @@ describe("Atlas control-plane lead continuity", () => {
     expect(omitted).not.toContain(oversizedUrl.slice(0, 110));
   });
 
+  it("keeps mandatory lead counts and one exact unfetched URL in the Right-hand prompt", () => {
+    const urls = [
+      "https://www.crunchbase.com/hub/information-technology-companies-less-than-500m-in-revenue",
+      "https://www.inc.com/inc5000",
+      "https://www.cbinsights.com/research-unicorn-companies",
+      "https://blog.equityzen.com/the-next-list-emerging-private-companies",
+      "https://en.wikipedia.org/wiki/List_of_unicorn_startup_companies",
+      "https://foundercollective.medium.com/50-big-companies-that-started-with-little-or-no-money-4ef1b68aac25",
+    ];
+    const pinnedControlState = buildAtlasPinnedControlState({
+      activeScope: "Find source-backed private technology company leads.",
+      leadInventory: {
+        searchResultLeadUrlCount: urls.length,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: urls.length - 1,
+        failedLeadUrlCount: 1,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: urls.filter((url) => url !== urls[1]),
+        failedLeadUrls: [{
+          url: urls[1],
+          action: "visit",
+          execution: "http_error",
+          failureDomain: "external_page_fetch",
+          failureKind: "http_error",
+        }],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(JSON.stringify({
+        provider: "groq-investigator-1",
+        status: "completed",
+        searches: 1,
+        visits: 1,
+        findings: [],
+        modelFindings: [],
+        openQuestions: [{
+          turn: 3,
+          action: "visit",
+          execution: "http_error",
+          observation: "HTTP 403 from one search-result lead.",
+          observedUrls: [],
+          unfetchedLeadUrls: urls.filter((url) => url !== urls[1]),
+          failureDomain: "external_page_fetch",
+          failureKind: "http_error",
+        }],
+      })),
+      compactState: "Five search-result leads remain unfetched; one page returned HTTP 403.",
+      pinnedControlState,
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
+    expect(prompt).toContain(urls[0]);
+  });
+
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
