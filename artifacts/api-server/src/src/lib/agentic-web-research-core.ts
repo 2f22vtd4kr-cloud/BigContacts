@@ -3164,9 +3164,25 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const discoveryContractRequested = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
   const hasSemanticInvestigatorContract = (prompt: string): boolean => {
     if (!requiresCompleteActionSchema) return true;
-    const common = hasCompleteActionSchema(prompt) && /OUTPUT CONTRACT:/.test(prompt) && /AVAILABLE ACTIONS:/.test(prompt) && /VALID PROVIDERS:/.test(prompt) && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt) && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt) && /RESEARCH TERMINAL GATE/.test(prompt);
+    const common = hasCompleteActionSchema(prompt)
+      && /OUTPUT CONTRACT:/.test(prompt)
+      && /AVAILABLE ACTIONS:/.test(prompt)
+      && /VALID PROVIDERS:/.test(prompt)
+      && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt)
+      && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt)
+      && prompt.includes("visit supports bounded text extraction")
+      && /RESEARCH TERMINAL GATE/.test(prompt);
     if (!common || !discoveryContractRequested) return common;
-    return prompt.includes("DISCOVERY SEARCH ECONOMY") && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT") && prompt.includes("PARTIAL FINDINGS") && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK");
+    return prompt.includes("DISCOVERY SEARCH ECONOMY")
+      && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT")
+      && prompt.includes("PARTIAL FINDINGS")
+      && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK")
+      && prompt.includes("No fixed action sequence.")
+      && prompt.includes("No registry is preferred; choose by evidence.")
+      && prompt.includes("generic publisher homepage")
+      && prompt.includes("Other objectives use their own evidence criteria")
+      && prompt.includes("source class may vary by query")
+      && (!hasSearchLeadContext || prompt.includes("consider inspecting a promising in-scope lead URL next"));
   };
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
