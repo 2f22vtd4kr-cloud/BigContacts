@@ -81,6 +81,8 @@ export interface FaaIngestionResult {
   errors: number;
   durationMs: number;
   candidateEntitiesInserted: number;
+  processedRows: number;
+  registrantGroupsProcessed: number;
 }
 
 export type FaaBatchRow = { asset: InsertAsset | null; entity: InsertEntity | null };
@@ -673,6 +675,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   const pendingDedup: string[] = [];
   let candidateEntitiesInserted = 0;
   let processedRows = 0;
+  const registrantGroupKeys = new Set<string>();
 
   for await (const line of rl) {
     lineNum++;
@@ -739,6 +742,10 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       country,
       lastActivityDate,
     });
+    if (entity) {
+      const groupKey = faaRegistrantEntityKey(entity);
+      if (groupKey) registrantGroupKeys.add(groupKey);
+    }
     const asset = assetSignal.strength === "observed_asset_lead"
       ? null
       : buildFaaAircraftAsset({
@@ -803,7 +810,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   await appendJobLog(
     jobId,
-    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} aircraft assets inserted, ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
+    \`🏁 FAA ingestion complete: \${processedRows.toLocaleString()} registration rows processed across \${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; \${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; \${inserted.toLocaleString()} material/strong aircraft assets inserted; \${skipped.toLocaleString()} skipped (dedup); \${errors} errors.\`,
   );
 
   return {
@@ -812,5 +819,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     errors,
     durationMs: Date.now() - startTime,
     candidateEntitiesInserted,
+    processedRows,
+    registrantGroupsProcessed: registrantGroupKeys.size,
   };
 }
