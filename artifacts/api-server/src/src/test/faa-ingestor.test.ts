@@ -211,6 +211,7 @@ describe("FAA ingestion scope", () => {
   it("does not discard ordinary aircraft before creating the FAA registrant candidate", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).not.toContain('if (assetSignal.strength === "observed_asset_lead") continue;');
+    expect(source).toContain('if (typeReg !== "1") continue;');
     expect(source).toContain('assetSignal.strength === "observed_asset_lead"');
     expect(source).toContain('asset: asset ? { ...asset, identifier: tailNumber } : null');
   });
