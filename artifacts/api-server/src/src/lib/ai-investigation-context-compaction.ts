@@ -270,8 +270,8 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
  */
 function recoverableCompactionModelThrottle(error: string | null): boolean {
   const diagnostic = error ?? "";
-  const shortWindowText = /tokens per minute|\\bTPM\\b|model.{0,40}rate.?limit/i.test(diagnostic);
-  const dailyText = /tokens per day|\\bTPD\\b|daily token quota/i.test(diagnostic);
+  const shortWindowText = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
+  const dailyText = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
   if (dailyText) return false;
 
   // Right-hand deliberately redacts provider prose. Its bounded attempt
@@ -279,7 +279,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
   // structured record rather than depending on the redacted "TPM" message.
   // Errors can contain several JSON records separated by " | ".
   const records: Array<Record<string, unknown>> = [];
-  for (const segment of diagnostic.split(/\\s+\\|\\s+/u)) {
+  for (const segment of diagnostic.split(/\s+\|\s+/u)) {
     const jsonStart = segment.indexOf("{");
     if (jsonStart < 0) continue;
     try {
@@ -299,7 +299,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
     if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
       return numericSeconds * 1_000 <= 60 * 60 * 1_000;
     }
-    const match = raw.match(/^(?:(\\d+(?:\\.\\d+)?)h)?(?:(\\d+(?:\\.\\d+)?)m)?(?:(\\d+(?:\\.\\d+)?)s)?$/i);
+    const match = raw.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
     if (!match) return false;
     const milliseconds = (Number(match[1] ?? 0) * 3_600
       + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000;
@@ -313,7 +313,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
       : {};
     const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
     const explicitDailySignal = quotaSignals.some((signal) =>
-      typeof signal === "string" && /tokens?[_\\s-]*per[_\\s-]*day|\\bTPD\\b|daily/i.test(signal));
+      typeof signal === "string" && /tokens?[_\s-]*per[_\s-]*day|\bTPD\b|daily/i.test(signal));
     if (explicitDailySignal) return false;
 
     const headers = record.rateLimitHeaders && typeof record.rateLimitHeaders === "object"
@@ -326,7 +326,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
       && retryAfterMs > 0 && retryAfterMs <= 60 * 60 * 1_000);
   });
 
-  const classifiedModelThrottle = /"rateLimitKind"\\s*:\\s*"(?:tokens|model)"/i.test(diagnostic);
+  const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
   // Older safe diagnostics may carry only the classifier field plus an
   // explicit short-window message. Structured reset metadata is preferred.
   const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
