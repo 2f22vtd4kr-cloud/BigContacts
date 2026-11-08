@@ -222,6 +222,47 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
   });
 
+  it("does not treat open questions about possible fetched evidence as retrieval assertions", async () => {
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "web_search", execution: "success", leadUrls: ["https://company.example/profile"] }),
+      "No visit or browser_fetch action has succeeded.",
+      "BACKGROUND: " + "The next model should preserve unresolved provenance questions. ".repeat(25),
+    ].join("\n");
+    const summary = [
+      "Does a fetched visit establish the person's current role?",
+      "Is that confirmed by a fetched page?",
+      "Would the ownership claim be supported as shown on a fetched professional source?",
+    ].join(" ");
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-120b",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("still rejects an affirmative fetch assertion following an open provenance question", async () => {
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "web_search", execution: "success", leadUrls: ["https://company.example/profile"] }),
+      "No visit or browser_fetch action has succeeded.",
+      "BACKGROUND: " + "The source-stage distinction must remain strict. ".repeat(25),
+    ].join("\n");
+    const unsupported = "Does a fetched visit confirm the role? The fetched professional profile identifies the current director.";
+    const corrected = "The possible professional profile remains an unverified search lead; no page was fetched.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("REPAIR REQUIRED");
+  });
+
   it("allows fetched-page language only when the trajectory records a successful fetch action", async () => {
     const sourceUrl = "https://company.example/about/leadership";
     const source = [
