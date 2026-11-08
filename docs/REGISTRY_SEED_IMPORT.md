@@ -44,9 +44,9 @@ The `maxRecords` value is a **per-run insertion cap**. If a run inserts exactly 
 
 ## Close-to-principal and professional intermediary seeds
 
-The same explicit endpoint also imports `data/registry-seeds/proximal_intermediaries_2026-11-08.csv` unless `includeIntermediaries:false` is supplied. The snapshot currently contains 28 source-backed records: 23 public professional people and 5 organization/service cards across Oslo Family Office, OFO Services AS, OFO AG, Canica and the DNB Private Banking service route.
+The same explicit endpoint also imports `data/registry-seeds/proximal_intermediaries_2026-11-08.csv` unless `includeIntermediaries:false` is supplied. The snapshot currently contains 43 source-backed records: 38 public professional people and 5 organization/service cards (30 Gatekeeper/intermediary people and 8 PersonCandidate professional targets) across Oslo Family Office, OFO Services AS, OFO AG, Canica and the DNB Private Banking service route.
 
-- Executive/personal assistants, secretaries, office managers, family-office partners and advisers, legal/transactions/technology/family-security specialists are retained as `Gatekeeper` entities. They are not filtered out because they are not HNWIs.
+- Executive/personal assistants, secretaries, office managers, family-office partners and advisers, legal/transactions/technology/family-security specialists are retained as `Gatekeeper` entities. Canica's publicly listed CEO/CFO/COO/director/investment leadership are separate review-only `PersonCandidate` entities, not presumed HNWIs. They are not filtered out because they are not HNWIs.
 - Person-specific professional work email/phone is stored only when the official team page publishes it. These remain `direct_contact_candidate`, not verified private contacts. Where no person-specific contact is published, the person remains `evidence_only`; generic office routes are never copied to the person.
 - Organization/service routes remain on their organization/service cards with `organization_contact`. DNB Private Banking is represented as a service-line route, not a separate legal entity.
 - Officially listed people are linked to the relevant organization with `MEMBER_OF`. This records a published professional affiliation, not a relationship to a named client/principal, beneficial ownership, or authority to act for any third party.
