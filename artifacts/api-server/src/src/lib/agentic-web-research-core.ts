@@ -3524,7 +3524,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): " + registryIds.trim() + "."
     : base.match(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY:[^\n]*/)?.[0] ?? "";
   const minimumRegistryEvidenceRule = isInvestigatorPrompt
-    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Assume owners, shareholders, members or managers only with observed documentation."
+    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
     : "";
       const minimumBinaryUrlRule = isInvestigatorPrompt
     ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
@@ -3542,7 +3542,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackOutputContract = isInvestigatorPrompt
     ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence; Investigator chooses. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. " + (isDiscoveryPrompt ? "Discovery: one search query per action; parallel searches unavailable." : "Parallel web/registry searches require 2–4 distinct query objects.") + " Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
     : "";
-  const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; retain exact observed name, stated role or null, and public HTTPS URL. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not claim-grade evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
+  const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; retain exact observed name, stated role or null, and public HTTPS URL. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets remain leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
@@ -3677,7 +3677,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumAvailableActionsSection = availableActionsSection;
   // Emergency discovery compaction must preserve approved geography; do not broaden geography.
   const minimumDiscoveryContract = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied; Investigator chooses. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a concrete, falsifiable public-evidence hypothesis; other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; no name blacklist. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed fetch counts as an attempt. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. " + (hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action. " : "") + "DISCOVERY LEAD HANDOFF CONTRACT: select exact-name people/company review-only leads, not every result; snippets/URLs are leads, not evidence."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: signal categories, not query/target/source/provider/jurisdiction/action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY / REALISM: no name blacklist; One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: two searches max; one query/action; no fan-out. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads review-only; snippets/URLs are leads, not evidence. SEARCH: market only if country in objective/scope; locale=language."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
@@ -3886,7 +3886,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const finalParts: string[] = [];
     // Reserve room for the final provider-boundary pass, which restores exact
     // source, qualification and discovery markers after this semantic projection.
-    const finalAssemblyBudget = Math.max(1_000, limit - 700);
+    // Leave the same 900-character reserve used by the preceding tier for
+    // provider-boundary rehydration of source, qualification and schema clauses.
+    const finalAssemblyBudget = Math.max(1_000, limit - 900);
     const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
       const value = raw.trim();
@@ -3931,7 +3933,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. The Investigator chooses.",
+        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. Target-specific names must come from the human brief or same-case observations, never model memory.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; one source-backed relevant lead starts target research. Source class may vary by query.",
         "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Example: casinos in Slovenia. Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link.",
@@ -5744,7 +5746,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const requiredFinalMarkers = [
       "PARTIAL FINDINGS (not terminal-only)",
       "source-backed leads",
-      "Search snippets are leads, not claim-grade evidence",
+      "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
       ...(input.mode === "discovery" && requiredQualification ? [requiredQualification] : []),
       "visit supports bounded text extraction",
@@ -5780,7 +5782,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !finalProjection.includes(marker));
     const recoveryText = missingFinalMarkers.map((marker) => {
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
-      if (marker === "Search snippets are leads, not claim-grade evidence") return marker + "; failed fetches are unobserved.";
+      if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === "Qualification follows the active objective") return marker + ".";
       if (marker === "visit supports bounded text extraction") return "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Do not retry the same binary URL through the other fetch action.";
       if (marker === "do not retry the same binary URL through the other fetch action") return marker + ".";
