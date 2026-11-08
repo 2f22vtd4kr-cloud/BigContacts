@@ -21,15 +21,19 @@ describe("versioned BRREG seed snapshot", () => {
     const rows = parseRegistryCsv(readFileSync(resolve(dataDir, "proximal_intermediaries_2026-11-08.csv"), "utf8"));
     const organizations = rows.filter((row) => row.record_type === "organization");
     const people = rows.filter((row) => row.record_type === "person");
-    expect(rows).toHaveLength(28);
+    expect(rows).toHaveLength(43);
     expect(organizations).toHaveLength(5);
-    expect(people).toHaveLength(23);
-    expect(people.every((row) => row.entity_type === "Gatekeeper")).toBe(true);
+    expect(people).toHaveLength(38);
+    expect(people.filter((row) => row.entity_type === "Gatekeeper")).toHaveLength(30);
+    expect(people.filter((row) => row.entity_type === "PersonCandidate")).toHaveLength(8);
+    expect(people.every((row) => Boolean(row.organization_source_record_id))).toBe(true);
     expect(people.every((row) => !row.organization_email && !row.organization_phone)).toBe(true);
     expect(people.some((row) => row.role.includes("Executive Personal Assistant"))).toBe(true);
     expect(people.some((row) => row.role.includes("Secretary / Personal Assistant"))).toBe(true);
     expect(people.some((row) => row.role.includes("Senior Executive Assistant to the CEO"))).toBe(true);
     expect(people.some((row) => row.professional_email === "frida@oslofamilyoffice.com")).toBe(true);
+    expect(people.some((row) => row.role === "CEO, Canica Norway" && row.entity_type === "PersonCandidate")).toBe(true);
+    expect(people.some((row) => row.role === "Office Manager, Canica Switzerland" && row.entity_type === "Gatekeeper")).toBe(true);
     expect(rows.every((row) => row.source_url.startsWith("https://"))).toBe(true);
   });
 
