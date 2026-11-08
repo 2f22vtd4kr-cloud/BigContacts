@@ -307,7 +307,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
   };
 
   const hasStructuredShortWindow = records.some((record) => {
-    if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429) return false;
+    if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429 || record.dailyTokenQuota === true) return false;
     const body = record.body && typeof record.body === "object" && !Array.isArray(record.body)
       ? record.body as Record<string, unknown>
       : {};
