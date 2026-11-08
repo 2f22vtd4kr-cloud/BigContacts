@@ -9,6 +9,7 @@ import { APEX_BUREAU_PLAYBOOK } from "./apex-bureau-playbook";
 export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-05.1";
 
 export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings, valuation, prestige or size alone do not qualify a company or prove investor capacity. Ranking-only mentions are leads, not qualified targets. Favor operating private/mid-market firms with evidenced objective fit, identifiable decision-makers and practical public/professional routes; verify capital/control only when the objective requires it.";
+export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings, valuation, prestige or size alone do not qualify companies or prove investor capacity; ranking-only mentions are leads, not qualified targets. Favor operating private/mid-market firms with evidenced fit, decision-makers and practical routes; verify capital only when required.";
 
 export const APEX_WHAT_IS_ATLAS = `APEX ATLAS is an AI-driven investigatory bureau (product: Apex Atlas / BigContacts desk).
 It is not a generic chatbot and not a fixed search script.
