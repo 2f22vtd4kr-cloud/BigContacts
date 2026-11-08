@@ -225,12 +225,17 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   const {
     maxRecords = 100_000,
     forceRefresh = false,
+    validateNamesWithLlm = false,
     clearDedup: doClean = false,
     force = false,
-  } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
+  } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; validateNamesWithLlm?: boolean; clearDedup?: boolean; force?: boolean };
 
   // A complete current FAA pass can exceed 100k qualifying aircraft; keep the operator bound explicit.
   const safeMax = Math.min(Math.max(Number(maxRecords) || 100_000, 100), 200_000);
+  if (validateNamesWithLlm && safeMax > 1_000) {
+    res.status(400).json({ error: "Groq name validation is limited to 1,000 rows per job. Use structural-only validation for bulk FAA ingestion." });
+    return;
+  }
 
   if (!force) {
     const existingJobId = await getActiveJob("faa");
@@ -251,7 +256,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   (async () => {
     try {
       await updateJob(jobId, { status: "running", total: safeMax, message: "Starting FAA ingestion…" });
-      const result = await runFaaIngestion({ jobId, maxRecords: safeMax, forceRefresh });
+      const result = await runFaaIngestion({ jobId, maxRecords: safeMax, forceRefresh, validateNamesWithLlm });
       await updateJob(jobId, {
         status: "done",
         progress: 100,
@@ -259,7 +264,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.processedRows.toLocaleString()} eligible individual registration rows processed across ${result.registrantGroupsProcessed.toLocaleString()} distinct registrant groups; ${result.candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${result.inserted.toLocaleString()} material/strong aircraft assets inserted. FAA registration does not establish beneficial ownership or personal wealth.`,
+        message: `Done — ${result.processedRows.toLocaleString()} eligible individual registration rows processed across ${result.registrantGroupsProcessed.toLocaleString()} distinct registrant groups; ${result.candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${result.inserted.toLocaleString()} material/strong aircraft assets inserted; name validation=${result.nameValidationMode}. FAA registration does not establish beneficial ownership or personal wealth.`,
         result: JSON.stringify(result),
       });
     } catch (err: any) {
