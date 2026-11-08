@@ -297,7 +297,7 @@ export function buildApexIntermediaryEntity(row: CsvRecord): InsertEntity {
   const city = clean(row.city) || null;
   const website = clean(row.official_website) || null;
   const sourceDomain = (() => {
-    try { return new URL(sourceUrl).hostname.replace(/^www\\./, "").toLowerCase(); }
+    try { return new URL(sourceUrl).hostname.replace(/^www\./, "").toLowerCase(); }
     catch { return null; }
   })();
   const metadata = {
