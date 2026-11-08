@@ -77,3 +77,19 @@ The import is idempotent by stable `sourceRecordId` values and `MEMBER_OF` relat
 ## Validation boundary
 
 A successful import job and its inserted/skipped counts prove database seeding only. They do not prove identity resolution, wealth, beneficial ownership, personal contactability, research quality, or live release acceptance. Reconcile the durable job result and database counts before claiming the seed is present in a specific Replit database.
+
+
+## Official FAA snapshot committed to BigContacts (2026-11-08)
+
+The official FAA ZIP was successfully downloaded and parsed by GitHub Actions on 2026-11-08. The sanitized snapshot committed under `data/registry-seeds/` contains:
+
+- 99,783 distinct public individual registrant groups (normalized published name + state + country; not identity-verified unique humans).
+- 124,674 current/pending individual-registrant aircraft rows.
+- 318,638 MASTER rows scanned.
+- Archive SHA-256: `01cd75d88d3ac779e01262fd329c6f4e848d86acacf1df673ff279deffae1fdd`.
+
+The files are `faa_individual_registrants.csv`, `faa_aircraft_registrations.csv`, `faa_sanitized_MASTER.txt`, and `faa_extraction_manifest.json`. The sanitized MASTER file retains only the public registrant name, registrant type, aircraft identifiers/model/type, dates and registration fields needed by the Apex importer; personal mailing-address and co-registrant columns are blank.
+
+The canonical FAA importer now prefers the official ZIP when available and falls back to `data/registry-seeds/faa_sanitized_MASTER.txt` if the runtime cannot resolve the FAA archive host. This makes the committed extraction usable in Replit without a second outbound download. The explicit operator endpoint remains `POST /api/ingest/faa` with `{"maxRecords":200000}`; poll its job until terminal state and reconcile inserted assets, registrant entities, skipped rows and errors. A successful extraction is not a completed database import.
+
+The FAA source does not supply employer/company affiliations. Do not infer them from registrant names. Company descriptions must be separately researched from authoritative public sources and shown directly on linked person/company cards.
