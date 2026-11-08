@@ -461,7 +461,7 @@ export type GroqBossDiscoveryInput = {
 
 const openingCapabilitySelectionOrientation = [
   "APEX ATLAS BOSS — OPENING CAPABILITY SELECTION",
-  "MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK (opening-call summary; the Investigator owns research execution).",
+  "MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK (opening-call summary; the Investigator owns research execution). This is guidance, not a workflow engine.",
   "Follow the exact human objective and Boss-approved scope; do not impose wealth, ownership, sector or geography requirements the objective did not request.",
   "Boss cannot browse or execute research tools. This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.",
   "Select only from the supplied available capabilities and never select an excluded or unavailable capability.",
