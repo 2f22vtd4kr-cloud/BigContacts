@@ -672,10 +672,11 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   const batchRows: FaaBatchRow[] = [];
   const pendingDedup: string[] = [];
   let candidateEntitiesInserted = 0;
+  let processedRows = 0;
 
   for await (const line of rl) {
     lineNum++;
-    if (inserted + batchRows.length >= maxRecords) break;
+    if (processedRows >= maxRecords) break;
 
     if (lineNum - lastProgressLine >= 5_000) {
       lastProgressLine = lineNum;
@@ -683,7 +684,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
         ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
         : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
       await updateJob(jobId, {
-        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${inserted.toLocaleString()} aircraft assets seeded…`,
+        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${processedRows.toLocaleString()} new registrant rows processed; ${candidateEntitiesInserted.toLocaleString()} registrants and ${inserted.toLocaleString()} assets inserted…`,
         progress: pct,
         inserted,
       });
@@ -721,6 +722,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
+    processedRows++;
 
     const tailNumber = nNumber.startsWith("N") ? nNumber : `N${nNumber}`;
     const entity = buildFaaRegistrantEntity({
