@@ -119,6 +119,28 @@ def main() -> None:
 
     people_path = out / "faa_individual_registrants.csv"
     aircraft_path = out / "faa_aircraft_registrations.csv"
+    sanitized_master_path = out / "faa_sanitized_MASTER.txt"
+    with sanitized_master_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        for item in aircraft_rows:
+            row = [""] * 34
+            row[0] = item["n_number"].removeprefix("N")
+            row[1] = item["serial_number"]
+            row[2] = item["manufacturer_model_code"]
+            row[3] = item["engine_model_code"]
+            row[4] = item["year_manufactured"]
+            row[5] = item["registrant_type_code"]
+            row[6] = item["registrant_name_as_published"]
+            row[10] = item["registrant_state"]
+            row[14] = item["registrant_country"]
+            row[15] = item["last_action_date"]
+            row[18] = item["aircraft_type_code"]
+            row[19] = item["engine_type_code"]
+            row[20] = item["registration_status_code"]
+            row[22] = item["fractional_owner_flag"]
+            row[29] = item["certificate_expiration_date"]
+            row[30] = item["faa_unique_id"]
+            writer.writerow(row)
     people_fields = [
         "registrant_name_as_published", "registrant_type_code", "registrant_state",
         "registrant_country", "aircraft_count", "n_numbers", "source",
