@@ -6,7 +6,8 @@
  *
  * POST /registry-search          — live registry lookup (public, no auth)
  * POST /ingest/western-hnwi     — SEC EDGAR / CH / BRREG mass ingestion
- * POST /ingest/faa               — FAA Releasable Aircraft Database
+ * POST /ingest/faa               — official FAA Releasable Aircraft Database
+ * POST /ingest/brreg-snapshot    — BRREG companies/roles + sourced professional intermediaries
  * GET  /ingest/job/:jobId        — poll job status + log tail
  * GET  /ingest/status            — overall ingestion status
  * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
@@ -38,6 +39,7 @@ import {
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
+import { runBrregSnapshotIngestion } from "../lib/brreg-snapshot-ingestor";
 import { runOccrpEnrichment } from "../lib/enrichment/structured-verification";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
@@ -221,13 +223,14 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
 // ── POST /ingest/faa ──────────────────────────────────────────────────────────
 router.post("/ingest/faa", async (req, res): Promise<void> => {
   const {
-    maxRecords = 30_000,
+    maxRecords = 100_000,
     forceRefresh = false,
     clearDedup: doClean = false,
     force = false,
   } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
 
-  const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
+  // A complete current FAA pass can exceed 100k qualifying aircraft; keep the operator bound explicit.
+  const safeMax = Math.min(Math.max(Number(maxRecords) || 100_000, 100), 200_000);
 
   if (!force) {
     const existingJobId = await getActiveJob("faa");
@@ -269,6 +272,90 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     message: `FAA aircraft registry ingestion started (up to ${safeMax.toLocaleString()} records).`,
     pollUrl: `/api/ingest/job/${jobId}`,
     note: "Downloads ~70MB from registry.faa.gov. First run takes ~2-3 minutes; subsequent runs use cached ZIP.",
+  });
+});
+
+
+router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
+  const {
+    maxCompanies = 5_572,
+    includePeople = true,
+    includeVisualLead = true,
+    includeIntermediaries = true,
+  } = (req.body ?? {}) as {
+    maxCompanies?: number;
+    includePeople?: boolean;
+    includeVisualLead?: boolean;
+    includeIntermediaries?: boolean;
+  };
+  const safeMax = Math.min(Math.max(Math.trunc(Number(maxCompanies) || 5_572), 1), 5_572);
+  if (typeof includePeople !== "boolean" || typeof includeVisualLead !== "boolean" || typeof includeIntermediaries !== "boolean") {
+    res.status(400).json({ error: "includePeople, includeVisualLead and includeIntermediaries must be booleans when supplied." });
+    return;
+  }
+
+  const existingJobId = await getActiveJob("brreg-snapshot");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "A BRREG snapshot ingestion job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("brreg-snapshot");
+  if (!(await claimIngestionJobOrRespond("brreg-snapshot", jobId, res))) return;
+
+  void (async () => {
+    try {
+      await updateJob(jobId, {
+        status: "running",
+        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0) + (includeIntermediaries ? 43 : 0),
+        message: "Importing the versioned BRREG snapshot and public professional intermediary seeds…",
+      });
+      const result = await runBrregSnapshotIngestion({
+        jobId,
+        maxCompanies: safeMax,
+        includePeople,
+        includeVisualLead,
+        includeIntermediaries,
+        batchSize: 100,
+      });
+      const inserted = result.companiesInserted + result.peopleInserted + result.assetsInserted
+        + result.intermediaryOrganizationsInserted + result.intermediaryPeopleInserted;
+      const skipped = result.companiesSkipped + result.peopleSkipped + result.intermediaryEntitiesSkipped;
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted,
+        skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: "BRREG/Apex seed complete — " + result.companiesInserted.toLocaleString()
+          + " companies, " + result.peopleInserted.toLocaleString()
+          + " managing-director review candidates, " + result.relationshipsInserted.toLocaleString()
+          + " MANAGES links, " + result.intermediaryOrganizationsInserted.toLocaleString()
+          + " intermediary organization bridges, " + result.intermediaryPeopleInserted.toLocaleString()
+          + " Gatekeeper/intermediary people and " + result.intermediaryRelationshipsInserted.toLocaleString()
+          + " MEMBER_OF links, plus " + result.assetsInserted.toLocaleString()
+          + " unresolved visual asset leads. Public professional and organization routes remain scope-labelled; no client, wealth or beneficial-ownership claim is inferred.",
+        result: JSON.stringify(result),
+      });
+    } catch (err: any) {
+      logger.error({ err: err?.message, jobId }, "BRREG snapshot ingestion job failed");
+      await updateJob(jobId, {
+        status: "failed",
+        message: err?.message ?? "BRREG snapshot ingestion failed",
+        finishedAt: new Date().toISOString(),
+      });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: "BRREG/Apex seed ingestion started (up to " + safeMax.toLocaleString() + " companies).",
+    pollUrl: "/api/ingest/job/" + jobId,
+    note: "Explicit operator-triggered import; no startup auto-import. BRREG managing directors remain review-only PersonCandidate records; public assistants/advisers are separate Gatekeeper records with role and contact scope preserved. FAA aircraft data is handled separately by POST /api/ingest/faa.",
   });
 });
 
@@ -341,26 +428,30 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
 router.get("/ingest/status", async (_req, res): Promise<void> => {
   let activeWhnwi: string | null;
   let activeFaa: string | null;
+  let activeBrreg: string | null;
   let activeWJob: Awaited<ReturnType<typeof getJobStrict>> = null;
   let activeFJob: Awaited<ReturnType<typeof getJobStrict>> = null;
+  let activeBrregJob: Awaited<ReturnType<typeof getJobStrict>> = null;
   try {
     await enablePermanentRedis();
-    const activeByType = await getActiveJobs(["western-hnwi", "faa"]);
+    const activeByType = await getActiveJobs(["western-hnwi", "faa", "brreg-snapshot"]);
     activeWhnwi = activeByType.get("western-hnwi") ?? null;
     activeFaa = activeByType.get("faa") ?? null;
-    [activeWJob, activeFJob] = await Promise.all([
+    activeBrreg = activeByType.get("brreg-snapshot") ?? null;
+    [activeWJob, activeFJob, activeBrregJob] = await Promise.all([
       activeWhnwi ? getJobStrict(activeWhnwi) : Promise.resolve(null),
       activeFaa ? getJobStrict(activeFaa) : Promise.resolve(null),
+      activeBrreg ? getJobStrict(activeBrreg) : Promise.resolve(null),
     ]);
   } catch {
     res.status(503).json({ error: "Job state is unavailable; ingestion status cannot confirm whether either lane is active.", code: "JOB_STATE_UNAVAILABLE" });
     return;
   }
-  if ((activeWhnwi && !activeWJob) || (activeFaa && !activeFJob)) {
+  if ((activeWhnwi && !activeWJob) || (activeFaa && !activeFJob) || (activeBrreg && !activeBrregJob)) {
     res.status(503).json({
       error: "An ingestion active-job lock exists without a readable durable job record; status is inconsistent.",
       code: "JOB_STATE_INCONSISTENT",
-      jobIds: { westernHnwi: activeWhnwi, faa: activeFaa },
+      jobIds: { westernHnwi: activeWhnwi, faa: activeFaa, brregSnapshot: activeBrreg },
     });
     return;
   }
@@ -379,7 +470,7 @@ router.get("/ingest/status", async (_req, res): Promise<void> => {
     hnwiCount: entityCount,
     assetCount,
     faaAircraftCount: faaCount,
-    jobs: { westernHnwi: activeWJob, faa: activeFJob },
+    jobs: { westernHnwi: activeWJob, faa: activeFJob, brregSnapshot: activeBrregJob },
   });
 });
 

@@ -172,4 +172,169 @@ describe("canonical seeded target binding", () => {
     expect(binding.evidence).toEqual([]);
     expect(binding.sourceRegistries).toBe("Companies House");
   });
+
+  it("carries BRREG company and managing-director source context into future Bureau research", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 501,
+      entityName: "Kari Example",
+      entityType: "PersonCandidate",
+      sourceRegistries: JSON.stringify(["BRREG Norway — Enhetsregisteret"]),
+      metadata: JSON.stringify({
+        sourceRecordId: "brreg:123456789:person:kariexample",
+        sourceName: "BRREG Norway — Enhetsregisteret",
+        sourceUrl: "https://data.brreg.no/enhetsregisteret/api/enheter/123456789/roller",
+        sourceSnapshotId: "brreg-sector-screen-2026-11-07",
+        organizationNumber: "123456789",
+        companyRegistryId: "123456789",
+        companyName: "LOCAL HOTEL AS",
+        role: "Managing Director",
+        roleOriginal: "Daglig leder",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_level_contact_assessed",
+        wealthStatus: "unverified",
+        hnwiQualificationStatus: "unverified",
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "brreg:123456789:person:kariexample",
+        sourceSnapshotId: "brreg-sector-screen-2026-11-07",
+        organizationNumber: "123456789",
+        companyRegistryId: "123456789",
+        companyName: "LOCAL HOTEL AS",
+        role: "Managing Director",
+        roleOriginal: "Daglig leder",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_level_contact_assessed",
+        wealthStatus: "unverified",
+        hnwiQualificationStatus: "unverified",
+        reviewOnly: true,
+      },
+    });
+  });
+
+
+  it("binds Gatekeeper assistants and advisers as person targets with professional route scope", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 808,
+      entityName: "Sidsel E. Rydland",
+      entityType: "Gatekeeper",
+      sourceRegistries: JSON.stringify(["Apex public professional intermediary seed"]),
+      email: null,
+      phone: null,
+      contactOutcome: "evidence_only",
+      contactConfidence: 0,
+      metadata: JSON.stringify({
+        sourceRecordId: "apex-intermediary:canica:sidsel-rydland",
+        sourceUrl: "https://www.canica.no/our-team",
+        role: "Executive Personal Assistant, Canica Norway",
+        companyName: "Canica",
+        organizationSourceRecordId: "apex-intermediary:canica",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_specific_contact_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        personalWealthEvidence: false,
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "apex-intermediary:canica:sidsel-rydland",
+        role: "Executive Personal Assistant, Canica Norway",
+        organizationSourceRecordId: "apex-intermediary:canica",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_specific_contact_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        reviewOnly: true,
+        personalWealthEvidence: false,
+      },
+      evidence: [],
+    });
+    expect(binding.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
+  it("passes an official Gatekeeper professional route into Bureau context without treating it as a private contact", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 809,
+      entityName: "Sigurd Haavik",
+      entityType: "Gatekeeper",
+      sourceRegistries: JSON.stringify(["Apex public professional intermediary seed"]),
+      email: "sigurd@oslofamilyoffice.com",
+      phone: "+47 91 33 22 11",
+      contactOutcome: "direct_contact_candidate",
+      contactConfidence: 60,
+      metadata: JSON.stringify({
+        sourceRecordId: "apex-intermediary:oslo-family-office:sigurd-haavik",
+        sourceUrl: "https://www.oslofamilyoffice.com/team",
+        role: "Founder & Senior Partner",
+        companyName: "Oslo Family Office",
+        organizationSourceRecordId: "apex-intermediary:oslo-family-office",
+        contactScope: "professional_person",
+        contactabilityStatus: "official_professional_route_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        personalWealthEvidence: false,
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "apex-intermediary:oslo-family-office:sigurd-haavik",
+        role: "Founder & Senior Partner",
+        organizationSourceRecordId: "apex-intermediary:oslo-family-office",
+        contactScope: "professional_person",
+        contactabilityStatus: "official_professional_route_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        professionalContact: {
+          email: "sigurd@oslofamilyoffice.com",
+          phone: "+47 91 33 22 11",
+          contactOutcome: "direct_contact_candidate",
+          contactConfidence: 60,
+          scope: "professional_person",
+          status: "officially published professional work route; independently recheck before outreach",
+        },
+      },
+    });
+    expect(binding.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
+  it("passes only organization-scoped registry contacts into canonical Bureau context", () => {
+    const company = buildCanonicalSeededTargetBinding({
+      entityId: 701,
+      entityName: "LOCAL HOTEL AS",
+      entityType: "Corporation",
+      email: "post@localhotel.no",
+      phone: "+47 555 00 000",
+      contactOutcome: "organization_contact",
+      contactConfidence: 20,
+    });
+    expect(company.sourceMetadata).toMatchObject({
+      organizationContact: {
+        email: "post@localhotel.no",
+        phone: "+47 555 00 000",
+        contactOutcome: "organization_contact",
+        contactConfidence: 20,
+        scope: "organization_only",
+      },
+    });
+
+    const person = buildCanonicalSeededTargetBinding({
+      entityId: 702,
+      entityName: "Kari Example",
+      entityType: "PersonCandidate",
+      email: "person@example.no",
+      phone: "+47 555 00 001",
+      contactOutcome: "direct_contact_candidate",
+      contactConfidence: 70,
+    });
+    expect(person.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
 });

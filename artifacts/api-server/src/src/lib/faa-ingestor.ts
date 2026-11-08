@@ -4,12 +4,12 @@
  * Source: https://registry.faa.gov/database/ReleasableAircraft.zip
  * Updated: daily by the FAA. Free download, no API key required.
  *
- * Downloads the official ZIP, extracts MASTER.txt (pipe-delimited), and
- * ingests aircraft owners who are individuals/LLCs/partnerships operating
- * turbine-powered or multi-engine aircraft. These are the highest-confidence
- * HNWI proxies in the US — private jet and helicopter owners.
+ * Downloads the official ZIP, extracts MASTER.txt (comma-delimited CSV), and
+ * ingests qualifying aircraft assets and source-designated registrant
+ * candidates. Registrants are not assumed to be beneficial owners or HNWIs;
+ * individual records remain PersonCandidate review leads with wealth unassessed.
  *
- * NO synthetic data. Every record is a real FAA registrant.
+ * NO synthetic data. Every record is a real FAA registry observation.
  * Dedup by N-NUMBER via Redis Upstash to prevent re-insertion.
  */
 
@@ -49,18 +49,12 @@ const F_SERIAL         = 1;
 const F_YEAR_MFR       = 4;
 const F_TYPE_REG       = 5;
 const F_NAME           = 6;
-const F_STREET         = 7;
-const F_STREET2        = 8;
-const F_CITY           = 9;
 const F_STATE          = 10;
-const F_ZIP            = 11;
 const F_COUNTRY        = 14;
 const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
 const F_STATUS         = 20;
 const F_FRACTIONAL_OWNER = 22;
-const F_OTHER_NAME_1 = 24;
-const F_OTHER_NAME_5 = 28;
 const F_LAST_ACTIVITY = 15;
 const F_MFR_MODEL_CODE = 2;
 const F_ENGINE_MODEL_CODE = 3;
@@ -202,8 +196,6 @@ export function buildFaaRegistrantEntity(input: {
   serialNumber: string;
   state: string;
   country: string;
-  mailingAddress: string;
-  otherRegistrantNames: string[];
   lastActivityDate: string;
 }): InsertEntity | null {
   const classification = classifyFaaRegistrant(input.registrantTypeCode, {
@@ -218,7 +210,8 @@ export function buildFaaRegistrantEntity(input: {
   return {
     name,
     type: classification.entityType,
-    nationality: input.country || "US",
+    // Registrant country is a registry location, not evidence of personal nationality.
+    nationality: null,
     knownResidences: null,
     sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
     bayesianScore: classification.bayesianScore,
@@ -256,8 +249,6 @@ export function buildFaaRegistrantEntity(input: {
       nameValidationStatus: "pending_investigator_resolution",
       nameNormalizationStatus: "title_case_only_raw_order_preserved",
       rawRegistrantName: input.registrantName,
-      otherRegistrantNames: input.otherRegistrantNames,
-      registrantMailingAddress: input.mailingAddress || null,
       registrantState: input.state || null,
       country: input.country || "US",
       typeAircraft: input.typeAircraft,
@@ -285,7 +276,6 @@ export function buildFaaAircraftAsset(input: {
   engineModelCode: string;
   state: string;
   country: string;
-  otherRegistrantNames: string[];
   lastActivityDate: string;
   expirationDate: string;
   uniqueId: string;
@@ -308,7 +298,6 @@ export function buildFaaAircraftAsset(input: {
       source: "faa-aircraft-registry",
       nNumber: tailNumber,
       registrantName: input.registrantName,
-      otherRegistrantNames: input.otherRegistrantNames,
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
       registrantKind: classification.registrantKind,
@@ -653,16 +642,12 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
     const fields = parseFaaMasterCsvRecord(line);
     if (fields[0]?.trim().toLowerCase() === "n-number") continue; // tolerate optional header, never skip the first data row
-    if (fields.length <= F_OTHER_NAME_5) continue;
+    if (fields.length <= F_UNIQUE_ID) continue;
 
     const nNumber = fields[F_NNUMBER]?.trim() ?? "";
     const typeReg = fields[F_TYPE_REG]?.trim() ?? "";
     const rawName = fields[F_NAME]?.trim() ?? "";
-    const street = fields[F_STREET]?.trim() ?? "";
-    const street2 = fields[F_STREET2]?.trim() ?? "";
-    const city = fields[F_CITY]?.trim() ?? "";
     const state = fields[F_STATE]?.trim() ?? "";
-    const zip = fields[F_ZIP]?.trim() ?? "";
     const country = fields[F_COUNTRY]?.trim() || "US";
     const typeAircraft = fields[F_TYPE_AIRCRAFT]?.trim() ?? "";
     const typeEngine = fields[F_TYPE_ENGINE]?.trim() ?? "";
@@ -670,7 +655,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const fractionalOwnershipFlag = fields[F_FRACTIONAL_OWNER]?.trim() ?? "";
     const yearMfr = fields[F_YEAR_MFR]?.trim() ?? "";
     const serial = fields[F_SERIAL]?.trim() ?? "";
-    const otherRegistrantNames = fields.slice(F_OTHER_NAME_1, F_OTHER_NAME_5 + 1).map((value) => value.trim()).filter(Boolean);
     const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
     const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
     const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
@@ -691,7 +675,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     pendingDedup.push(dkey);
 
     const tailNumber = nNumber.startsWith("N") ? nNumber : `N${nNumber}`;
-    const mailingAddress = [street, street2, city, state, zip, country !== "US" ? country : ""].filter(Boolean).join(", ");
     const entity = buildFaaRegistrantEntity({
       nNumber,
       registrantTypeCode: typeReg,
@@ -704,8 +687,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       serialNumber: serial,
       state,
       country,
-      mailingAddress,
-      otherRegistrantNames,
       lastActivityDate,
     });
     const asset = buildFaaAircraftAsset({
@@ -722,7 +703,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       engineModelCode,
       state,
       country,
-      otherRegistrantNames,
       lastActivityDate,
       expirationDate,
       uniqueId,

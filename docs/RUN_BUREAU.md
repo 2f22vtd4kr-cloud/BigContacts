@@ -58,6 +58,14 @@ The helper verifies required durable tables after the repository's current Drizz
 
 Do **not** leave `APEX_ALLOW_SCHEMA_PUSH=true` enabled for ordinary runtime boot.
 
+## 3A. Explicit public-registry seed imports
+
+BigContacts includes a versioned BRREG snapshot import documented in [REGISTRY_SEED_IMPORT.md](./REGISTRY_SEED_IMPORT.md). After deploying the merged code to the intended Replit database, an operator may explicitly call `POST /api/ingest/brreg-snapshot` and poll the returned job via `GET /api/ingest/job/:jobId`. It imports 5,572 screened organizations, 336 managing-director role candidates, their `MANAGES` edges, and one unresolved visual asset pointer. It is idempotent and does not launch research.
+
+The existing official FAA ingestion endpoint remains `POST /api/ingest/faa`; it downloads the FAA Releasable Aircraft Database ZIP and stores aircraft separately from registrants. FAA registration is not beneficial ownership or personal wealth. The current patch also excludes personal mailing addresses and additional co-registrant names from new FAA metadata.
+
+Do not add seed-on-boot behavior. Do not mark any imported person as HNWI/Gatekeeper or any imported company as a hot lead. Verify the durable ingestion job result and database deltas before claiming the records are present in the active Replit database.
+
 ## 4. Canonical research launch
 
 A canonical run is:

@@ -24,10 +24,10 @@ function parseObject(raw: string | null | undefined): Record<string, unknown> {
 }
 
 const SOURCE_FIELDS = [
-  "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId",
+  "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId", "sourceName", "sourceSnapshotId", "organizationNumber", "companyRegistryId",
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
   "sourceRetrievedAt", "observedAt", "retrievedAt", "sourceTimestamp",
-  "role", "companyName", "assetType", "assetId", "admission", "reviewOnly",
+  "role", "roleOriginal", "companyName", "organizationSourceRecordId", "entityNature", "businessOfficeLocation", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
   "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
@@ -41,6 +41,10 @@ export function buildCanonicalSeededTargetBinding(input: {
   sourceRegistries?: string | null;
   notes?: string | null;
   metadata?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  contactOutcome?: string | null;
+  contactConfidence?: number | null;
   evidence?: Array<{
     id: number;
     claimType: string | null;
@@ -83,11 +87,36 @@ export function buildCanonicalSeededTargetBinding(input: {
       };
     }
   }
+  const targetKind = classifyCanonicalSeededTargetType(input.entityType);
+  if (targetKind === "organization" && input.contactOutcome === "organization_contact"
+    && (input.email || input.phone)) {
+    sourceMetadata.organizationContact = {
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      contactOutcome: "organization_contact",
+      contactConfidence: input.contactConfidence ?? 0,
+      scope: "organization_only",
+      status: "registry-published; independently recheck before outreach",
+    };
+  }
+  if (targetKind === "person"
+    && metadata.contactScope === "professional_person"
+    && ["direct_contact_candidate", "direct_contact_verified"].includes(String(input.contactOutcome))
+    && (input.email || input.phone)) {
+    sourceMetadata.professionalContact = {
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      contactOutcome: input.contactOutcome,
+      contactConfidence: input.contactConfidence ?? 0,
+      scope: "professional_person",
+      status: "officially published professional work route; independently recheck before outreach",
+    };
+  }
   return {
     entityId: input.entityId,
     entityName: input.entityName,
     entityType: input.entityType,
-    targetKind: classifyCanonicalSeededTargetType(input.entityType),
+    targetKind,
     sourceRegistries: registries,
     sourceMetadata,
     sourceNotes: input.notes ?? null,

@@ -21,8 +21,6 @@ const base = {
   serialNumber: "SERIAL-001",
   state: "CA",
   country: "US",
-  mailingAddress: "1 Example Street, Los Angeles, CA 90001",
-  otherRegistrantNames: ["OTHER CO-OWNER"],
   lastActivityDate: "2026/10/01",
 };
 
@@ -79,6 +77,7 @@ describe("FAA MASTER parser and candidate projection", () => {
   it("creates an unverified PersonCandidate from an FAA individual registrant, not an HNWI", () => {
     const entity = buildFaaRegistrantEntity(base);
     expect(entity?.type).toBe("PersonCandidate");
+    expect(entity?.nationality).toBeNull();
     expect(entity?.estimatedNetWorth).toBeNull();
     expect(entity?.bayesianScore).toBe(0.05);
     expect(entity?.isHot).toBe(false);
@@ -127,6 +126,30 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(metadata.assetSignal.strength).toBe("strong_asset_lead");
   });
 });
+
+
+  it("does not infer nationality from FAA registrant country", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity?.nationality).toBeNull();
+    expect(JSON.parse(entity?.metadata ?? "{}").country).toBe("US");
+  });
+
+  it("does not persist FAA registrant mailing addresses or additional co-registrant names", () => {
+    const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
+    const registrantBuilder = source.slice(
+      source.indexOf("export function buildFaaRegistrantEntity"),
+      source.indexOf("export function buildFaaAircraftAsset"),
+    );
+    const assetBuilder = source.slice(
+      source.indexOf("export function buildFaaAircraftAsset"),
+      source.indexOf("async function isCacheStale"),
+    );
+    expect(registrantBuilder).not.toContain("mailingAddress");
+    expect(registrantBuilder).not.toContain("otherRegistrantNames");
+    expect(assetBuilder).not.toContain("otherRegistrantNames");
+    expect(source).not.toContain("registrantMailingAddress");
+    expect(source).not.toContain("const street =");
+  });
 
 describe("FAA registration status semantics", () => {
   it.each([
