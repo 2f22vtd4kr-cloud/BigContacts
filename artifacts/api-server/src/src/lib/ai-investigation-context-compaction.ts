@@ -270,17 +270,71 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
  */
 function recoverableCompactionModelThrottle(error: string | null): boolean {
   const diagnostic = error ?? "";
-  const shortWindow = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
-  const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
-  // Groq has also surfaced model-scoped TPM throttles as HTTP 413 with
-  // rate_limit_exceeded instead of the usual HTTP 429/rateLimitKind metadata.
+  const shortWindowText = /tokens per minute|\\bTPM\\b|model.{0,40}rate.?limit/i.test(diagnostic);
+  const dailyText = /tokens per day|\\bTPD\\b|daily token quota/i.test(diagnostic);
+  if (dailyText) return false;
+
+  // Right-hand deliberately redacts provider prose. Its bounded attempt
+  // diagnostic retains only safe quota metadata, so classify from that
+  // structured record rather than depending on the redacted "TPM" message.
+  // Errors can contain several JSON records separated by " | ".
+  const records: Array<Record<string, unknown>> = [];
+  for (const segment of diagnostic.split(/\\s+\\|\\s+/u)) {
+    const jsonStart = segment.indexOf("{");
+    if (jsonStart < 0) continue;
+    try {
+      const parsed = JSON.parse(segment.slice(jsonStart)) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        records.push(parsed as Record<string, unknown>);
+      }
+    } catch {
+      // Keep parsing other bounded attempt records; malformed diagnostics fail closed.
+    }
+  }
+
+  const isShortReset = (value: unknown): boolean => {
+    if (typeof value !== "string" || !value.trim()) return false;
+    const raw = value.trim();
+    const numericSeconds = Number(raw);
+    if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
+      return numericSeconds * 1_000 <= 60 * 60 * 1_000;
+    }
+    const match = raw.match(/^(?:(\\d+(?:\\.\\d+)?)h)?(?:(\\d+(?:\\.\\d+)?)m)?(?:(\\d+(?:\\.\\d+)?)s)?$/i);
+    if (!match) return false;
+    const milliseconds = (Number(match[1] ?? 0) * 3_600
+      + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000;
+    return milliseconds > 0 && milliseconds <= 60 * 60 * 1_000;
+  };
+
+  const hasStructuredShortWindow = records.some((record) => {
+    if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429) return false;
+    const body = record.body && typeof record.body === "object" && !Array.isArray(record.body)
+      ? record.body as Record<string, unknown>
+      : {};
+    const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
+    const explicitDailySignal = quotaSignals.some((signal) =>
+      typeof signal === "string" && /tokens?[_\\s-]*per[_\\s-]*day|\\bTPD\\b|daily/i.test(signal));
+    if (explicitDailySignal) return false;
+
+    const headers = record.rateLimitHeaders && typeof record.rateLimitHeaders === "object"
+      && !Array.isArray(record.rateLimitHeaders)
+      ? record.rateLimitHeaders as Record<string, unknown>
+      : {};
+    const reset = headers["x-ratelimit-reset-tokens"];
+    const retryAfterMs = typeof record.retryAfterMs === "number" ? record.retryAfterMs : null;
+    return isShortReset(reset) || (retryAfterMs !== null && Number.isFinite(retryAfterMs)
+      && retryAfterMs > 0 && retryAfterMs <= 60 * 60 * 1_000);
+  });
+
+  const classifiedModelThrottle = /"rateLimitKind"\\s*:\\s*"(?:tokens|model)"/i.test(diagnostic);
+  // Older safe diagnostics may carry only the classifier field plus an
+  // explicit short-window message. Structured reset metadata is preferred.
   const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
     && /rate_limit_exceeded/i.test(diagnostic)
-    && shortWindow;
-  const dailyCap = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
-  return (classifiedModelThrottle || oversizedModelThrottle) && shortWindow && !dailyCap;
+    && shortWindowText;
+  return (hasStructuredShortWindow || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
+    && !dailyText;
 }
-
 async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
