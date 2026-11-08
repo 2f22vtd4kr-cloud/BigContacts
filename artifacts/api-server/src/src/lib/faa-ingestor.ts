@@ -42,7 +42,7 @@ const FAA_SEED_MASTER_CANDIDATES = [
   join(process.cwd(), "../../../data/registry-seeds/faa_sanitized_MASTER.txt"),
 ];
 const FAA_SEED_MASTER_PATH = FAA_SEED_MASTER_CANDIDATES.find(existsSync) ?? FAA_SEED_MASTER_CANDIDATES[0]!;
-const MASTER_PATH = existsSync(FAA_SEED_MASTER_PATH) ? FAA_SEED_MASTER_PATH : join(TMP_DIR, "MASTER.txt");
+const MASTER_PATH = join(TMP_DIR, "MASTER.txt");
 
 // Cache TTL — re-download if file is older than 23 hours
 const CACHE_TTL_MS = 23 * 60 * 60 * 1000;
@@ -570,6 +570,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   // ── Step 1: Download ZIP ───────────────────────────────────────────────────
   const needsDownload = forceRefresh || await isCacheStale();
+  let masterInputPath = MASTER_PATH;
 
   if (needsDownload) {
     await updateJob(jobId, { message: "Downloading FAA Aircraft Registry (~70MB)…" });
@@ -587,6 +588,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       await appendJobLog(jobId, "✅ Download complete.");
     } catch (err: any) {
       if (existsSync(FAA_SEED_MASTER_PATH)) {
+        masterInputPath = FAA_SEED_MASTER_PATH;
         await appendJobLog(jobId, `Official FAA ZIP unavailable (${err.message}); using the committed sanitized FAA extract.`);
       } else {
         throw new Error(`FAA download failed and no sanitized FAA extract is available: ${err.message}`);
@@ -605,7 +607,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     });
     await appendJobLog(jobId, "✅ Extraction complete. Scanning aircraft records…");
   } catch (err: any) {
-    if (existsSync(MASTER_PATH)) {
+    if (existsSync(FAA_SEED_MASTER_PATH)) {
+      masterInputPath = FAA_SEED_MASTER_PATH;
       await appendJobLog(jobId, "Archive extraction unavailable; using the committed sanitized FAA MASTER file.");
     } else {
       throw new Error(`FAA extraction failed and no sanitized FAA MASTER file is available: ${err.message}`);
@@ -616,7 +619,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   // Count total lines first so progress bar is meaningful
   let totalLines = 0;
   try {
-    const countResult = await execAsync(`wc -l < "${MASTER_PATH}"`, { timeout: 10_000 });
+    const countResult = await execAsync(`wc -l < "${masterInputPath}"`, { timeout: 10_000 });
     totalLines = parseInt(countResult.stdout.trim(), 10) || 0;
   } catch { /* non-fatal */ }
 
@@ -628,7 +631,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   await updateJob(jobId, { message: `Parsing MASTER.txt (${totalLines.toLocaleString()} records)…`, progress: 8 });
 
   const rl = createInterface({
-    input: createReadStream(MASTER_PATH, { encoding: "latin1" }),
+    input: createReadStream(masterInputPath, { encoding: "latin1" }),
     crlfDelay: Infinity,
   });
 
