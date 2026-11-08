@@ -5688,7 +5688,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (!hasCompleteSchema(repaired)) {
       repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\\n\\n");
     }
-    if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired)) return repaired;
+    const requiredFinalMarkers = [
+      "PARTIAL FINDINGS (not terminal-only)",
+      "Search snippets are leads, not claim-grade evidence",
+      "Qualification follows the active objective",
+      "visit supports bounded text extraction",
+      ...(input.mode === "discovery"
+        ? [
+            "No registry is preferred; choose by evidence.",
+            "consider inspecting a promising in-scope lead URL next",
+            "generic publisher homepage",
+            "Other objectives use their own evidence criteria",
+            "source class may vary by query",
+          ]
+        : []),
+      ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim()] : []),
+    ];
+    const recoveryMarkersPresent = requiredFinalMarkers.every((marker) => repaired.includes(marker));
+    if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired) && recoveryMarkersPresent) return repaired;
     // Required recovery clauses can be rehydrated after the first emergency
     // projection. Re-run the evidence-aware budgeter once so those clauses do
     // not turn a previously valid prompt into an over-budget provider request.
