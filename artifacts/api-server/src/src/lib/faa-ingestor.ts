@@ -36,7 +36,8 @@ const execAsync = promisify(exec);
 const FAA_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip";
 const TMP_DIR = join(tmpdir(), "apexfinder-faa");
 const ZIP_PATH = join(TMP_DIR, "ReleasableAircraft.zip");
-const MASTER_PATH = join(TMP_DIR, "MASTER.txt");
+const FAA_SEED_MASTER_PATH = join(process.cwd(), "data/registry-seeds/faa_sanitized_MASTER.txt");
+const MASTER_PATH = existsSync(FAA_SEED_MASTER_PATH) ? FAA_SEED_MASTER_PATH : join(TMP_DIR, "MASTER.txt");
 
 // Cache TTL — re-download if file is older than 23 hours
 const CACHE_TTL_MS = 23 * 60 * 60 * 1000;
@@ -328,12 +329,12 @@ export function buildFaaAircraftAsset(input: {
 }
 
 async function isCacheStale(): Promise<boolean> {
-  if (!existsSync(ZIP_PATH)) return true;
+  if (!existsSync(ZIP_PATH)) return !existsSync(FAA_SEED_MASTER_PATH);
   try {
     const s = await stat(ZIP_PATH);
     return Date.now() - s.mtimeMs > CACHE_TTL_MS;
   } catch {
-    return true;
+    return !existsSync(FAA_SEED_MASTER_PATH);
   }
 }
 
@@ -580,7 +581,11 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       );
       await appendJobLog(jobId, "✅ Download complete.");
     } catch (err: any) {
-      throw new Error(`FAA download failed: ${err.message}`);
+      if (existsSync(FAA_SEED_MASTER_PATH)) {
+        await appendJobLog(jobId, `Official FAA ZIP unavailable (${err.message}); using the committed sanitized FAA extract.`);
+      } else {
+        throw new Error(`FAA download failed and no sanitized FAA extract is available: ${err.message}`);
+      }
     }
   } else {
     await appendJobLog(jobId, "📦 Using cached FAA database (< 23h old).");
@@ -595,7 +600,11 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     });
     await appendJobLog(jobId, "✅ Extraction complete. Scanning aircraft records…");
   } catch (err: any) {
-    throw new Error(`FAA extraction failed: ${err.message}`);
+    if (existsSync(MASTER_PATH)) {
+      await appendJobLog(jobId, "Archive extraction unavailable; using the committed sanitized FAA MASTER file.");
+    } else {
+      throw new Error(`FAA extraction failed and no sanitized FAA MASTER file is available: ${err.message}`);
+    }
   }
 
   // ── Step 3: Stream parse MASTER.txt ───────────────────────────────────────
