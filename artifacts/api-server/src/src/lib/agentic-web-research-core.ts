@@ -3909,12 +3909,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // The verbatim human objective outranks auxiliary policy. Preserve it before
-    // evidence summaries so emergency compaction cannot silently replace it with a pivot.
+    // Preserve the complete human objective and the separately approved Boss pivot
+    // before any auxiliary evidence or policy summary can consume the emergency budget.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
+    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
+    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
@@ -5767,10 +5767,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Required recovery clauses can be rehydrated after the first emergency
     // projection. Re-run the evidence-aware budgeter once so those clauses do
     // not turn a previously valid prompt into an over-budget provider request.
+    // Leave explicit headroom for the provider-boundary repair itself; the
+    // first emergency pass can be just under the limit before source markers are restored.
     const finalProjection = appendEmergencyObservationContext(
       repaired,
       "",
-      maxUserPromptChars,
+      Math.max(4_000, maxUserPromptChars - 256),
       input.mode,
       activeBossDirection,
       registryIdList,
