@@ -433,6 +433,63 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
+  it("recovers a model-scoped 20B TPM throttle during original-source repair on the same-role 120B fallback", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    const oversizedSummary = "PRIOR_SUMMARY_ONLY_SENTINEL " + "This intermediate summary is too long to satisfy the bounded summary contract. ".repeat(20);
+    const correctedSummary = "The source memory remains available for model-led research.";
+
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-20b",
+        raw: JSON.stringify({ summary: oversizedSummary }),
+        error: null,
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-20b",
+        raw: null,
+        error: 'Groq Right-hand exhausted bounded attempts: {"rateLimitKind":"tokens","body":{"message":"Rate limit reached on tokens per minute (TPM)"}}',
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-120b",
+        raw: JSON.stringify({ summary: correctedSummary }),
+        error: null,
+        attempts: [],
+      });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 }))
+      .resolves.toBe(correctedSummary);
+
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("COMPLETE ORIGINAL CASE MEMORY");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? ""))
+      .toContain("COMPLETE ORIGINAL CASE MEMORY");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? ""))
+      .toContain("original-source 20B repair request hit a model-scoped short-window token limit");
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-20b",
+      allowModelFallback: false,
+    });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-20b",
+      allowModelFallback: false,
+      maxAttempts: 1,
+    });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-120b",
+      allowModelFallback: false,
+      maxCompletionTokens: 1_536,
+      maxAttempts: 1,
+    });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({
+      jobId: null,
+      caseId: null,
+      cognitiveTask: "context_compaction",
+    });
+  });
+
   it("does not invoke 120B recovery for a daily token cap", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
