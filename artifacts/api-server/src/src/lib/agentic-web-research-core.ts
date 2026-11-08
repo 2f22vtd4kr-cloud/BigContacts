@@ -3642,7 +3642,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
     minimumDiscoveryContract,
-    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule, minimumRelevanceMarker] : []),
+    ...(isDiscoveryPrompt ? [minimumRelevanceMarker] : []),
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
     conditionalCapabilityRule,
@@ -3759,7 +3759,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // optional narration; never truncate it in the final emergency tier.
         minimumAvailableActionsSection,
         minimumRelevanceMarker,
-        compactFallbackDiscoveryRule,
         minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
         // Keep the latest fetched source label and claim ahead of memory or
