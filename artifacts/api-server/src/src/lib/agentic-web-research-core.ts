@@ -5517,6 +5517,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const minimumSemanticRecovery = [
       "MODEL-OWNED RELEVANCE SELF-CHECK: the Investigator decides relevance and ties each query/source to the objective-required entity, role, relationship or materiality; the model does not preselect a source, target or action.",
       "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal query terms; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
+      "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; no incidental celebrities or name blacklist; one source-backed relevant lead starts target research; no extra wealth/ownership criteria unless required. No registry is preferred; choose by evidence.",
       "PARTIAL FINDINGS: preserve source-backed leads selected as relevant for review-only; exact observed name, stated role or null, associated public HTTPS URL. Snippets and unfetched URLs are leads, not evidence.",
       "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact span.",
       "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; this is advisory, not evidence or a mandated next action. The Investigator retains action choice.",
@@ -5526,6 +5527,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "MODEL-OWNED RELEVANCE SELF-CHECK",
       "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
       "Other objectives use their own evidence criteria",
+      "DISCOVERY TARGETABILITY / REALISM",
       "source-backed leads",
       "Target-stage research verifies objective-required role/relationship/materiality",
       "sourceUrls=[that fetched URL",
