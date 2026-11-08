@@ -348,6 +348,45 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(1);
   });
 
+  it("persists structured token-window diagnostics when the outbound-attempt budget is already spent", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-exhausted-attempt-budget-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-20b" }] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        error: { type: "tokens", code: "rate_limit_exceeded", message: "provider message is intentionally not required" },
+      }), {
+        status: 429,
+        headers: {
+          "x-ratelimit-limit-tokens": "8000",
+          "x-ratelimit-remaining-tokens": "2117",
+          "x-ratelimit-reset-tokens": "9.645s",
+          "x-ratelimit-remaining-requests": "998",
+          "retry-after": "9.645",
+        },
+      });
+    });
+
+    const result = await runGroqRightHandFreeJson(
+      "Return a bounded JSON summary.",
+      "Reply with ONE JSON object only.",
+      undefined,
+      undefined,
+      { cognitiveTask: "context_compaction" },
+      { preferredModel: "openai/gpt-oss-20b", allowModelFallback: false, maxAttempts: 1 },
+    );
+
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain('"rateLimitKind":"tokens"');
+    expect(result.error).toContain('"retryAfterMs":9645');
+    expect(result.error).toContain('"x-ratelimit-reset-tokens":"9.645s"');
+    const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(1);
+  });
+
   it("skips same-model retries on TPD exhaustion but preserves bounded same-role model fallback", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-tpd-quota-test-key");
 
