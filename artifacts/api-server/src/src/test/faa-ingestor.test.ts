@@ -93,6 +93,17 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(faaRegistrantEntityKey({ ...entity!, metadata: JSON.stringify(metadata) })).toBeNull();
   });
 
+  it("records structural-only validation distinctly when Groq validation is intentionally not requested", () => {
+    const ordinary = buildFaaRegistrantEntity({ ...base, typeAircraft: "4", typeEngine: "1" });
+    expect(ordinary).not.toBeNull();
+    const rows = applyFaaRegistryNameValidation(
+      [{ asset: null, entity: ordinary! }],
+      { status: "not_requested", validNames: [] },
+    );
+    const metadata = JSON.parse(rows[0]!.entity!.metadata ?? "{}");
+    expect(metadata.nameValidationStatus).toBe("structural_validation_only_pending_identity_resolution");
+  });
+
   it("retains an ordinary-aircraft registrant as a directory candidate without creating a material asset", () => {
     const ordinary = buildFaaRegistrantEntity({ ...base, typeAircraft: "4", typeEngine: "1" });
     expect(ordinary).not.toBeNull();
@@ -204,6 +215,8 @@ describe("FAA terminal reconciliation", () => {
     expect(route).toContain("result.processedRows");
     expect(route).toContain("result.registrantGroupsProcessed");
     expect(route).toContain("result: JSON.stringify(result)");
+    expect(route).toContain("validateNamesWithLlm && safeMax > 1_000");
+    expect(route).toContain("validateNamesWithLlm = false");
   });
 });
 
