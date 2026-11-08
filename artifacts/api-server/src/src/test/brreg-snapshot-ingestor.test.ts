@@ -2,10 +2,111 @@ import { describe, expect, it } from "vitest";
 import {
   buildBrregCompanyEntity,
   buildBrregManagingDirectorCandidate,
+  buildApexIntermediaryEntity,
   buildVirtualGlobetrottingLead,
   isEligibleBrregCompany,
   parseRegistryCsv,
 } from "../lib/brreg-snapshot-ingestor";
+
+describe("Apex proximal intermediary seed semantics", () => {
+  it("keeps published assistant and adviser routes on Gatekeeper people, not on organization cards", () => {
+    const person = buildApexIntermediaryEntity({
+      record_type: "person",
+      source_record_id: "apex-intermediary:oslo-family-office:example",
+      entity_type: "Gatekeeper",
+      entity_name: "Example Office Manager",
+      organization_source_record_id: "apex-intermediary:oslo-family-office",
+      organization_name: "Oslo Family Office",
+      role: "Office Manager",
+      professional_email: "office.manager@example.org",
+      professional_phone: "+47 22 22 22 22",
+      source_url: "https://www.example.org/team",
+      source_name: "Example — official team page",
+      evidence_note: "Official page lists the role and professional contact.",
+    });
+    const metadata = JSON.parse(person.metadata ?? "{}");
+    expect(person.type).toBe("Gatekeeper");
+    expect(person.email).toBe("office.manager@example.org");
+    expect(person.phone).toBe("+47 22 22 22 22");
+    expect(person.contactOutcome).toBe("direct_contact_candidate");
+    expect(person.contactConfidence).toBe(35);
+    expect(person.estimatedNetWorth).toBeNull();
+    expect(person.knownResidences).toBeNull();
+    expect(person.isHot).toBe(false);
+    expect(metadata).toMatchObject({
+      sourceRecordId: "apex-intermediary:oslo-family-office:example",
+      scope: "person_candidate",
+      role: "Office Manager",
+      contactScope: "professional_person",
+      contactabilityStatus: "official_professional_route_published",
+      principalRelationshipStatus: "not_established",
+      clientRelationshipStatus: "not_observed",
+      reviewOnly: true,
+      wealthStatus: "not_assessed",
+      hnwiQualificationStatus: "unverified",
+      personalWealthEvidence: false,
+    });
+  });
+
+  it("keeps assistant role evidence even when the official team page publishes no person-specific contact", () => {
+    const person = buildApexIntermediaryEntity({
+      record_type: "person",
+      source_record_id: "apex-intermediary:canica:example",
+      entity_type: "Gatekeeper",
+      entity_name: "Example Executive Assistant",
+      organization_source_record_id: "apex-intermediary:canica",
+      organization_name: "Canica",
+      role: "Senior Executive Assistant to the CEO",
+      source_url: "https://www.canica.no/our-team",
+      source_name: "Canica — official team page",
+      evidence_note: "Official page lists the role only.",
+    });
+    const metadata = JSON.parse(person.metadata ?? "{}");
+    expect(person.type).toBe("Gatekeeper");
+    expect(person.email).toBeNull();
+    expect(person.phone).toBeNull();
+    expect(person.contactOutcome).toBe("evidence_only");
+    expect(person.contactConfidence).toBe(0);
+    expect(person.isHot).toBe(false);
+    expect(metadata).toMatchObject({
+      role: "Senior Executive Assistant to the CEO",
+      contactScope: "no_person_contact",
+      contactabilityStatus: "no_person_specific_contact_published",
+      personalWealthEvidence: false,
+      reviewOnly: true,
+    });
+  });
+
+  it("keeps generic office routes organization-scoped and records service lines honestly", () => {
+    const organization = buildApexIntermediaryEntity({
+      record_type: "organization",
+      source_record_id: "apex-intermediary:dnb-private-banking",
+      entity_type: "Other",
+      entity_name: "DNB Private Banking",
+      role: "Private banking service line",
+      country: "Norway",
+      organization_email: "private.banking@dnb.no",
+      source_url: "https://www.dnb.no/en/personal/savings-and-investments/private-banking.html",
+      source_name: "DNB — official Private Banking page",
+      entity_nature: "Service line within DNB; not a separate legal entity.",
+      evidence_note: "Official page describes the service and publishes the service mailbox.",
+    });
+    const metadata = JSON.parse(organization.metadata ?? "{}");
+    expect(organization.type).toBe("Other");
+    expect(organization.email).toBe("private.banking@dnb.no");
+    expect(organization.contactOutcome).toBe("organization_contact");
+    expect(organization.isHot).toBe(false);
+    expect(metadata).toMatchObject({
+      sourceRecordId: "apex-intermediary:dnb-private-banking",
+      scope: "organization",
+      contactScope: "organization_only",
+      contactabilityStatus: "official_organization_route_published",
+      entityNature: "Service line within DNB; not a separate legal entity.",
+      personalWealthEvidence: false,
+      reviewOnly: true,
+    });
+  });
+});
 
 describe("BRREG snapshot record parsing and realism", () => {
   it("parses quoted commas and escaped quotes in official registry fields", () => {
