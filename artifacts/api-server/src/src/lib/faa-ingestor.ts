@@ -515,7 +515,7 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
         ? await tx.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
             .from(entitiesTable).where(inArray(entitiesTable.name, entityNames))
         : [];
-      const entityIdByKey = new Map<string, string>();
+      const entityIdByKey = new Map<string, number>();
       for (const existing of existingEntities) {
         const key = faaRegistrantEntityKey(existing);
         if (key && !entityIdByKey.has(key)) entityIdByKey.set(key, existing.id);
