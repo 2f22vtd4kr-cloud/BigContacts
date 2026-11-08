@@ -715,6 +715,9 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
     if (!nNumber) continue;
+    // Keep this importer aligned with the committed sanitized individual-only snapshot.
+    // Corporate/partnership registrants are handled by a separate source-backed workstream.
+    if (typeReg !== "1") continue;
     const classification = classifyFaaRegistrant(typeReg, { fractionalOwnershipFlag, statusCode });
     // Keep current/renewal-pending registrations; do not seed sold, expired,
     // revoked, reserved, or unknown status rows as live asset candidates.
