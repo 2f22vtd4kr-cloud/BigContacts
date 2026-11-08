@@ -7,7 +7,7 @@
  * POST /registry-search          — live registry lookup (public, no auth)
  * POST /ingest/western-hnwi     — SEC EDGAR / CH / BRREG mass ingestion
  * POST /ingest/faa               — official FAA Releasable Aircraft Database
- * POST /ingest/brreg-snapshot    — screened BRREG companies + managing-director roles
+ * POST /ingest/brreg-snapshot    — BRREG companies/roles + sourced professional intermediaries
  * GET  /ingest/job/:jobId        — poll job status + log tail
  * GET  /ingest/status            — overall ingestion status
  * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
@@ -281,14 +281,16 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
     maxCompanies = 5_572,
     includePeople = true,
     includeVisualLead = true,
+    includeIntermediaries = true,
   } = (req.body ?? {}) as {
     maxCompanies?: number;
     includePeople?: boolean;
     includeVisualLead?: boolean;
+    includeIntermediaries?: boolean;
   };
   const safeMax = Math.min(Math.max(Math.trunc(Number(maxCompanies) || 5_572), 1), 5_572);
-  if (typeof includePeople !== "boolean" || typeof includeVisualLead !== "boolean") {
-    res.status(400).json({ error: "includePeople and includeVisualLead must be booleans when supplied." });
+  if (typeof includePeople !== "boolean" || typeof includeVisualLead !== "boolean" || typeof includeIntermediaries !== "boolean") {
+    res.status(400).json({ error: "includePeople, includeVisualLead and includeIntermediaries must be booleans when supplied." });
     return;
   }
 
@@ -308,18 +310,20 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
     try {
       await updateJob(jobId, {
         status: "running",
-        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0),
-        message: "Importing the versioned BRREG company and managing-director snapshot…",
+        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0) + (includeIntermediaries ? 28 : 0),
+        message: "Importing the versioned BRREG snapshot and public professional intermediary seeds…",
       });
       const result = await runBrregSnapshotIngestion({
         jobId,
         maxCompanies: safeMax,
         includePeople,
         includeVisualLead,
+        includeIntermediaries,
         batchSize: 100,
       });
-      const inserted = result.companiesInserted + result.peopleInserted + result.assetsInserted;
-      const skipped = result.companiesSkipped + result.peopleSkipped;
+      const inserted = result.companiesInserted + result.peopleInserted + result.assetsInserted
+        + result.intermediaryOrganizationsInserted + result.intermediaryPeopleInserted;
+      const skipped = result.companiesSkipped + result.peopleSkipped + result.intermediaryEntitiesSkipped;
       await updateJob(jobId, {
         status: "done",
         progress: 100,
@@ -327,11 +331,14 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
         skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: "BRREG snapshot complete — " + result.companiesInserted.toLocaleString()
+        message: "BRREG/Apex seed complete — " + result.companiesInserted.toLocaleString()
           + " companies, " + result.peopleInserted.toLocaleString()
           + " managing-director review candidates, " + result.relationshipsInserted.toLocaleString()
-          + " MANAGES links, and " + result.assetsInserted.toLocaleString()
-          + " unresolved visual asset leads inserted. Company contacts remain organization-scoped; no wealth or beneficial-ownership claims were inferred.",
+          + " MANAGES links, " + result.intermediaryOrganizationsInserted.toLocaleString()
+          + " intermediary organization bridges, " + result.intermediaryPeopleInserted.toLocaleString()
+          + " Gatekeeper/intermediary people and " + result.intermediaryRelationshipsInserted.toLocaleString()
+          + " MEMBER_OF links, plus " + result.assetsInserted.toLocaleString()
+          + " unresolved visual asset leads. Public professional and organization routes remain scope-labelled; no client, wealth or beneficial-ownership claim is inferred.",
         result: JSON.stringify(result),
       });
     } catch (err: any) {
@@ -346,9 +353,9 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
 
   res.status(202).json({
     jobId,
-    message: "BRREG snapshot ingestion started (up to " + safeMax.toLocaleString() + " companies).",
+    message: "BRREG/Apex seed ingestion started (up to " + safeMax.toLocaleString() + " companies).",
     pollUrl: "/api/ingest/job/" + jobId,
-    note: "Explicit operator-triggered import; no startup auto-import. People remain review-only PersonCandidate records. FAA aircraft data is handled separately by POST /api/ingest/faa.",
+    note: "Explicit operator-triggered import; no startup auto-import. BRREG managing directors remain review-only PersonCandidate records; public assistants/advisers are separate Gatekeeper records with role and contact scope preserved. FAA aircraft data is handled separately by POST /api/ingest/faa.",
   });
 });
 
