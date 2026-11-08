@@ -521,7 +521,7 @@ describe("AI investigation context compaction", () => {
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
       raw: null,
-      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","retryAfterMs":86400000,"rateLimitHeaders":{"x-ratelimit-reset-tokens":"24h"},"body":{"errorType":"tokens","quotaSignals":["tokens_per_day"]}}',
+      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","dailyTokenQuota":true,"retryAfterMs":1,"rateLimitHeaders":{"x-ratelimit-reset-tokens":"0.001s"},"body":{"errorType":"tokens","quotaSignals":[]}}',
       attempts: [],
     });
 
