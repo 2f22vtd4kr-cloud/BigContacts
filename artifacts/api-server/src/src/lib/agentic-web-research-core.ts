@@ -4941,13 +4941,13 @@ export function discoveryPivotScopeKey(objective: string): string | null {
  */
 const DISCOVERY_COUNTRY_REGION_CODES = (
   "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BM BN BO BQ BR BS BT BV BW BY BZ " +
-  "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO " +
+  "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EH ER ES ET FI FJ FK FM FO " +
   "FR GA GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO " +
   "JP KE KG KH KI KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR " +
   "MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE " +
   "RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TJ TK TL TM TN TO TR TT " +
   "TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
-).split(/\\s+/u);
+).split(/\s+/u);
 
 const DISCOVERY_REGION_TERMS = [
   "central europe", "eastern europe", "western europe", "northern europe", "southern europe",
@@ -4957,7 +4957,85 @@ const DISCOVERY_REGION_TERMS = [
 ];
 
 function escapeDiscoveryRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\\]\\\\]/gu, "\\export function discoveryPivotAlignmentReason(
+  return [...value]
+    .map((character) => "-/\\^$*+?.()|[]{}".includes(character) ? "\\" + character : character)
+    .join("");
+}
+
+function geographicScopeMention(text: string): string | null {
+  const normalized = text.replace(/[\u2010-\u2015]/gu, "-").replace(/\s+/gu, " ").trim();
+  if (!normalized) return null;
+
+  for (const region of DISCOVERY_REGION_TERMS) {
+    const pattern = new RegExp(
+      "\\b(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      escapeDiscoveryRegex(region) + "\\b",
+      "i",
+    );
+    if (pattern.test(normalized)) return region;
+  }
+
+  // ISO 3166-1 region display names keep this list comprehensive without
+  // mistaking every occurrence of a country word for a location. Require a
+  // locative construction such as "in Slovenia" or "based in Switzerland".
+  const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+  for (const code of DISCOVERY_COUNTRY_REGION_CODES) {
+    const name = displayNames.of(code);
+    if (!name || name === code || name.length < 3) continue;
+    const pattern = new RegExp(
+      "\\b(?:in|within|across|throughout|around|from|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      escapeDiscoveryRegex(name) + "\\b",
+      "i",
+    );
+    if (pattern.test(normalized)) return name;
+  }
+  return null;
+}
+
+export function discoveryUnscopedGeographyReason(
+  objective: string,
+  action: string,
+  args: Record<string, unknown>,
+): string | null {
+  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  if (!searchActions.has(action)) return null;
+  if (geographicScopeMention(objective)) return null;
+
+  const searches: Array<Record<string, unknown>> = [];
+  if (action === "parallel_web_search" || action === "parallel_registry_search") {
+    if (Array.isArray(args.searches)) {
+      for (const entry of args.searches) {
+        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+          searches.push(entry as Record<string, unknown>);
+        }
+      }
+    }
+  } else {
+    searches.push(args);
+  }
+
+  for (const search of searches) {
+    const market = typeof search.market === "string" ? search.market.trim() : "";
+    if (market) {
+      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
+        + "The human objective and approved Boss scope contain no geography, but the proposed search adds market="
+        + market.slice(0, 16)
+        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
+    }
+
+    const query = typeof search.query === "string" ? search.query : "";
+    const geography = geographicScopeMention(query);
+    if (geography) {
+      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
+        + "The human objective and approved Boss scope contain no geography, but the proposed query adds "
+        + geography
+        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
+    }
+  }
+  return null;
+}
+
+export function discoveryPivotAlignmentReason(
 ");
 }
 
