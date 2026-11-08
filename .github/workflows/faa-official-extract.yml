@@ -6,6 +6,12 @@ on:
     paths:
       - ".github/workflows/faa-official-extract.yml"
       - "scripts/faa_extract.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/faa-official-extract.yml"
+      - "scripts/faa_extract.py"
+      - "scripts/test_faa_extract.py"
   workflow_dispatch:
 
 permissions:
@@ -26,6 +32,7 @@ jobs:
       - name: Test extractor against synthetic fixture
         run: python -m unittest scripts/test_faa_extract.py
       - name: Download official FAA release
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           mkdir -p /tmp/faa data/registry-seeds
@@ -39,8 +46,10 @@ jobs:
           unzip -t /tmp/faa/ReleasableAircraft.zip
           unzip -o /tmp/faa/ReleasableAircraft.zip MASTER.txt -d /tmp/faa
       - name: Extract sanitized registrant and aircraft datasets
+        if: github.event_name != 'pull_request'
         run: python scripts/faa_extract.py --master /tmp/faa/MASTER.txt --output data/registry-seeds --checksum-file /tmp/faa/archive.sha256
       - name: Upload reproducible extraction artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: faa-official-sanitized-extract
@@ -50,6 +59,7 @@ jobs:
             data/registry-seeds/faa_extraction_manifest.json
           retention-days: 30
       - name: Commit refreshed official extract to BigContacts
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
