@@ -42,6 +42,28 @@ Poll the returned job in the same way. This downloads the official FAA Releasabl
 
 The `maxRecords` value is a **per-run insertion cap**. If a run inserts exactly 200,000 aircraft assets, wait for terminal state and repeat the same import; stable FAA source keys cause existing assets to be skipped while remaining records are considered. Repeat until a run inserts fewer than the cap, then reconcile aircraft-asset, registrant-entity, skipped and error counts from the durable job result. A completed job alone does not prove the whole snapshot was imported.
 
+## Close-to-principal and professional intermediary seeds
+
+The same explicit endpoint also imports `data/registry-seeds/proximal_intermediaries_2026-11-08.csv` unless `includeIntermediaries:false` is supplied. The snapshot currently contains 28 source-backed records: 23 public professional people and 5 organization/service cards across Oslo Family Office, OFO Services AS, OFO AG, Canica and the DNB Private Banking service route.
+
+- Executive/personal assistants, secretaries, office managers, family-office partners and advisers, legal/transactions/technology/family-security specialists are retained as `Gatekeeper` entities. They are not filtered out because they are not HNWIs.
+- Person-specific professional work email/phone is stored only when the official team page publishes it. These remain `direct_contact_candidate`, not verified private contacts. Where no person-specific contact is published, the person remains `evidence_only`; generic office routes are never copied to the person.
+- Organization/service routes remain on their organization/service cards with `organization_contact`. DNB Private Banking is represented as a service-line route, not a separate legal entity.
+- Officially listed people are linked to the relevant organization with `MEMBER_OF`. This records a published professional affiliation, not a relationship to a named client/principal, beneficial ownership, or authority to act for any third party.
+- OFO Services AS and OFO AG are retained as organization bridges because the team page names them, but legal registry identity and group relationship remain unresolved until the Bureau verifies them.
+- Every intermediary record is review-only, not hot, and has no wealth estimate, residence, inferred client list, or named-principal link.
+
+Run the import with the explicit operator route:
+
+```http
+POST /api/ingest/brreg-snapshot
+Content-Type: application/json
+
+{"includePeople":true,"includeVisualLead":true,"includeIntermediaries":true}
+```
+
+The import is idempotent by stable `sourceRecordId` values and `MEMBER_OF` relationships. Rerunning should skip already imported records and links while considering any remaining ones. A successful job proves seed insertion only; Apex must run target-scoped Bureau research before any promotion.
+
 ## Research semantics
 
 - Company records are `Corporation` entities. A registered email/phone is explicitly organization-scoped and may produce `organization_contact`; it must never be attributed to a named officer.
