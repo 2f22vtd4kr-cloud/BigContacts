@@ -36,11 +36,11 @@ describe("model-directed discovery continuation budget", () => {
     targetResearchReserveIterations: 8,
   };
 
-  it("releases the unused target reserve when no candidate has been admitted", () => {
+  it("preserves the unused target reserve even before a candidate has been admitted", () => {
     expect(resolveRemainingDiscoveryIterations({
       ...standard,
       hasAdmittedCandidates: false,
-    })).toBe(8);
+    })).toBe(0);
   });
 
   it("preserves the target reserve when there is an admitted candidate to research", () => {
@@ -50,17 +50,17 @@ describe("model-directed discovery continuation budget", () => {
     })).toBe(0);
   });
 
-  it("never lets discovery exceed its allocation to consume the global hard ceiling", () => {
+  it("never lets discovery exceed its allocation to consume the protected target reserve", () => {
     expect(resolveRemainingDiscoveryIterations({
       ...standard,
-      discoveryIterationsUsed: 16,
-      investigatorIterationsUsed: 16,
+      discoveryIterationsUsed: 10,
+      investigatorIterationsUsed: 10,
       hasAdmittedCandidates: false,
-    })).toBe(4);
+    })).toBe(2);
     expect(resolveRemainingDiscoveryIterations({
       ...standard,
-      discoveryIterationsUsed: 20,
-      investigatorIterationsUsed: 20,
+      discoveryIterationsUsed: 12,
+      investigatorIterationsUsed: 12,
       hasAdmittedCandidates: false,
     })).toBe(0);
   });

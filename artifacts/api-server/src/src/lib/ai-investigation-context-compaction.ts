@@ -285,6 +285,7 @@ async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
   preferredModel: "openai/gpt-oss-20b" | "openai/gpt-oss-120b",
+  maxAttempts: number = 2,
 ): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
   return runGroqRightHandFreeJson(
     prompt,
@@ -299,7 +300,7 @@ async function requestRightHandSummary(
     {
       maxCompletionTokens: 1_536,
       reasoningEffort: "low",
-      maxAttempts: 3,
+      maxAttempts: Math.max(1, Math.min(2, Math.floor(maxAttempts))),
       preferredModel,
       allowModelFallback: false,
     },
@@ -336,7 +337,7 @@ async function requestSummary(
         "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
       );
       if (fallbackPrompt.length > maximumPromptChars) return null;
-      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b");
+      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
       validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
       if (!validation.issues.length) return validation.summary;
       logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
@@ -350,7 +351,7 @@ async function requestSummary(
       validation.issues.join("; "),
     );
     if (repairPrompt.length > maximumPromptChars) return null;
-    const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b");
+    const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b", 1);
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
@@ -362,7 +363,7 @@ async function requestSummary(
       "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary",
     );
     if (fallbackPrompt.length > maximumPromptChars) return null;
-    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b");
+    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
     validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
@@ -411,9 +412,15 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   // or tail. Ordinary multi-chunk contexts are reduced hierarchically by the AI memory compactor.
   const MAX_SOURCE_CHARS = 2_000_000;
   if (source.length > MAX_SOURCE_CHARS) return null;
+  // Keep the prompt envelope efficient while bounding model calls for pathological
+  // case histories. A 57k audit context becomes four sequential chunks, not a burst.
+  const MAX_COMPACTION_SOURCE_CHUNKS = 8;
   const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
   const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
-  if (!sourceChunks.length) return null;
+  if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
+    logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
+    return null;
+  }
   if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
 
   // A 1,200-character floor rejected otherwise usable 1,393-character partial

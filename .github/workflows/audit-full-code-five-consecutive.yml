@@ -23,6 +23,9 @@ concurrency:
 env:
   PNPM_VERSION: 9.15.9
   RUN_LIVE_API_TESTS: "true"
+  # Prompt-audit tests inject their own env; prevent inherited capture from blocking provider mocks.
+  APEX_CAPTURE_MODEL_PROMPTS: "false"
+  APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
 
 jobs:
   audit-1:

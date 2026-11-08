@@ -53,6 +53,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
       NODE_ENV: test
+      # Prompt-audit tests pass explicit env objects; CI must never inherit a live Replit capture opt-in.
+      APEX_CAPTURE_MODEL_PROMPTS: "false"
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

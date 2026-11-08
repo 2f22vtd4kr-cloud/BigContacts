@@ -24,6 +24,9 @@ env:
   REDIS_URL: redis://127.0.0.1:6379
   PORT: 8080
   NODE_ENV: development
+  # This workflow runs isolated tests, not live prompt-capture sessions.
+  APEX_CAPTURE_MODEL_PROMPTS: "false"
+  APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
   ENABLE_AUTO_PIPELINE: "false"
   APEX_SKIP_SEMANTIC: "1"
   APEX_AGENTIC_CONCURRENCY: "1"

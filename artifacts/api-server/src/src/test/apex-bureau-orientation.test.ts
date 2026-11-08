@@ -61,13 +61,26 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
-  it("applies wealth evidence requirements only to wealth objectives and preserves B2B requirements", () => {
+  it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
     const core = apexInvestigatorSystemCore();
+    expect(core).toContain("casinos in Slovenia");
+    expect(core).toContain("sector and jurisdiction");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("At most two discovery search actions");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("no parallel/provider/job-title fan-out");
+    expect(core.split("\n").length).toBeGreaterThan(8);
+    expect(core).not.toContain("\\n");
+    expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
+  });
+
+  it("applies qualification criteria only when required by the human objective", () => {
+    const core = apexInvestigatorSystemCore();
+    expect(core).toContain("Apply only objective-required criteria");
+    expect(core).toContain("B2B requires a fetched decision-maker role/company link");
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
-    expect(core).toContain("B2B needs a fetched decision-maker role/company link");
-    expect(core).toContain("Other objectives use their criteria");
-    expect(core).toContain("REALISM: Broad B2B discovery must not select incidental celebrity/household-name person leads");
-    expect(core).toContain("Keep source-backed company leads when decision-makers are unresolved");
-    expect(core).toContain("AI judgment, no blacklist");
+    expect(core).toContain("Never infer wealth from seniority");
+    expect(core).toContain("One focused discovery query");
+    expect(core).toContain("Investigator chooses targets, queries, sources, tools, pivots and stopping");
   });
 });

@@ -598,7 +598,7 @@ export function buildAuthoritativeCaseObjectiveBlock(rawObjective: string): stri
   const primaryIndex = raw.indexOf(primaryMarker);
   let objective = primaryIndex >= 0 ? raw.slice(primaryIndex + primaryMarker.length).trim() : raw;
   const boundary = objective.search(
-    /\n(?:BOSS-DIRECTED RESEARCH QUESTION \/ PIVOT:|CURRENT BOSS-DIRECTED RESEARCH QUESTION(?: \(scope constraint, not a fixed tool sequence\))?:|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|BOSS FINAL OPENING DECISION:|RIGHT-HAND (?:OPENING )?REVIEW(?: \(advisory\))?:|PRIOR-ATTEMPT CONTEXT(?: \([^)]*\))?:|RECENT PRIOR ACTS(?: \([^)]*\))?:|Choose each next action yourself from the available capabilities and observed evidence\.)/i,
+    /\n(?:BOSS ADVISORY DIRECTION(?: \(not a fixed action sequence\))?:|BOSS-DIRECTED RESEARCH QUESTION \/ PIVOT:|CURRENT BOSS-DIRECTED RESEARCH QUESTION(?: \(scope constraint, not a fixed tool sequence\))?:|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|BOSS FINAL OPENING DECISION:|RIGHT-HAND (?:OPENING )?REVIEW(?: \(advisory\))?:|PRIOR-ATTEMPT CONTEXT(?: \([^)]*\))?:|RECENT PRIOR ACTS(?: \([^)]*\))?:|Choose each next action yourself from the available capabilities and observed evidence\.)/i,
   );
   if (boundary >= 0) objective = objective.slice(0, boundary).trim();
   if (!objective) return "";

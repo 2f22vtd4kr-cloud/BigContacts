@@ -175,11 +175,11 @@ export function resolveRemainingDiscoveryIterations(input: {
   const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
   const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
   const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
-  // Once an admitted lead exists, cap discovery while preserving the target
-  // reserve that has not already been consumed by target-scoped research.
-  const effectiveDiscoveryCeiling = input.hasAdmittedCandidates
-    ? Math.min(configuredDiscoveryCeiling, Math.max(0, total - targetReserve))
-    : total;
+  // Keep discovery bounded even before a candidate is admitted. This prevents
+  // an inconclusive opening phase from consuming the target-research budget.
+  // Once a lead is admitted, target-stage actions already used reduce the
+  // remaining reserve; they do not reopen the discovery allocation.
+  const effectiveDiscoveryCeiling = Math.min(configuredDiscoveryCeiling, Math.max(0, total - targetReserve));
   const targetActionsUsed = Math.max(0, investigatorUsed - discoveryUsed);
   const effectiveTargetReserve = input.hasAdmittedCandidates
     ? Math.max(0, targetReserve - targetActionsUsed)

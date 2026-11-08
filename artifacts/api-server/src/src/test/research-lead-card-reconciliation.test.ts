@@ -11,6 +11,7 @@ const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", im
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 const runtimeProofVerifier = readFileSync(new URL("../../../../../scripts/verify-canonical-card-proof.mjs", import.meta.url), "utf8");
 const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+const launchDefaults = readFileSync(new URL("../lib/atlas-launch-defaults.ts", import.meta.url), "utf8");
 const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-union.ts", import.meta.url), "utf8");
 const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
@@ -95,7 +96,7 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
     expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
     expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
-    expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
+    expect(agenticCore).toContain("Search snippets remain leads, not evidence");
     expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
     expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
     expect(agenticCore).not.toContain("Companies House is UK-only");
@@ -243,10 +244,13 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the default discovery objective consistent with organization target selection", () => {
-    expect(canonicalAtlas).toContain("Companies are leads and may be selected for target-scoped research");
-    expect(canonicalAtlas).toContain("A person is the ultimate investor-identification goal");
-    expect(canonicalAtlas).toContain("The Investigator chooses each action; no fixed sequence.");
+  it("keeps the wealth-first default objective and the company-to-owner research bridge", () => {
+    expect(launchDefaults).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
+    expect(launchDefaults).toContain("A person is the ultimate investor-identification goal.");
+    expect(launchDefaults).toContain("Companies are leads and may be selected for target-scoped research to identify owners");
+    expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).not.toContain("People—not companies or executive prestige—are the target; companies are leads.");
   });
 

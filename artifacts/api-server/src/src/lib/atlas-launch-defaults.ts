@@ -12,24 +12,27 @@
  * not: starting only Phase J, not: mock mode.
  */
 
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Discover lesser-known people with credible wealth potential and public/professional routes. “Lesser-known” describes prominence, not a search term, name fragment, brand, or target type. A person is the ultimate investor-identification goal. Companies are leads and may be selected for target-scoped research to identify owners, operators, founders, shareholders, investors or assets. Focus on private/mid-market firms, controlling owners, investors and concession/license holders. Seek public ownership/equity/investment/control evidence, material assets or exits, plus practical public/professional routes. Never infer wealth from seniority, fame, prestige or brand leadership; avoid celebrity/richest lists and global household brands unless evidence identifies a realistic local operator/intermediary. Do not compare sectors/geographies; use only human-specified geography. Select one company, person or asset from a public source; one useful candidate starts target research. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth basis and approach route are source-supported. Never invent people, relationships, wealth, contacts or URLs.";
+
 export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
   discoveryFirst: true,
   /**
-   * Number of people the Bureau is asked to deliver end-to-end.
+   * Number of targets the Bureau is asked to research end-to-end.
    * Discovery is the funnel for this same target goal; it must not run an
    * arbitrary larger number of expensive LLM sessions and then discard them
    * merely because researchLimit is smaller.
    */
-  targetCount: 3,
+  targetCount: 1,
+  discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
   /**
    * Full target-scoped research budget. In the canonical flow this matches
    * targetCount: each admitted discovery target gets researched. The
    * orchestrator may still research fewer when discovery cannot produce
-   * enough qualified people, but it must never manufacture targets to fill
+   * enough qualified targets, but it must never manufacture targets to fill
    * this number.
    */
-  researchLimit: 3,
+  researchLimit: 1,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
   hotLeadsOnly: false,
