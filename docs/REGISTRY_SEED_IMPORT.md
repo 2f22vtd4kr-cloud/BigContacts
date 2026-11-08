@@ -40,6 +40,8 @@ Content-Type: application/json
 
 Poll the returned job in the same way. This downloads the official FAA Releasable Aircraft Database ZIP. The importer creates aircraft assets separately from registrants, and uses `REGISTERED_TO` rather than claiming beneficial ownership.
 
+The `maxRecords` value is a **per-run insertion cap**. If a run inserts exactly 200,000 aircraft assets, wait for terminal state and repeat the same import; stable FAA source keys cause existing assets to be skipped while remaining records are considered. Repeat until a run inserts fewer than the cap, then reconcile aircraft-asset, registrant-entity, skipped and error counts from the durable job result. A completed job alone does not prove the whole snapshot was imported.
+
 ## Research semantics
 
 - Company records are `Corporation` entities. A registered email/phone is explicitly organization-scoped and may produce `organization_contact`; it must never be attributed to a named officer.
