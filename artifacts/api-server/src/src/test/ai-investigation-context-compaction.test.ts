@@ -448,7 +448,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
         raw: null,
-        error: 'Groq Right-hand exhausted bounded attempts: {"rateLimitKind":"tokens","body":{"message":"Rate limit reached on tokens per minute (TPM)"}}',
+        error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","retryAfterMs":9645,"rateLimitHeaders":{"x-ratelimit-reset-tokens":"9.645s","x-ratelimit-remaining-tokens":"2117"},"body":{"errorType":"tokens","quotaSignals":[]}}',
         attempts: [],
       })
       .mockResolvedValueOnce({
@@ -488,6 +488,45 @@ describe("AI investigation context compaction", () => {
       caseId: null,
       cognitiveTask: "context_compaction",
     });
+  });
+
+  it("recovers from redacted structured 20B token-window metadata without relying on provider message text", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    const summary = "The source memory remains available for model-led research.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-20b",
+        raw: null,
+        error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","retryAfterMs":9645,"rateLimitHeaders":{"x-ratelimit-reset-tokens":"9.645s"},"body":{"errorType":"tokens","quotaSignals":[]}}',
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-120b",
+        raw: JSON.stringify({ summary }),
+        error: null,
+        attempts: [],
+      });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-120b",
+      allowModelFallback: false,
+      maxAttempts: 1,
+    });
+  });
+
+  it("does not use 120B recovery for structured daily token quota metadata", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: null,
+      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","dailyTokenQuota":true,"retryAfterMs":1,"rateLimitHeaders":{"x-ratelimit-reset-tokens":"0.001s"},"body":{"errorType":"tokens","quotaSignals":[]}}',
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("does not invoke 120B recovery for a daily token cap", async () => {

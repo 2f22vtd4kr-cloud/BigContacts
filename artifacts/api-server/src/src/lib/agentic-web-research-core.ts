@@ -4951,9 +4951,10 @@ const DISCOVERY_COUNTRY_REGION_CODES = (
 
 const DISCOVERY_REGION_TERMS = [
   "central europe", "eastern europe", "western europe", "northern europe", "southern europe",
-  "central asia", "east asia", "south asia", "southeast asia", "south-east asia", "west asia",
-  "asia-pacific", "asia pacific", "middle east", "middle eastern", "north america", "south america",
-  "central america", "latin america", "mena", "nordics", "scandinavia", "balkans",
+  "europe", "european", "central asia", "east asia", "south asia", "southeast asia", "south-east asia", "west asia",
+  "asia-pacific", "asia pacific", "asia", "asian", "africa", "african", "oceania",
+  "middle east", "middle eastern", "north america", "south america", "central america", "latin america",
+  "mena", "nordics", "scandinavia", "balkans",
 ];
 
 function escapeDiscoveryRegex(value: string): string {
@@ -4962,17 +4963,23 @@ function escapeDiscoveryRegex(value: string): string {
     .join("");
 }
 
+function geographicScopeMentionIsNegated(text: string, matchIndex: number): boolean {
+  const prefix = text.slice(Math.max(0, matchIndex - 64), matchIndex);
+  return /\b(?:do\s+not(?:\s+\w+){0,2}|not\s+(?:in|within|across)|no|exclude|excluding|avoid|avoiding|without|except)\s*$/i.test(prefix);
+}
+
 function geographicScopeMention(text: string): string | null {
   const normalized = text.replace(/[\u2010-\u2015]/gu, "-").replace(/\s+/gu, " ").trim();
   if (!normalized) return null;
 
   for (const region of DISCOVERY_REGION_TERMS) {
     const pattern = new RegExp(
-      "\\b(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      "\\b(?:(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?)?" +
       escapeDiscoveryRegex(region) + "\\b",
       "i",
     );
-    if (pattern.test(normalized)) return region;
+    const match = pattern.exec(normalized);
+    if (match && !geographicScopeMentionIsNegated(normalized, match.index)) return region;
   }
 
   // ISO 3166-1 region display names keep this list comprehensive without
@@ -4987,7 +4994,8 @@ function geographicScopeMention(text: string): string | null {
       escapeDiscoveryRegex(name) + "\\b",
       "i",
     );
-    if (pattern.test(normalized)) return name;
+    const match = pattern.exec(normalized);
+    if (match && !geographicScopeMentionIsNegated(normalized, match.index)) return name;
   }
   return null;
 }

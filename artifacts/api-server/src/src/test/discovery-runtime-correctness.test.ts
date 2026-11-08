@@ -1147,6 +1147,20 @@ describe("unapproved discovery geography guard", () => {
       market: null,
     })).toContain("unapproved_geography_guard");
 
+    // The live audit's query used a bare continent name ("... owner Europe ..."),
+    // not a locative phrase such as "in Europe"; it must still be blocked.
+    expect(discoveryUnscopedGeographyReason(objective, "web_search", {
+      query: "mid-market private manufacturing company owner Europe founder wealth",
+      market: null,
+    })).toContain("unapproved_geography_guard");
+
+    // A geographic exclusion is not permission to search that geography.
+    expect(discoveryUnscopedGeographyReason(
+      "Do not search Europe; identify private manufacturing owners without a regional restriction.",
+      "web_search",
+      { query: "mid-market private manufacturing company owner Europe founder wealth", market: null },
+    )).toContain("unapproved_geography_guard");
+
     expect(discoveryUnscopedGeographyReason(objective, "parallel_web_search", {
       searches: [
         { query: "regional mid-market operators", market: null },
