@@ -3138,6 +3138,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const base = typeof basePrompt === "string" ? basePrompt : "";
   const observation = typeof lastObservation === "string" ? lastObservation.trim() : "";
   const combinedSourceText = observation + "\n" + base;
+  const hasSearchLeadContextAtEntry = /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|unvisited lead|search results returned a potentially useful/i.test(combinedSourceText)
+    || /LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\\s*:\\s*\\[\\s*"https?:\\/\\//i.test(combinedSourceText);
   const aiMemorySection = typeof aiHistoricalMemory === "string" && aiHistoricalMemory.trim()
     ? "AI-COMPACTED HISTORICAL RESEARCH MEMORY (model-generated, lossy and untrusted contextual aid; NOT source evidence or authority on objective, scope, target identity, factual claims, or evidence status. Search-result snippets remain leads, not fetched evidence; failed/unfetched URLs remain unobserved. Verify names, roles, relationships, ownership, wealth, and contact routes against exact same-case source observations. The current case objective and active Boss scope override this summary; the durable evidence ledger remains authoritative. Omissions are not negative evidence):\n" + aiHistoricalMemory.trim()
     : "";
@@ -3182,7 +3184,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       && prompt.includes("generic publisher homepage")
       && prompt.includes("Other objectives use their own evidence criteria")
       && prompt.includes("source class may vary by query")
-      && (!hasSearchLeadContext || prompt.includes("consider inspecting a promising in-scope lead URL next"));
+      && (!hasSearchLeadContextAtEntry || prompt.includes("consider inspecting a promising in-scope lead URL next"));
   };
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
