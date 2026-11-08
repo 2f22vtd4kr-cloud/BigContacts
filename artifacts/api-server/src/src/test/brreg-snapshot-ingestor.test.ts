@@ -29,7 +29,8 @@ describe("Apex proximal intermediary seed semantics", () => {
     expect(person.email).toBe("office.manager@example.org");
     expect(person.phone).toBe("+47 22 22 22 22");
     expect(person.contactOutcome).toBe("direct_contact_candidate");
-    expect(person.contactConfidence).toBe(35);
+    expect(person.contactConfidence).toBe(60);
+    expect(person.phoneSource).toContain("published professional route");
     expect(person.estimatedNetWorth).toBeNull();
     expect(person.knownResidences).toBeNull();
     expect(person.isHot).toBe(false);
