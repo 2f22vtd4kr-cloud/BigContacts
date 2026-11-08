@@ -96,7 +96,7 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
     expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
     expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
-    expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
+    expect(agenticCore).toContain("Search snippets remain leads, not evidence");
     expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
     expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
     expect(agenticCore).not.toContain("Companies House is UK-only");
