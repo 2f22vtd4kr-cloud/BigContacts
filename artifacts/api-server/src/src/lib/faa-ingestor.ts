@@ -805,7 +805,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   }
 
   if (batchRows.length > 0) {
-    const res = await flushBatch(batchRows);
+    const res = await flushBatch(batchRows, validateNamesWithLlm);
     if (res.errors > 0) {
       errors += res.errors;
       throw new Error(`FAA final transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
