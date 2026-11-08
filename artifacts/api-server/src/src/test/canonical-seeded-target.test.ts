@@ -245,6 +245,7 @@ describe("canonical seeded target binding", () => {
       sourceMetadata: {
         sourceRecordId: "apex-intermediary:canica:sidsel-rydland",
         role: "Executive Personal Assistant, Canica Norway",
+        organizationSourceRecordId: "apex-intermediary:canica",
         contactScope: "no_person_contact",
         contactabilityStatus: "no_person_specific_contact_published",
         principalRelationshipStatus: "not_established",
@@ -253,6 +254,53 @@ describe("canonical seeded target binding", () => {
         personalWealthEvidence: false,
       },
       evidence: [],
+    });
+    expect(binding.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
+  it("passes an official Gatekeeper professional route into Bureau context without treating it as a private contact", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 809,
+      entityName: "Sigurd Haavik",
+      entityType: "Gatekeeper",
+      sourceRegistries: JSON.stringify(["Apex public professional intermediary seed"]),
+      email: "sigurd@oslofamilyoffice.com",
+      phone: "+47 91 33 22 11",
+      contactOutcome: "direct_contact_candidate",
+      contactConfidence: 60,
+      metadata: JSON.stringify({
+        sourceRecordId: "apex-intermediary:oslo-family-office:sigurd-haavik",
+        sourceUrl: "https://www.oslofamilyoffice.com/team",
+        role: "Founder & Senior Partner",
+        companyName: "Oslo Family Office",
+        organizationSourceRecordId: "apex-intermediary:oslo-family-office",
+        contactScope: "professional_person",
+        contactabilityStatus: "official_professional_route_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        personalWealthEvidence: false,
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "apex-intermediary:oslo-family-office:sigurd-haavik",
+        role: "Founder & Senior Partner",
+        organizationSourceRecordId: "apex-intermediary:oslo-family-office",
+        contactScope: "professional_person",
+        contactabilityStatus: "official_professional_route_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        professionalContact: {
+          email: "sigurd@oslofamilyoffice.com",
+          phone: "+47 91 33 22 11",
+          contactOutcome: "direct_contact_candidate",
+          contactConfidence: 60,
+          scope: "professional_person",
+          status: "officially published professional work route; independently recheck before outreach",
+        },
+      },
     });
     expect(binding.sourceMetadata).not.toHaveProperty("organizationContact");
   });
