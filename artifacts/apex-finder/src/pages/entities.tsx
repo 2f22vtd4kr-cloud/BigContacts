@@ -1766,7 +1766,7 @@ export default function EntityLedger() {
             ))}
           </div>
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[#9CFF1A]/10">
-            <label htmlFor="entity-country-filter-mobile" className="shrink-0 text-[10px] font-mono uppercase tracking-wider text-muted-foreground" >Country / record</label>
+            <label htmlFor="entity-country-filter-mobile" className="shrink-0 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Country</label>
             <select id="entity-country-filter-mobile" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
               className="min-h-[32px] min-w-0 flex-1 rounded-lg border border-[#9CFF1A]/20 bg-[#0d1219] px-2 py-1 text-[11px] font-mono text-foreground">
               <option value="">All countries</option>
