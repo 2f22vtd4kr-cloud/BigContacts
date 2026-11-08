@@ -27,7 +27,7 @@ const SOURCE_FIELDS = [
   "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId", "sourceName", "sourceSnapshotId", "organizationNumber", "companyRegistryId",
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
   "sourceRetrievedAt", "observedAt", "retrievedAt", "sourceTimestamp",
-  "role", "roleOriginal", "companyName", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
+  "role", "roleOriginal", "companyName", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
   "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
