@@ -459,9 +459,16 @@ export type GroqBossDiscoveryInput = {
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
 };
 
+const openingCapabilitySelectionOrientation = [
+  "APEX ATLAS BOSS — OPENING CAPABILITY SELECTION",
+  "Follow the exact human objective and Boss-approved scope; do not impose wealth, ownership, sector or geography requirements the objective did not request.",
+  "Boss cannot browse or execute research tools. This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.",
+  "Select only from the supplied available capabilities and never select an excluded or unavailable capability.",
+].join("\\n");
+
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  return `${apexOrientationCompact("boss")}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
+  return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
