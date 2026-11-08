@@ -4,6 +4,8 @@ import {
   applyFaaRegistryNameValidation,
   buildFaaAircraftAsset,
   buildFaaRegistrantEntity,
+  createFaaRegistrantEntityKey,
+  faaRegistrantEntityKey,
   normalizeFaaName,
   parseFaaMasterCsvRecord,
 } from "../lib/faa-ingestor";
@@ -72,6 +74,35 @@ describe("FAA MASTER parser and candidate projection", () => {
   it("preserves registrant order instead of guessing multi-part surname order", () => {
     expect(normalizeFaaName("SMITH, WALTER", "1")).toBe("Smith, Walter");
     expect(normalizeFaaName("VAN DEN BERG JOHN", "1")).toBe("Van Den Berg John");
+  });
+
+  it("keeps same-name FAA registrants in different states as separate provisional candidates", () => {
+    const california = buildFaaRegistrantEntity({ ...base, state: "CA" });
+    const texas = buildFaaRegistrantEntity({ ...base, state: "TX" });
+    expect(california).not.toBeNull();
+    expect(texas).not.toBeNull();
+    expect(faaRegistrantEntityKey(california!)).toBe(createFaaRegistrantEntityKey("Smith, Walter", "CA", "US"));
+    expect(faaRegistrantEntityKey(california!)).not.toBe(faaRegistrantEntityKey(texas!));
+  });
+
+  it("does not reuse an FAA registrant key for a same-name non-FAA entity", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity).not.toBeNull();
+    const metadata = JSON.parse(entity!.metadata ?? "{}");
+    metadata.source = "other-public-registry";
+    expect(faaRegistrantEntityKey({ ...entity!, metadata: JSON.stringify(metadata) })).toBeNull();
+  });
+
+  it("retains an ordinary-aircraft registrant as a directory candidate without creating a material asset", () => {
+    const ordinary = buildFaaRegistrantEntity({ ...base, typeAircraft: "4", typeEngine: "1" });
+    expect(ordinary).not.toBeNull();
+    const rows = applyFaaRegistryNameValidation(
+      [{ asset: null, entity: ordinary! }],
+      { status: "unavailable", validNames: [] },
+    );
+    expect(rows[0]?.asset).toBeNull();
+    expect(rows[0]?.entity).not.toBeNull();
+    expect(JSON.parse(rows[0]!.entity!.metadata ?? "{}").assetSignal.strength).toBe("observed_asset_lead");
   });
 
   it("creates an unverified PersonCandidate from an FAA individual registrant, not an HNWI", () => {
@@ -164,6 +195,25 @@ describe("FAA registration status semantics", () => {
     ["M", "revoked_or_invalid"],
   ] as const)("classifies FAA status %s as %s", (statusCode, expected) => {
     expect(classifyFaaRegistrant("1", { statusCode }).registrationStatus).toBe(expected);
+  });
+});
+
+describe("FAA terminal reconciliation", () => {
+  it("persists processed-row and distinct-registrant counts in the durable job result", () => {
+    const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+    expect(route).toContain("result.processedRows");
+    expect(route).toContain("result.registrantGroupsProcessed");
+    expect(route).toContain("result: JSON.stringify(result)");
+  });
+});
+
+describe("FAA ingestion scope", () => {
+  it("does not discard ordinary aircraft before creating the FAA registrant candidate", () => {
+    const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
+    expect(source).not.toContain('if (assetSignal.strength === "observed_asset_lead") continue;');
+    expect(source).toContain('if (typeReg !== "1") continue;');
+    expect(source).toContain('assetSignal.strength === "observed_asset_lead"');
+    expect(source).toContain('asset: asset ? { ...asset, identifier: tailNumber } : null');
   });
 });
 
