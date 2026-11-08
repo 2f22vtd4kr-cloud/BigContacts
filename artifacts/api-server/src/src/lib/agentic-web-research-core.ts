@@ -3636,13 +3636,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const mandatoryMinimumParts = [
     fallbackOutputContract,
     fallbackEvidenceContract,
-    minimumTargetVerificationRule,
-    minimumSnippetEvidenceRule,
     compactCaseObjective,
-    minimumTargetabilityMarker,
     minimumOrganizationTargetabilityMarker,
     minimumDiscoveryContract,
-    ...(isDiscoveryPrompt ? [minimumRelevanceMarker] : []),
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
     conditionalCapabilityRule,
@@ -3758,8 +3754,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // The action allowlist is an exact runtime capability boundary, not
         // optional narration; never truncate it in the final emergency tier.
         minimumAvailableActionsSection,
-        minimumRelevanceMarker,
-        minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
         // Keep the latest fetched source label and claim ahead of memory or
         // summaries so source-backed partial findings remain possible.
