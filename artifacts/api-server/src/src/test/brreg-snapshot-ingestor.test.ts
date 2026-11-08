@@ -93,7 +93,8 @@ describe("Apex proximal intermediary seed semantics", () => {
       evidence_note: "Official page describes the service and publishes the service mailbox.",
     });
     const metadata = JSON.parse(organization.metadata ?? "{}");
-    expect(organization.type).toBe("Corporation");
+    // DNB Private Banking is explicitly modeled as a service line, not a separate legal entity.
+    expect(organization.type).toBe("Other");
     expect(organization.email).toBe("private.banking@dnb.no");
     expect(organization.contactOutcome).toBe("organization_contact");
     expect(organization.isHot).toBe(false);
