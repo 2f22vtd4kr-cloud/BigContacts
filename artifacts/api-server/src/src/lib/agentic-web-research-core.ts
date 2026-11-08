@@ -3413,9 +3413,35 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // actually contains a successful search/lead inventory. A generic discovery
   // contract in the base prompt is not evidence that a live lead exists.
   const searchLeadContext = base + "\n" + observation;
-  const hasSearchLeadContext = Boolean(latestSearchMarker)
-    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|unvisited lead|search results returned a potentially useful/i.test(searchLeadContext)
-    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[\s*"https?:\/\//i.test(searchLeadContext);
+  const durableLeadRecords = [...combinedSourceText.matchAll(/LATEST TRAJECTORY RECORD — TURN (\d+)(?:\s*\([^:\n]*\))?:\s*\n?\s*(\{[^\n]*\})/g)]
+    .map((match) => {
+      try {
+        return JSON.parse(match[2]) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })
+    .filter((record): record is Record<string, unknown> => Boolean(record));
+  const latestTrajectoryRecordForLead = durableLeadRecords.at(-1);
+  const latestSuccessfulSearchForLead = [...durableLeadRecords].reverse().find((record) =>
+    record.action === "web_search"
+    && record.execution === "success"
+    && Array.isArray(record.leadUrls)
+    && record.leadUrls.some((url) => typeof url === "string" && /^https?:\/\//i.test(url))
+  );
+  // A successful search is a live follow-up only while it belongs to the
+  // latest trajectory record's accepted Boss pivot. A later blocked action
+  // under a different pivot supersedes the old lead inventory.
+  const hasPivotAlignedLeadInventory = Boolean(
+    latestSuccessfulSearchForLead
+    && latestTrajectoryRecordForLead
+    && latestSuccessfulSearchForLead.pivotScopeKey === latestTrajectoryRecordForLead.pivotScopeKey
+  );
+  const hasSearchLeadContext = durableLeadRecords.length
+    ? hasPivotAlignedLeadInventory
+    : Boolean(latestSearchMarker)
+      || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|unvisited lead|search results returned a potentially useful/i.test(searchLeadContext)
+      || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[\s*"https?:\/\//i.test(searchLeadContext);
   const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, aiMemorySection, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceClaimExcerpt, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   // Never reduce a current correction/source excerpt below a useful minimum
