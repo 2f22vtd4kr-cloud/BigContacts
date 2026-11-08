@@ -1129,6 +1129,54 @@ describe("Apex research runtime readiness hardening", () => {
 });
 
 
+describe("unapproved discovery geography guard", () => {
+  it("blocks model-added countries and regional markets for an unscoped objective, but preserves human-specified geography", async () => {
+    const { discoveryUnscopedGeographyReason } = await import("../lib/agentic-web-research-core");
+    const objective = [
+      "Discover lesser-known people with credible wealth potential and public/professional routes.",
+      "Do not compare sectors/geographies; use only human-specified geography.",
+    ].join(" ");
+
+    expect(discoveryUnscopedGeographyReason(objective, "web_search", {
+      query: "private technology startup founders in Slovenia",
+      market: "SI",
+    })).toContain("unapproved_geography_guard");
+
+    expect(discoveryUnscopedGeographyReason(objective, "web_search", {
+      query: "private equity investors in mid-market firms in Central Europe",
+      market: null,
+    })).toContain("unapproved_geography_guard");
+
+    expect(discoveryUnscopedGeographyReason(objective, "parallel_web_search", {
+      searches: [
+        { query: "regional mid-market operators", market: null },
+        { query: "technology founders in Slovenia", market: null },
+      ],
+    })).toContain("unapproved_geography_guard");
+
+    expect(discoveryUnscopedGeographyReason(objective, "registry_search", {
+      query: "companies with disclosed ownership",
+      registry: "brreg",
+    })).toBeNull();
+
+    expect(discoveryUnscopedGeographyReason(objective, "visit", {
+      url: "https://startup.example/team",
+    })).toBeNull();
+
+    expect(discoveryUnscopedGeographyReason(
+      "Identify private mid-market companies in Slovenia and their documented owners.",
+      "web_search",
+      { query: "private technology startup founders in Slovenia", market: "SI" },
+    )).toBeNull();
+  });
+
+  it("is wired into the live discovery runtime before any outbound search", () => {
+    expect(researchCoreSource).toContain("discoveryUnscopedGeographyReason(input.objective ?? \"\", action.action, selectedArgs)");
+    expect(researchCoreSource).toContain("reason=unapproved_geography_guard");
+  });
+});
+
+
 describe("registry catalogue honesty", () => {
   it("marks catalogue-only registries separately from callable adapters", async () => {
     const { REGISTRY_COVERAGE_MATRIX } = await import("../lib/registry-matrix");

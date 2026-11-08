@@ -355,12 +355,20 @@ async function requestSummary(
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
-    if (!retryableSummaryResponse(repair)) return null;
+    // A non-empty but invalid primary summary can still be followed by a
+    // model-scoped TPM throttle on the 20B repair request. The repair throttle
+    // must receive the same bounded, same-role 120B recovery as a primary
+    // throttle; otherwise compaction fails despite a healthy recovery model.
+    const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
+    if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
 
+    const fallbackReason = repairWasModelThrottled
+      ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
+      : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
     const fallbackPrompt = buildSummaryPrompt(
       "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
       maxChars,
-      "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary",
+      fallbackReason,
     );
     if (fallbackPrompt.length > maximumPromptChars) return null;
     const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);

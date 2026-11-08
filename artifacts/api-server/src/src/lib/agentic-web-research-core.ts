@@ -4933,6 +4933,108 @@ export function discoveryPivotScopeKey(objective: string): string | null {
  */
 // If the Boss wording explicitly orders dependent source stages, enforce that dependency without selecting a provider.
 // This constrains scope, not tool or provider choice.
+/**
+ * Prevent discovery from inventing a country or regional market when the
+ * human objective contains no geographic scope. This is deliberately a
+ * discovery-search guard only: it neither chooses a geography nor restricts
+ * target-stage research, and it leaves explicitly scoped objectives alone.
+ */
+const DISCOVERY_COUNTRY_REGION_CODES = (
+  "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BM BN BO BQ BR BS BT BV BW BY BZ " +
+  "CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EH ER ES ET FI FJ FK FM FO " +
+  "FR GA GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO " +
+  "JP KE KG KH KI KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR " +
+  "MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE " +
+  "RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TJ TK TL TM TN TO TR TT " +
+  "TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
+).split(/\s+/u);
+
+const DISCOVERY_REGION_TERMS = [
+  "central europe", "eastern europe", "western europe", "northern europe", "southern europe",
+  "central asia", "east asia", "south asia", "southeast asia", "south-east asia", "west asia",
+  "asia-pacific", "asia pacific", "middle east", "middle eastern", "north america", "south america",
+  "central america", "latin america", "mena", "nordics", "scandinavia", "balkans",
+];
+
+function escapeDiscoveryRegex(value: string): string {
+  return [...value]
+    .map((character) => "-/\\^$*+?.()|[]{}".includes(character) ? "\\" + character : character)
+    .join("");
+}
+
+function geographicScopeMention(text: string): string | null {
+  const normalized = text.replace(/[\u2010-\u2015]/gu, "-").replace(/\s+/gu, " ").trim();
+  if (!normalized) return null;
+
+  for (const region of DISCOVERY_REGION_TERMS) {
+    const pattern = new RegExp(
+      "\\b(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      escapeDiscoveryRegex(region) + "\\b",
+      "i",
+    );
+    if (pattern.test(normalized)) return region;
+  }
+
+  // ISO 3166-1 region display names keep this list comprehensive without
+  // mistaking every occurrence of a country word for a location. Require a
+  // locative construction such as "in Slovenia" or "based in Switzerland".
+  const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+  for (const code of DISCOVERY_COUNTRY_REGION_CODES) {
+    const name = displayNames.of(code);
+    if (!name || name === code || name.length < 3) continue;
+    const pattern = new RegExp(
+      "\\b(?:in|within|across|throughout|around|from|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      escapeDiscoveryRegex(name) + "\\b",
+      "i",
+    );
+    if (pattern.test(normalized)) return name;
+  }
+  return null;
+}
+
+export function discoveryUnscopedGeographyReason(
+  objective: string,
+  action: string,
+  args: Record<string, unknown>,
+): string | null {
+  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  if (!searchActions.has(action)) return null;
+  if (geographicScopeMention(objective)) return null;
+
+  const searches: Array<Record<string, unknown>> = [];
+  if (action === "parallel_web_search" || action === "parallel_registry_search") {
+    if (Array.isArray(args.searches)) {
+      for (const entry of args.searches) {
+        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+          searches.push(entry as Record<string, unknown>);
+        }
+      }
+    }
+  } else {
+    searches.push(args);
+  }
+
+  for (const search of searches) {
+    const market = typeof search.market === "string" ? search.market.trim() : "";
+    if (market) {
+      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
+        + "The human objective and approved Boss scope contain no geography, but the proposed search adds market="
+        + market.slice(0, 16)
+        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
+    }
+
+    const query = typeof search.query === "string" ? search.query : "";
+    const geography = geographicScopeMention(query);
+    if (geography) {
+      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
+        + "The human objective and approved Boss scope contain no geography, but the proposed query adds "
+        + geography
+        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
+    }
+  }
+  return null;
+}
+
 export function discoveryPivotAlignmentReason(
   objective: string,
   action: string,
@@ -7273,7 +7375,7 @@ if (input.mode === "discovery" && action.action === "parallel_web_search") {
           + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
           + ". Rejected registry/query pairs were not sent.";
       }
-    } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const unavailableSearchProvider = action.action === "web_search" && isSearchProviderDisabled(searchProviderFailures, action.provider) ? action.provider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+    } const unapprovedGeographyReason = input.mode === "discovery" ? discoveryUnscopedGeographyReason(input.objective ?? "", action.action, selectedArgs) : null; if (unapprovedGeographyReason) { record.execution = "blocked"; record.observation = unapprovedGeographyReason; lastObservation = unapprovedGeographyReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=unapproved_geography_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "unapproved_geography_guard blocked a model-added country/market before outbound execution" }); continue; } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const unavailableSearchProvider = action.action === "web_search" && isSearchProviderDisabled(searchProviderFailures, action.provider) ? action.provider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       // Carry only bounded binding metadata while evaluating the terminal evidence gate.
       // The metadata is attached to the durable terminal event only if the gate accepts it.
