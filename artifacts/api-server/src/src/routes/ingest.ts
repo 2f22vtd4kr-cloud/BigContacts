@@ -310,7 +310,7 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
     try {
       await updateJob(jobId, {
         status: "running",
-        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0) + (includeIntermediaries ? 28 : 0),
+        total: safeMax + (includePeople ? 336 : 0) + (includeVisualLead ? 1 : 0) + (includeIntermediaries ? 43 : 0),
         message: "Importing the versioned BRREG snapshot and public professional intermediary seeds…",
       });
       const result = await runBrregSnapshotIngestion({
