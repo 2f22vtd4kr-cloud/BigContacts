@@ -318,7 +318,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       "Do not drop a Gatekeeper/intermediary or PersonCandidate because the person is an executive assistant, personal assistant, secretary, chief of staff, office manager, adviser, counsel, accountant, banker, portfolio professional or other close-network role rather than an HNWI principal.",
       "A professional role or MEMBER_OF affiliation does not establish a client relationship, named-principal association, introduction authority, beneficial ownership or personal wealth. Preserve these uncertainties explicitly.",
     ].join("\n");
-    const existingSeedContext = priorTargetContext.includes("Original seeded source and evidence")
+    const existingSeedContext = priorTargetContext.includes(seededSourceSection)
       ? priorTargetContext
       : priorTargetContext + "\n\n" + seededSourceSection;
     const contextWithContactHandling = existingSeedContext.includes("Seeded professional contact and intermediary handling")
