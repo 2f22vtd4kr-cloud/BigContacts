@@ -760,7 +760,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     // revoked, reserved, or unknown status rows as live asset candidates.
     if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
-    const assetSignal = classifyFaaAssetSignal(typeEngine, typeAircraft);
     const dkey = `faa:v2:${nNumber}`;
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
