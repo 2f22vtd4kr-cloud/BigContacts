@@ -145,6 +145,16 @@ function entityReachVectors(entity: any) {
 }
 
 
+function entityCountryFilterValue(entity: any): string {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = entity?.metadata ? JSON.parse(String(entity.metadata)) : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch { /* fall back to the explicitly recorded nationality field */ }
+  const value = metadata.country ?? metadata.jurisdiction ?? entity?.nationality;
+  return typeof value === "string" ? value.trim() : "";
+}
+
 const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
   direct_contact_verified:  { label: "[V] verified",  color: "#10B981" },
   direct_contact_candidate: { label: "direct",       color: "#3B82F6" },
@@ -1015,10 +1025,10 @@ export default function EntityLedger() {
     return Array.from(seen.values());
   })().filter((entity: any) => {
     if (!countryFilter) return true;
-    return String(entity?.nationality ?? "").trim().toLocaleLowerCase() === countryFilter.toLocaleLowerCase();
+    return entityCountryFilterValue(entity).toLocaleLowerCase() === countryFilter.toLocaleLowerCase();
   });
   const countryOptions = Array.from(new Set((rawDisplayEntities ?? [])
-    .map((entity: any) => String(entity?.nationality ?? "").trim())
+    .map((entity: any) => entityCountryFilterValue(entity))
     .filter(Boolean)))
     .sort((a, b) => a.localeCompare(b));
   // Dev mock bypasses network loading/error states
@@ -1159,7 +1169,7 @@ export default function EntityLedger() {
 
           )}
           <div className="flex items-center gap-2 shrink-0">
-            <label htmlFor="entity-country-filter" className="sr-only">Filter cards by country / nationality</label>
+            <label htmlFor="entity-country-filter" className="sr-only">Filter cards by recorded country or nationality; this does not imply residence</label>
             <select id="entity-country-filter" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
               className="min-h-[32px] max-w-[190px] rounded-lg border border-[#9CFF1A]/20 bg-[#0d1219] px-2 py-1 text-[10px] font-mono text-foreground">
               <option value="">All countries</option>
@@ -1756,7 +1766,7 @@ export default function EntityLedger() {
             ))}
           </div>
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[#9CFF1A]/10">
-            <label htmlFor="entity-country-filter-mobile" className="shrink-0 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Country</label>
+            <label htmlFor="entity-country-filter-mobile" className="shrink-0 text-[10px] font-mono uppercase tracking-wider text-muted-foreground" >Country / record</label>
             <select id="entity-country-filter-mobile" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
               className="min-h-[32px] min-w-0 flex-1 rounded-lg border border-[#9CFF1A]/20 bg-[#0d1219] px-2 py-1 text-[11px] font-mono text-foreground">
               <option value="">All countries</option>
