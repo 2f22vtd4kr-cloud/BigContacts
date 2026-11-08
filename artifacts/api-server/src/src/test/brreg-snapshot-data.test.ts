@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isEligibleBrregCompany, parseRegistryCsv } from "../lib/brreg-snapshot-ingestor";
+import { buildApexIntermediaryEntity, isEligibleBrregCompany, parseRegistryCsv } from "../lib/brreg-snapshot-ingestor";
 
 const dataDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../data/registry-seeds");
 
@@ -35,6 +35,23 @@ describe("versioned BRREG seed snapshot", () => {
     expect(people.some((row) => row.role === "CEO, Canica Norway" && row.entity_type === "PersonCandidate")).toBe(true);
     expect(people.some((row) => row.role === "Office Manager, Canica Switzerland" && row.entity_type === "Gatekeeper")).toBe(true);
     expect(rows.every((row) => row.source_url.startsWith("https://"))).toBe(true);
+  });
+
+  it("keeps the DNB Private Banking service-line route scoped to a non-legal service card", () => {
+    const rows = parseRegistryCsv(readFileSync(resolve(dataDir, "proximal_intermediaries_2026-11-08.csv"), "utf8"));
+    const row = rows.find((item) => item.source_record_id === "apex-intermediary:dnb-private-banking");
+    expect(row).toBeDefined();
+    expect(row!.entity_type).toBe("Other");
+    const entity = buildApexIntermediaryEntity(row!);
+    expect(entity.type).toBe("Other");
+    expect(entity.email).toBe("private.banking@dnb.no");
+    expect(entity.contactOutcome).toBe("organization_contact");
+    expect(JSON.parse(entity.metadata ?? "{}")).toMatchObject({
+      entityNature: "Service line within DNB, not a separate legal entity; no individual adviser or client is identified.",
+      contactScope: "organization_only",
+      principalRelationshipStatus: "not_established",
+      clientRelationshipStatus: "not_observed",
+    });
   });
 
   it("contains only managing-director role evidence and no personal contact fields", () => {
