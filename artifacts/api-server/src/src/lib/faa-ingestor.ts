@@ -36,7 +36,12 @@ const execAsync = promisify(exec);
 const FAA_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip";
 const TMP_DIR = join(tmpdir(), "apexfinder-faa");
 const ZIP_PATH = join(TMP_DIR, "ReleasableAircraft.zip");
-const FAA_SEED_MASTER_PATH = join(process.cwd(), "data/registry-seeds/faa_sanitized_MASTER.txt");
+const FAA_SEED_MASTER_CANDIDATES = [
+  join(process.cwd(), "data/registry-seeds/faa_sanitized_MASTER.txt"),
+  join(process.cwd(), "../../data/registry-seeds/faa_sanitized_MASTER.txt"),
+  join(process.cwd(), "../../../data/registry-seeds/faa_sanitized_MASTER.txt"),
+];
+const FAA_SEED_MASTER_PATH = FAA_SEED_MASTER_CANDIDATES.find(existsSync) ?? FAA_SEED_MASTER_CANDIDATES[0]!;
 const MASTER_PATH = existsSync(FAA_SEED_MASTER_PATH) ? FAA_SEED_MASTER_PATH : join(TMP_DIR, "MASTER.txt");
 
 // Cache TTL — re-download if file is older than 23 hours
