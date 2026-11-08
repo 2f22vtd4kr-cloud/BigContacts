@@ -5521,7 +5521,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ["generic publisher homepage", "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link; Investigator chooses."],
       ["Other objectives use their own evidence criteria", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not query terms; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria."],
       ["No registry is preferred; choose by evidence.", "DISCOVERY TARGETABILITY / REALISM: people/companies/assets distinct; no name blacklist; one relevant sourced lead starts target research. No registry is preferred; choose by evidence (casinos in Slovenia)."],
-      ["consider inspecting a promising in-scope lead URL next", "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action."],
+      ...(carryForwardSuccessfulSearch
+        ? [["consider inspecting a promising in-scope lead URL next", "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action."] as [string, string]]
+        : []),
       ["source class may vary by query", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query."],
     ];
     const requiredAdditions = [
@@ -5699,7 +5701,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ...(input.mode === "discovery"
         ? [
             "No registry is preferred; choose by evidence.",
-            "consider inspecting a promising in-scope lead URL next",
+            ...(carryForwardSuccessfulSearch ? ["consider inspecting a promising in-scope lead URL next"] : []),
             "generic publisher homepage",
             "Other objectives use their own evidence criteria",
             "source class may vary by query",
