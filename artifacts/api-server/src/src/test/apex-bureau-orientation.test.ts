@@ -61,12 +61,16 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
   });
 
-  it("preserves sector and jurisdiction together and emits readable system-prompt sections", () => {
+  it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("casinos in Slovenia");
     expect(core).toContain("sector and jurisdiction");
-    expect(core.split("\n").length).toBeGreaterThan(8);
-    expect(core).not.toContain("\\n");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("At most two discovery search actions");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("no parallel/provider/job-title fan-out");
+    expect(core.split("\\n").length).toBeGreaterThan(8);
+    expect(core).not.toContain("\\\\n");
     expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
   });
 
