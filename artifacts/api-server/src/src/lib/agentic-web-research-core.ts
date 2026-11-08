@@ -5519,7 +5519,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
       "After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact span."
     ].join(" ");
-    const needsEvidenceRecovery = isInvestigatorPrompt && [
+    const needsEvidenceRecovery = (
+      input.mode === "discovery"
+      || Boolean(latestSuccessfulFetchRecord || latestFetchedSourceClaimMarker || carryForwardSuccessfulSearch)
+    ) && [
       "source-backed leads",
       "Target-stage research verifies objective-required role/relationship/materiality",
       "sourceUrls=[that fetched URL"
