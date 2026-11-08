@@ -23,7 +23,7 @@ Source: Brønnøysundregistrene (Norway), Enhetsregisteret public API.
 
 ## Close-to-principal professional intermediaries
 
-- `proximal_intermediaries_2026-11-08.csv` — 28 source-backed organization/person cards, including 23 professional people and 5 organization/service units.
+- `proximal_intermediaries_2026-11-08.csv` — 43 source-backed organization/person cards, including 38 professional people (30 Gatekeeper/intermediary and 8 review-only PersonCandidate records) and 5 organization/service units.
 - The cohort includes executive and personal assistants, secretaries, office managers, family-office partners/advisers, and associated legal, transactions, technology and family-security experts.
 - This is a deliberately retained Gatekeeper/intermediary lane. Do not exclude an assistant, office manager, lawyer, adviser or secretary solely because they are not the HNWI principal.
 - Person-specific business email/phone is retained only when it appears on the official team page, and remains an unverified professional contact candidate. Generic office routes remain organization-scoped.
