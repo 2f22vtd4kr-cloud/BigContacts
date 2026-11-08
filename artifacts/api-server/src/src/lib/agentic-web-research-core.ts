@@ -5727,7 +5727,28 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return finalProjection;
     }
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !finalProjection.includes(marker));
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + finalProjection.length + ", budget " + maxUserPromptChars + ", schema=" + hasCompleteSchema(finalProjection) + ", missing=" + missingFinalMarkers.join(" | ") + "); no action should be sent.");
+    const recoveryText = missingFinalMarkers.map((marker) => {
+      if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
+      if (marker === "Search snippets are leads, not claim-grade evidence") return marker + "; failed fetches are unobserved.";
+      if (marker === "Qualification follows the active objective") return marker + ".";
+      if (marker === "visit supports bounded text extraction") return "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Do not retry the same binary URL through the other fetch action.";
+      if (marker === "do not retry the same binary URL through the other fetch action") return marker + ".";
+      if (marker === "No registry is preferred; choose by evidence.") return "SOURCE-NEUTRAL: " + marker;
+      if (marker === "consider inspecting a promising in-scope lead URL next") return "LEAD FOLLOW-UP GUIDANCE (non-binding): " + marker + "; advisory, not evidence or a mandated next action.";
+      if (marker === "generic publisher homepage") return "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.";
+      if (marker === "Other objectives use their own evidence criteria") return marker + ".";
+      if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
+      return marker;
+    }).filter(Boolean).join("\n\n");
+    const repairedProjection = recoveryText
+      ? [finalProjection.trim(), recoveryText].filter(Boolean).join("\n\n")
+      : finalProjection;
+    if (
+      repairedProjection.length <= maxUserPromptChars
+      && hasCompleteSchema(repairedProjection)
+      && requiredFinalMarkers.every((marker) => repairedProjection.includes(marker))
+    ) return repairedProjection;
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + repairedProjection.length + ", budget " + maxUserPromptChars + ", missing=" + requiredFinalMarkers.filter((marker) => !repairedProjection.includes(marker)).join(" | ") + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
