@@ -97,6 +97,7 @@ def main() -> None:
 
             aircraft_rows.append({
                 "n_number": tail if tail.startswith("N") else "N" + tail,
+                "serial_number": fields[F["serial_number"]].strip(),
                 "registrant_name_as_published": name_raw,
                 "registrant_type_code": reg_type,
                 "manufacturer_model_code": fields[F["manufacturer_model_code"]].strip(),
