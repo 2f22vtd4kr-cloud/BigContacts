@@ -28,7 +28,7 @@ F = {
 ALLOWED_STATUS = {"V", "T", "A", "S", "R"}
 
 def norm(value: str) -> str:
-    return re.sub(r"\\s+", " ", (value or "").strip()).upper()
+    return re.sub(r"\s+", " ", (value or "").strip()).upper()
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -169,7 +169,7 @@ def main() -> None:
         "interpretation": "FAA registrant is the registration applicant; registration alone is not proof of beneficial ownership, operation, wealth or HNWI status.",
         "person_count_threshold": 1000,
     }
-    (out / "faa_extraction_manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+    (out / "faa_extraction_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if len(people) < 1000:
         raise SystemExit(f"Only {len(people)} distinct public individual registrant groups found; do not pad or fabricate.")
     print(json.dumps(manifest, indent=2))
