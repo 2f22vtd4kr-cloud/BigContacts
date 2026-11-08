@@ -24,6 +24,9 @@ const SNAPSHOT_ID = "brreg-sector-screen-2026-11-07";
 const COMPANY_FILE = "brreg_company_seeds_2026-11-07.csv";
 const PEOPLE_FILE = "brreg_managing_director_seeds_2026-11-07.csv";
 const ASSET_FILE = "manual_asset_leads.csv";
+const INTERMEDIARY_FILE = "proximal_intermediaries_2026-11-08.csv";
+const INTERMEDIARY_SOURCE = "Apex public professional intermediary seed";
+const INTERMEDIARY_SNAPSHOT_ID = "apex-proximal-intermediaries-2026-11-08";
 
 export type CsvRecord = Record<string, string>;
 
@@ -276,6 +279,92 @@ export function buildVirtualGlobetrottingLead(row: CsvRecord): InsertAsset {
   };
 }
 
+export function buildApexIntermediaryEntity(row: CsvRecord): InsertEntity {
+  const isOrganization = clean(row.record_type) === "organization";
+  const entityType = clean(row.entity_type) || (isOrganization ? "Corporation" : "Gatekeeper");
+  const name = clean(row.entity_name);
+  const role = clean(row.role);
+  const organization = clean(row.organization_name);
+  const sourceUrl = clean(row.source_url);
+  const sourceUrls = [sourceUrl, clean(row.source_url_2)].filter(Boolean);
+  const sourceName = clean(row.source_name) || INTERMEDIARY_SOURCE;
+  const email = clean(isOrganization ? row.organization_email : row.professional_email) || null;
+  const phone = clean(isOrganization ? row.organization_phone : row.professional_phone) || null;
+  const hasPublishedRoute = Boolean(email || phone);
+  const recordId = clean(row.source_record_id);
+  const organizationSourceRecordId = clean(row.organization_source_record_id) || null;
+  const country = clean(row.country) || null;
+  const city = clean(row.city) || null;
+  const website = clean(row.official_website) || null;
+  const sourceDomain = (() => {
+    try { return new URL(sourceUrl).hostname.replace(/^www\\./, "").toLowerCase(); }
+    catch { return null; }
+  })();
+  const metadata = {
+    source: "apex-professional-intermediary-seed",
+    sourceName,
+    sourceDomain,
+    sourceClass: "official_professional_page",
+    sourceMechanism: "apex_intermediary_seed_import",
+    verificationLevel: "official_page_listing",
+    independentCorroborationStatus: "not_assessed",
+    sourceRecordId: recordId,
+    sourceSnapshotId: INTERMEDIARY_SNAPSHOT_ID,
+    sourceUrl,
+    sourceUrls,
+    role,
+    roleOriginal: role,
+    companyName: organization,
+    organizationSourceRecordId,
+    country,
+    businessCity: city,
+    businessOfficeLocation: clean(row.business_office_location) || null,
+    officialWebsite: website,
+    entityNature: clean(row.entity_nature) || null,
+    scope: isOrganization ? "organization" : "person_candidate",
+    personName: isOrganization ? null : name,
+    exactClaimObserved: true,
+    contactScope: isOrganization ? "organization_only" : hasPublishedRoute ? "professional_person" : "no_person_contact",
+    contactabilityStatus: isOrganization
+      ? hasPublishedRoute ? "official_organization_route_published" : "no_organization_route_published_in_seed"
+      : hasPublishedRoute ? "official_professional_route_published" : "no_person_specific_contact_published",
+    principalRelationshipStatus: "not_established",
+    clientRelationshipStatus: "not_observed",
+    lastObservedAt: "2026-11-08",
+    reviewOnly: true,
+    wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "unverified",
+    personalWealthEvidence: false,
+  };
+  const note = clean(row.evidence_note);
+  return {
+    name,
+    type: entityType,
+    bayesianScore: isOrganization ? 0.15 : 0.1,
+    nationality: null,
+    estimatedNetWorth: null,
+    knownResidences: null,
+    email,
+    phone,
+    phoneSource: phone ? sourceName + " — published " + (isOrganization ? "organization" : "professional") + " route" : null,
+    contactMethod: hasPublishedRoute
+      ? isOrganization
+        ? "Public organization/service route; organization-scoped only"
+        : "Public professional work route; not a private or residential contact"
+      : "No person-specific or organization-specific route published in the seed",
+    contactOutcome: hasPublishedRoute
+      ? isOrganization ? "organization_contact" : "direct_contact_candidate"
+      : "evidence_only",
+    contactConfidence: hasPublishedRoute ? isOrganization ? 20 : 35 : 0,
+    notes: note || (isOrganization
+      ? "Official-source organization bridge; exact legal identity and any relationship to named clients remain unverified."
+      : "Official-source professional intermediary candidate; no named principal or client relationship is established."),
+    sourceRegistries: JSON.stringify([INTERMEDIARY_SOURCE]),
+    metadata: JSON.stringify(metadata),
+    isHot: false,
+  };
+}
+
 async function readCsv(file: string): Promise<CsvRecord[]> {
   return parseRegistryCsv(await readFile(resolve(DATA_DIR, file), "utf8"));
 }
@@ -298,6 +387,7 @@ export interface BrregSnapshotIngestionOptions {
   maxCompanies?: number;
   includePeople?: boolean;
   includeVisualLead?: boolean;
+  includeIntermediaries?: boolean;
   batchSize?: number;
 }
 
@@ -306,6 +396,10 @@ export interface BrregSnapshotIngestionResult {
   peopleInserted: number;
   relationshipsInserted: number;
   assetsInserted: number;
+  intermediaryOrganizationsInserted: number;
+  intermediaryPeopleInserted: number;
+  intermediaryRelationshipsInserted: number;
+  intermediaryEntitiesSkipped: number;
   companiesSkipped: number;
   peopleSkipped: number;
   errors: number;
@@ -321,11 +415,16 @@ export async function runBrregSnapshotIngestion(
     ? []
     : (await readCsv(PEOPLE_FILE)).filter((row) => row.business_role === "Daglig leder");
   const visualLeads = options.includeVisualLead === false ? [] : await readCsv(ASSET_FILE);
+  const intermediaryRows = options.includeIntermediaries === false ? [] : await readCsv(INTERMEDIARY_FILE);
   const result: BrregSnapshotIngestionResult = {
     companiesInserted: 0,
     peopleInserted: 0,
     relationshipsInserted: 0,
     assetsInserted: 0,
+    intermediaryOrganizationsInserted: 0,
+    intermediaryPeopleInserted: 0,
+    intermediaryRelationshipsInserted: 0,
+    intermediaryEntitiesSkipped: 0,
     companiesSkipped: 0,
     peopleSkipped: 0,
     errors: 0,
@@ -408,6 +507,105 @@ export async function runBrregSnapshotIngestion(
       }
     }
     if (options.jobId) logger.info({ jobId: options.jobId, peopleInserted: result.peopleInserted, relationshipsInserted: result.relationshipsInserted }, "BRREG managing-director batch committed");
+  }
+
+  const existingIntermediaries = await db.select({
+    id: entitiesTable.id,
+    metadata: entitiesTable.metadata,
+  }).from(entitiesTable).where(eq(entitiesTable.sourceRegistries, JSON.stringify([INTERMEDIARY_SOURCE])));
+  const intermediaryEntityIdBySourceId = new Map<string, number>();
+  for (const existing of existingIntermediaries) {
+    const sourceId = parseObject(existing.metadata).sourceRecordId;
+    if (typeof sourceId === "string" && sourceId) intermediaryEntityIdBySourceId.set(sourceId, existing.id);
+  }
+
+  const intermediaryOrganizations = intermediaryRows.filter((row) => clean(row.record_type) === "organization");
+  for (let offset = 0; offset < intermediaryOrganizations.length; offset += batchSize) {
+    const batch = intermediaryOrganizations.slice(offset, offset + batchSize);
+    const fresh = batch.filter((row) => !intermediaryEntityIdBySourceId.has(clean(row.source_record_id)));
+    result.intermediaryEntitiesSkipped += batch.length - fresh.length;
+    if (!fresh.length) continue;
+    const inserted = await db.transaction(async (tx) => tx.insert(entitiesTable)
+      .values(fresh.map(buildApexIntermediaryEntity))
+      .returning({ id: entitiesTable.id, metadata: entitiesTable.metadata }));
+    for (const item of inserted) {
+      const sourceId = parseObject(item.metadata).sourceRecordId;
+      if (typeof sourceId === "string" && sourceId) intermediaryEntityIdBySourceId.set(sourceId, item.id);
+    }
+    result.intermediaryOrganizationsInserted += inserted.length;
+    if (options.jobId) logger.info({
+      jobId: options.jobId,
+      intermediaryOrganizationsInserted: result.intermediaryOrganizationsInserted,
+    }, "Apex intermediary organization bridge batch committed");
+  }
+
+  const intermediaryPeople = intermediaryRows.filter((row) => clean(row.record_type) === "person");
+  const intermediaryRelationshipCandidates: Array<{ personId: number; organizationId: number; notes: string }> = [];
+  for (let offset = 0; offset < intermediaryPeople.length; offset += batchSize) {
+    const batch = intermediaryPeople.slice(offset, offset + batchSize);
+    const prepared = batch.map((row) => ({
+      row,
+      sourceId: clean(row.source_record_id),
+      organizationId: intermediaryEntityIdBySourceId.get(clean(row.organization_source_record_id)),
+    }));
+    const linkable = prepared.filter((item) => item.organizationId != null);
+    result.intermediaryEntitiesSkipped += prepared.length - linkable.length;
+    const fresh = linkable.filter((item) => !intermediaryEntityIdBySourceId.has(item.sourceId));
+    result.intermediaryEntitiesSkipped += linkable.length - fresh.length;
+    const inserted = fresh.length ? await db.transaction(async (tx) => tx.insert(entitiesTable)
+      .values(fresh.map((item) => buildApexIntermediaryEntity(item.row)))
+      .returning({ id: entitiesTable.id, metadata: entitiesTable.metadata })) : [];
+    for (const item of inserted) {
+      const sourceId = parseObject(item.metadata).sourceRecordId;
+      if (typeof sourceId === "string" && sourceId) intermediaryEntityIdBySourceId.set(sourceId, item.id);
+    }
+    result.intermediaryPeopleInserted += inserted.length;
+    for (const item of linkable) {
+      const personId = intermediaryEntityIdBySourceId.get(item.sourceId);
+      const organizationId = item.organizationId;
+      if (!personId || !organizationId) continue;
+      const role = clean(item.row.role);
+      const organization = clean(item.row.organization_name);
+      intermediaryRelationshipCandidates.push({
+        personId,
+        organizationId,
+        notes: "Official source lists this person as " + role + " at " + organization
+          + "; membership does not establish a relationship with any named client or principal, beneficial ownership, or authority to act for a third party.",
+      });
+    }
+    if (options.jobId) logger.info({
+      jobId: options.jobId,
+      intermediaryPeopleInserted: result.intermediaryPeopleInserted,
+    }, "Apex professional intermediary batch committed");
+  }
+
+  if (intermediaryRelationshipCandidates.length) {
+    const personIds = [...new Set(intermediaryRelationshipCandidates.map((item) => item.personId))];
+    const organizationIds = [...new Set(intermediaryRelationshipCandidates.map((item) => item.organizationId))];
+    const existing = await db.select({
+      sourceEntityId: relationshipsTable.sourceEntityId,
+      targetId: relationshipsTable.targetId,
+    }).from(relationshipsTable).where(and(
+      eq(relationshipsTable.targetType, "Entity"),
+      eq(relationshipsTable.relationshipType, "MEMBER_OF"),
+      inArray(relationshipsTable.sourceEntityId, personIds),
+      inArray(relationshipsTable.targetId, organizationIds),
+    ));
+    const existingPairs = new Set(existing.map((item) => item.sourceEntityId + ":" + item.targetId));
+    const missing = intermediaryRelationshipCandidates
+      .filter((item) => !existingPairs.has(item.personId + ":" + item.organizationId))
+      .map((item): InsertRelationship => ({
+        sourceEntityId: item.personId,
+        targetId: item.organizationId,
+        targetType: "Entity",
+        relationshipType: "MEMBER_OF",
+        strength: 0.85,
+        notes: item.notes,
+      }));
+    if (missing.length) {
+      await db.insert(relationshipsTable).values(missing);
+      result.intermediaryRelationshipsInserted += missing.length;
+    }
   }
 
   for (const row of visualLeads) {
