@@ -437,6 +437,17 @@ describe("Groq Right-hand model policy", () => {
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     // One catalog request plus one request per model; no repeat on the TPD-exhausted 120B model.
     expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    const isolatedDailyCap = await runGroqRightHandFreeJson(
+      "Return a small JSON decision.",
+      "Reply with ONE JSON object only.",
+      undefined,
+      undefined,
+      undefined,
+      { preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxAttempts: 1 },
+    );
+    expect(isolatedDailyCap.status).toBe("unavailable");
+    expect(isolatedDailyCap.error).toContain('"dailyTokenQuota":true');
   });
 
   it("falls back on a hard model 429 within the bounded same-role model policy", { timeout: 15_000 }, async () => {
