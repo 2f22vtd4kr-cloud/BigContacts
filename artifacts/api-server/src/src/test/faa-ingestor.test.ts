@@ -104,16 +104,26 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(metadata.nameValidationStatus).toBe("structural_validation_only_pending_identity_resolution");
   });
 
-  it("retains an ordinary-aircraft registrant as a directory candidate without creating a material asset", () => {
+  it("retains ordinary aircraft as unvalued FAA observations linked to provisional registrants", () => {
     const ordinary = buildFaaRegistrantEntity({ ...base, typeAircraft: "4", typeEngine: "1" });
     expect(ordinary).not.toBeNull();
+    const asset = buildFaaAircraftAsset({
+      ...base,
+      typeAircraft: "4",
+      typeEngine: "1",
+      manufacturerModelCode: "",
+      engineModelCode: "",
+      expirationDate: "",
+      uniqueId: "",
+    });
     const rows = applyFaaRegistryNameValidation(
-      [{ asset: null, entity: ordinary! }],
-      { status: "unavailable", validNames: [] },
+      [{ asset, entity: ordinary! }],
+      { status: "not_requested", validNames: [] },
     );
-    expect(rows[0]?.asset).toBeNull();
+    expect(rows[0]?.asset?.estimatedValue).toBeNull();
     expect(rows[0]?.entity).not.toBeNull();
-    expect(JSON.parse(rows[0]!.entity!.metadata ?? "{}").assetSignal.strength).toBe("observed_asset_lead");
+    expect(JSON.parse(rows[0]!.asset!.metadata ?? "{}").assetSignal.strength).toBe("observed_asset_lead");
+    expect(JSON.parse(rows[0]!.entity!.metadata ?? "{}").personalWealthEvidence).toBe(false);
   });
 
   it("creates an unverified PersonCandidate from an FAA individual registrant, not an HNWI", () => {
@@ -225,8 +235,8 @@ describe("FAA ingestion scope", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).not.toContain('if (assetSignal.strength === "observed_asset_lead") continue;');
     expect(source).toContain('if (typeReg !== "1") continue;');
-    expect(source).toContain('assetSignal.strength === "observed_asset_lead"');
-    expect(source).toContain('asset: asset ? { ...asset, identifier: tailNumber } : null');
+    expect(source).toContain("const asset = buildFaaAircraftAsset({");
+    expect(source).toContain("batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });");
   });
 });
 
