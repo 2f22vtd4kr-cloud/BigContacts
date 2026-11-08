@@ -344,6 +344,7 @@ describe("Groq Right-hand model policy", () => {
 
     expect(result.status).toBe("unavailable");
     expect(result.error).toContain('"rateLimitKind":"tokens"');
+    expect(result.error).toContain('"dailyTokenQuota":false');
     const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
     expect(chatCalls).toHaveLength(1);
   });
