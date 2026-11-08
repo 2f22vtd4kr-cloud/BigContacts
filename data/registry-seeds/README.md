@@ -21,6 +21,15 @@ Source: Brønnøysundregistrene (Norway), Enhetsregisteret public API.
 - Import is explicit via `POST /api/ingest/brreg-snapshot`; there is deliberately no seed-on-boot behavior.
 - Import is idempotent by BRREG organization number and person+organization role key. It uses the existing entities/relationships model; it does not create a parallel prospect database.
 
+## Close-to-principal professional intermediaries
+
+- `proximal_intermediaries_2026-11-08.csv` — 28 source-backed organization/person cards, including 23 professional people and 5 organization/service units.
+- The cohort includes executive and personal assistants, secretaries, office managers, family-office partners/advisers, and associated legal, transactions, technology and family-security experts.
+- This is a deliberately retained Gatekeeper/intermediary lane. Do not exclude an assistant, office manager, lawyer, adviser or secretary solely because they are not the HNWI principal.
+- Person-specific business email/phone is retained only when it appears on the official team page, and remains an unverified professional contact candidate. Generic office routes remain organization-scoped.
+- `MEMBER_OF` records a publicly evidenced professional affiliation only; it does not imply a client relationship or access to a named principal. No private address, personal wealth, client identity or beneficial ownership is inferred.
+- OFO Services AS and OFO AG are name-based organization bridges from the official team page; verify legal identity and group relationships before any merge. DNB Private Banking is a service-line route, not a separate legal entity.
+
 ## Aviation
 
 BigContacts already has the canonical official FAA importer at `POST /api/ingest/faa`, using the FAA's Releasable Aircraft Database ZIP. This snapshot does not copy the third-party OpenAirDocs FAA export into the canonical seed dataset. The FAA importer is updated to omit registrant mailing addresses and additional co-registrant names from entity and asset metadata. Aircraft and registrants remain separate; `REGISTERED_TO` is not a beneficial-ownership conclusion. FAA registration alone does not establish personal wealth or a realistic contact route.
