@@ -236,7 +236,10 @@ describe("FAA ingestion scope", () => {
     expect(source).not.toContain('if (assetSignal.strength === "observed_asset_lead") continue;');
     expect(source).toContain('if (typeReg !== "1") continue;');
     expect(source).toContain("const asset = buildFaaAircraftAsset({");
-    expect(source).toContain("batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });");
+    expect(source).toContain("batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });
+    expect(source).toContain("expectedEntityByAssetId");
+    expect(source).toContain("staleFaaRelationIds");
+    expect(source).toContain("tx.delete(relationshipsTable)");");
   });
 });
 
