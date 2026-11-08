@@ -589,6 +589,8 @@ export default function EntityLedger() {
 
   const [searchTerm, setSearchTerm] = useState(() => (urlParams.get("q") || urlParams.get("search") || "").trim());
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  // Country filter uses the card's recorded nationality/country field; it does not imply residence.
+  const [countryFilter, setCountryFilter] = useState<string>("");
   const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
   const [hideBillionaires, setHideBillionaires] = useState(false);
   const [contactRichness, setContactRichness] = useState<ContactRichness>(() =>
@@ -625,7 +627,7 @@ export default function EntityLedger() {
     setPage(0);
     setAllEntities([]);
     setHasMore(true);
-  }, [searchTerm, typeFilter, hotOnly, contactRichness, minConfidence, viewMode]);
+  }, [searchTerm, typeFilter, countryFilter, hotOnly, contactRichness, minConfidence, viewMode]);
 
   // Keep ?q= in the URL so Reactor REACH deep-links and share links stay honest
   useEffect(() => {
@@ -1011,7 +1013,14 @@ export default function EntityLedger() {
       else seen.set(`id:${e?.id}`, e);
     }
     return Array.from(seen.values());
-  })();
+  })().filter((entity: any) => {
+    if (!countryFilter) return true;
+    return String(entity?.nationality ?? "").trim().toLocaleLowerCase() === countryFilter.toLocaleLowerCase();
+  });
+  const countryOptions = Array.from(new Set((rawDisplayEntities ?? [])
+    .map((entity: any) => String(entity?.nationality ?? "").trim())
+    .filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b));
   // Dev mock bypasses network loading/error states
   const showLoading = isMockMode() ? false : isLoadingEntities;
   const showError = isMockMode() ? false : isEntitiesError;
@@ -1149,6 +1158,14 @@ export default function EntityLedger() {
           </div>
 
           )}
+          <div className="flex items-center gap-2 shrink-0">
+            <label htmlFor="entity-country-filter" className="sr-only">Filter cards by country / nationality</label>
+            <select id="entity-country-filter" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
+              className="min-h-[32px] max-w-[190px] rounded-lg border border-[#9CFF1A]/20 bg-[#0d1219] px-2 py-1 text-[10px] font-mono text-foreground">
+              <option value="">All countries</option>
+              {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+            </select>
+          </div>
           {/* View mode tabs */}
           <div className="flex items-center gap-0.5 border border-[#9CFF1A]/10 rounded-xl p-1 shrink-0 bg-card/40">
             {([
@@ -1737,6 +1754,14 @@ export default function EntityLedger() {
                 {label}
               </button>
             ))}
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-[#9CFF1A]/10">
+            <label htmlFor="entity-country-filter-mobile" className="shrink-0 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Country</label>
+            <select id="entity-country-filter-mobile" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
+              className="min-h-[32px] min-w-0 flex-1 rounded-lg border border-[#9CFF1A]/20 bg-[#0d1219] px-2 py-1 text-[11px] font-mono text-foreground">
+              <option value="">All countries</option>
+              {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+            </select>
           </div>
           {/* Type filter chips */}
           <div className="atlas-h-scroll flex items-center gap-2 px-3 py-2 pr-10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
