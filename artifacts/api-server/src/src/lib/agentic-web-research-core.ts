@@ -5499,7 +5499,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (repaired.length > maxUserPromptChars) {
       repaired = repaired
         .replace(/MODEL-OWNED RELEVANCE SELF-CHECK:[^\n]*/g,
-          "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link. No fixed action sequence.")
+          "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties each query/source to objective-required role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. Investigator chooses; no source, target or action is preselected.")
         .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
           "DISCOVERY TARGETABILITY / REALISM: one source-backed relevant lead starts target research; no name blacklist or incidental celebrities. No registry is preferred; choose by evidence.")
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
@@ -5587,10 +5587,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       };
       compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.", ["DISCOVERY LEAD-INSPECTION GATE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
       compactClause("DISCOVERY LEAD-INSPECTION GATE:", "DISCOVERY LEAD-INSPECTION GATE: after a successful search, inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector and jurisdiction, e.g. casinos in Slovenia.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
-      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence.", ["DISCOVERY MODE:"]);
+      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a falsifiable public-evidence hypothesis. Other objectives use their own criteria.", ["DISCOVERY MODE:"]);
       compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
-      compactClause("DISCOVERY LEAD HANDOFF CONTRACT:", "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant review-only leads, not every result; never auto-promote. A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact.", ["Conditional specialist actions only", "Conditional specialist OSINT actions:"]);
-      compactClause("PAGE FORMAT / RETRIEVAL LIMITS:", "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts PDF text; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly.", ["OUTPUT CONTRACT:"]);
+      compactClause("DISCOVERY LEAD HANDOFF CONTRACT:", "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name review-only leads, not every result; never auto-promote. A fetched/registry-confirmed organization may start target research, not final CRM/contact.", ["Conditional specialist actions only", "Conditional specialist OSINT actions:"]);
+      compactClause("MODEL-OWNED RELEVANCE SELF-CHECK:", "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties each query/source to objective-required role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. Investigator chooses; no source, target or action is preselected.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "DISCOVERY TARGETABILITY / REALISM:"]);
+      compactClause("DISCOVERY TARGETABILITY / REALISM:", "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; one relevant sourced lead starts target research; no incidental celebrities or name blacklist; no extra wealth criteria unless required.", ["LEAD FOLLOW-UP GUIDANCE (non-binding):", "DISCOVERY LEAD HANDOFF CONTRACT:"]);
+      compactClause("LEAD FOLLOW-UP GUIDANCE (non-binding):", "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a promising in-scope lead URL when useful; advisory, not evidence or a mandated next action; Investigator chooses.", ["DISCOVERY LEAD HANDOFF CONTRACT:", "SCOPE RECOVERY:"]);
+      compactClause("SCOPE RECOVERY:", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query, never pivot sector or jurisdiction.", ["PAGE FORMAT / RETRIEVAL LIMITS:", "OUTPUT CONTRACT:"]);
+      compactClause("PAGE FORMAT / RETRIEVAL LIMITS:", "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts PDF text; browser_fetch is HTML-only; scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly; do not retry the same binary URL through the other fetch action.", ["OUTPUT CONTRACT:"]);
       for (const heading of ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE:", "DISCOVERY TARGETABILITY GATE:"]) {
         let headingIndex = repaired.indexOf(heading);
         while (headingIndex >= 0 && repaired.length > maxUserPromptChars) {
@@ -5706,9 +5710,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE CLAIM");
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
-    // Historical memory is useful but subordinate to active scope, live evidence
-    // and the action schema. Its absence alone must not force another rebuild.
-    const hasHistoricalMemoryContext = true;
+    const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
     const hasAuthoritativeObjective = !authoritativeCaseObjective || containsVerbatimCaseObjective(normalizedBase);
     const hasDiscoveryContract = input.mode !== "discovery" || (
       normalizedBase.includes("DISCOVERY MODE: no person or entity target is implied")
