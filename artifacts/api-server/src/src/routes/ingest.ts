@@ -264,7 +264,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.processedRows.toLocaleString()} eligible individual registration rows processed across ${result.registrantGroupsProcessed.toLocaleString()} distinct registrant groups; ${result.candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${result.inserted.toLocaleString()} material/strong aircraft assets inserted; name validation=${result.nameValidationMode}. FAA registration does not establish beneficial ownership or personal wealth.`,
+        message: `Done — ${result.processedRows.toLocaleString()} eligible individual registration rows processed across ${result.registrantGroupsProcessed.toLocaleString()} distinct registrant groups; ${result.candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${result.inserted.toLocaleString()} aircraft observations inserted; name validation=${result.nameValidationMode}. FAA registration does not establish beneficial ownership or personal wealth.`,
         result: JSON.stringify(result),
       });
     } catch (err: any) {
