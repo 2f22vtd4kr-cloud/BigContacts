@@ -355,7 +355,7 @@ export function buildApexIntermediaryEntity(row: CsvRecord): InsertEntity {
     contactOutcome: hasPublishedRoute
       ? isOrganization ? "organization_contact" : "direct_contact_candidate"
       : "evidence_only",
-    contactConfidence: hasPublishedRoute ? isOrganization ? 20 : 35 : 0,
+    contactConfidence: hasPublishedRoute ? isOrganization ? 20 : (email ? 35 : 0) + (phone ? 25 : 0) : 0,
     notes: note || (isOrganization
       ? "Official-source organization bridge; exact legal identity and any relationship to named clients remain unverified."
       : "Official-source professional intermediary candidate; no named principal or client relationship is established."),
