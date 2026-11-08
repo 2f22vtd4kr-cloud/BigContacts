@@ -85,6 +85,14 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(faaRegistrantEntityKey(california!)).not.toBe(faaRegistrantEntityKey(texas!));
   });
 
+  it("does not reuse an FAA registrant key for a same-name non-FAA entity", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity).not.toBeNull();
+    const metadata = JSON.parse(entity!.metadata ?? "{}");
+    metadata.source = "other-public-registry";
+    expect(faaRegistrantEntityKey({ ...entity!, metadata: JSON.stringify(metadata) })).toBeNull();
+  });
+
   it("retains an ordinary-aircraft registrant as a directory candidate without creating a material asset", () => {
     const ordinary = buildFaaRegistrantEntity({ ...base, typeAircraft: "4", typeEngine: "1" });
     expect(ordinary).not.toBeNull();
@@ -187,6 +195,15 @@ describe("FAA registration status semantics", () => {
     ["M", "revoked_or_invalid"],
   ] as const)("classifies FAA status %s as %s", (statusCode, expected) => {
     expect(classifyFaaRegistrant("1", { statusCode }).registrationStatus).toBe(expected);
+  });
+});
+
+describe("FAA terminal reconciliation", () => {
+  it("persists processed-row and distinct-registrant counts in the durable job result", () => {
+    const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+    expect(route).toContain("result.processedRows");
+    expect(route).toContain("result.registrantGroupsProcessed");
+    expect(route).toContain("result: JSON.stringify(result)");
   });
 });
 
