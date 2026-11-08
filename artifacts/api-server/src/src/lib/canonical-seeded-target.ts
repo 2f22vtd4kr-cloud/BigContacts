@@ -27,7 +27,7 @@ const SOURCE_FIELDS = [
   "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId", "sourceName", "sourceSnapshotId", "organizationNumber", "companyRegistryId",
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
   "sourceRetrievedAt", "observedAt", "retrievedAt", "sourceTimestamp",
-  "role", "roleOriginal", "companyName", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
+  "role", "roleOriginal", "companyName", "organizationSourceRecordId", "entityNature", "businessOfficeLocation", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
   "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
@@ -97,6 +97,19 @@ export function buildCanonicalSeededTargetBinding(input: {
       contactConfidence: input.contactConfidence ?? 0,
       scope: "organization_only",
       status: "registry-published; independently recheck before outreach",
+    };
+  }
+  if (targetKind === "person"
+    && metadata.contactScope === "professional_person"
+    && ["direct_contact_candidate", "direct_contact_verified"].includes(String(input.contactOutcome))
+    && (input.email || input.phone)) {
+    sourceMetadata.professionalContact = {
+      email: input.email ?? null,
+      phone: input.phone ?? null,
+      contactOutcome: input.contactOutcome,
+      contactConfidence: input.contactConfidence ?? 0,
+      scope: "professional_person",
+      status: "officially published professional work route; independently recheck before outreach",
     };
   }
   return {
