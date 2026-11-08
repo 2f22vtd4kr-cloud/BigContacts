@@ -81,9 +81,11 @@ export interface FaaIngestionResult {
   errors: number;
   durationMs: number;
   candidateEntitiesInserted: number;
+  processedRows: number;
+  registrantGroupsProcessed: number;
 }
 
-export type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
+export type FaaBatchRow = { asset: InsertAsset | null; entity: InsertEntity | null };
 
 export function applyFaaRegistryNameValidation(
   rows: FaaBatchRow[],
@@ -190,6 +192,27 @@ function faaDateToIso(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
 }
 
+function parseFaaEntityMetadata(entity: Pick<InsertEntity, "metadata">): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(entity.metadata ?? "{}");
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+  } catch { return {}; }
+}
+
+/** Stable source key: FAA's published name is grouped only with registry state/country. */
+export function createFaaRegistrantEntityKey(name: string, state: string, country: string): string {
+  const normalizedName = name.trim().toLowerCase().replace(/\s+/g, " ");
+  return normalizedName + "|" + state.trim().toUpperCase() + "|" + (country.trim() || "US").toUpperCase();
+}
+
+/** Return a key only for FAA-sourced candidates; never merge a same-name non-FAA identity. */
+export function faaRegistrantEntityKey(entity: Pick<InsertEntity, "name" | "metadata">): string | null {
+  const metadata = parseFaaEntityMetadata(entity);
+  if (metadata.source !== "faa-aircraft-registry") return null;
+  if (typeof metadata.faaRegistrantKey === "string" && metadata.faaRegistrantKey.trim()) return metadata.faaRegistrantKey;
+  return createFaaRegistrantEntityKey(entity.name, String(metadata.registrantState ?? ""), String(metadata.country ?? "US"));
+}
+
 export function buildFaaRegistrantEntity(input: {
   nNumber: string;
   registrantTypeCode: string;
@@ -264,6 +287,7 @@ export function buildFaaRegistrantEntity(input: {
       lastActivityDate: faaDateToIso(input.lastActivityDate),
       sourceFieldSemantics: "FAA registrant type identifies the registration applicant; it does not establish ultimate beneficial ownership or personal wealth.",
       candidateKind: isPersonCandidate ? "individual_registrant_candidate" : "legal_entity_registrant_candidate",
+      faaRegistrantKey: createFaaRegistrantEntityKey(name, input.state, input.country),
     }),
   };
 }
@@ -450,26 +474,30 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
     const nameValidation = await validateRegistryCandidateNamesWithLLM(personNames);
     const rowsForPersistence = applyFaaRegistryNameValidation(batch, nameValidation);
     return await db.transaction(async (tx) => {
-      const uniqueRows = new Map<string, FaaBatchRow>();
+      // Ordinary piston aircraft are not material asset leads, but their structurally
+      // valid individual registrants remain directory candidates.
+      const uniqueAssetRows = new Map<string, FaaBatchRow>();
       for (const row of rowsForPersistence) {
-        const identifier = row.asset.identifier;
-        if (identifier && !uniqueRows.has(identifier)) uniqueRows.set(identifier, row);
+        const identifier = row.asset?.identifier;
+        if (identifier && !uniqueAssetRows.has(identifier)) uniqueAssetRows.set(identifier, row);
       }
-      const rows = [...uniqueRows.values()];
-      const identifiers = rows.map((row) => row.asset.identifier);
-      const existingAssets = await tx.select({
-        id: assetsTable.id,
-        identifier: assetsTable.identifier,
-        ownerEntityId: assetsTable.ownerEntityId,
-      }).from(assetsTable).where(and(
-        eq(assetsTable.category, "Aviation"),
-        eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
-        inArray(assetsTable.identifier, identifiers),
-      ));
+      const assetRows = [...uniqueAssetRows.values()];
+      const identifiers = assetRows.flatMap((row) => row.asset?.identifier ? [row.asset.identifier] : []);
+      const existingAssets = identifiers.length > 0
+        ? await tx.select({
+            id: assetsTable.id,
+            identifier: assetsTable.identifier,
+            ownerEntityId: assetsTable.ownerEntityId,
+          }).from(assetsTable).where(and(
+            eq(assetsTable.category, "Aviation"),
+            eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+            inArray(assetsTable.identifier, identifiers),
+          ))
+        : [];
       const assetIdByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row.id]));
-      const freshAssets = rows.filter((row) => !assetIdByIdentifier.has(row.asset.identifier));
+      const freshAssets = assetRows.filter((row) => row.asset && !assetIdByIdentifier.has(row.asset.identifier));
       const insertedAssets = freshAssets.length > 0
-        ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
+        ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset!)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
         : [];
       for (const row of insertedAssets) assetIdByIdentifier.set(row.identifier, row.id);
 
@@ -478,22 +506,31 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
         await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, legacyOwnerLinks.map((row) => row.id)));
       }
 
-      const candidateRows = rows.filter((row): row is FaaBatchRow & { entity: InsertEntity } => row.entity !== null);
+      const candidateRows = rowsForPersistence.filter((row): row is FaaBatchRow & { entity: InsertEntity } => row.entity !== null);
       const uniqueEntities = new Map<string, InsertEntity>();
       for (const row of candidateRows) {
-        const key = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
+        const key = faaRegistrantEntityKey(row.entity);
         if (key && !uniqueEntities.has(key)) uniqueEntities.set(key, row.entity);
       }
       const entityNames = [...uniqueEntities.values()].map((entity) => entity.name);
       const existingEntities = entityNames.length > 0
-        ? await tx.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(inArray(entitiesTable.name, entityNames))
+        ? await tx.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+            .from(entitiesTable).where(inArray(entitiesTable.name, entityNames))
         : [];
-      const entityIdByName = new Map(existingEntities.map((row) => [row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id]));
-      const freshEntities = [...uniqueEntities.entries()].filter(([key]) => !entityIdByName.has(key)).map(([, entity]) => entity);
+      const entityIdByKey = new Map<string, number>();
+      for (const existing of existingEntities) {
+        const key = faaRegistrantEntityKey(existing);
+        if (key && !entityIdByKey.has(key)) entityIdByKey.set(key, existing.id);
+      }
+      const freshEntities = [...uniqueEntities.entries()].filter(([key]) => !entityIdByKey.has(key)).map(([, entity]) => entity);
       const insertedEntities = freshEntities.length > 0
-        ? await tx.insert(entitiesTable).values(freshEntities).returning({ id: entitiesTable.id, name: entitiesTable.name })
+        ? await tx.insert(entitiesTable).values(freshEntities)
+            .returning({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
         : [];
-      for (const row of insertedEntities) entityIdByName.set(row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id);
+      for (const row of insertedEntities) {
+        const key = faaRegistrantEntityKey(row);
+        if (key) entityIdByKey.set(key, row.id);
+      }
 
       const assetIds = [...assetIdByIdentifier.values()];
       const existingRelations = assetIds.length > 0
@@ -506,12 +543,12 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
             inArray(relationshipsTable.targetId, assetIds),
           ))
         : [];
-      const relationPairs = new Set(existingRelations.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+      const relationPairs = new Set(existingRelations.map((row) => String(row.sourceEntityId) + ":" + String(row.targetId)));
       const relationships: InsertRelationship[] = [];
 
       for (const legacy of legacyOwnerLinks) {
         if (legacy.ownerEntityId == null) continue;
-        const key = `${legacy.ownerEntityId}:${legacy.id}`;
+        const key = String(legacy.ownerEntityId) + ":" + String(legacy.id);
         if (relationPairs.has(key)) continue;
         relationPairs.add(key);
         relationships.push({
@@ -525,11 +562,12 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
       }
 
       for (const row of candidateRows) {
-        const entityKey = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
-        const entityId = entityIdByName.get(entityKey);
+        if (!row.asset) continue;
+        const entityKey = faaRegistrantEntityKey(row.entity);
+        const entityId = entityKey ? entityIdByKey.get(entityKey) : undefined;
         const assetId = assetIdByIdentifier.get(row.asset.identifier);
         if (!entityId || !assetId) continue;
-        const key = `${entityId}:${assetId}`;
+        const key = String(entityId) + ":" + String(assetId);
         if (relationPairs.has(key)) continue;
         relationPairs.add(key);
         relationships.push({
@@ -543,14 +581,10 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
       }
       if (relationships.length > 0) await tx.insert(relationshipsTable).values(relationships);
 
-      return {
-        inserted: insertedAssets.length,
-        errors: 0,
-        candidateEntitiesInserted: insertedEntities.length,
-      };
+      return { inserted: insertedAssets.length, errors: 0, candidateEntitiesInserted: insertedEntities.length };
     });
   } catch (err: any) {
-    logger.warn({ err: err.message, batchSize: batch.length }, "FAA transactional asset/registrant batch failed");
+    logger.warn({ err: err.message, batchSize: batch.length }, "FAA transactional batch failed");
     return { inserted: 0, errors: batch.length, candidateEntitiesInserted: 0 };
   }
 }
@@ -640,10 +674,12 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   const batchRows: FaaBatchRow[] = [];
   const pendingDedup: string[] = [];
   let candidateEntitiesInserted = 0;
+  let processedRows = 0;
+  const registrantGroupKeys = new Set<string>();
 
   for await (const line of rl) {
     lineNum++;
-    if (inserted + batchRows.length >= maxRecords) break;
+    if (processedRows >= maxRecords) break;
 
     if (lineNum - lastProgressLine >= 5_000) {
       lastProgressLine = lineNum;
@@ -651,7 +687,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
         ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
         : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
       await updateJob(jobId, {
-        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${inserted.toLocaleString()} aircraft assets seeded…`,
+        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${processedRows.toLocaleString()} new registration rows processed; ${registrantGroupKeys.size.toLocaleString()} distinct registrants seen; ${inserted.toLocaleString()} assets inserted…`,
         progress: pct,
         inserted,
       });
@@ -679,17 +715,20 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
     if (!nNumber) continue;
+    // Match the committed sanitized individual-only snapshot on both download and fallback paths.
+    // Corporate/partnership registrants are handled by a separate source-backed workstream.
+    if (typeReg !== "1") continue;
     const classification = classifyFaaRegistrant(typeReg, { fractionalOwnershipFlag, statusCode });
     // Keep current/renewal-pending registrations; do not seed sold, expired,
     // revoked, reserved, or unknown status rows as live asset candidates.
     if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
     const assetSignal = classifyFaaAssetSignal(typeEngine, typeAircraft);
-    if (assetSignal.strength === "observed_asset_lead") continue;
     const dkey = `faa:v2:${nNumber}`;
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
+    processedRows++;
 
     const tailNumber = nNumber.startsWith("N") ? nNumber : `N${nNumber}`;
     const entity = buildFaaRegistrantEntity({
@@ -706,28 +745,40 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       country,
       lastActivityDate,
     });
-    const asset = buildFaaAircraftAsset({
-      nNumber,
-      registrantTypeCode: typeReg,
-      registrantName: rawName,
-      fractionalOwnershipFlag,
-      statusCode,
-      typeAircraft,
-      typeEngine,
-      yearManufactured: yearMfr,
-      serialNumber: serial,
-      manufacturerModelCode,
-      engineModelCode,
-      state,
-      country,
-      lastActivityDate,
-      expirationDate,
-      uniqueId,
-    });
-    // The FAA registrant can be a person or legal entity. Co-owned, government,
-    // and unknown registrant records remain asset-only until a model resolves
-    // their identities; none is written to assets.ownerEntityId.
-    batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });
+    if (entity) {
+      const groupKey = faaRegistrantEntityKey(entity);
+      if (groupKey) registrantGroupKeys.add(groupKey);
+    }
+    const asset = assetSignal.strength === "observed_asset_lead"
+      ? null
+      : buildFaaAircraftAsset({
+          nNumber,
+          registrantTypeCode: typeReg,
+          registrantName: rawName,
+          fractionalOwnershipFlag,
+          statusCode,
+          typeAircraft,
+          typeEngine,
+          yearManufactured: yearMfr,
+          serialNumber: serial,
+          manufacturerModelCode,
+          engineModelCode,
+          state,
+          country,
+          lastActivityDate,
+          expirationDate,
+          uniqueId,
+        });
+    // All structurally valid individual registrants remain directory candidates
+    // even when the associated aircraft is not a material asset lead.
+    if (!entity && !asset) {
+      if (pendingDedup.length >= 100) {
+        await batchMarkSeen(pendingDedup);
+        pendingDedup.length = 0;
+      }
+      continue;
+    }
+    batchRows.push({ asset: asset ? { ...asset, identifier: tailNumber } : null, entity });
 
     if (batchRows.length >= 100) {
       const res = await flushBatch(batchRows);
@@ -756,11 +807,13 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     inserted += res.inserted;
     candidateEntitiesInserted += res.candidateEntitiesInserted;
     await batchMarkSeen(pendingDedup);
+    pendingDedup.length = 0;
   }
+  if (pendingDedup.length > 0) await batchMarkSeen(pendingDedup);
 
   await appendJobLog(
     jobId,
-    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} aircraft assets inserted, ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
+    `🏁 FAA ingestion complete: ${processedRows.toLocaleString()} registration rows processed across ${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${inserted.toLocaleString()} material/strong aircraft assets inserted; ${skipped.toLocaleString()} skipped (dedup); ${errors} errors.`,
   );
 
   return {
@@ -769,5 +822,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     errors,
     durationMs: Date.now() - startTime,
     candidateEntitiesInserted,
+    processedRows,
+    registrantGroupsProcessed: registrantGroupKeys.size,
   };
 }
