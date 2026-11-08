@@ -88,7 +88,7 @@ The official FAA ZIP was successfully downloaded and parsed by GitHub Actions on
 - 318,638 MASTER rows scanned.
 - Archive SHA-256: `01cd75d88d3ac779e01262fd329c6f4e848d86acacf1df673ff279deffae1fdd`.
 
-The files are `faa_individual_registrants.csv`, `faa_aircraft_registrations.csv`, `faa_sanitized_MASTER.txt`, and `faa_extraction_manifest.json`. The sanitized MASTER file retains only the public registrant name, registrant type, aircraft identifiers/model/type, dates and registration fields needed by the Apex importer; personal mailing-address and co-registrant columns are blank.
+The files are `faa_individual_registrants.csv`, `faa_aircraft_registrations.csv`, `faa_sanitized_MASTER.txt`, and `faa_extraction_manifest.json`. The sanitized MASTER file contains only the 124,674 current/pending individual (FAA registrant type `1`) aircraft rows and retains only the public registrant name, registrant type, aircraft identifiers/model/type, dates and registration fields needed by the Apex importer; personal mailing-address and co-registrant columns are blank. Non-individual registrant rows are excluded from this individual-directory snapshot; corporate/partnership registrants require a separate extraction and source-backed company-research workstream.
 
 The canonical FAA importer now prefers the official ZIP when available and falls back to `data/registry-seeds/faa_sanitized_MASTER.txt` if the runtime cannot resolve the FAA archive host. This makes the committed extraction usable in Replit without a second outbound download. The explicit operator endpoint remains `POST /api/ingest/faa` with `{"maxRecords":200000}`; poll its job until terminal state and reconcile inserted assets, registrant entities, skipped rows and errors. A successful extraction is not a completed database import.
 
@@ -96,7 +96,7 @@ The canonical FAA importer now prefers the official ZIP when available and falls
 
 The importer must not discard an otherwise eligible individual merely because the registered aircraft is an ordinary piston/single-engine aircraft. The ingestion pipeline separates the two outputs:
 
-- Structurally valid individual registrants and supported legal-entity registrants with current or renewal-pending FAA registration status become provisional, review-only directory candidates even when their aircraft is not a material asset lead.
+- Structurally valid FAA type-1 individual registrants with current or renewal-pending registration status become provisional, review-only directory candidates even when their aircraft is not a material asset lead. The importer explicitly filters out non-individual registrant types so a successful full-ZIP download and the committed individual-only sanitized fallback produce the same scope.
 - Aircraft asset rows are created only for material/strong asset signals. Ordinary/observed aircraft remain absent from the asset table; this is an asset-screening choice, not a reason to omit the registrant candidate.
 - `REGISTERED_TO` edges are created only when an aircraft asset row exists, and the edge text explicitly says registration is not beneficial ownership.
 - FAA candidate deduplication uses normalized published name + registrant state + country. Same-name candidates in different states/countries must not be merged, and an FAA candidate must not be merged into an unrelated same-name non-FAA entity.
