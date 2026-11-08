@@ -4,7 +4,7 @@
  * Source: https://registry.faa.gov/database/ReleasableAircraft.zip
  * Updated: daily by the FAA. Free download, no API key required.
  *
- * Downloads the official ZIP, extracts MASTER.txt (pipe-delimited), and
+ * Downloads the official ZIP, extracts MASTER.txt (comma-delimited CSV), and
  * ingests qualifying aircraft assets and source-designated registrant
  * candidates. Registrants are not assumed to be beneficial owners or HNWIs;
  * individual records remain PersonCandidate review leads with wealth unassessed.
