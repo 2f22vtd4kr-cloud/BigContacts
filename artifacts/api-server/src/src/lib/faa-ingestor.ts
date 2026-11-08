@@ -73,6 +73,7 @@ export interface FaaIngestionParams {
   jobId: string;
   maxRecords?: number;
   forceRefresh?: boolean;
+  validateNamesWithLlm?: boolean;
 }
 
 export interface FaaIngestionResult {
@@ -83,6 +84,7 @@ export interface FaaIngestionResult {
   candidateEntitiesInserted: number;
   processedRows: number;
   registrantGroupsProcessed: number;
+  nameValidationMode: "structural_only" | "groq_assisted";
 }
 
 export type FaaBatchRow = { asset: InsertAsset | null; entity: InsertEntity | null };
@@ -107,7 +109,9 @@ export function applyFaaRegistryNameValidation(
           ...metadata,
           nameValidationStatus: validation.status === "validated"
             ? "model_name_shape_checked_pending_identity_resolution"
-            : "provider_unavailable_structural_only_pending_identity_resolution",
+            : validation.status === "not_requested"
+              ? "structural_validation_only_pending_identity_resolution"
+              : "provider_unavailable_structural_only_pending_identity_resolution",
         }),
       },
     };
@@ -467,11 +471,13 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
   });
 }
 
-async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; errors: number; candidateEntitiesInserted: number }> {
+async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): Promise<{ inserted: number; errors: number; candidateEntitiesInserted: number }> {
   if (batch.length === 0) return { inserted: 0, errors: 0, candidateEntitiesInserted: 0 };
   try {
     const personNames = batch.flatMap((row) => row.entity?.type === "PersonCandidate" ? [row.entity.name] : []);
-    const nameValidation = await validateRegistryCandidateNamesWithLLM(personNames);
+    const nameValidation = validateNamesWithLlm
+      ? await validateRegistryCandidateNamesWithLLM(personNames)
+      : { status: "not_requested" as const, validNames: [] as [] };
     const rowsForPersistence = applyFaaRegistryNameValidation(batch, nameValidation);
     return await db.transaction(async (tx) => {
       // Ordinary piston aircraft are not material asset leads, but their structurally
@@ -592,7 +598,7 @@ async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; err
 // ── Main ingestion function ───────────────────────────────────────────────────
 
 export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIngestionResult> {
-  const { jobId, maxRecords = 30_000, forceRefresh = false } = params;
+  const { jobId, maxRecords = 30_000, forceRefresh = false, validateNamesWithLlm = false } = params;
   const startTime = Date.now();
   let inserted = 0;
   let skipped = 0;
@@ -781,7 +787,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     batchRows.push({ asset: asset ? { ...asset, identifier: tailNumber } : null, entity });
 
     if (batchRows.length >= 100) {
-      const res = await flushBatch(batchRows);
+      const res = await flushBatch(batchRows, validateNamesWithLlm);
       if (res.errors > 0) {
         errors += res.errors;
         throw new Error(`FAA transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
@@ -813,7 +819,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   await appendJobLog(
     jobId,
-    `🏁 FAA ingestion complete: ${processedRows.toLocaleString()} registration rows processed across ${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${inserted.toLocaleString()} material/strong aircraft assets inserted; ${skipped.toLocaleString()} skipped (dedup); ${errors} errors.`,
+    `🏁 FAA ingestion complete: ${processedRows.toLocaleString()} registration rows processed across ${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${inserted.toLocaleString()} material/strong aircraft assets inserted; ${skipped.toLocaleString()} skipped (dedup); ${errors} errors; nameValidation=${validateNamesWithLlm ? "groq_assisted" : "structural_only"}.`,
   );
 
   return {
@@ -824,5 +830,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     candidateEntitiesInserted,
     processedRows,
     registrantGroupsProcessed: registrantGroupKeys.size,
+    nameValidationMode: validateNamesWithLlm ? "groq_assisted" : "structural_only",
   };
 }
