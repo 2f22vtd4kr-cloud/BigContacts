@@ -216,6 +216,47 @@ describe("canonical seeded target binding", () => {
   });
 
 
+  it("binds Gatekeeper assistants and advisers as person targets with professional route scope", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 808,
+      entityName: "Sidsel E. Rydland",
+      entityType: "Gatekeeper",
+      sourceRegistries: JSON.stringify(["Apex public professional intermediary seed"]),
+      email: null,
+      phone: null,
+      contactOutcome: "evidence_only",
+      contactConfidence: 0,
+      metadata: JSON.stringify({
+        sourceRecordId: "apex-intermediary:canica:sidsel-rydland",
+        sourceUrl: "https://www.canica.no/our-team",
+        role: "Executive Personal Assistant, Canica Norway",
+        companyName: "Canica",
+        organizationSourceRecordId: "apex-intermediary:canica",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_specific_contact_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        personalWealthEvidence: false,
+        reviewOnly: true,
+      }),
+    });
+    expect(binding).toMatchObject({
+      targetKind: "person",
+      sourceMetadata: {
+        sourceRecordId: "apex-intermediary:canica:sidsel-rydland",
+        role: "Executive Personal Assistant, Canica Norway",
+        contactScope: "no_person_contact",
+        contactabilityStatus: "no_person_specific_contact_published",
+        principalRelationshipStatus: "not_established",
+        clientRelationshipStatus: "not_observed",
+        reviewOnly: true,
+        personalWealthEvidence: false,
+      },
+      evidence: [],
+    });
+    expect(binding.sourceMetadata).not.toHaveProperty("organizationContact");
+  });
+
   it("passes only organization-scoped registry contacts into canonical Bureau context", () => {
     const company = buildCanonicalSeededTargetBinding({
       entityId: 701,
