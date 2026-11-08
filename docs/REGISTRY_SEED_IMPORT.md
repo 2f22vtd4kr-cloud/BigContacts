@@ -28,6 +28,9 @@ The endpoint returns a `jobId` and `pollUrl`. Poll `GET /api/ingest/job/:jobId` 
 
 For aircraft, use the existing official FAA importer separately:
 
+**Why this uses the ZIP rather than an FAA API:** the FAA's public registry pages document interactive inquiries (N-number, name, serial number, and related searches) and a separate database download; they do not document a public bulk REST endpoint. For bulk seeding, Apex uses the official [Releasable Aircraft Database ZIP](https://registry.faa.gov/database/ReleasableAircraft.zip) and streams its comma-delimited MASTER file through bounded transactional batches. The [FAA Aircraft Registration Inquiry](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/interactive_aircraft_inquiry) remains the interactive lookup path. The public inquiry is refreshed each federal workday; the importer preserves the source and import timestamp.
+
+
 ```http
 POST /api/ingest/faa
 Content-Type: application/json
