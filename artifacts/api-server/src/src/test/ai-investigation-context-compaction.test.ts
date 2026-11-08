@@ -228,7 +228,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify({ turn: 1, action: "web_search", execution: "success", leadUrls: ["https://company.example/profile"] }),
       "No visit or browser_fetch action has succeeded.",
       "BACKGROUND: " + "The next model should preserve unresolved provenance questions. ".repeat(25),
-    ].join("\\n");
+    ].join("\n");
     const summary = [
       "Does a fetched visit establish the person's current role?",
       "Is that confirmed by a fetched page?",
@@ -251,7 +251,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify({ turn: 1, action: "web_search", execution: "success", leadUrls: ["https://company.example/profile"] }),
       "No visit or browser_fetch action has succeeded.",
       "BACKGROUND: " + "The source-stage distinction must remain strict. ".repeat(25),
-    ].join("\\n");
+    ].join("\n");
     const unsupported = "Does a fetched visit confirm the role? The fetched professional profile identifies the current director.";
     const corrected = "The possible professional profile remains an unverified search lead; no page was fetched.";
     rightHandMocks.runGroqRightHandFreeJson
