@@ -5690,9 +5690,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const requiredFinalMarkers = [
       "PARTIAL FINDINGS (not terminal-only)",
+      "source-backed leads",
       "Search snippets are leads, not claim-grade evidence",
       "Qualification follows the active objective",
+      ...(input.mode === "discovery" && requiredQualification ? [requiredQualification] : []),
       "visit supports bounded text extraction",
+      "do not retry the same binary URL through the other fetch action",
       ...(input.mode === "discovery"
         ? [
             "No registry is preferred; choose by evidence.",
