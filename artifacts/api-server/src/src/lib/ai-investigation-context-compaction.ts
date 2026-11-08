@@ -154,7 +154,7 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
     // Keep this scoped to the clause: a separate declarative clause must still
     // pass the successful-URL provenance check below.
     if (/\?\s*$/u.test(trimmed)
-      || /^(?:does|do|did|is|are|was|were|has|have|had|can|could|would|will|should|what|which|who|whether|if)\\b/i.test(trimmed)) {
+      || /^(?:does|do|did|is|are|was|were|has|have|had|can|could|would|will|should|what|which|who|whether|if)\b/i.test(trimmed)) {
       return false;
     }
     const retrievalIndex = clause.search(retrievalClaim);
