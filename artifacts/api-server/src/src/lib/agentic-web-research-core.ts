@@ -5689,7 +5689,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\\n\\n");
     }
     if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired)) return repaired;
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + repaired.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
+    // Required recovery clauses can be rehydrated after the first emergency
+    // projection. Re-run the evidence-aware budgeter once so those clauses do
+    // not turn a previously valid prompt into an over-budget provider request.
+    const finalProjection = appendEmergencyObservationContext(
+      repaired,
+      "",
+      maxUserPromptChars,
+      input.mode,
+      activeBossDirection,
+      registryIdList,
+      aiHistoricalMemory,
+    );
+    if (finalProjection.length <= maxUserPromptChars && hasCompleteSchema(finalProjection)) {
+      return finalProjection;
+    }
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + finalProjection.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
