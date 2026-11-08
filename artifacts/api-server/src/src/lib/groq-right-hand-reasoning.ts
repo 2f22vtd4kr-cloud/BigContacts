@@ -247,7 +247,7 @@ function tokenRateLimitWaitMs(response:Response):number|null {
  return retry>0?retry:null;
 }
 
-type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
+type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; dailyTokenQuota?: boolean; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext,requestOptions?:GroqRightHandRequestOptions):Promise<{raw:string;error:string|null;model:string}>{
