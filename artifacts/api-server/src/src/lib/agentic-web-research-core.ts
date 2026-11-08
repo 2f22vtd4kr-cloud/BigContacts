@@ -4965,7 +4965,7 @@ function escapeDiscoveryRegex(value: string): string {
 
 function geographicScopeMentionIsNegated(text: string, matchIndex: number): boolean {
   const prefix = text.slice(Math.max(0, matchIndex - 64), matchIndex);
-  return /\\b(?:do\\s+not(?:\\s+\\w+){0,2}|not\\s+(?:in|within|across)|no|exclude|excluding|avoid|avoiding|without|except)\\s*$/i.test(prefix);
+  return /\b(?:do\s+not(?:\s+\w+){0,2}|not\s+(?:in|within|across)|no|exclude|excluding|avoid|avoiding|without|except)\s*$/i.test(prefix);
 }
 
 function geographicScopeMention(text: string): string | null {
