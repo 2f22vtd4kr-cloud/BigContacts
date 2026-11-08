@@ -3782,7 +3782,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           ? compactPromptSectionPreservingUrlTokens(emergencyAiMemorySection, 360, "[older memory omitted; durable ledger remains authoritative]")
           : "",
       ].filter(Boolean);
-      const dynamicReserve = Math.min(620, Math.max(420, Math.floor(limit * 0.12)));
+      // Keep a real reserve for the provider-boundary evidence/schema repair;
+      // dynamic source and observation excerpts must not consume it.
+      const finalBoundaryReserve = Math.min(900, Math.max(700, Math.floor(limit * 0.15)));
+      const dynamicReserve = finalBoundaryReserve;
       const optionalCoreParts = [
         minimumProviderRule,
         conditionalCapabilityRule,
@@ -3794,7 +3797,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         if (candidate.length <= limit - dynamicReserve) includedOptionalCoreParts.push(optionalPart);
       }
       const core = joinPromptParts([...coreParts, ...includedOptionalCoreParts]);
-      const spare = Math.max(0, limit - core.length - 2);
+      const spare = Math.max(0, limit - core.length - 2 - finalBoundaryReserve);
       // Source URL identity is in the URL inventory above. Use the remaining
       // capacity first for the associated fetched claim, then current feedback;
       // do not duplicate scope/URLs ahead of the source facts they qualify.
