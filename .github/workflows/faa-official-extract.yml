@@ -1,0 +1,71 @@
+name: FAA official registry extraction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/faa-official-extract.yml"
+      - "scripts/faa_extract.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/faa-official-extract.yml"
+      - "scripts/faa_extract.py"
+      - "scripts/test_faa_extract.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: faa-official-extraction
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test extractor against synthetic fixture
+        run: python -m unittest scripts/test_faa_extract.py
+      - name: Download official FAA release
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/faa data/registry-seeds
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+            --connect-timeout 30 --max-time 600 \
+            -H 'User-Agent: ApexAtlas-FAA-Registry-Research/1.0' \
+            'https://registry.faa.gov/database/ReleasableAircraft.zip' \
+            -o /tmp/faa/ReleasableAircraft.zip
+          test -s /tmp/faa/ReleasableAircraft.zip
+          sha256sum /tmp/faa/ReleasableAircraft.zip | tee /tmp/faa/archive.sha256
+          unzip -t /tmp/faa/ReleasableAircraft.zip
+          unzip -o /tmp/faa/ReleasableAircraft.zip MASTER.txt -d /tmp/faa
+      - name: Extract sanitized registrant and aircraft datasets
+        if: github.event_name != 'pull_request'
+        run: python scripts/faa_extract.py --master /tmp/faa/MASTER.txt --output data/registry-seeds --checksum-file /tmp/faa/archive.sha256
+      - name: Upload reproducible extraction artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: faa-official-sanitized-extract
+          path: |
+            data/registry-seeds/faa_individual_registrants.csv
+            data/registry-seeds/faa_aircraft_registrations.csv
+            data/registry-seeds/faa_extraction_manifest.json
+          retention-days: 30
+      - name: Commit refreshed official extract to BigContacts
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/registry-seeds/faa_individual_registrants.csv data/registry-seeds/faa_aircraft_registrations.csv data/registry-seeds/faa_extraction_manifest.json
+          if git diff --cached --quiet; then
+            echo 'FAA extraction is unchanged; no commit required.'
+            exit 0
+          fi
+          git commit -m 'data: refresh sanitized official FAA registrant extract'
+          git push origin HEAD:main
