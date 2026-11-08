@@ -3885,15 +3885,18 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence; the Investigator chooses.",
+        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. The Investigator chooses.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; one source-backed relevant lead starts target research.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; one source-backed relevant lead starts target research. Source class may vary by query.",
         "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Example: casinos in Slovenia. Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link.",
         "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; retain exact name, stated role or null, and associated public HTTPS URL; snippets are leads, not evidence."
       ];
       for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
     }
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
+    // Return the actual bounded projection; returning mandatoryMinimumTail here
+    // silently discarded every compaction decision made by appendBudgeted.
+    mandatoryMinimumTail = joinPromptParts(finalParts);
   }
   return mandatoryMinimumTail;
 }
