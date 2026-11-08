@@ -3852,6 +3852,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
     // Keep the human objective, accepted Boss scope, runtime actions and newest
     // evidence first. Generic policy summaries must not consume their budget.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
@@ -3862,28 +3863,22 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
     appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(emergencyAiMemorySection, 360, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
     appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
-    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery contract detail omitted]");
-    appendBudgeted(minimumTargetVerificationRule, 220, "[target verification rule omitted]");
-    appendBudgeted(minimumSnippetEvidenceRule, 120, "[snippet evidence rule omitted]");
-    appendBudgeted(minimumRelevanceMarker, 260, "[relevance detail omitted]");
-    appendBudgeted(minimumTargetabilityMarker, 220, "[targetability detail omitted]");
     appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
-    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted("PARTIAL FINDINGS: retain source-backed people and companies as review-only when relevant; snippets remain leads, not evidence. Qualification follows the active objective. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.", 460, "[lead qualification detail omitted]");
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence; the Investigator chooses.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; one relevant source-backed lead starts target research.",
-        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Preserve sector and jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the required entity, role, relationship or materiality.",
+        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence (e.g. casinos in Slovenia). Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link.",
         "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; retain exact name, stated role or null, and associated public HTTPS URL; snippets are leads, not evidence."
       ];
       for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
@@ -5508,32 +5503,26 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
           "Conditional specialist OSINT actions: allowlisted only.");
     }
-    const minimumEvidenceRecovery = "PARTIAL FINDINGS: preserve relevant exact-name people/company leads as review-only; keep stated role or null and public URL. Snippets/unfetched URLs are leads, not evidence. Target-stage verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; bind claims to its exact span.";
     const minimumBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
-    const needsEvidenceRecovery = (
-      input.mode === "discovery"
-      || Boolean(latestSuccessfulFetchRecord || latestFetchedSourceClaimMarker || carryForwardSuccessfulSearch)
-    ) && [
-      "source-backed leads",
-      "Target-stage research verifies objective-required role/relationship/materiality",
-      "sourceUrls=[that fetched URL"
-    ].some((marker) => !repaired.includes(marker));
-    const minimumSemanticRecovery = "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link; Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: people/companies/assets distinct; no name blacklist; one relevant sourced lead starts target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query.";
-    const needsSemanticRecovery = input.mode === "discovery" && [
-      "MODEL-OWNED RELEVANCE SELF-CHECK",
-      "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
-      "Other objectives use their own evidence criteria",
-      "DISCOVERY TARGETABILITY / REALISM",
-      "not evidence or a mandated next action",
-      "source class may vary by query",
-      "No registry is preferred; choose by evidence.",
-      "consider inspecting a promising in-scope lead URL next"
-    ].some((marker) => !repaired.includes(marker));
+    const evidenceRecoveryClauses: Array<[string, string]> = [
+      ["PARTIAL FINDINGS", "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only; snippets/unfetched URLs are leads, not evidence."],
+      ["Target-stage research verifies objective-required role/relationship/materiality", "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."],
+      ["sourceUrls=[that fetched URL", "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span."],
+    ];
+    const semanticRecoveryClauses: Array<[string, string]> = [
+      ["MODEL-OWNED RELEVANCE SELF-CHECK", "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link; Investigator chooses."],
+      ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not query terms; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria."],
+      ["DISCOVERY TARGETABILITY / REALISM", "DISCOVERY TARGETABILITY / REALISM: people/companies/assets distinct; no name blacklist; one relevant sourced lead starts target research. No registry is preferred; choose by evidence (casinos in Slovenia)."],
+      ["consider inspecting a promising in-scope lead URL next", "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action."],
+      ["source class may vary by query", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query."],
+    ];
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
-      needsEvidenceRecovery ? minimumEvidenceRecovery : "",
-      needsSemanticRecovery ? minimumSemanticRecovery : "",
+      ...evidenceRecoveryClauses.filter(([marker]) => !repaired.includes(marker)).map(([, clause]) => clause),
+      ...(input.mode === "discovery"
+        ? semanticRecoveryClauses.filter(([marker]) => !repaired.includes(marker)).map(([, clause]) => clause)
+        : []),
       !repaired.includes("do not retry the same binary URL through the other fetch action") ? minimumBinaryRecovery : "",
     ].filter(Boolean);
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
