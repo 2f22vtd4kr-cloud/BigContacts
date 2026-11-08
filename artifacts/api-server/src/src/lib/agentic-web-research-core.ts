@@ -4951,9 +4951,10 @@ const DISCOVERY_COUNTRY_REGION_CODES = (
 
 const DISCOVERY_REGION_TERMS = [
   "central europe", "eastern europe", "western europe", "northern europe", "southern europe",
-  "central asia", "east asia", "south asia", "southeast asia", "south-east asia", "west asia",
-  "asia-pacific", "asia pacific", "middle east", "middle eastern", "north america", "south america",
-  "central america", "latin america", "mena", "nordics", "scandinavia", "balkans",
+  "europe", "european", "central asia", "east asia", "south asia", "southeast asia", "south-east asia", "west asia",
+  "asia-pacific", "asia pacific", "asia", "asian", "africa", "african", "oceania",
+  "middle east", "middle eastern", "north america", "south america", "central america", "latin america",
+  "mena", "nordics", "scandinavia", "balkans",
 ];
 
 function escapeDiscoveryRegex(value: string): string {
@@ -4968,7 +4969,7 @@ function geographicScopeMention(text: string): string | null {
 
   for (const region of DISCOVERY_REGION_TERMS) {
     const pattern = new RegExp(
-      "\\b(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?" +
+      "\\b(?:(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?)?"+
       escapeDiscoveryRegex(region) + "\\b",
       "i",
     );
