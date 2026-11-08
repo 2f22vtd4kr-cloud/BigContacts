@@ -627,7 +627,7 @@ export default function EntityLedger() {
     setPage(0);
     setAllEntities([]);
     setHasMore(true);
-  }, [searchTerm, typeFilter, countryFilter, hotOnly, contactRichness, minConfidence, viewMode]);
+  }, [searchTerm, typeFilter, hotOnly, contactRichness, minConfidence, viewMode]);
 
   // Keep ?q= in the URL so Reactor REACH deep-links and share links stay honest
   useEffect(() => {
