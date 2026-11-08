@@ -810,7 +810,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   await appendJobLog(
     jobId,
-    \`🏁 FAA ingestion complete: \${processedRows.toLocaleString()} registration rows processed across \${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; \${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; \${inserted.toLocaleString()} material/strong aircraft assets inserted; \${skipped.toLocaleString()} skipped (dedup); \${errors} errors.\`,
+    `🏁 FAA ingestion complete: ${processedRows.toLocaleString()} registration rows processed across ${registrantGroupKeys.size.toLocaleString()} distinct registrant groups; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities inserted; ${inserted.toLocaleString()} material/strong aircraft assets inserted; ${skipped.toLocaleString()} skipped (dedup); ${errors} errors.`,
   );
 
   return {
