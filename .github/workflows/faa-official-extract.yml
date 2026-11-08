@@ -23,6 +23,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - name: Test extractor against synthetic fixture
+        run: python -m unittest scripts/test_faa_extract.py
       - name: Download official FAA release
         run: |
           set -euo pipefail
