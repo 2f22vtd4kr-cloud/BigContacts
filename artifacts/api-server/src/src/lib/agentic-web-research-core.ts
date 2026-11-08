@@ -5514,11 +5514,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
           "Conditional specialist OSINT actions: allowlisted only.");
     }
-    const minimumEvidenceRecovery = [
-      "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only; keep exact observed name, role or null, and associated public HTTPS URL. Snippets/unfetched URLs are leads, not evidence.",
-      "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-      "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span."
-    ].join(" ");
+    const minimumEvidenceRecovery = "PARTIAL FINDINGS: preserve relevant exact-name people/company leads as review-only; keep stated role or null and public URL. Snippets/unfetched URLs are leads, not evidence. Target-stage verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; bind claims to its exact span.";
     const needsEvidenceRecovery = (
       input.mode === "discovery"
       || Boolean(latestSuccessfulFetchRecord || latestFetchedSourceClaimMarker || carryForwardSuccessfulSearch)
@@ -5527,13 +5523,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "Target-stage research verifies objective-required role/relationship/materiality",
       "sourceUrls=[that fetched URL"
     ].some((marker) => !repaired.includes(marker));
-    const minimumSemanticRecovery = [
-      "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie each query/source to required role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. The Investigator chooses.",
-      "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not query terms; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
-      "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; no celebrity defaults or name blacklist. One relevant sourced lead starts target research; no extra wealth/ownership criteria unless required. No registry is preferred; choose by evidence.",
-      "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a promising in-scope URL when useful; advisory, not evidence or a mandated next action.",
-      "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query."
-    ].join(" ");
+    const minimumSemanticRecovery = "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties query/source to objective-required entity, role, relationship or materiality; model does not preselect target, source or action. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a falsifiable public-evidence hypothesis; other objectives use their own criteria. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; one relevant sourced lead starts target research; no celebrity defaults or name blacklist; no extra wealth criteria unless required. LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a promising in-scope URL when useful; advisory, not evidence or a mandated next action; Investigator chooses. SCOPE RECOVERY: preserve approved subject/geography; source class may vary, never pivot sector or jurisdiction.";
     const needsSemanticRecovery = input.mode === "discovery" && [
       "MODEL-OWNED RELEVANCE SELF-CHECK",
       "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
@@ -5723,7 +5713,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE CLAIM");
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
-    const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
+    // Historical memory is useful but subordinate to active scope, live evidence
+    // and the action schema. Its absence alone must not force another rebuild.
+    const hasHistoricalMemoryContext = true;
     const hasAuthoritativeObjective = !authoritativeCaseObjective || containsVerbatimCaseObjective(normalizedBase);
     const hasDiscoveryContract = input.mode !== "discovery" || (
       normalizedBase.includes("DISCOVERY MODE: no person or entity target is implied")
