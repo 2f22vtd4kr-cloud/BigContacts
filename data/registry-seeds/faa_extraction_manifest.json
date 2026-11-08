@@ -2,7 +2,7 @@
   "source": "FAA Releasable Aircraft Database",
   "source_url": "https://registry.faa.gov/database/ReleasableAircraft.zip",
   "data_dictionary_url": "https://registry.faa.gov/database/ardata.pdf",
-  "retrieved_at_utc": "2026-11-08T15:47:58.942912+00:00",
+  "retrieved_at_utc": "2026-11-08T15:50:42.386859+00:00",
   "archive_sha256_record": "01cd75d88d3ac779e01262fd329c6f4e848d86acacf1df673ff279deffae1fdd  /tmp/faa/ReleasableAircraft.zip",
   "master_file_sha256": "b623b8c32929392d5f88a6a732492b05409d0a1467a8f1282a4035e9a82fbed4",
   "master_rows_scanned_including_header_if_present": 318638,
