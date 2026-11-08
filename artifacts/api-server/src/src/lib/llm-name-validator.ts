@@ -276,7 +276,8 @@ async function requestIndexGate(
 
 export type RegistryCandidateNameValidation =
   | { status: "validated"; validNames: string[] }
-  | { status: "unavailable"; validNames: [] };
+  | { status: "unavailable"; validNames: [] }
+  | { status: "not_requested"; validNames: [] };
 
 export type RegistryCandidateNameValidationDependencies = {
   keys?: string[];
