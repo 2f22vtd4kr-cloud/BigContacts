@@ -560,23 +560,50 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
           ))
         : [];
       // Reconcile old name-only FAA links to the stable name/state/country identity.
-      // Keep unrelated non-FAA relationships intact.
-      const staleFaaRelationIds = existingRelations
-        .filter((row) => {
-          const expectedEntityId = expectedEntityByAssetId.get(row.targetId);
-          return expectedEntityId !== undefined
-            && expectedEntityId !== row.sourceEntityId
-            && (row.notes ?? "").toLowerCase().includes("faa");
-        })
-        .map((row) => row.id);
-      if (staleFaaRelationIds.length > 0) {
-        await tx.delete(relationshipsTable).where(inArray(relationshipsTable.id, staleFaaRelationIds));
+      // Preserve historical evidence: corrected edges are updated in place and duplicate
+      // stale edges are reclassified as historical rather than deleted.
+      const staleFaaRelations = existingRelations.filter((row) => {
+        const expectedEntityId = expectedEntityByAssetId.get(row.targetId);
+        return expectedEntityId !== undefined
+          && expectedEntityId !== row.sourceEntityId
+          && (row.notes ?? "").toLowerCase().includes("faa");
+      });
+      const historicalRelationIds = new Set<number>();
+      const reconciledSourceByRelationId = new Map<number, number>();
+      for (const [assetId, expectedEntityId] of expectedEntityByAssetId) {
+        const staleForAsset = staleFaaRelations.filter((row) => row.targetId === assetId);
+        if (staleForAsset.length === 0) continue;
+        const correctAlreadyExists = existingRelations.some(
+          (row) => row.targetId === assetId && row.sourceEntityId === expectedEntityId,
+        );
+        if (correctAlreadyExists) {
+          for (const stale of staleForAsset) {
+            await tx.update(relationshipsTable).set({
+              relationshipType: "HISTORICAL_REGISTERED_TO",
+              notes: (stale.notes ?? "FAA registrant relationship") + " — superseded by a corrected FAA registrant identity; retained as historical evidence.",
+            }).where(eq(relationshipsTable.id, stale.id));
+            historicalRelationIds.add(stale.id);
+          }
+          continue;
+        }
+        const [primary, ...duplicates] = staleForAsset;
+        await tx.update(relationshipsTable).set({
+          sourceEntityId: expectedEntityId,
+          notes: "FAA MASTER lists this entity as registrant; registration does not establish beneficial ownership. Reconciled to the stable published name/state/country candidate.",
+        }).where(eq(relationshipsTable.id, primary.id));
+        reconciledSourceByRelationId.set(primary.id, expectedEntityId);
+        for (const duplicate of duplicates) {
+          await tx.update(relationshipsTable).set({
+            relationshipType: "HISTORICAL_REGISTERED_TO",
+            notes: (duplicate.notes ?? "FAA registrant relationship") + " — superseded duplicate retained as historical evidence.",
+          }).where(eq(relationshipsTable.id, duplicate.id));
+          historicalRelationIds.add(duplicate.id);
+        }
       }
-      const staleIdSet = new Set(staleFaaRelationIds);
       const relationPairs = new Set(
         existingRelations
-          .filter((row) => !staleIdSet.has(row.id))
-          .map((row) => String(row.sourceEntityId) + ":" + String(row.targetId)),
+          .filter((row) => !historicalRelationIds.has(row.id))
+          .map((row) => String(reconciledSourceByRelationId.get(row.id) ?? row.sourceEntityId) + ":" + String(row.targetId)),
       );
       const relationships: InsertRelationship[] = [];
 
