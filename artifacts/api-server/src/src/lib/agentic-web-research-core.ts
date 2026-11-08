@@ -5726,7 +5726,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (finalProjection.length <= maxUserPromptChars && hasCompleteSchema(finalProjection) && requiredFinalMarkers.every((marker) => finalProjection.includes(marker))) {
       return finalProjection;
     }
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + finalProjection.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
+    const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !finalProjection.includes(marker));
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + finalProjection.length + ", budget " + maxUserPromptChars + ", schema=" + hasCompleteSchema(finalProjection) + ", missing=" + missingFinalMarkers.join(" | ") + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
