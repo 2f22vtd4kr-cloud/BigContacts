@@ -539,21 +539,52 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
       }
 
       const assetIds = [...assetIdByIdentifier.values()];
+      const expectedEntityByAssetId = new Map<number, number>();
+      for (const row of candidateRows) {
+        if (!row.asset) continue;
+        const entityKey = faaRegistrantEntityKey(row.entity);
+        const entityId = entityKey ? entityIdByKey.get(entityKey) : undefined;
+        const assetId = assetIdByIdentifier.get(row.asset.identifier);
+        if (entityId && assetId) expectedEntityByAssetId.set(assetId, entityId);
+      }
       const existingRelations = assetIds.length > 0
         ? await tx.select({
+            id: relationshipsTable.id,
             sourceEntityId: relationshipsTable.sourceEntityId,
             targetId: relationshipsTable.targetId,
+            notes: relationshipsTable.notes,
           }).from(relationshipsTable).where(and(
             eq(relationshipsTable.targetType, "Asset"),
             eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
             inArray(relationshipsTable.targetId, assetIds),
           ))
         : [];
-      const relationPairs = new Set(existingRelations.map((row) => String(row.sourceEntityId) + ":" + String(row.targetId)));
+      // Reconcile old name-only FAA links to the stable name/state/country identity.
+      // Keep unrelated non-FAA relationships intact.
+      const staleFaaRelationIds = existingRelations
+        .filter((row) => {
+          const expectedEntityId = expectedEntityByAssetId.get(row.targetId);
+          return expectedEntityId !== undefined
+            && expectedEntityId !== row.sourceEntityId
+            && (row.notes ?? "").toLowerCase().includes("faa");
+        })
+        .map((row) => row.id);
+      if (staleFaaRelationIds.length > 0) {
+        await tx.delete(relationshipsTable).where(inArray(relationshipsTable.id, staleFaaRelationIds));
+      }
+      const staleIdSet = new Set(staleFaaRelationIds);
+      const relationPairs = new Set(
+        existingRelations
+          .filter((row) => !staleIdSet.has(row.id))
+          .map((row) => String(row.sourceEntityId) + ":" + String(row.targetId)),
+      );
       const relationships: InsertRelationship[] = [];
 
       for (const legacy of legacyOwnerLinks) {
         if (legacy.ownerEntityId == null) continue;
+        // If this batch has a current FAA registrant identity for the asset,
+        // the candidateRows loop below will create the correct source edge.
+        if (expectedEntityByAssetId.has(legacy.id)) continue;
         const key = String(legacy.ownerEntityId) + ":" + String(legacy.id);
         if (relationPairs.has(key)) continue;
         relationPairs.add(key);
