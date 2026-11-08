@@ -3540,7 +3540,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence; Investigator chooses. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. " + (isDiscoveryPrompt ? "Discovery: one search query per action; parallel searches unavailable." : "Parallel web/registry searches require 2–4 distinct query objects.") + " Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
+    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. " + (isDiscoveryPrompt ? "Discovery: one search query per action; parallel searches unavailable." : "Parallel web/registry searches require 2–4 distinct query objects.") + " Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}."
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt ? "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; retain exact observed name, stated role or null, and public HTTPS URL. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets remain leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion." : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
@@ -3677,7 +3677,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumAvailableActionsSection = availableActionsSection;
   // Emergency discovery compaction must preserve approved geography; do not broaden geography.
   const minimumDiscoveryContract = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY TARGETABILITY / REALISM: no name blacklist; One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: two searches max; one query/action; no fan-out. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads review-only; snippets/URLs are leads, not evidence. SEARCH: market only if country in objective/scope; locale=language."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: no name blacklist; One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads review-only; snippets/URLs are leads, not evidence. SEARCH: market only if country in objective/scope; locale=language. Target-specific names must come from the human brief or same-case observations; never model memory/placeholders."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
@@ -3888,7 +3888,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // source, qualification and discovery markers after this semantic projection.
     // Leave the same 900-character reserve used by the preceding tier for
     // provider-boundary rehydration of source, qualification and schema clauses.
-    const finalAssemblyBudget = Math.max(1_000, limit - 900);
+    const finalAssemblyBudget = Math.max(1_000, limit - 1_000);
     const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
       const value = raw.trim();
@@ -3909,11 +3909,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumDiscoveryContract, 900, "[discovery detail omitted; approved scope remains authoritative]");
-    // Keep the human objective, accepted Boss scope, runtime actions and newest
-    // evidence first. Generic policy summaries must not consume their budget.
+    // The verbatim human objective outranks auxiliary policy. Preserve it before
+    // evidence summaries so emergency compaction cannot silently replace it with a pivot.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
     appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
