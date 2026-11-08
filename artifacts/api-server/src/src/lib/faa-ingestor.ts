@@ -480,8 +480,8 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
       : { status: "not_requested" as const, validNames: [] as [] };
     const rowsForPersistence = applyFaaRegistryNameValidation(batch, nameValidation);
     return await db.transaction(async (tx) => {
-      // Ordinary piston aircraft are not material asset leads, but their structurally
-      // valid individual registrants remain directory candidates.
+      // All individual aircraft registrations are preserved as unvalued FAA asset
+      // observations; the signal tier is metadata and never implies personal wealth.
       const uniqueAssetRows = new Map<string, FaaBatchRow>();
       for (const row of rowsForPersistence) {
         const identifier = row.asset?.identifier;
@@ -755,36 +755,27 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       const groupKey = faaRegistrantEntityKey(entity);
       if (groupKey) registrantGroupKeys.add(groupKey);
     }
-    const asset = assetSignal.strength === "observed_asset_lead"
-      ? null
-      : buildFaaAircraftAsset({
-          nNumber,
-          registrantTypeCode: typeReg,
-          registrantName: rawName,
-          fractionalOwnershipFlag,
-          statusCode,
-          typeAircraft,
-          typeEngine,
-          yearManufactured: yearMfr,
-          serialNumber: serial,
-          manufacturerModelCode,
-          engineModelCode,
-          state,
-          country,
-          lastActivityDate,
-          expirationDate,
-          uniqueId,
-        });
-    // All structurally valid individual registrants remain directory candidates
-    // even when the associated aircraft is not a material asset lead.
-    if (!entity && !asset) {
-      if (pendingDedup.length >= 100) {
-        await batchMarkSeen(pendingDedup);
-        pendingDedup.length = 0;
-      }
-      continue;
-    }
-    batchRows.push({ asset: asset ? { ...asset, identifier: tailNumber } : null, entity });
+    const asset = buildFaaAircraftAsset({
+      nNumber,
+      registrantTypeCode: typeReg,
+      registrantName: rawName,
+      fractionalOwnershipFlag,
+      statusCode,
+      typeAircraft,
+      typeEngine,
+      yearManufactured: yearMfr,
+      serialNumber: serial,
+      manufacturerModelCode,
+      engineModelCode,
+      state,
+      country,
+      lastActivityDate,
+      expirationDate,
+      uniqueId,
+    });
+    // Preserve every current/pending individual aircraft as an unvalued FAA
+    // registry observation. Asset-signal strength is metadata, not an import gate.
+    batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });
 
     if (batchRows.length >= 100) {
       const res = await flushBatch(batchRows, validateNamesWithLlm);
