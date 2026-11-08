@@ -69,8 +69,8 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
     expect(APEX_BUREAU_PLAYBOOK).toContain("At most two discovery search actions");
     expect(APEX_BUREAU_PLAYBOOK).toContain("no parallel/provider/job-title fan-out");
-    expect(core.split("\\n").length).toBeGreaterThan(8);
-    expect(core).not.toContain("\\\\n");
+    expect(core.split("\n").length).toBeGreaterThan(8);
+    expect(core).not.toContain("\\n");
     expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
   });
 
