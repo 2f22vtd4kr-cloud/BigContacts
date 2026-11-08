@@ -310,11 +310,23 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
 
   try { const depth = resolveResearchDepth({ explicit: options.researchDepth }); const targetIterationCeiling = Math.min(depth.agenticMaxIterations, Math.max(0, Math.trunc(options.maxInvestigatorIterations ?? depth.agenticMaxIterations))); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); const priorTargetContext = typeof caseState.contextDocument === "string" ? caseState.contextDocument : "";
+    const seededSourceSection = "## Original seeded source and evidence (prior observations, not verified conclusions)\n" + JSON.stringify(seededBinding);
+    const seededContactHandling = [
+      "## Seeded professional contact and intermediary handling",
+      "If sourceMetadata.professionalContact is present, retain it as an official-source professional work route for this named person and independently re-check it. It is a direct-contact candidate, not a verified or private/residential contact by default.",
+      "If sourceMetadata.organizationContact is present, use it only as an organization/service route; never copy it onto a person or present it as a named adviser route.",
+      "Do not drop a Gatekeeper/intermediary or PersonCandidate because the person is an executive assistant, personal assistant, secretary, chief of staff, office manager, adviser, counsel, accountant, banker, portfolio professional or other close-network role rather than an HNWI principal.",
+      "A professional role or MEMBER_OF affiliation does not establish a client relationship, named-principal association, introduction authority, beneficial ownership or personal wealth. Preserve these uncertainties explicitly.",
+    ].join("\n");
+    const existingSeedContext = priorTargetContext.includes("Original seeded source and evidence")
+      ? priorTargetContext
+      : priorTargetContext + "\n\n" + seededSourceSection;
+    const contextWithContactHandling = existingSeedContext.includes("Seeded professional contact and intermediary handling")
+      ? existingSeedContext
+      : existingSeedContext + "\n\n" + seededContactHandling;
     let contextDocument = priorTargetContext
-      ? (priorTargetContext.includes("Original seeded source and evidence")
-        ? priorTargetContext
-        : compactInvestigationContext({ raw: `${priorTargetContext}\n\n## Original seeded source and evidence (prior observations, not verified conclusions)\n${JSON.stringify(seededBinding)}` }))
-      : openingContext(target, companyName, caseRow.id, caseRow.objective, "", seededBinding);
+      ? compactInvestigationContext({ raw: contextWithContactHandling })
+      : compactInvestigationContext({ raw: openingContext(target, companyName, caseRow.id, caseRow.objective, "", seededBinding) + "\n\n" + seededContactHandling });
     caseState.seededTargetBinding = seededBinding;
     caseState.contextDocument = contextDocument;
     const [seedContextPersisted] = await db.update(researchCasesTable)
@@ -327,7 +339,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       )).returning({ id: researchCasesTable.id });
     if (!seedContextPersisted?.id) throw new Error("Seeded target provenance could not be persisted before model execution."); let durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) {
       const replayedContext = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings });
-      contextDocument = compactInvestigationContext({ raw: `${replayedContext}\n\n## Original seeded source and evidence (prior observations, not verified conclusions)\n${JSON.stringify(seededBinding)}` });
+      contextDocument = compactInvestigationContext({ raw: replayedContext + "\n\n" + seededSourceSection + "\n\n" + seededContactHandling });
     } const initialExcludedInput = options.excludedInvestigatorLlm ?? []; const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
     const storedInvestigatorCapability = typeof caseState.investigatorLlm === "string" ? caseState.investigatorLlm as InvestigatorCapability : null;
     if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability)) {
@@ -482,7 +494,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       const contextRecords = [...durableTrajectory.records.filter((prior) => prior.turn !== safeRecord.turn), safeRecord]
         .sort((a, b) => a.turn - b.turn);
       const contextFindings = contextRecords.flatMap((item) => item.findings ?? []);
-      const nextContext = buildInvestigatorContext({
+      const rebuiltContext = buildInvestigatorContext({
         targetName: target.name,
         companyName,
         objective: [caseRow.objective, direction ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): " + direction : ""].filter(Boolean).join("\n"),
@@ -490,6 +502,9 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         trajectoryRecords: contextRecords,
         lastObservation: contextRecords[contextRecords.length - 1]?.observation ?? "",
         findings: contextFindings,
+      });
+      const nextContext = compactInvestigationContext({
+        raw: rebuiltContext + "\n\n" + seededSourceSection + "\n\n" + seededContactHandling,
       });
       const nextCaseState = await db.transaction(async (tx) => {
         await lockResearchCaseEventAppendStream(tx, caseRow.id);
