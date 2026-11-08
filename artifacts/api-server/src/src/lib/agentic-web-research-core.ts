@@ -3151,6 +3151,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(observation);
   const suppliedRegistryList = typeof registryIds === "string" ? registryIds.trim() : "";
   const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
+  const emergencyAiMemorySection = suppliedMemory
+    ? "AI HISTORICAL MEMORY (untrusted context; objective/scope and durable ledger prevail; omissions are unknown): " + suppliedMemory
+    : "";
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
   const isInvestigatorPrompt = mode === "discovery" || mode === "target" || /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const requiredActionFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
@@ -3647,7 +3650,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Boss-generated memory is a required representation of historical
     // findings. Keep it in the complete minimal tail rather than adding it only
     // when space happens to remain after generic observation narration.
-    aiMemorySection,
+    emergencyAiMemorySection,
     minimumObservationTail,
     minimumScopeContext,
     minimumAvailableActionsSection,
@@ -3773,8 +3776,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
               "[lead guidance omitted]",
             )
           : "",
-        aiMemorySection
-          ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 180, "[older memory omitted; durable ledger remains authoritative]")
+        emergencyAiMemorySection
+          ? compactPromptSectionPreservingUrlTokens(emergencyAiMemorySection, 360, "[older memory omitted; durable ledger remains authoritative]")
           : "",
       ].filter(Boolean);
       const dynamicReserve = Math.min(620, Math.max(420, Math.floor(limit * 0.12)));
@@ -3799,7 +3802,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // Boss-generated historical memory is already a semantic summary. Keep
         // it ahead of generic observation narration so a tight budget does not
         // silently suppress the only compact representation of older findings.
-        aiMemorySection,
+        emergencyAiMemorySection,
         header,
         compactObservation,
       ].filter(Boolean);
@@ -5506,6 +5509,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "Conditional specialist OSINT actions: allowlisted only.");
     }
     const minimumEvidenceRecovery = "PARTIAL FINDINGS: preserve relevant exact-name people/company leads as review-only; keep stated role or null and public URL. Snippets/unfetched URLs are leads, not evidence. Target-stage verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; bind claims to its exact span.";
+    const minimumBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
     const needsEvidenceRecovery = (
       input.mode === "discovery"
       || Boolean(latestSuccessfulFetchRecord || latestFetchedSourceClaimMarker || carryForwardSuccessfulSearch)
@@ -5514,20 +5518,23 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "Target-stage research verifies objective-required role/relationship/materiality",
       "sourceUrls=[that fetched URL"
     ].some((marker) => !repaired.includes(marker));
-    const minimumSemanticRecovery = "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties query/source to objective-required entity, role, relationship or materiality; model does not preselect target, source or action. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a falsifiable public-evidence hypothesis; other objectives use their own criteria. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; one relevant sourced lead starts target research; no celebrity defaults or name blacklist; no extra wealth criteria unless required. LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a promising in-scope URL when useful; advisory, not evidence or a mandated next action; Investigator chooses. SCOPE RECOVERY: preserve approved subject/geography; source class may vary, never pivot sector or jurisdiction.";
+    const minimumSemanticRecovery = "MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; generic publisher homepage needs a same-case evidence link; Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: people/companies/assets distinct; no name blacklist; one relevant sourced lead starts target research. No registry is preferred; choose by evidence (casinos in Slovenia). LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not evidence or a mandated next action. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query.";
     const needsSemanticRecovery = input.mode === "discovery" && [
       "MODEL-OWNED RELEVANCE SELF-CHECK",
       "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
       "Other objectives use their own evidence criteria",
       "DISCOVERY TARGETABILITY / REALISM",
       "not evidence or a mandated next action",
-      "source class may vary by query"
+      "source class may vary by query",
+      "No registry is preferred; choose by evidence.",
+      "consider inspecting a promising in-scope lead URL next"
     ].some((marker) => !repaired.includes(marker));
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
       needsEvidenceRecovery ? minimumEvidenceRecovery : "",
       needsSemanticRecovery ? minimumSemanticRecovery : "",
+      !repaired.includes("do not retry the same binary URL through the other fetch action") ? minimumBinaryRecovery : "",
     ].filter(Boolean);
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // When the full objective is long, compact duplicated discovery guidance rather
