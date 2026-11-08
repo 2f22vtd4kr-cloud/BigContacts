@@ -5702,7 +5702,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "source class may vary by query",
           ]
         : []),
-      ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim()] : []),
+      ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
     ];
     const recoveryMarkersPresent = requiredFinalMarkers.every((marker) => repaired.includes(marker));
     if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired) && recoveryMarkersPresent) return repaired;
@@ -5718,7 +5718,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       registryIdList,
       aiHistoricalMemory,
     );
-    if (finalProjection.length <= maxUserPromptChars && hasCompleteSchema(finalProjection)) {
+    if (finalProjection.length <= maxUserPromptChars && hasCompleteSchema(finalProjection) && requiredFinalMarkers.every((marker) => finalProjection.includes(marker))) {
       return finalProjection;
     }
     throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + finalProjection.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
