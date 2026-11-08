@@ -26,6 +26,18 @@ describe("contact-state reconciliation", () => {
     expect(state.isHot).toBe(false);
   });
 
+  it("retains published professional contact routes for Gatekeeper people as candidates", () => {
+    const state = computeContactState({
+      type: "Gatekeeper",
+      email: "sigurd@oslofamilyoffice.com",
+      phone: "+47 91 33 22 11",
+      phoneSource: "Oslo Family Office — published professional route",
+    });
+    expect(state.contactOutcome).toBe("direct_contact_candidate");
+    expect(state.contactConfidence).toBeGreaterThan(0);
+    expect(state.isHot).toBe(false);
+  });
+
   it("does not mark a review-only candidate hot", () => {
     const state = computeContactState({
       type: "HNWI",
