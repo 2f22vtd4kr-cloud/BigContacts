@@ -242,6 +242,7 @@ describe("target reachability realism", () => {
     expect(result.companyAssessment?.status).toBe("unverified");
     expect(result.companyAssessment?.hasGrowthRankingSignal).toBe(false);
     expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
+    expect(result.companyAssessment?.independentSourceCount).toBe(0);
     expect(result.mode).toBe("research_only");
     expect(result.ultraWealthSignal).toBe(false);
   });
