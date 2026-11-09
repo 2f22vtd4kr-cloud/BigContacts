@@ -404,8 +404,9 @@ export function formatReachabilityDirective(assessment?: ReachabilityAssessment 
   if (!assessment) {
     return `REALISM RULES:
 - For people, direct reachability must be supported by a validated person-level phone/email or a corroborated intermediary.
-- For companies, assess active legal status, actual operations, source-backed scale and growth separately from individual owner wealth.
+- For companies, assess active legal status, actual operations and source-backed operating scale separately from individual owner wealth.
 - Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.
+- For potential-investor firms, require source-backed capital capacity or actual investment activity and relevant mandate fit.
 - Company growth is not owner wealth. Verify ownership/control and personal wealth independently.
 - A company website, contact page or switchboard is an organization-level route, not personal access.
 - If no credible company evidence or corroborated person-level route exists, use research_only; do not pad the result with speculative contact paths.`;
