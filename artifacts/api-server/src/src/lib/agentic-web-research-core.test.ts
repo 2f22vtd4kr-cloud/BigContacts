@@ -2397,7 +2397,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoverySearchLivenessAdvisory(afterObservedPage)).toBeNull();
   });
 
-  it("requires one lead inspection before any further discovery search and counts failed fetches as attempts", () => {
+  it("does not impose a mandatory lead-inspection itinerary after a discovery search", () => {
     const objective = "discover source-backed people in Ohio manufacturing";
     const records = [{
       ...livenessRecord("web_search", "success"),
@@ -2406,10 +2406,7 @@ Choose each next action yourself from the available capabilities and observed ev
       leadUrls: ["https://www.ohiosos.gov/business/search", "https://company.example/team"],
       observedUrls: [],
     }];
-    expect(discoveryLeadInspectionRequirement(records)).toEqual({
-      leadUrl: "https://www.ohiosos.gov/business/search",
-      searchTurn: 1,
-    });
+    expect(discoveryLeadInspectionRequirement(records)).toBeNull();
     const discoveryPrompt = buildStepPrompt({
       targetName: "",
       objective,
@@ -2419,7 +2416,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(discoveryPrompt).toContain("DISCOVERY LEAD-INSPECTION GATE");
+    expect(discoveryPrompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
@@ -2504,28 +2501,20 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
   });
 
-  it("removes parallel web and registry actions from discovery while retaining them for target research", () => {
+  it("allows bounded mixed-source web and registry batches during discovery", () => {
     const actions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "done"];
-    expect(discoveryActionAllowlist("discovery", actions)).toEqual([
-      "web_search", "visit", "registry_search", "done",
-    ]);
+    expect(discoveryActionAllowlist("discovery", actions)).toEqual(actions);
     expect(discoveryActionAllowlist("target", actions)).toEqual(actions);
   });
 
-  it("enforces single-query discovery and blocks search fan-out while a usable lead is waiting", () => {
-    const guardStart = agenticCoreSource.indexOf("const pendingLead = discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
+  it("keeps discovery search bounded while allowing mixed-source batches", () => {
     const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS");
-    const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search" || action.action === "parallel_registry_search")');
     const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {');
-    expect(guardStart).toBeGreaterThan(-1);
-    expect(guardStart).toBeLessThan(budgetGuard);
-    expect(budgetGuard).toBeLessThan(parallelStart);
-    expect(parallelStart).toBeLessThan(registryDispatch);
-    expect(agenticCoreSource).toContain("DISCOVERY SEARCH DISCIPLINE: use one focused web_search or registry_search query");
-    expect(agenticCoreSource).toContain("discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records])");
+    expect(budgetGuard).toBeGreaterThan(-1);
+    expect(registryDispatch).toBeGreaterThan(budgetGuard);
+    expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
     expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: two outbound discovery search actions");
   });
-
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
       livenessRecord("web_search", "success"),
