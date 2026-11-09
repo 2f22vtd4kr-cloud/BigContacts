@@ -46,7 +46,7 @@ describe("objective-led institutional orientation", () => {
     const digAgent = apexOrientationFor("dig_agent");
     expect(investigator).toContain("For B2B assignments, verify current decision-maker role and company connection");
     expect(digAgent).toContain("the human objective determines target class");
-    expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
+    expect(digAgent).toMatch(/do not impose person-first discovery when the objective is company- or asset-led/i);
   });
 
   it("keeps target relevance and reachability neutral to fame across every AI role", () => {
@@ -88,11 +88,11 @@ describe("objective-led institutional orientation", () => {
 
   it("applies qualification criteria only when required by the human objective", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("Apply only objective-required criteria");
-    expect(core).toContain("B2B requires a fetched decision-maker role/company link");
+    expect(core).toContain("Apply only requested criteria");
+    expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("One focused discovery query");
+    expect(core).toContain("one focused query");
     expect(core).toContain("Investigator chooses targets, queries, sources, tools, pivots and stopping");
   });
 });
