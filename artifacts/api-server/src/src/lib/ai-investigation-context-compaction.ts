@@ -323,7 +323,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
       : {};
     const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
     const explicitDailySignal = quotaSignals.some((signal) =>
-      typeof signal === "string" && /tokens?[_\\s-]*per[_\\s-]*day|\\bTPD\\b|daily/i.test(signal));
+      typeof signal === "string" && /tokens?[_\s-]*per[_\s-]*day|\bTPD\b|daily/i.test(signal));
     if (explicitDailySignal) return false;
 
     // Some Groq 429 responses omit reset/remaining headers. When telemetry still
