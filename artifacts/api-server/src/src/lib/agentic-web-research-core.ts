@@ -3379,6 +3379,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumRelevanceMarker = isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. The Investigator chooses the source and action." : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY / REALISM: objective/scope sets target class; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. No name/domain blacklist. One source-backed relevant lead starts target research; preserve sector/jurisdiction; no extra criteria unless required. Company growth is not owner wealth; verify ownership/control and personal wealth independently." : "";
+  const minimumDiscoverySourceNeutralityMarker = isDiscoveryPrompt ? "SOURCE SELECTION: No registry is preferred; choose by evidence." : "";
+  const minimumFastHandoffMarker = isDiscoveryPrompt ? "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss." : "";
   const minimumOrganizationTargetabilityMarker = isDiscoveryPrompt ? "A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact. Leave promotionDecision unset for a review-only company card." : "";
   const minimumTargetVerificationRule = isInvestigatorPrompt ? "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT : "";
   const minimumSnippetEvidenceRule = isInvestigatorPrompt ? "Search snippets are leads, not evidence; failed fetches are unobserved." : "";
@@ -3397,6 +3399,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Third-party people-search/profile aggregators are leads only; unattributed contact facts are not identity evidence.",
     minimumRelevanceMarker,
     minimumTargetabilityMarker,
+    minimumDiscoverySourceNeutralityMarker,
+    minimumFastHandoffMarker,
     minimumOrganizationTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
