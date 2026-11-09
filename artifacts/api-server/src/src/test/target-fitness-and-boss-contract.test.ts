@@ -356,3 +356,129 @@ describe("Groq Boss transport contract", () => {
     vi.unstubAllEnvs();
   });
 });
+
+
+describe("company-scoped target fitness realism", () => {
+  it("keeps an Inc. 5000 company as a research lead, not a qualified target", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Growth Corporation",
+      type: "Corporation",
+      personScoped: false,
+      companyMetadata: JSON.stringify({
+        companyGrowthRanking: {
+          name: "Inc. 5000",
+          rank: 120,
+          year: 2025,
+          sourceUrl: "https://www.inc.com/profile/example-company",
+          sourceType: "ranking_publisher",
+          verified: true,
+        },
+      }),
+    });
+
+    expect(result.fit).toBe("review");
+    expect(result.score).toBeLessThan(0.65);
+    expect(result.reasons.join(" ")).toContain("poor-fit signals, not positive qualification");
+    expect(result.reasons.join(" ")).toContain("ranking-only mentions are leads, not qualified targets");
+    expect(shouldRejectTarget(result)).toBe(false);
+  });
+
+  it("admits a material operating company with independent scale, active registry and official route evidence", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Growth Corporation",
+      type: "Corporation",
+      companyScoped: true,
+      companyMetadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "employees", value: 1500, sourceUrl: "https://company.example/about", sourceType: "official_company", verified: true },
+          { metric: "revenue", value: 250000000, sourceUrl: "https://filings.example/annual-report", sourceType: "official_filing", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/123", sourceType: "official_registry", verified: true },
+        ],
+        companyOwnershipEvidence: [
+          { sourceUrl: "https://filings.example/ownership", sourceType: "official_filing", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://company.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+
+    expect(result.fit).toBe("strong");
+    expect(result.score).toBeGreaterThanOrEqual(0.7);
+    expect(result.reasons.join(" ")).toContain("Company-level realism is separate from individual owner wealth");
+    expect(shouldRejectTarget(result)).toBe(false);
+  });
+
+  it("recognizes a potential-investor firm only when capital and investment evidence are source-backed", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Investment Partners",
+      type: "Corporation",
+      companyScoped: true,
+      companyMetadata: JSON.stringify({
+        companyCapitalEvidence: [
+          { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
+        ],
+        companyInvestmentEvidence: [
+          { activityType: "portfolio_investment", investmentActivity: true, sourceUrl: "https://deals.example/portfolio", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/456", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://fund.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.fit).toBe("strong");
+    expect(result.reasons.join(" ")).toContain("verified source-bound fund-size, AUM, committed-capital, or deployable-capital observation");
+    expect(result.roleHints).toContain("verified investment-activity evidence");
+  });
+
+  it("does not let company evidence bypass a person-scoped budget", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Growth Corporation",
+      type: "Corporation",
+      personScoped: true,
+      companyMetadata: JSON.stringify({
+        companyGrowthRanking: {
+          name: "Inc. 5000",
+          rank: 120,
+          year: 2025,
+          sourceUrl: "https://www.inc.com/profile/example-company",
+          sourceType: "ranking_publisher",
+          verified: true,
+        },
+      }),
+    });
+
+    expect(result.fit).toBe("reject_non_person");
+    expect(shouldRejectTarget(result)).toBe(true);
+  });
+
+  it("keeps trusts distinct from operating-company and person fitness", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Family Trust",
+      type: "Trust",
+      personScoped: false,
+    });
+    expect(result.fit).toBe("review");
+    expect(result.reasons.join(" ")).toContain("Trust is a distinct legal structure");
+    expect(shouldRejectTarget(result)).toBe(false);
+  });
+
+  it("keeps an FAA-registrant-only company in review rather than inventing scale or owner wealth", () => {
+    const result = evaluateTargetFitness({
+      name: "Unverified Holdings LLC",
+      type: "Corporation",
+      companyScoped: true,
+      companyMetadata: JSON.stringify({ registrantTypeCode: "7", identityStatus: "legal_entity_candidate" }),
+    });
+
+    expect(result.fit).toBe("review");
+    expect(result.reasons.join(" ")).toContain("Company-shaped target requires company-specific evidence");
+    expect(result.reasons.join(" ")).toContain("no source-backed company scale");
+    expect(shouldRejectTarget(result)).toBe(false);
+  });
+});
