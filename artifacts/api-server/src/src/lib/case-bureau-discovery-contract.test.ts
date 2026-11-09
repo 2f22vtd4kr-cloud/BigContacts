@@ -18,8 +18,10 @@ describe("objective-aligned Boss planning", () => {
       iteration: 1,
       rightHandAdvice: null,
       file: {
-        humanBrief: { objective, motivation, geography: "No geographic restriction", exclusions: [] },
-        bossPremise: "Discover objective-relevant B2B companies and professional routes.",
+        discoveryContext: {
+          humanBrief: { objective, motivation, geography: "No geographic restriction", exclusions: [] },
+          bossPremise: "Discover objective-relevant B2B companies and professional routes.",
+        },
         actionQueue: [],
         target: { name: "B2B software company", type: "company", knownDomains: [] },
         evidenceSummary: { discoveredPeople: [], relatedOrganizations: [], searchGaps: [], negativeFindings: [] },
