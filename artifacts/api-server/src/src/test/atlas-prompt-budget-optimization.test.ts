@@ -220,7 +220,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       file,
     });
     expect(prompt.length).toBeLessThanOrEqual(getApexAtlasBossPlanPromptMaxChars());
-    expect(prompt).toContain("You are the Apex Atlas Boss.");
+    expect(prompt).toContain("You are Boss / Head Investigator of Apex Atlas (Groq).");
     expect(prompt).toContain("[APEX BOSS PLAN PROMPT BOUND:");
     expect(prompt).toContain("RETURN ONE JSON OBJECT ONLY");
     expect(prompt).toContain("Iteration: 42");
