@@ -4020,7 +4020,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumObservationTail || (header + " " + observationTail), 360, "[observation detail omitted]");
     appendBudgeted(carriedFetchedSourceSummary, 220, "[fetched-source event detail omitted]");
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source excerpt detail omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 200, "[fetched-source excerpt detail omitted]");
 
     // The action/evidence contract is mandatory, not optional prose. Put the
     // discovery decision rule and live runtime capabilities before long
@@ -4036,7 +4036,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumBinaryUrlRule, 360, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability omitted]");
 
     appendBudgeted(
       isDiscoveryPrompt
@@ -4050,7 +4049,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       appendBudgeted(minimumOrganizationTargetabilityMarker, 150, "[organization review status omitted]");
     }
     if (isDiscoveryPrompt) appendBudgeted(leadGuidance, 220, "[lead follow-up guidance omitted]");
-    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 240, "[older AI memory omitted; durable case ledger remains authoritative]");
+    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 200, "[older AI memory omitted; durable case ledger remains authoritative]");
 
     mandatoryMinimumTail = joinPromptParts(finalParts);
   }
