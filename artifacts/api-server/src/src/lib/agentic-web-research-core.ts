@@ -6014,6 +6014,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ...(latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
       ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
     ];
+    if (repaired.length > maxUserPromptChars) {
+      repaired = repaired.replace(/PARTIAL FINDINGS \\(not terminal-only\\):[^\\n]*/,
+        "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected source-backed leads as review-only; exact observed name, role or null, public HTTPS URL. Search snippets remain leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: " + requiredQualification + ". Wealth/ownership/relationships only with source-backed evidence; never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span.");
+      repaired = repaired.replace(/PAGE FORMAT \\/ RETRIEVAL LIMITS:[^\\n]*/,
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.");
+      repaired = repaired.replace(/RUNTIME-AVAILABLE REGISTRY IDS ONLY \\(CALLABLE ADAPTERS\\):[^\\n]*/,
+        "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): kbo-belgium, ares-czechia, borme-spain, faa, atoka-italy, cvr-denmark, ytj-finland, brreg, sec-edgar, zefix-switzerland, bodacc-france, gleif. Never invent IDs; unavailable/failed is not a no-hit; verify documented ownership fields.");
+    }
     const recoveryMarkersPresent = requiredFinalMarkers.every((marker) => repaired.includes(marker));
     if (repaired.length <= maxUserPromptChars && hasCompleteSchema(repaired) && recoveryMarkersPresent) return repaired;
     // Required recovery clauses can be rehydrated after the first emergency
