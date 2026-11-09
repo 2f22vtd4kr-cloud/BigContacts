@@ -6018,7 +6018,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // assembler enforces the provider ceiling; doing this afterward is too late.
     if (input.mode === "discovery") {
       const compactDiscoveryContract = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria.",
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria. PARTIAL FINDINGS (not terminal-only): preserve source-backed leads as review-only. Search snippets remain leads, not evidence; failed fetches are unobserved.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
         "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets/URLs are leads, not evidence. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from human brief or same-case observations, never model memory. source class may vary by query.",
@@ -6039,7 +6039,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let finalProjection = appendEmergencyObservationContext(
       repaired,
       "",
-      Math.max(4_000, maxUserPromptChars - 600),
+      Math.max(4_000, maxUserPromptChars - 1_300),
       input.mode,
       activeBossDirection,
       registryIdList,
@@ -6050,7 +6050,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // decision contract before removing any objective, scope, source or URL data.
     if (input.mode === "discovery" && finalProjection.length > maxUserPromptChars) {
       const compactDiscoveryContract = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria.",
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria. PARTIAL FINDINGS (not terminal-only): preserve source-backed leads as review-only. Search snippets remain leads, not evidence; failed fetches are unobserved.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
         "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets/URLs are leads, not evidence. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from human brief or same-case observations, never model memory. source class may vary by query.",
