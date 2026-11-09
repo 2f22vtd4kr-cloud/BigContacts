@@ -167,19 +167,8 @@ export function assessCompanyRealism(input: {
   const officialWebsite = metadata.officialWebsiteVerified === true
     && isHttpsSourceUrl(metadata.officialWebsiteSourceUrl);
   const sourceHosts = new Set<string>();
-  for (const record of [
-    ...scaleRecords,
-    ...capitalRecords,
-    ...investmentRecords,
-    ...registryRecords,
-    ...ownershipRecords,
-    ...routeRecords,
-  ]) {
+  for (const record of [...scaleRecords, ...capitalRecords, ...investmentRecords]) {
     const host = sourceHostKey(record.sourceUrl);
-    if (host) sourceHosts.add(host);
-  }
-  if (officialWebsite) {
-    const host = sourceHostKey(metadata.officialWebsiteSourceUrl);
     if (host) sourceHosts.add(host);
   }
   const independentSourceCount = sourceHosts.size;
