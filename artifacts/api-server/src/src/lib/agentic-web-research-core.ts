@@ -5873,7 +5873,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "ranking-only mentions are leads, not qualified targets",
             "company-level discovery signals",
             "Company growth is not owner wealth",
-            "verify ownership/control and personal wealth separately",
             "Investor firms need evidence of capital capacity or actual investment activity and mandate fit",
           ]
         : []),
