@@ -2129,7 +2129,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     // still model judgment, not a deterministic source or action sequence.
     if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(prefix)) {
       add(
-        "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name leads are review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. Source class may vary by query. Example: casinos in Slovenia.",
+        "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name leads are review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. source class may vary by query. Example: casinos in Slovenia.",
         1_150,
         "discovery policy",
       );
@@ -3963,7 +3963,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       mandatoryMinimumTail = joinPromptParts([core, ...selectedDynamic]);
     }
   }
-  if (mandatoryMinimumTail.length > limit) {
+  if (mandatoryMinimumTail.length > limit || !hasSemanticInvestigatorContract(mandatoryMinimumTail)) {
     // Last-resort projection is priority-based, not first-come-first-served.
     // Preserve the complete objective, accepted scope, runtime actions, exact
     // source URLs and newest trajectory before optional policy narration.
@@ -4016,7 +4016,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Compact, irreducible evidence and action rules. Keep the discovery
     // handoff short: one bounded mixed-source batch, one strongest lead, then
     // target research; never turn discovery into a candidate shortlist.
-    appendBudgeted(fallbackEvidenceContract, 760, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
     if (isDiscoveryPrompt) {
       appendBudgeted(
         "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected exact-name leads as review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: the Investigator decides relevance; a generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. Source class may vary by query. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory.",
