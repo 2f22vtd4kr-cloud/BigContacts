@@ -5439,7 +5439,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const raw = typeof latestSuccessfulFetchRecord.observation === "string"
             ? latestSuccessfulFetchRecord.observation.replaceAll("  ", " ").trim()
           : "";
-        const breaks = [...raw.matchAll(/[.!?]\\s+/g)];
+        const breaks = [...raw.matchAll(/[.!?]\s+/g)];
         const lastBreak = breaks.at(-1);
         const sentenceStart = lastBreak ? (lastBreak.index ?? 0) + lastBreak[0].length : 0;
         const finalSentence = raw.slice(sentenceStart).trim();
