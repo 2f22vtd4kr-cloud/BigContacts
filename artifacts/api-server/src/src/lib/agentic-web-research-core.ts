@@ -3378,7 +3378,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumRelevanceMarker = isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. The Investigator chooses the source and action." : "";
-  const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY / REALISM: objective/scope sets target class; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. No name/domain blacklist. One source-backed relevant lead starts target research; preserve sector/jurisdiction; no extra criteria unless required. Company growth is not owner wealth; verify ownership/control and personal wealth independently." : "";
+  const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY: objective/scope sets target class; fame neither qualifies nor disqualifies; require objective relevance. No name/domain blacklist. One source-backed lead starts target research; preserve supplied sector/jurisdiction. Do not require private/mid-market status unless requested. Company growth is not owner wealth." : "";
   const minimumDiscoverySourceNeutralityMarker = isDiscoveryPrompt ? "SOURCE SELECTION: No registry is preferred; choose by evidence." : "";
   const minimumFastHandoffMarker = isDiscoveryPrompt ? "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss." : "";
   const minimumOrganizationTargetabilityMarker = isDiscoveryPrompt ? "ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Leave promotionDecision unset for review-only company cards." : "";
@@ -3802,7 +3802,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumObservationTail,
         fallbackEvidenceContract,
         compactCaseObjective,
-        ...(isDiscoveryPrompt ? [minimumDiscoveryContract, minimumOrganizationTargetabilityMarker] : []),
+        ...(isDiscoveryPrompt ? [minimumDiscoveryContract, minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker] : []),
         terminalEvidenceRule,
         scopeRecoveryRule,
         compactScope,
