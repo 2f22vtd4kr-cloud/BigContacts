@@ -216,7 +216,7 @@ describe("target reachability realism", () => {
 
   it("recognizes source-backed capital capacity and investment activity for potential-investor firms", () => {
     const result = assessTargetReachability({
-      type: "Corporation",
+      type: "Venture Capital Firm",
       metadata: JSON.stringify({
         companyCapitalEvidence: [
           { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
