@@ -72,6 +72,18 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     )).toBe(false);
   });
 
+  it("does not classify Right-hand oversight unavailability as an Investigator provider outage", () => {
+    const oversightUnavailable = {
+      status: "unavailable",
+      stopReason: "OVERSIGHT_UNAVAILABLE",
+      trajectoryRecords: [{ action: "web_search", execution: "blocked", observation: "The lead-inspection gate held the search before provider execution." }],
+    } as const;
+
+    expect(isInvestigatorProviderUnavailableEpisode(oversightUnavailable)).toBe(false);
+    expect(advanceInvestigatorProviderUnavailableStreak(1, oversightUnavailable)).toBe(0);
+    expect(isInvestigatorTokenCapacityUnavailableEpisode(oversightUnavailable)).toBe(false);
+  });
+
   it("counts other actual Investigator provider failures without treating them as quota exhaustion", () => {
     const failure = unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_rate_limited");
     expect(isInvestigatorProviderUnavailableEpisode(failure)).toBe(true);
