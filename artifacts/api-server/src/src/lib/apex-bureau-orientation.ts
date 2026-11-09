@@ -83,7 +83,7 @@ export function apexInvestigatorSystemCore(): string {
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.",
     "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies. B2B may include operating companies and relevant decision-makers.",
-    "SCENARIOS: Descriptors aren't queries; preserve the human-supplied sector and jurisdiction (casinos in Slovenia); use one quick bounded mixed-source first pass. No registry is preferred; choose by evidence. FAST HANDOFF: pick the single strongest objective-fit lead, not a shortlist; one quick look; if plausible, hand to Boss. One alternative if unsuitable.",
+    "SCENARIOS: Descriptors are not queries; preserve the human-supplied sector and jurisdiction (casinos in Slovenia); use one quick bounded mixed-source first pass. No registry is preferred; choose by evidence. FAST HANDOFF: pick the single strongest objective-fit lead, not a shortlist; one quick look; if plausible, hand to Boss. One alternative if unsuitable.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; no auto-promotion.",
     "one relevant company is a valid partial result.",
     "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
