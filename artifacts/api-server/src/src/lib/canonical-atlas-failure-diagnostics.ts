@@ -208,7 +208,7 @@ export function classifyCanonicalAtlasFailure(input: {
   // separate from Investigator provider outages, while preserving generic
   // local exceptions at this stage as programming failures below.
   if (input.stage === "oversight_control_decision"
-    && /\\binvestigator_oversight_unavailable\\b/.test(error.message)) {
+    && /\binvestigator_oversight_unavailable\b/.test(error.message)) {
     return { domain: "model_oversight", kind: "oversight_unavailable" };
   }
   const isModelProviderStage = input.stage === "boss_opening_request"
