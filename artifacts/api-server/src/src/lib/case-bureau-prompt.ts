@@ -238,6 +238,16 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   const availableInvestigators = getAvailableInvestigatorCapabilities();
   const investigatorCapabilityList = availableInvestigators.length ? availableInvestigators.join(", ") : "none currently configured";
   const targetName = String(input.file.target?.name ?? "target");
+  const humanBrief = input.file.discoveryContext?.humanBrief ?? input.file.humanBrief;
+  const humanMissionBlock = humanBrief
+    ? [
+        "HUMAN MISSION (authoritative; preserve exactly and do not add requirements):",
+        `Objective: ${clipPrompt(humanBrief.objective ?? "", 900)}`,
+        `Motivation: ${clipPrompt(humanBrief.motivation ?? "", 500)}`,
+        `Geography: ${clipPrompt(humanBrief.geography ?? "", 240)}`,
+        `Explicit exclusions: ${clipPromptList(humanBrief.exclusions, 8, 220).join("; ")}`,
+      ].join("\\n")
+    : "HUMAN MISSION: no persisted brief is available; do not invent one.";
   const creative = buildCreativeInvestigatorAngles({
     targetName: clipPrompt(targetName, 240) ?? "target",
     targetType: clipPrompt(input.file.target?.type ?? null, 120),
@@ -268,6 +278,8 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   return boundBossPlanPrompt(`${apexOrientationCompact("boss")}
 
 You are the Apex Atlas Boss. Make the next evidence-led research assignment from the living case state below. You have no web access. The Investigator owns the research trajectory; you own direction, assignment choice, and whether work should continue.
+
+${humanMissionBlock}
 
 CORE RULES
 - Choose exactly one currently available Investigator capability for proceed; never substitute a different capability or credential.
