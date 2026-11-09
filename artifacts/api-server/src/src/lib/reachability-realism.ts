@@ -193,7 +193,7 @@ export function assessCompanyRealism(input: {
   else if (input.contactOutcome === "organization_contact") reasons.push("an organization-level contact candidate is present but still requires source validation; it is not personal access");
   if (independentSourceCount >= 2) reasons.push(`${independentSourceCount} independent source URLs support the company evidence`);
 
-  if (!hasSourceBackedScale && !hasCapitalCapacityEvidence && !hasInvestmentActivityEvidence) blockers.push("no source-backed operating scale or investor capital-capacity/investment-activity evidence is recorded");
+  if (!hasSourceBackedScale && !hasCapitalCapacityEvidence && !hasInvestmentActivityEvidence) blockers.push("no source-backed company scale/operating scale or investor capital-capacity/investment-activity evidence is recorded");
   if (independentSourceCount < 2) blockers.push("fewer than two independent source domains support company materiality");
   if (!hasActiveCompanyRegistry) blockers.push("current legal status has not been confirmed in an official company registry");
   if (!hasOwnershipControlEvidence) blockers.push("ownership/control remains unverified; require it only when the objective depends on ownership, control, or personal wealth");
