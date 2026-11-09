@@ -350,9 +350,31 @@ export function reachabilityDirective(assessment: ReachabilityAssessment): Reach
 export function formatReachabilityDirective(assessment?: ReachabilityAssessment | ReachabilityDirective | null): string {
   if (!assessment) {
     return `REALISM RULES:
-- Direct reachability must be supported by a validated person-level phone or email.
-- A social profile, public prominence, wealth signal, asset, registry entry, press address, or company switchboard is not personal access.
-- If no direct or corroborated intermediary route is found, explicitly return research_only and do not pad the result with speculative contact paths.`;
+- For people, direct reachability must be supported by a validated person-level phone/email or a corroborated intermediary.
+- For companies, assess active legal status, actual operations, source-backed scale and growth separately from individual owner wealth.
+- Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets.
+- Company growth is not owner wealth. Verify ownership/control and personal wealth independently.
+- A company website, contact page or switchboard is an organization-level route, not personal access.
+- If no credible company evidence or corroborated person-level route exists, use research_only; do not pad the result with speculative contact paths.`;
+  }
+
+  if (assessment.companyAssessment) {
+    const company = assessment.companyAssessment;
+    const companyObjective = assessment.mode === "research_only"
+      ? "This is a COMPANY RESEARCH-ONLY target. Confirm the legal entity and operating reality before searching for contacts."
+      : assessment.mode === "targeted"
+        ? "This is a TARGETED COMPANY REALISM pass. Verify scale and growth from independent sources, then confirm the official organization route."
+        : "This company has source-backed materiality and an official business route; continue with evidence-led organization-level research.";
+    const companyReasons = company.reasons.length ? company.reasons.join("; ") : "No positive company evidence is recorded.";
+    const companyBlockers = company.blockers.length ? company.blockers.join("; ") : "No known company evidence blockers.";
+    return `COMPANY REALISM / REACHABILITY CONTROL:
+Company evidence status: ${company.status.toUpperCase()} · company realism score ${company.score}/100.
+${companyObjective}
+Positive evidence: ${companyReasons}
+Known blockers: ${companyBlockers}
+Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals only; ranking-only mentions are leads, not qualified targets.
+Company materiality requires source-backed revenue, employee count, assets or valuation supported by at least two independent source URLs. Verify active legal status and actual operations. Verify ownership/control separately; an FAA registrant is not necessarily a beneficial owner.
+A verified company website, contact page or switchboard is organization-level reachability, not personal access. Company growth is not owner wealth; never infer founders' or shareholders' personal wealth from rankings, revenue, assets or growth.`;
   }
 
   const reasons = assessment.reasons.length ? assessment.reasons.join("; ") : "No positive access evidence is recorded.";
