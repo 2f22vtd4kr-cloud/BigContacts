@@ -95,7 +95,8 @@ describe("target reachability realism", () => {
 
     expect(result.publicProminenceSignal).toBe(false);
     expect(result.status).toBe("bounded");
-    expect(result.mode).toBe("targeted");
+    expect(result.mode).toBe("research_only");
+    expect(result.companyAssessment?.score).toBe(0);
     expect(result.hasDirectContact).toBe(false);
     expect(result.hasIntermediaryPath).toBe(false);
   });
@@ -139,6 +140,7 @@ describe("target reachability realism", () => {
     expect(result.mode).toBe("targeted");
     expect(result.hasDirectContact).toBe(false);
     expect(result.ultraWealthSignal).toBe(false);
+    expect(formatReachabilityDirective(result)).toContain("poor-fit signals, not positive qualification");
     expect(formatReachabilityDirective(result)).toContain("ranking-only mentions are leads, not qualified targets");
     expect(formatReachabilityDirective(result)).toContain("Company growth is not owner wealth");
   });
@@ -174,6 +176,46 @@ describe("target reachability realism", () => {
     expect(result.mode).toBe("full");
     expect(result.hasDirectContact).toBe(false);
     expect(formatReachabilityDirective(result)).toContain("organization-level reachability, not personal access");
+  });
+
+  it("does not count two pages on one company domain as independent materiality sources", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "employees", value: 1500, sourceUrl: "https://company.example/about", sourceType: "official_company", verified: true },
+          { metric: "revenue", value: 250000000, sourceUrl: "https://company.example/investors", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.independentSourceCount).toBe(1);
+    expect(result.companyAssessment?.status).toBe("single_source_scale");
+    expect(result.mode).toBe("targeted");
+  });
+
+  it("recognizes source-backed capital capacity and investment activity for potential-investor firms", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        companyCapitalEvidence: [
+          { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
+        ],
+        companyInvestmentEvidence: [
+          { activityType: "portfolio_investment", investmentActivity: true, sourceUrl: "https://deals.example/portfolio", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/456", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://fund.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.hasCapitalCapacityEvidence).toBe(true);
+    expect(result.companyAssessment?.hasInvestmentActivityEvidence).toBe(true);
+    expect(result.companyAssessment?.status).toBe("materiality_evidenced");
+    expect(result.mode).toBe("full");
+    expect(formatReachabilityDirective(result)).toContain("capital-capacity or actual investment-activity evidence");
   });
 
   it("does not promote FAA company registrants or unstructured Inc. 5000 mentions into materiality", () => {
