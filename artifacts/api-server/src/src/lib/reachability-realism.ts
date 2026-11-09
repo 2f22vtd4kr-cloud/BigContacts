@@ -102,7 +102,7 @@ function sourceHostKey(value: unknown): string | null {
 }
 
 function isCompanyTargetType(type?: string | null): boolean {
-  return /^(corporation|corp|company|organization|org|professional firm|partnership|limited liability company|llc|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test((type ?? "").trim());
+  return /^(corporation|corp|company|organization|org|professional firm|partnership|limited liability company|llc|investment firm|investment company|private equity(?: firm| fund)?|venture capital(?: firm| fund)?|family office|asset manager|investment fund|fund manager|private capital firm|capital management|fund|holding company|limited partnership)$/i.test((type ?? "").trim());
 }
 
 function verifiedCompanyEvidence(value: unknown, allowedSourceTypes: string[]): Record<string, unknown>[] {
