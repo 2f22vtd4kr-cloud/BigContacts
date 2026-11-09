@@ -414,8 +414,8 @@ describe("company-scoped target fitness realism", () => {
   it("recognizes a potential-investor firm only when capital and investment evidence are source-backed", () => {
     const result = evaluateTargetFitness({
       name: "Example Investment Partners",
-      type: "Corporation",
-      companyScoped: true,
+      type: "Venture Capital Firm",
+      personScoped: false,
       companyMetadata: JSON.stringify({
         companyCapitalEvidence: [
           { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
