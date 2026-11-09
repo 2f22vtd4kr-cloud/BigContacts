@@ -523,7 +523,7 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
              targetWrapperFailureStage = "oversight_control_decision";
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            targetWrapperFailureStage = "post_action_control";
-             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId, consecutiveActionParseFailures };
+             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId, consecutiveActionParseFailures };
              if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId, consecutiveActionParseFailures };
              continue;
            }
@@ -585,7 +585,7 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            targetWrapperFailureStage = "oversight_control_decision";
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            targetWrapperFailureStage = "post_action_control";
-           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId, consecutiveActionParseFailures };
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId, consecutiveActionParseFailures };
            if (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
            if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId, consecutiveActionParseFailures };
            continue;
