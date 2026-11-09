@@ -6568,6 +6568,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const protectedDiscoveryRecovery = input.mode === "discovery"
         ? [
             "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; keep exact name, stated role or null, and associated public HTTPS URL. A provisional lead needs no fetch or ownership proof; never auto-promote.",
+            "Do not select people solely for celebrity status, and do not exclude a person or company merely for being well-known; require direct relevance to the active objective.",
             "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a concrete, falsifiable hypothesis tied to the active objective. Other objectives use their own evidence criteria.",
             "Search snippets remain leads, not evidence. Failed/blocked fetches are unobserved, not negative evidence.",
             "SCOPE RECOVERY: preserve Boss-approved subject and geography; source class may vary by query; never silently pivot to another sector or jurisdiction."
