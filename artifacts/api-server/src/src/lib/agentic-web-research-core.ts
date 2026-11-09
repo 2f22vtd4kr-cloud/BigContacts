@@ -2133,7 +2133,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(prefix)) {
       add(
         "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: Company-quality rankings (Inc. 5000/fast-growth/unicorn rankings) are company-level signals, not qualification or proof of owner wealth.  require direct relevance. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory. Do not require private/mid-market status unless requested. No extra wealth or ownership criteria unless requested. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
-        1_250,
+        850,
         "discovery policy",
       );
     }
@@ -4014,6 +4014,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Human objective and Boss scope are separate authorities. Keep both.
     appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
     appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. SEARCH: market only if country in objective/scope; locale=language. The Investigator chooses; no fixed action sequence. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence.",
+        520,
+        "[optional discovery elaboration omitted; core handoff remains]",
+      );
+    }
     appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 360, "[additional runtime actions omitted]");
 
