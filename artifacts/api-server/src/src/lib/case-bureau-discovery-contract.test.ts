@@ -4,9 +4,41 @@ import {
   buildGroqBossDiscoveryPrompt,
   parseBossDiscoveryResponse,
 } from "./case-bureau";
+import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 
 const investigator = "groq-investigator-1" as InvestigatorCapability;
+
+describe("objective-aligned Boss planning", () => {
+  it("includes the human B2B brief and does not impose an unstated less-public preference", () => {
+    const objective = "Find B2B software companies and their current decision-makers.";
+    const motivation = "Identify companies and relevant professional roles; do not infer personal wealth.";
+    const prompt = buildApexAtlasBossPlanPrompt({
+      iteration: 1,
+      rightHandAdvice: null,
+      file: {
+        humanBrief: { objective, motivation, geography: "No geographic restriction", exclusions: [] },
+        bossPremise: "Discover objective-relevant B2B companies and professional routes.",
+        actionQueue: [],
+        target: { name: "B2B software company", type: "company", knownDomains: [] },
+        evidenceSummary: { discoveredPeople: [], relatedOrganizations: [], searchGaps: [], negativeFindings: [] },
+        contactRoutes: [],
+        hypotheses: [],
+        specialistRoster: [],
+        humanDirectives: [],
+        decisionLog: [],
+        researchDepth: "standard",
+      },
+    });
+
+    expect(prompt).toContain(objective);
+    expect(prompt).toContain(motivation);
+    expect(prompt).toContain("The human mission in CASE STATE is authoritative");
+    expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
+    expect(prompt).not.toContain("Prefer less-public, source-backed operators");
+    expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
+  });
+});
 
 describe("source-grounded Boss opening contract", () => {
   it("does not expose candidate URLs or contact evidence in the Boss output schema", () => {
