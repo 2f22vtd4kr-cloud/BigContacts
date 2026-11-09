@@ -596,6 +596,19 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("does not use 120B recovery when structured quota signals identify a daily token cap", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: null,
+      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","body":{"errorType":"tokens","quotaSignals":["tokens_per_day"]}}',
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("does not invoke 120B recovery for a daily token cap", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
