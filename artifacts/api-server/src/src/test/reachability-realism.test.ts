@@ -137,7 +137,7 @@ describe("target reachability realism", () => {
     expect(result.companyAssessment?.status).toBe("growth_signal_lead");
     expect(result.companyAssessment?.hasGrowthRankingSignal).toBe(true);
     expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
-    expect(result.mode).toBe("targeted");
+    expect(result.mode).toBe("research_only");
     expect(result.hasDirectContact).toBe(false);
     expect(result.ultraWealthSignal).toBe(false);
     expect(formatReachabilityDirective(result)).toContain("poor-fit signals, not positive qualification");
