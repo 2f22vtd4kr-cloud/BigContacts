@@ -98,6 +98,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
     expect(targetPrompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
     expect(targetPrompt).toContain("locale is language only, never geography");
+    expect(targetPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
+    expect(targetPrompt).toContain("investor firms need evidence of capital capacity or actual investment activity and mandate fit");
     expect(targetPrompt).toContain("Avoid stale years unless the objective is explicitly historical");
   });
 });
