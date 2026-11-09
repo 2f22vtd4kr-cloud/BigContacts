@@ -5705,6 +5705,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ...(input.mode === "discovery"
         ? semanticRecoveryClauses.filter(([marker]) => !repaired.includes(marker)).map(([, clause]) => clause)
         : []),
+      input.mode === "discovery" && !repaired.includes("No registry is preferred; choose by evidence.")
+        ? "SOURCE SELECTION: No registry is preferred; choose by evidence."
+        : "",
       !repaired.includes("visit supports bounded text extraction") ? minimumBinaryRecovery : "",
     ].filter(Boolean);
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
