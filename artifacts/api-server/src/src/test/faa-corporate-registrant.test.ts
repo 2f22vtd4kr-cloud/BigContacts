@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildFaaRegistrantEntity,
   createFaaRegistrantEntityKey,
+  createFaaRegistrationDedupKey,
   faaRegistrantEntityKey,
 } from "../lib/faa-ingestor";
 import { readFileSync } from "node:fs";
@@ -53,6 +54,53 @@ describe("FAA legal-entity registrant candidates", () => {
     expect(faaRegistrantEntityKey(partnership!)).toBe(
       createFaaRegistrantEntityKey(partnership!.name, "TX", "US", "2"),
     );
+  });
+
+  it("reprocesses a tail number when the published registrant or record version changes", () => {
+    const baseKey = createFaaRegistrationDedupKey({
+      nNumber: "N70001",
+      registrantName: "PUBLIC HOLDINGS LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "3",
+      statusCode: "V",
+      lastActivityDate: "2026/10/01",
+      uniqueId: "FAA-ENTITY-1",
+    });
+    const sameKey = createFaaRegistrationDedupKey({
+      nNumber: "70001",
+      registrantName: "PUBLIC HOLDINGS LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "3",
+      statusCode: "V",
+      lastActivityDate: "2026/10/01",
+      uniqueId: "FAA-ENTITY-1",
+    });
+    const changedRegistrant = createFaaRegistrationDedupKey({
+      nNumber: "N70001",
+      registrantName: "NEW REGISTRANT LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "7",
+      statusCode: "V",
+      lastActivityDate: "2026/10/01",
+      uniqueId: "FAA-ENTITY-1",
+    });
+    const changedVersion = createFaaRegistrationDedupKey({
+      nNumber: "N70001",
+      registrantName: "PUBLIC HOLDINGS LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "3",
+      statusCode: "V",
+      lastActivityDate: "2026/11/01",
+      uniqueId: "FAA-ENTITY-1",
+    });
+    expect(baseKey).toBe(sameKey);
+    expect(baseKey).not.toBe(changedRegistrant);
+    expect(baseKey).not.toBe(changedVersion);
+    expect(baseKey).toMatch(/^faa:v2:N70001:/);
   });
 
   it("preserves the existing individual key format and excludes unresolved government/co-owned types", () => {
