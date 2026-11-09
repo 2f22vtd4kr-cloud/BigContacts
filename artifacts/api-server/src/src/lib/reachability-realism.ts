@@ -109,9 +109,15 @@ export function assessCompanyRealism(input: {
   const rankingRecords = objectRecords(metadata.companyGrowthRanking ?? metadata.growthRankingEvidence).filter((record) => {
     const rankingName = String(record.name ?? record.ranking ?? record.program ?? "").toLowerCase();
     const year = Number(record.year);
+    const rank = Number(record.rank);
+    const sourceType = String(record.sourceType ?? "").toLowerCase();
+    const supportedPublisher = ["ranking_publisher", "official_ranking", "official_company"].includes(sourceType);
+    const hasRank = (Number.isFinite(rank) && rank > 0) || (typeof record.rankLabel === "string" && Boolean(record.rankLabel.trim()));
     return record.verified === true
       && isHttpsSourceUrl(record.sourceUrl)
+      && supportedPublisher
       && /(inc\.?\s*5000|fast[-\s]?growth|unicorn)/i.test(rankingName)
+      && hasRank
       && Number.isInteger(year)
       && year >= 2000
       && year <= new Date().getUTCFullYear() + 1;
