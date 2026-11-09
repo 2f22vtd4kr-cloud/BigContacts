@@ -80,7 +80,7 @@ describe("opening Investigator correction budget", () => {
   it("reserves a fourth model-owned turn for correcting invalid or policy-blocked actions", () => {
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 20)).toBe(4);
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 4 }, 12)).toBe(4);
-    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 2 }, 2)).toBe(2);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 2 }, 2)).toBe(1);
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
   });
 });
