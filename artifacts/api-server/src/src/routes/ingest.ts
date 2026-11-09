@@ -35,7 +35,7 @@ import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
-  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedup, getDedupCount,
+  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedup, clearDedupPrefix, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
@@ -249,7 +249,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   }
 
   // The FAA replay must not erase dedup state for BRREG, land-registry or other ingestors.
-  if (doClean) await clearDedup("faa:v2:");
+  if (doClean) await clearDedupPrefix("faa:v2:");
 
   const jobId = await createJob("faa");
   if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;
