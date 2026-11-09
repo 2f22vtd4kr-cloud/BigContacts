@@ -25,7 +25,7 @@ The extractor exports only public registrant names, state/country, aircraft iden
 - Individuals are grouped by normalized published name + FAA state + FAA country.
 - Legal entities are grouped by normalized published name + FAA state + FAA country + FAA registrant type code. This prevents a same-name partnership, corporation and LLC from being silently merged.
 - The FAA MASTER does not provide a stable public person or legal-entity identifier. Same-name collisions may remain; these are provisional source groupings, not verified identities.
-- Every aircraft observation remains unvalued. FAA registration is a registry observation, not proof of beneficial ownership or operation.
+- Every aircraft observation remains unvalued. FAA registration is a registry observation, not proof of beneficial ownership or operation. The dedup fingerprint includes N-number, normalized registrant identity/legal form, status, last-action date and FAA record ID, so a changed registrant or record version is reprocessed rather than hidden by N-number-only dedup.
 - `REGISTERED_TO` means only that the FAA lists the registrant as the registration applicant. It is not an ownership/control claim.
 - Corporate beneficial owners and controllers remain unresolved until independently corroborated from appropriate company registries or official corporate sources.
 
