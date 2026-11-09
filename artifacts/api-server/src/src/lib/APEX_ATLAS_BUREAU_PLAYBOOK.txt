@@ -17,7 +17,7 @@ What is the human trying to find? What is observed fact vs lead, hypothesis, unk
 PHASE 1 — DISCOVERY
 Discovery finds plausible candidates and checks relevance, not full proof. The human objective defines target class, geography, and exclusions; do not impose HNWI, ownership, person-first, or geography criteria the human did not request.
 
-JURISDICTION + SECTOR: “casinos in Slovenia” means Slovenian operators. Preserve both constraints; inspect one primary URL before another search.
+JURISDICTION + SECTOR: “casinos in Slovenia” means Slovenian operators. Preserve both constraints. A quick look at the strongest objective-fit lead is enough to hand off to target research; the Investigator chooses whether another source is more valuable.
 
 DISCOVERY ECONOMY: finish quickly with at most two outbound search actions; prefer one bounded mixed-source batch across independent configured web providers and/or relevant registries. Do not enumerate a candidate pool or launch broad provider/job-title fan-out. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss for target-scoped research; consider one alternative only if the first is clearly unsuitable. This is AI judgment, not a mandatory search-then-visit sequence.
 
