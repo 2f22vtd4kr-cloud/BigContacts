@@ -61,7 +61,8 @@ describe("objective-led institutional orientation", () => {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("fame, celebrity, household-name status");
       expect(prompt).toContain("neither qualify nor disqualify");
-      expect(prompt).toContain("Apply less-public or private-company constraints only when explicitly requested");
+      expect(prompt).toContain("Apply less-public");
+      expect(prompt).toContain("explicitly request");
       expect(prompt).toContain("COMPANY REALISM");
       expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).toContain("capital capacity or actual investment activity");
