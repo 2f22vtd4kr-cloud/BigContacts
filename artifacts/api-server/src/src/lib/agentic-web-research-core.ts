@@ -5933,7 +5933,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Keep discovery-specific evidence gates while removing repeated examples.
       repaired = repaired.replace(
         /DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
-        "DISCOVERY TARGETABILITY / REALISM: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
+        "DISCOVERY TARGETABILITY / REALISM: One source-backed relevant lead starts target research; one quick source look is enough. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
       );
       // The latest observation is useful, but its verbose narration is lower
       // priority than the objective, approved scope, fetched claim and schema.
@@ -6056,6 +6056,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /^SOURCE COVERAGE \(not a checklist\):/,
         /^CAPABILITY GUIDANCE:/,
         /^DISCOVERY SEARCH DISCIPLINE:/,
+        /^AI-COMPACTED HISTORICAL RESEARCH MEMORY:/,
+        /^AI HISTORICAL MEMORY:/,
         /^VALID REVIEW-LEAD SHAPE/,
         /^\[AUXILIARY CONTEXT BOUND:/,
       ];
