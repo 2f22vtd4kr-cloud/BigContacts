@@ -218,6 +218,14 @@ describe("target reachability realism", () => {
     expect(formatReachabilityDirective(result)).toContain("capital-capacity or actual investment-activity evidence");
   });
 
+  it("keeps trusts distinct from operating-company realism", () => {
+    const result = assessTargetReachability({
+      type: "Trust",
+      metadata: JSON.stringify({ officialWebsiteVerified: true, officialWebsiteSourceUrl: "https://trust.example" }),
+    });
+    expect(result.companyAssessment).toBeUndefined();
+  });
+
   it("does not promote FAA company registrants or unstructured Inc. 5000 mentions into materiality", () => {
     const result = assessTargetReachability({
       type: "Corporation",
