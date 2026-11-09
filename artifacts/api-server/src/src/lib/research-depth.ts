@@ -166,7 +166,15 @@ export function resolveOpeningInvestigatorIterations(
     ? Math.max(0, Math.floor(discoveryIterationCeiling))
     : 0;
   if (available === 0) return 0;
-  return Math.min(4, resolveDiscoveryIterationsPerAct(config, available), available);
+  const configuredCap = Number.isFinite(config.investigatorIterationsPerAct)
+    && config.investigatorIterationsPerAct > 0
+    ? Math.floor(config.investigatorIterationsPerAct)
+    : available;
+  // The opening correction allowance is deliberately independent of the
+  // three-episode allocation divisor used for later discovery continuations.
+  // Otherwise standard depth (8 discovery actions) silently resolves to 3,
+  // defeating the fourth model-owned correction turn this function promises.
+  return Math.min(4, configuredCap, available);
 }
 
 export function resolveRemainingDiscoveryIterations(input: {
