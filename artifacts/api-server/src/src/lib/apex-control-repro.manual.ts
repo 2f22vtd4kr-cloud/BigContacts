@@ -1,3 +1,4 @@
+/* Manual runtime diagnostic. Run explicitly only with a local API server available; excluded from the default Vitest suite. */
 import { it } from "vitest";
 import {
   buildAtlasPinnedControlState,

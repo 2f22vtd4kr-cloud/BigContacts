@@ -13,6 +13,7 @@ export const relationshipsTable = pgTable("relationships", {
   relationshipType: text("relationship_type").notNull(),
   // 'OWNS' | 'MANAGES' | 'BOARD_MEMBER_OF' | 'GEOMETRA_FOR' | 'MEMBER_OF'
   // | 'SHARES_GATEKEEPER' | 'KNOWN_ASSOCIATE' | 'FAMILY_OF' | 'NOMINEE_OF'
+  // | 'REGISTERED_TO' | 'HISTORICAL_REGISTERED_TO' (FAA registrant history, not beneficial ownership)
   strength: doublePrecision("strength"), // 0-1 confidence score
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
