@@ -21,7 +21,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("Virtual Globetrotting");
     expect(systemCore).toContain("REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.");
     expect(systemCore).toContain("B2B may include operating companies and relevant decision-makers");
-    expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
+    expect(systemCore).toContain("SCENARIOS: Descriptors aren't queries");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).not.toContain("before another search");
     expect(systemCore).not.toContain("no provider fan-out");
@@ -86,6 +86,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
+    expect(discoveryPrompt).toContain("one bounded mixed-source web/registry batch");
+    expect(discoveryPrompt).toContain("one quick source look is enough");
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
@@ -3626,6 +3628,7 @@ describe("combined-main emergency discovery contract", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("No registry is preferred; choose by evidence.");
+    expect(prompt).toContain("FAST HANDOFF");
     expect(prompt).toContain("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
