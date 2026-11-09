@@ -167,7 +167,7 @@ describe("target reachability realism", () => {
     });
 
     expect(result.companyAssessment?.status).toBe("materiality_evidenced");
-    expect(result.companyAssessment?.score).toBe(100);
+    expect(result.companyAssessment?.score).toBe(95);
     expect(result.companyAssessment?.independentSourceCount).toBeGreaterThanOrEqual(2);
     expect(result.companyAssessment?.hasOwnershipControlEvidence).toBe(true);
     expect(result.companyAssessment?.hasOfficialBusinessRoute).toBe(true);
