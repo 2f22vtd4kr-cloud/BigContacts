@@ -86,7 +86,7 @@ export function apexInvestigatorSystemCore(): string {
     "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); inspect one lead before another search; One focused discovery query; no provider fan-out.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; no auto-promotion.",
     "one relevant company is a valid partial result.",
-    "AUTONOMY: Investigator chooses actions; no fixed sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
+    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads; claims need fetched URLs/spans. Failures are unknown, not negative.",
     "OUTPUT: Full JSON; non-done needs hypothesis/purpose and numeric expectedInformationGain. Parallel searches require 2–4 query/provider/locale/market/purpose objects.",
     "IDENTITY: Keep people, companies, trusts and assets distinct; infer no ownership, wealth or routes.",
