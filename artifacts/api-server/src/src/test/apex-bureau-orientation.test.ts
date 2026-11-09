@@ -90,7 +90,7 @@ describe("objective-led institutional orientation", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).toContain("Apply only requested criteria");
     expect(core).toContain("B2B needs fetched role/company evidence");
-    expect(core).toContain("Wealth objectives require sourced ownership/control/equity/investment");
+    expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
     expect(core).toContain("one focused query");
     expect(core).toContain("Investigator chooses targets, queries, sources, tools, pivots and stopping");
