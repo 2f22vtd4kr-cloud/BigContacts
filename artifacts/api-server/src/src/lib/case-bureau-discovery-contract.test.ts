@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_DISCOVERY_EXCLUSIONS,
   buildBossDiscoveryResponseFormat,
   buildGroqBossDiscoveryPrompt,
   parseBossDiscoveryResponse,
@@ -37,6 +38,13 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
     expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
+  });
+});
+
+describe("default discovery exclusions", () => {
+  it("assesses reachability from evidence rather than penalizing fame alone", () => {
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("do not favor or penalize a candidate solely because they are famous");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).not.toContain("Do not prioritize celebrity billionaires");
   });
 });
 
