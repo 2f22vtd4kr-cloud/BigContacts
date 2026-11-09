@@ -59,7 +59,7 @@ describe("objective-led institutional orientation", () => {
     expect(mission).toContain("do not prefer private or mid-market status unless the human objective asks for it");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain("fame, celebrity, household-name status");
+      expect(prompt).toMatch(/fame, celebrity, household-name status/i);
       expect(prompt).toContain("neither qualify nor disqualify");
       expect(prompt).toContain("Apply less-public");
       expect(prompt).toContain("explicitly request");
