@@ -12,6 +12,7 @@ export interface CompanyRealismAssessment {
   hasOwnershipControlEvidence: boolean;
   hasOfficialWebsite: boolean;
   hasOfficialBusinessRoute: boolean;
+  hasOrganizationContactCandidate: boolean;
   independentSourceCount: number;
   reasons: string[];
   blockers: string[];
@@ -153,14 +154,15 @@ export function assessCompanyRealism(input: {
   if (hasActiveCompanyRegistry) reasons.push("an active company-registry record is source-bound");
   if (hasOwnershipControlEvidence) reasons.push("ownership/control has separate official filing or registry evidence");
   if (officialWebsite) reasons.push("an official company website is source-bound");
-  if (hasOfficialBusinessRoute || input.contactOutcome === "organization_contact") reasons.push("an organization-level business contact route is present; it is not personal access");
+  if (hasOfficialBusinessRoute) reasons.push("a verified official organization-level business contact route is present; it is not personal access");
+  else if (input.contactOutcome === "organization_contact") reasons.push("an organization-level contact candidate is present but still requires source validation; it is not personal access");
   if (independentSourceCount >= 2) reasons.push(`${independentSourceCount} independent source URLs support the company evidence`);
 
   if (!hasSourceBackedScale) blockers.push("no source-backed company scale (revenue, employees, assets, or valuation) is recorded");
   if (independentSourceCount < 2) blockers.push("fewer than two independent source URLs support company materiality");
   if (!hasActiveCompanyRegistry) blockers.push("current legal status has not been confirmed in an official company registry");
   if (!hasOwnershipControlEvidence) blockers.push("beneficial ownership/control remains unverified");
-  if (!hasOfficialBusinessRoute && input.contactOutcome !== "organization_contact") blockers.push("no verified official company contact route is recorded");
+  if (!hasOfficialBusinessRoute) blockers.push("no verified official company contact route is recorded");
 
   const status: CompanyRealismAssessment["status"] = hasSourceBackedScale && independentSourceCount >= 2
     ? "materiality_evidenced"
@@ -177,7 +179,7 @@ export function assessCompanyRealism(input: {
     + (hasActiveCompanyRegistry ? 15 : 0)
     + (hasOwnershipControlEvidence ? 15 : 0)
     + (officialWebsite ? 10 : 0)
-    + (hasOfficialBusinessRoute || input.contactOutcome === "organization_contact" ? 10 : 0)
+    + (hasOfficialBusinessRoute ? 10 : 0)
     + (independentSourceCount >= 2 ? 10 : 0),
   );
   return {
@@ -188,7 +190,8 @@ export function assessCompanyRealism(input: {
     hasActiveCompanyRegistry,
     hasOwnershipControlEvidence,
     hasOfficialWebsite: officialWebsite,
-    hasOfficialBusinessRoute: hasOfficialBusinessRoute || input.contactOutcome === "organization_contact",
+    hasOfficialBusinessRoute,
+    hasOrganizationContactCandidate: input.contactOutcome === "organization_contact",
     independentSourceCount,
     reasons: [...new Set(reasons)],
     blockers: [...new Set(blockers)],
@@ -204,6 +207,40 @@ export function assessCompanyRealism(input: {
  */
 export function assessTargetReachability(input: ReachabilityInput): ReachabilityAssessment {
   const metadata = parseMetadata(input.metadata);
+
+  if (isCompanyTargetType(input.type)) {
+    const companyAssessment = assessCompanyRealism({
+      metadata: input.metadata,
+      contactOutcome: input.contactOutcome,
+    });
+    const gatekeeperConnections = input.gatekeeperConnections ?? 0;
+    const intermediaryConnections = input.intermediaryConnections ?? 0;
+    const hasIntermediaryPath = gatekeeperConnections > 0 || intermediaryConnections > 0;
+    const hasCompanyEvidence = companyAssessment.hasSourceBackedScale
+      || companyAssessment.hasGrowthRankingSignal
+      || companyAssessment.hasActiveCompanyRegistry
+      || companyAssessment.hasOfficialWebsite
+      || companyAssessment.hasOrganizationContactCandidate;
+    const mode: ReachabilityMode = companyAssessment.status === "materiality_evidenced"
+      && companyAssessment.hasOfficialBusinessRoute
+      ? "full"
+      : hasCompanyEvidence
+        ? "targeted"
+        : "research_only";
+    const status: ReachabilityStatus = mode === "research_only" ? "research_only" : "bounded";
+    return {
+      status,
+      mode,
+      score: companyAssessment.score,
+      hasDirectContact: false,
+      hasIntermediaryPath,
+      ultraWealthSignal: false,
+      publicProminenceSignal: false,
+      reasons: [...companyAssessment.reasons, ...(hasIntermediaryPath ? ["a stored gatekeeper/intermediary relationship exists"] : [])],
+      blockers: companyAssessment.blockers,
+      companyAssessment,
+    };
+  }
 
   const hasDirectContact = hasMeaningfulDirectContact({
     type: input.type,
