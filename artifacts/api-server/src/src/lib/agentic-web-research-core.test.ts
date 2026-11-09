@@ -23,9 +23,9 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("B2B may include operating companies and relevant decision-makers");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).toContain("casinos in Slovenia");
-    expect(systemCore).toContain("before another search");
-    expect(systemCore).toContain("no provider fan-out");
-    expect(systemCore).toContain("One focused discovery query");
+    expect(systemCore).not.toContain("before another search");
+    expect(systemCore).not.toContain("no provider fan-out");
+    expect(systemCore).toContain("mixed-source");
     expect(systemCore).toContain("one relevant company is a valid partial result");
     expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
@@ -2412,7 +2412,7 @@ Choose each next action yourself from the available capabilities and observed ev
       objective,
       history: [],
       trajectoryRecords: records,
-      lastObservation: "DISCOVERY LEAD-INSPECTION GATE: a usable lead URL is waiting from a successful search. Runtime blocks search fan-out until one such lead is attempted.",
+      lastObservation: "Search results contain possible leads; choose the next action by expected information gain.",
       findings: [],
       mode: "discovery",
     });
@@ -2421,8 +2421,7 @@ Choose each next action yourself from the available capabilities and observed ev
       ...records,
       { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
     ])).toBeNull();
-    // A policy/preflight-blocked visit is still a completed inspection attempt:
-    // the gate must let the model choose a different lead or research action.
+    // Inspection remains an available model-selected action, never a prerequisite.
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "blocked"), turn: 2, args: { url: "https://company.example/team" } },
@@ -2430,10 +2429,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "success"), turn: 2, args: { url: "https://unrelated.example/" } },
-    ])).toEqual({
-      leadUrl: "https://www.ohiosos.gov/business/search",
-      searchTurn: 1,
-    });
+    ])).toBeNull();
     expect(discoveryLeadInspectionRequirement([
       { ...livenessRecord("web_search", "success"), leadUrls: [], observedUrls: [] },
     ])).toBeNull();
@@ -2462,10 +2458,7 @@ Choose each next action yourself from the available capabilities and observed ev
       })),
     ];
     expect(countDiscoverySearchActions(agedHistory)).toBe(2);
-    expect(discoveryLeadInspectionRequirement(agedHistory)).toEqual({
-      leadUrl: "https://www.ohiosos.gov/business/search",
-      searchTurn: 1,
-    });
+    expect(discoveryLeadInspectionRequirement(agedHistory)).toBeNull();
   });
 
   it("puts the search economy and Slovenia sector/jurisdiction example in the live discovery prompt", () => {
@@ -2482,6 +2475,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain(objective);
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("at most two outbound search actions");
+    expect(prompt).toContain("mixed-source batch");
+    expect(prompt).toContain("A quick look at the strongest objective-relevant lead is enough");
     expect(prompt).toContain("casinos in Slovenia");
     expect(prompt).toContain("Other objectives use their own evidence criteria");
   });
