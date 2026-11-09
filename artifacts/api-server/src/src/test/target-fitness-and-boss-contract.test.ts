@@ -378,11 +378,12 @@ describe("company-scoped target fitness realism", () => {
 
     expect(result.fit).toBe("review");
     expect(result.score).toBeLessThan(0.65);
+    expect(result.reasons.join(" ")).toContain("poor-fit signals, not positive qualification");
     expect(result.reasons.join(" ")).toContain("ranking-only mentions are leads, not qualified targets");
     expect(shouldRejectTarget(result)).toBe(false);
   });
 
-  it("admits a material company only with independent scale, active registry, ownership and official route evidence", () => {
+  it("admits a material operating company with independent scale, active registry and official route evidence", () => {
     const result = evaluateTargetFitness({
       name: "Example Growth Corporation",
       type: "Corporation",
@@ -408,6 +409,31 @@ describe("company-scoped target fitness realism", () => {
     expect(result.score).toBeGreaterThanOrEqual(0.7);
     expect(result.reasons.join(" ")).toContain("Company-level realism is separate from individual owner wealth");
     expect(shouldRejectTarget(result)).toBe(false);
+  });
+
+  it("recognizes a potential-investor firm only when capital and investment evidence are source-backed", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Investment Partners",
+      type: "Corporation",
+      companyScoped: true,
+      companyMetadata: JSON.stringify({
+        companyCapitalEvidence: [
+          { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
+        ],
+        companyInvestmentEvidence: [
+          { activityType: "portfolio_investment", investmentActivity: true, sourceUrl: "https://deals.example/portfolio", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/456", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://fund.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.fit).toBe("strong");
+    expect(result.reasons.join(" ")).toContain("verified source-bound fund-size, AUM, committed-capital, or deployable-capital observation");
+    expect(result.roleHints).toContain("verified investment-activity evidence");
   });
 
   it("does not let company evidence bypass a person-scoped budget", () => {
