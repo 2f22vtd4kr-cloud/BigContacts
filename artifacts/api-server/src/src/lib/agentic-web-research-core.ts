@@ -3886,61 +3886,74 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   }
   if (mandatoryMinimumTail.length > limit) {
-    // Last-resort semantic projection. Keep the strict action schema intact,
-    // then spend the remaining provider budget on scope, source identity and
-    // the newest observed evidence. Never cut a URL token or fail a research
-    // turn merely because optional context is verbose.
+    // Last-resort projection is priority-based, not first-come-first-served.
+    // Preserve the complete objective, accepted scope, runtime actions, exact
+    // source URLs and newest trajectory before optional policy narration.
     const finalParts: string[] = [];
-    // Reserve room for the final provider-boundary pass, which restores exact
-    // source, qualification and discovery markers after this semantic projection.
-    // Leave a 1,000-character reserve for provider-boundary rehydration of
-    // source, qualification, objective and schema clauses.
-    const finalAssemblyBudget = Math.max(1_000, limit - 1_000);
-    const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
+    const finalAssemblyBudget = Math.max(1_000, limit - 500);
+    const currentLength = () =>
+      finalParts.reduce((total, part) => total + part.length, 0) +
+      Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
       const value = raw.trim();
       if (!value) return;
       const remaining = finalAssemblyBudget - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
-      const isVerbatimObjective = containsVerbatimCaseObjective(value);
-      if (isVerbatimObjective && value.length > budget) {
-        throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+      if (containsVerbatimCaseObjective(value)) {
+        if (value.length > budget) {
+          throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+        }
+        finalParts.push(value);
+        return;
       }
       if (budget < 80) return;
-      const selected = isVerbatimObjective || value.length <= budget
+      const selected = value.length <= budget
         ? value
         : compactPromptSectionPreservingUrlTokens(value, budget, omission);
       if (selected && selected.length <= budget) finalParts.push(selected);
     };
+
     if (fallbackOutputContract.length > limit) {
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Keep the compact action/evidence rules ahead of optional narrative so
-    // the emergency projection cannot silently lose the provider or evidence contract.
-    appendBudgeted(compactCaseObjective, 3_000, "[objective detail omitted; full objective remains in durable case state]");
-    appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
+
+    // Human objective and Boss scope are separate authorities. Keep both.
+    appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
+    appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
+    appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 360, "[additional runtime actions omitted]");
+
+    // Dynamic evidence outranks generic narrative. URLs are copied verbatim;
+    // the latest record retains its exact turn and query/action identity.
+    appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 620, "[older trajectory detail omitted; immutable case events remain authoritative]");
+    appendBudgeted(markerSuffix, 160, "[trajectory marker omitted]");
+    appendBudgeted(minimumObservationTail || (header + " " + observationTail), 360, "[observation detail omitted]");
+    appendBudgeted(carriedFetchedSourceSummary, 220, "[fetched-source event detail omitted]");
+    appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source excerpt detail omitted]");
+
+    // Compact, irreducible evidence and action rules. Keep the discovery
+    // handoff short: one bounded mixed-source batch, one strongest lead, then
+    // target research; never turn discovery into a candidate shortlist.
+    appendBudgeted(fallbackEvidenceContract, 760, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected exact-name leads as review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. Other objectives use their own evidence criteria. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory.",
+        1_050,
+        "[optional discovery detail omitted; objective and handoff remain authoritative]",
+      );
+    }
+    appendBudgeted(minimumTargetabilityMarker, 260, "[targetability detail omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 340, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 340, "[PDF retrieval detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
-    appendBudgeted(compactFallbackDiscoveryRule, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumAvailableActionsSection, 700, "[additional runtime actions omitted]");
-    appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
-    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
-    appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
-    appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
-    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
-    if (!minimumObservationTail) appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
-    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
-    appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
-    // Return the actual bounded projection; returning mandatoryMinimumTail here
-    // silently discarded every compaction decision made by appendBudgeted.
+    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability omitted]");
+    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 240, "[older AI memory omitted; durable case ledger remains authoritative]");
+
     mandatoryMinimumTail = joinPromptParts(finalParts);
   }
   return mandatoryMinimumTail;
