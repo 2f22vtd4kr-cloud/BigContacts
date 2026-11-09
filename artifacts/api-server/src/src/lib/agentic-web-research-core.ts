@@ -6937,10 +6937,23 @@ export function countDiscoverySearchActions(records: readonly AgenticTrajectoryR
   ).length;
 }
 
-export function discoveryActionAllowlist(_mode: string | undefined, actions: readonly string[]): string[] {
-  // Mixed-source batches are useful in discovery; the case-wide budget and
-  // active-scope validation remain authoritative.
-  return [...actions];
+const DISCOVERY_ALLOWED_ACTIONS = new Set([
+  "web_search",
+  "parallel_web_search",
+  "registry_search",
+  "parallel_registry_search",
+  "visit",
+  "browser_fetch",
+  "done",
+]);
+
+export function discoveryActionAllowlist(mode: string | undefined, actions: readonly string[]): string[] {
+  if (mode !== "discovery") return [...actions];
+  // Discovery is a fast lead-selection pass, not target-scoped OSINT. Keep
+  // mixed web/registry batches and one quick source look available, but defer
+  // specialist footprinting, domain harvesting, and enrichment until Boss
+  // accepts a target and the run enters target research.
+  return actions.filter((action) => DISCOVERY_ALLOWED_ACTIONS.has(action));
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {

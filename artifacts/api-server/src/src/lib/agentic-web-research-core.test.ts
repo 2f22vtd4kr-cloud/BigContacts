@@ -2500,9 +2500,17 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
   });
 
-  it("allows bounded mixed-source web and registry batches during discovery", () => {
-    const actions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "done"];
-    expect(discoveryActionAllowlist("discovery", actions)).toEqual(actions);
+  it("allows bounded mixed-source discovery but defers specialist OSINT until target research", () => {
+    const actions = [
+      "web_search", "parallel_web_search", "parallel_registry_search", "visit",
+      "browser_fetch", "registry_search", "done", "domain_lookup", "harvest_domain",
+      "footprint_email", "footprint_username_maigret", "footprint_username_sherlock",
+      "footprint_spiderfoot",
+    ];
+    expect(discoveryActionAllowlist("discovery", actions)).toEqual([
+      "web_search", "parallel_web_search", "parallel_registry_search", "visit",
+      "browser_fetch", "registry_search", "done",
+    ]);
     expect(discoveryActionAllowlist("target", actions)).toEqual(actions);
   });
 
