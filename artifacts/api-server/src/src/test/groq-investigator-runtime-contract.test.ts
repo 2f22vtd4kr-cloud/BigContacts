@@ -215,7 +215,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(submitted).toContain("No extra wealth/ownership criteria unless requested.");
+    expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
     expect(submitted).toContain("Investigator chooses actions; no fixed recovery sequence.");
     expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
