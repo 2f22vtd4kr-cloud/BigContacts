@@ -5814,9 +5814,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : []),
       ["source class may vary by query", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query."],
     ];
+    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner’s wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one mixed-source batch. FAST HANDOFF: one quick source look is enough; select one strongest objective-fit lead, not a shortlist.";
+    const providerBoundaryTerminal = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
+    const providerBoundaryTerminalRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + providerBoundaryTerminal.minEvidence + "; minIndependentSourceUnits=" + providerBoundaryTerminal.minIndependentSourceUnits + "; requireExactSpanForFindings=" + providerBoundaryTerminal.requireExactSpanForFindings + "; requireFalsification=" + providerBoundaryTerminal.requireFalsification + "; done only when this mode-specific gate passes.";
     const requiredAdditions = [
       !hasCompleteSchema ? requiredOutputSchema : "",
-      !repaired.includes("minEvidence=") ? terminalEvidenceRule : "",
+      !repaired.includes("minEvidence=") ? providerBoundaryTerminalRule : "",
       input.mode === "discovery" && !repaired.includes("Inc. 5000/fast-growth/unicorn rankings") ? compactDiscoveryGate : "",
       input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
       ...evidenceRecoveryClauses.filter(([marker]) => !repaired.includes(marker)).map(([, clause]) => clause),
@@ -5834,7 +5837,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // When the full objective is long, compact duplicated discovery guidance rather
     // than trimming the verbatim objective, source claim, scope, or JSON envelope.
-    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner’s wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one mixed-source batch. FAST HANDOFF: one quick source look is enough; select one strongest objective-fit lead, not a shortlist.";
+
     if (repaired.length > maxUserPromptChars) {
       // Compact verbose discovery clauses independently even when a fallback
       // assembler joined them into one paragraph. Stop at the next known clause,
