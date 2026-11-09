@@ -45,7 +45,7 @@ pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
 pass("Boss-selected Investigator capability reaches llmStep", /investigatorLlm\?: InvestigatorCapability/.test(agentic) && /investigatorCapabilityKeyName/.test(agentic) && /selectedInvestigatorLlm/.test(agentic) && /llmStep/.test(agentic));
 pass("selected Investigator is first-class, not a fixed research stage", /selectedInvestigatorLlm/.test(agentic) && !/const orderedProviders\s*=/.test(agentic) && !/selectedInvestigatorLlm\s*,\s*\.\.\./.test(agentic));
-pass("discovery excludes parallel web/registry actions while target research retains them", agentic.includes("discoveryActionAllowlist") && agentic.includes('action !== "parallel_web_search"') && agentic.includes('action !== "parallel_registry_search"') && agentic.includes("actionAllowlistForTurn = discoveryActionAllowlist("));
+pass("discovery permits bounded mixed-source web/registry batches under the case search budget", agentic.includes("discoveryActionAllowlist") && agentic.includes("return [...actions]") && agentic.includes("actionAllowlistForTurn = discoveryActionAllowlist(") && agentic.includes("MAX_DISCOVERY_SEARCH_ACTIONS"));
 pass("no forced search-provider order", !/Prefer Serper.*Tavily.*Exa/i.test(agentic) && !/Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i.test(agentic));
 pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(agentic));
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));
