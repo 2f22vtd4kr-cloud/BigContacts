@@ -25,7 +25,7 @@ F = {
     "registration_status": 20, "fractional_owner": 22,
     "expiration_date": 29, "faa_unique_id": 30,
 }
-ALLOWED_STATUS = {"V", "T", "A", "S", "R"}
+ALLOWED_STATUS = {"V", "T", "A", "S", "R", "N"}
 CORPORATE_TYPES = {
     "2": "Partnership",
     "3": "Corporation",
