@@ -79,6 +79,15 @@ export function evaluateTargetFitness(input: {
     /^(corporation|corp|company|org|organization|entity|partnership|llc|limited liability company)$/i.test(type) ||
     CORP_SHELL_RE.test(name);
 
+  if (/^trust$/i.test(type)) {
+    return {
+      fit: input.personScoped === false ? "review" : "reject_non_person",
+      score: 0.4,
+      reasons: ["Trust is a distinct legal structure; do not assume it is an operating company or a person."],
+      roleHints: [],
+    };
+  }
+
   const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
   const hasOperatorRole = OPERATOR_ROLE_RE.test(text);
 
