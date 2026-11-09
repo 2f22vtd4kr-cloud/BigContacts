@@ -40,7 +40,7 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
     expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
-    expect(prompt).toContain("do not prefer private or mid-market status unless the human objective asks for it");
+    expect(prompt).toContain("Apply less-public or private-company constraints only when explicitly requested");
     expect(prompt).not.toContain("Operating firms need evidence of current private/mid-market operations");
   });
 });
