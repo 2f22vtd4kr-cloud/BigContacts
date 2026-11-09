@@ -2417,6 +2417,12 @@ Choose each next action yourself from the available capabilities and observed ev
       ...records,
       { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
     ])).toBeNull();
+    // A policy/preflight-blocked visit is still a completed inspection attempt:
+    // the gate must let the model choose a different lead or research action.
+    expect(discoveryLeadInspectionRequirement([
+      ...records,
+      { ...livenessRecord("visit", "blocked"), turn: 2, args: { url: "https://company.example/team" } },
+    ])).toBeNull();
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "success"), turn: 2, args: { url: "https://unrelated.example/" } },
