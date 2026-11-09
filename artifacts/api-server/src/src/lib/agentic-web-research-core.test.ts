@@ -3632,7 +3632,7 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt).toContain("ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
-    expect(prompt).toContain("private/mid-market status matters only when requested");
+    expect(prompt).toContain("Do not require private/mid-market status unless requested.");
     expect(prompt).not.toContain("current private/mid-market operations");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
