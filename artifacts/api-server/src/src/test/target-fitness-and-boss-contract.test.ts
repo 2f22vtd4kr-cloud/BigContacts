@@ -431,7 +431,7 @@ describe("company-scoped target fitness realism", () => {
     expect(shouldRejectTarget(result)).toBe(true);
   });
 
-  it("keeps a registry-only company in review rather than inventing scale or owner wealth", () => {
+  it("keeps an FAA-registrant-only company in review rather than inventing scale or owner wealth", () => {
     const result = evaluateTargetFitness({
       name: "Unverified Holdings LLC",
       type: "Corporation",
