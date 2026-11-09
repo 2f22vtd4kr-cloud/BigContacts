@@ -2482,6 +2482,21 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Other objectives use their own evidence criteria");
   });
 
+  it("does not turn popularity into an unstated discovery exclusion", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find B2B software companies and their current decision-makers.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("do not exclude a person or company merely for being well-known");
+    expect(prompt).toContain("require direct relevance to the active objective");
+    expect(prompt).not.toContain("No incidental celebrity/household-name targets");
+  });
+
   it("removes parallel web and registry actions from discovery while retaining them for target research", () => {
     const actions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "done"];
     expect(discoveryActionAllowlist("discovery", actions)).toEqual([
