@@ -6018,7 +6018,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // first emergency pass can be just under the limit before source markers are restored.
     // Compact duplicated discovery policy before the emergency context
     // assembler enforces the provider ceiling; doing this afterward is too late.
-    if (input.mode === "discovery" && repaired.length > maxUserPromptChars) {
+    if (input.mode === "discovery" && repaired.length > maxUserPromptChars - 1_000) {
       const compactDiscoveryContract = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
