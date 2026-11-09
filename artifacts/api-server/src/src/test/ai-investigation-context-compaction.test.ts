@@ -485,7 +485,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 2 });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 1 });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
@@ -620,7 +620,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 2 });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 1 });
   });
 
 });
