@@ -259,6 +259,7 @@ describe("FAA dedup replay safety", () => {
     expect(queue).toContain("export async function clearDedupPrefix(prefix:string)");
     expect(queue).toContain('rc.sscan(DEDUP_KEY,cursor,"MATCH",`${prefix}*`,"COUNT",2000)');
     expect(queue).toContain("rc.srem(DEDUP_KEY");
+    expect(queue).toContain("Could not confirm FAA dedup prefix cleanup; refusing replay.");
     expect(queue).toContain("export async function clearDedup()");
     expect(queue).toContain('await rc.del(DEDUP_KEY);');
   });
