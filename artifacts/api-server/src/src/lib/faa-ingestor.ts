@@ -835,8 +835,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     // revoked, reserved, or unknown status rows as live asset candidates.
     if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
-    // Reprocess a tail number when its published registrant, legal form, status,
-    // last-action date or FAA record identifier changes; N-number-only dedup hid transfers.
+    // Fingerprint every source-owned registration field so an eligible row is reprocessed
+    // when registrant/legal form, status, fractional flag, dates, FAA ID or aircraft details change.
     const dkey = createFaaRegistrationDedupKey({
       nNumber,
       registrantName: rawName,
