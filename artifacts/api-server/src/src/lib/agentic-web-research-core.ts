@@ -3899,14 +3899,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       if (!value) return;
       const remaining = finalAssemblyBudget - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
-      if (containsVerbatimCaseObjective(value)) {
-        if (value.length > budget) {
-          throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
-        }
+      const isVerbatimObjective = containsVerbatimCaseObjective(value);
+      if (isVerbatimObjective && value.length > budget) {
+        throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+      }
+      if (budget < 80) return;
+      if (isVerbatimObjective) {
         finalParts.push(value);
         return;
       }
-      if (budget < 80) return;
       const selected = value.length <= budget
         ? value
         : compactPromptSectionPreservingUrlTokens(value, budget, omission);
