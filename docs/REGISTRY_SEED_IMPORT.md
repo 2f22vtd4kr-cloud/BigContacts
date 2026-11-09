@@ -35,12 +35,12 @@ For aircraft, use the existing official FAA importer separately:
 POST /api/ingest/faa
 Content-Type: application/json
 
-{"maxRecords":200000}
+{"maxRecords":200000,"forceRefresh":true,"clearDedup":true}
 ```
 
-Poll the returned job in the same way. This downloads the official FAA Releasable Aircraft Database ZIP. The importer creates aircraft assets separately from registrants, and uses `REGISTERED_TO` rather than claiming beneficial ownership.
+For the **first corrected full replay only**, send `clearDedup:true` once. It clears only the FAA `faa:v2:` dedup prefix; it must not clear BRREG, land-registry or other ingestion lanes. The operator `maxRecords` cap counts newly processed eligible individual registration rows, not inserted assets. `forceRefresh:true` requests the current official ZIP; if the runtime cannot reach the FAA host, the committed sanitized individual-only MASTER fallback is used. The importer creates unvalued aircraft observations separately from registrant candidates, and uses `REGISTERED_TO` rather than claiming beneficial ownership.
 
-The `maxRecords` value is a **per-run insertion cap**. If a run inserts exactly 200,000 aircraft assets, wait for terminal state and repeat the same import; stable FAA source keys cause existing assets to be skipped while remaining records are considered. Repeat until a run inserts fewer than the cap, then reconcile aircraft-asset, registrant-entity, skipped and error counts from the durable job result. A completed job alone does not prove the whole snapshot was imported.
+Poll the returned job until terminal state and reconcile the durable result fields: `processedRows`, `registrantGroupsProcessed`, `candidateEntitiesInserted`, `inserted` (aircraft observations), `skipped`, and `errors`. For later incremental runs, omit `clearDedup`; do not clear the FAA prefix again. A completed job alone does not prove the whole snapshot was imported.
 
 ## Close-to-principal and professional intermediary seeds
 

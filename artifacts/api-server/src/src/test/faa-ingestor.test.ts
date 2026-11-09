@@ -234,7 +234,7 @@ describe("FAA ingestion scope", () => {
   it("does not discard ordinary aircraft before creating the FAA registrant candidate", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).not.toContain('if (assetSignal.strength === "observed_asset_lead") continue;');
-    expect(source).toContain('if (typeReg !== "1") continue;');
+    expect(source).toContain('if (!["1", "2", "3", "7", "8"].includes(typeReg)) continue;');
     expect(source).toContain("const asset = buildFaaAircraftAsset({");
     expect(source).toContain('batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });');
     expect(source).toContain("expectedEntityByAssetId");
@@ -242,6 +242,26 @@ describe("FAA ingestion scope", () => {
     expect(source).toContain("tx.update(relationshipsTable)");
     expect(source).toContain("HISTORICAL_REGISTERED_TO");
     expect(source).not.toContain("tx.delete(relationshipsTable)");
+  });
+});
+
+describe("FAA dedup replay safety", () => {
+  it("clears only FAA v2 dedup keys and preserves every other ingestion lane", () => {
+    const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+    const queue = readFileSync(new URL("../lib/job-queue.ts", import.meta.url), "utf8");
+    expect(route).toContain('if (doClean) await clearDedupPrefix("faa:v2:");');
+    const claimAt = route.indexOf('if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;');
+    const clearAt = route.indexOf('if (doClean) await clearDedupPrefix("faa:v2:");');
+    expect(claimAt).toBeGreaterThan(-1);
+    expect(clearAt).toBeGreaterThan(claimAt);
+    expect(route.slice(clearAt)).toContain('clearActiveJobIfMatches("faa", jobId).catch(() => false)');
+    expect(route).toContain("clearDedupPrefix,");
+    expect(queue).toContain("export async function clearDedupPrefix(prefix:string)");
+    expect(queue).toContain('rc.sscan(DEDUP_KEY,cursor,"MATCH",`${prefix}*`,"COUNT",2000)');
+    expect(queue).toContain("rc.srem(DEDUP_KEY");
+    expect(queue).toContain("Could not confirm FAA dedup prefix cleanup; refusing replay.");
+    expect(queue).toContain("export async function clearDedup()");
+    expect(queue).toContain('await rc.del(DEDUP_KEY);');
   });
 });
 

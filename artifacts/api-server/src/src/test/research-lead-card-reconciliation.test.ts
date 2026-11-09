@@ -22,6 +22,10 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).not.toContain("Companies House");
     expect(orientation).toContain("Any enabled registry may seed the first company, person, or asset candidate");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
+    expect(orientation).toContain("Inc. 5000/fast-growth/unicorn rankings");
+    expect(orientation).toContain("Ranking-only mentions are leads, not qualified targets");
+    expect(orientation).toContain("currently operating private/mid-market businesses");
+    expect(orientation).toContain("For potential-investor firms");
   });
 
   it("keeps registry rows as supporting observations and never lets adapters select cards", () => {
@@ -318,7 +322,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("AVAILABLE REVIEW TARGETS");
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
     expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
-    expect(control).toContain("Do not request more broad discovery, a larger candidate pool, or a geography comparison merely to delay target selection.");
+    expect(control).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(control).toContain("No target-count threshold; Right-hand advises and does not select or authorize targets.");
 
     // Runtime integrity checks may grade provenance, but cannot replace the

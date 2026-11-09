@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessTargetReachability } from "../lib/reachability-realism";
+import { assessTargetReachability, formatReachabilityDirective } from "../lib/reachability-realism";
 
 describe("target reachability realism", () => {
   it("bounds a Buffett-like prominent isolated target before expensive research", () => {
@@ -96,6 +96,7 @@ describe("target reachability realism", () => {
     expect(result.publicProminenceSignal).toBe(false);
     expect(result.status).toBe("bounded");
     expect(result.mode).toBe("targeted");
+    expect(result.companyAssessment).toBeUndefined();
     expect(result.hasDirectContact).toBe(false);
     expect(result.hasIntermediaryPath).toBe(false);
   });
@@ -114,5 +115,157 @@ describe("target reachability realism", () => {
     expect(result.status).toBe("bounded");
     expect(result.reasons).not.toContain("validated person-level direct contact is present");
     expect(result.blockers).toContain("organization contact is not personal access to the individual");
+  });
+
+  it("treats an Inc. 5000 listing as a poor-fit lead, not a qualified material company", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        registrantTypeCode: "3",
+        companyGrowthRanking: {
+          name: "Inc. 5000",
+          rank: 120,
+          year: 2025,
+          sourceUrl: "https://www.inc.com/profile/example-company",
+          sourceType: "ranking_publisher",
+          verified: true,
+        },
+      }),
+      networkDegree: 0,
+    });
+
+    expect(result.companyAssessment?.status).toBe("growth_signal_lead");
+    expect(result.companyAssessment?.hasGrowthRankingSignal).toBe(true);
+    expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
+    expect(result.mode).toBe("research_only");
+    expect(result.hasDirectContact).toBe(false);
+    expect(result.ultraWealthSignal).toBe(false);
+    expect(formatReachabilityDirective(result)).toContain("poor-fit signals, not positive qualification");
+    expect(formatReachabilityDirective(result)).toContain("ranking-only mentions are leads, not qualified targets");
+    expect(formatReachabilityDirective(result)).toContain("Company growth is not owner wealth");
+    expect(formatReachabilityDirective(result)).toContain("Confirm the legal entity, current operations and objective fit before searching for contacts");
+  });
+
+  it("requires independent source-backed scale, legal status, ownership and an official route for full company realism", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      contactOutcome: "organization_contact",
+      metadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "employees", value: 1500, sourceUrl: "https://company.example/about", sourceType: "official_company", verified: true },
+          { metric: "revenue", value: 250000000, sourceUrl: "https://filings.example/annual-report", sourceType: "official_filing", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/123", sourceType: "official_registry", verified: true },
+        ],
+        companyOwnershipEvidence: [
+          { sourceUrl: "https://filings.example/ownership", sourceType: "official_filing", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://company.example/contact", sourceType: "official_company", verified: true },
+        ],
+        officialWebsiteVerified: true,
+        officialWebsiteSourceUrl: "https://company.example",
+      }),
+    });
+
+    expect(result.companyAssessment?.status).toBe("materiality_evidenced");
+    expect(result.companyAssessment?.score).toBe(95);
+    expect(result.companyAssessment?.independentSourceCount).toBeGreaterThanOrEqual(2);
+    expect(result.companyAssessment?.hasOwnershipControlEvidence).toBe(true);
+    expect(result.companyAssessment?.hasOfficialBusinessRoute).toBe(true);
+    expect(result.mode).toBe("full");
+    expect(result.hasDirectContact).toBe(false);
+    expect(formatReachabilityDirective(result)).toContain("organization-level reachability, not personal access");
+  });
+
+  it("does not let valuation headlines alone establish operating-company materiality", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "valuation", value: 5000000000, sourceUrl: "https://media-one.example/valuation", sourceType: "reputable_media", verified: true },
+          { metric: "valuation", value: 5000000000, sourceUrl: "https://media-two.example/valuation", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/789", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://company.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
+    expect(result.companyAssessment?.status).toBe("registry_only");
+    expect(result.mode).toBe("targeted");
+  });
+
+  it("does not count two pages on one company domain as independent materiality sources", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "employees", value: 1500, sourceUrl: "https://company.example/about", sourceType: "official_company", verified: true },
+          { metric: "revenue", value: 250000000, sourceUrl: "https://company.example/investors", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.independentSourceCount).toBe(1);
+    expect(result.companyAssessment?.status).toBe("single_source_scale");
+    expect(result.mode).toBe("targeted");
+  });
+
+  it("recognizes source-backed capital capacity and investment activity for potential-investor firms", () => {
+    const result = assessTargetReachability({
+      type: "Venture Capital Firm",
+      metadata: JSON.stringify({
+        companyCapitalEvidence: [
+          { metric: "aum", value: 250000000, sourceUrl: "https://fund.example/about", sourceType: "official_company", verified: true },
+        ],
+        companyInvestmentEvidence: [
+          { activityType: "portfolio_investment", investmentActivity: true, sourceUrl: "https://deals.example/portfolio", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/456", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://fund.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.hasCapitalCapacityEvidence).toBe(true);
+    expect(result.companyAssessment?.hasInvestmentActivityEvidence).toBe(true);
+    expect(result.companyAssessment?.status).toBe("materiality_evidenced");
+    expect(result.mode).toBe("full");
+    expect(formatReachabilityDirective(result)).toContain("capital-capacity or actual investment-activity evidence");
+  });
+
+  it("keeps trusts distinct from operating-company realism", () => {
+    const result = assessTargetReachability({
+      type: "Trust",
+      metadata: JSON.stringify({ officialWebsiteVerified: true, officialWebsiteSourceUrl: "https://trust.example" }),
+    });
+    expect(result.companyAssessment).toBeUndefined();
+  });
+
+  it("does not promote FAA company registrants or unstructured Inc. 5000 mentions into materiality", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      notes: "This company was mentioned near an Inc. 5000 story.",
+      sourceRegistries: "FAA Releasable Aircraft Database",
+      metadata: JSON.stringify({
+        registrantTypeCode: "3",
+        identityStatus: "legal_entity_candidate",
+        beneficialOwnershipStatus: "unresolved",
+        wealthStatus: "not_assessed",
+      }),
+    });
+
+    expect(result.companyAssessment?.status).toBe("unverified");
+    expect(result.companyAssessment?.hasGrowthRankingSignal).toBe(false);
+    expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
+    expect(result.companyAssessment?.independentSourceCount).toBe(0);
+    expect(result.mode).toBe("research_only");
+    expect(result.ultraWealthSignal).toBe(false);
   });
 });

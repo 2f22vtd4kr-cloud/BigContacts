@@ -52,10 +52,16 @@ describe("objective-led institutional orientation", () => {
   it("keeps famous-wealthy target realism as an AI reasoning rule across roles", () => {
     const mission = APEX_WHAT_IS_ATLAS;
     expect(mission).toContain("not a hard-coded name blacklist");
+    expect(mission).toContain("Inc. 5000/fast-growth/unicorn rankings");
+    expect(mission).toContain("For potential-investor firms, require independent evidence of capital capacity or actual investment activity");
+    expect(mission).toContain("currently operating private/mid-market businesses");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
       expect(prompt).toMatch(/not a hard-coded name (?:list|blacklist)|use no name blacklist/);
+      expect(prompt).toContain("COMPANY REALISM");
+      expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
+      expect(prompt).toContain("capital capacity or actual investment activity");
       expect(prompt).not.toContain("Tim Cook");
     }
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");

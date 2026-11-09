@@ -202,6 +202,10 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
     expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
     expect(prompt).toContain(urls[0]);
+    expect(prompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
+    expect(prompt).toContain("ranking-only mentions are leads, not qualified targets");
+    expect(prompt).toContain("Only exact admitted name/type pairs may be recommended");
+    expect(prompt).toContain("Operating private/mid-market targets need evidence of current operations/fit");
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
@@ -212,7 +216,7 @@ describe("Atlas control-plane lead continuity", () => {
     });
     expect(prompt).toContain(leadUrl);
     expect(prompt).toContain("unfetchedLeadUrls");
-    expect(prompt).toContain("these are leads, not evidence");
+    expect(prompt).toContain("Search URLs/snippets remain leads, not evidence until fetched.");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
   });
 
@@ -319,8 +323,8 @@ describe("Atlas control-plane lead continuity", () => {
       compactState: "One official registry result identifies a potentially relevant company.",
       pinnedControlState: "One source-attributed organization review target is available.",
     });
-    expect(prompt).toContain("when one relevant source-attributed review target is available");
-    expect(prompt).toContain("Do not request more broad discovery");
+    expect(prompt).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
+    expect(prompt).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(prompt).toContain("do not invent, compare, or broaden geography");
     expect(prompt).not.toContain("broader discovery has greater expected information gain");
     expect(prompt).not.toContain("one actual geography/jurisdiction");

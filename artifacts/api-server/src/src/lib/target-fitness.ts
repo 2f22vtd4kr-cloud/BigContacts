@@ -1,3 +1,5 @@
+import { assessCompanyRealism } from "./reachability-realism";
+
 /**
  * Target fitness gate — Phase 1.
  *
@@ -32,7 +34,7 @@ const OPERATOR_ROLE_RE =
   /\b(founder|co-?founder|cofounder|ceo|chief executive|managing partner|general partner|gp\b|operator|owner-?operator|proprietor|managing director|executive chairman|president(?!\s+of\s+the\s+united)|cto|cfo|coo|chief\s+\w+\s+officer|board\s+member|director(?!\s+of\s+photography)|shareholder|principal)\b/i;
 
 const CORP_SHELL_RE =
-  /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?)\b/i;
+  /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?|private equity|venture capital|investment firm|investment company|family office|asset manager|fund manager|private capital|capital management|fund|professional firm)\b/i;
 
 const PERSON_NAME_RE = /^[A-Za-zÀ-ÿ'’.\-]+(?:\s+[A-Za-zÀ-ÿ'’.\-]+){0,4}$/;
 
@@ -47,6 +49,10 @@ export function evaluateTargetFitness(input: {
   notes?: string | null;
   /** When true, pure corp shells with no person path are rejected. */
   personScoped?: boolean;
+  /** When true, evaluate an organization as a company target, not as a person. */
+  companyScoped?: boolean;
+  /** Structured, source-bound company evidence used by the company realism gate. */
+  companyMetadata?: string | null;
 }): TargetFitnessResult {
   const name = (input.name ?? "").trim();
   const type = (input.type ?? "").trim();
@@ -67,11 +73,64 @@ export function evaluateTargetFitness(input: {
   }
 
   const isOrgType =
-    /^(corporation|corp|company|trust|org|organization|entity)$/i.test(type) ||
+    /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|investment company|private equity(?: firm| fund)?|venture capital(?: firm| fund)?|family office|asset manager|investment fund|fund manager|private capital firm|capital management|fund|holding company|limited partnership)$/i.test(type) ||
     CORP_SHELL_RE.test(name);
+  const isCompanyType =
+    /^(corporation|corp|company|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test(type) ||
+    CORP_SHELL_RE.test(name);
+
+  if (/^trust$/i.test(type)) {
+    return {
+      fit: input.personScoped === false ? "review" : "reject_non_person",
+      score: 0.4,
+      reasons: ["Trust is a distinct legal structure; do not assume it is an operating company or a person."],
+      roleHints: [],
+    };
+  }
 
   const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
   const hasOperatorRole = OPERATOR_ROLE_RE.test(text);
+
+  if (input.companyScoped === true || (input.personScoped === false && isCompanyType)) {
+    const company = assessCompanyRealism({ metadata: input.companyMetadata });
+    const companyReasons = [
+      ...company.reasons,
+      "Company-level realism is separate from individual owner wealth.",
+      "Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.",
+    ];
+    if (company.status === "materiality_evidenced"
+      && company.hasActiveCompanyRegistry
+      && company.hasOfficialBusinessRoute) {
+      return {
+        fit: "strong",
+        score: Math.max(0.7, Number((company.score / 100).toFixed(3))),
+        reasons: companyReasons,
+        roleHints: [
+          "source-backed company materiality",
+          "verified organization-level route",
+          ...(company.hasCapitalCapacityEvidence ? ["verified capital-capacity evidence"] : []),
+          ...(company.hasInvestmentActivityEvidence ? ["verified investment-activity evidence"] : []),
+        ],
+      };
+    }
+    if (company.hasSourceBackedScale || company.hasGrowthRankingSignal || company.hasActiveCompanyRegistry) {
+      return {
+        fit: "review",
+        score: Number(Math.max(0.4, company.score / 100).toFixed(3)),
+        reasons: [...companyReasons, ...company.blockers],
+        roleHints: company.hasGrowthRankingSignal ? ["company growth ranking lead"] : ["company evidence requires independent validation"],
+      };
+    }
+    return {
+      fit: "review",
+      score: 0.4,
+      reasons: [
+        "Company-shaped target requires company-specific evidence; do not apply person-only fitness rules.",
+        ...company.blockers,
+      ],
+      roleHints: [],
+    };
+  }
 
   if (hasOperatorRole) {
     score += 0.3;

@@ -53,8 +53,12 @@ jobs:
           name: faa-official-sanitized-extract
           path: |
             data/registry-seeds/faa_individual_registrants.csv
+            data/registry-seeds/faa_corporate_registrants.csv
             data/registry-seeds/faa_aircraft_registrations.csv
+            data/registry-seeds/faa_corporate_aircraft_registrations.csv
             data/registry-seeds/faa_sanitized_MASTER.txt
+            data/registry-seeds/faa_sanitized_MASTER_CORPORATE.txt
+            data/registry-seeds/faa_sanitized_MASTER_ALL.txt
             data/registry-seeds/faa_extraction_manifest.json
           retention-days: 30
       - name: Commit refreshed official extract to BigContacts
@@ -63,7 +67,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/registry-seeds/faa_individual_registrants.csv data/registry-seeds/faa_aircraft_registrations.csv data/registry-seeds/faa_sanitized_MASTER.txt data/registry-seeds/faa_extraction_manifest.json
+          git add data/registry-seeds/faa_individual_registrants.csv data/registry-seeds/faa_corporate_registrants.csv data/registry-seeds/faa_aircraft_registrations.csv data/registry-seeds/faa_corporate_aircraft_registrations.csv data/registry-seeds/faa_sanitized_MASTER.txt data/registry-seeds/faa_sanitized_MASTER_CORPORATE.txt data/registry-seeds/faa_sanitized_MASTER_ALL.txt data/registry-seeds/faa_extraction_manifest.json
           if git diff --cached --quiet; then
             echo 'FAA extraction is unchanged; no commit required.'
             exit 0
