@@ -8,8 +8,8 @@ import { APEX_BUREAU_PLAYBOOK } from "./apex-bureau-playbook";
 
 export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-05.1";
 
-export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY REALISM: Treat Inc. 5000/fast-growth or unicorn rankings, valuation headlines, brand prestige or size as poor-fit signals, never positive qualification; do not select a company merely for appearing there. Require independent evidence of an operating private/mid-market business, objective fit, identifiable decision-makers and practical public/professional routes. For potential investors, require source-backed capital capacity or actual investment activity. Ranking-only mentions are leads, not qualified targets; no name/domain blacklist.";
-export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings (Inc. 5000/fast-growth or unicorn rankings), valuation, prestige or size alone are poor-fit signals, never positive qualification. Ranking-only mentions are leads, not qualified targets; no name/domain blacklist. Favor operating private/mid-market firms with evidenced fit, decision-makers and practical routes; potential investors need source-backed capital capacity or actual investment activity.";
+export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings, valuation headlines, prestige or size alone are anti-signals, never qualification; do not prioritize a firm merely for appearing on such a list. For operating-company targets, require independent evidence the business is currently operating, fits the objective, has identifiable decision-makers and a practical public/professional route. For potential-investor firms, require independent evidence of capital capacity or actual investment activity, relevant mandate/stage/geography and a practical professional route. Ranking-only mentions are leads, not qualified targets; no name/domain blacklist. Preserve explicitly requested company classes and judge them on evidence, not blanket exclusions.";
+export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings, valuation, prestige or size alone are anti-signals, not qualification. Operating-company targets need evidence of current operations, objective fit, decision-makers and a practical route; investor firms need evidence of capital capacity or actual investment activity, mandate fit and a practical route. Ranking-only mentions are leads, not qualified targets; no name/domain blacklist.";
 
 export const APEX_WHAT_IS_ATLAS = `APEX ATLAS is an AI-driven investigatory bureau (product: Apex Atlas / BigContacts desk).
 It is not a generic chatbot and not a fixed search script.
@@ -82,11 +82,11 @@ export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.",
-    "REALISM: No incidental celebrity/household-name defaults. Inc. 5000/fast-growth lists alone do not qualify companies or investors.",
-    "SCENARIOS: Descriptors are not queries. Preserve sector and jurisdiction (casinos in Slovenia); inspect one lead before searching again; no provider fan-out.",
+    "REALISM: No incidental celebrity/household-name defaults. Broad B2B starts with an operating company.",
+    "SCENARIOS: Descriptors are not queries. Preserve sector and jurisdiction (casinos in Slovenia); inspect one lead before another search; no provider fan-out. One focused discovery query.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; no auto-promotion.",
     "one relevant company is a valid partial result.",
-    "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping; no fixed sequence.",
+    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. Investigator chooses targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads, not proof; claims need fetched URL and exact span. Failures are unknown, not negative evidence.",
     "OUTPUT: Full JSON envelope. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose.",
     "IDENTITY: Keep people, companies, trusts and assets distinct; infer no ownership, wealth or routes.",
@@ -96,7 +96,7 @@ export function apexInvestigatorSystemCore(): string {
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
     "TARGET: Apply only objective-required criteria. No extra wealth/ownership criteria unless requested. B2B requires a fetched decision-maker role/company link. Wealth objectives require sourced ownership/control/equity/investment. Never infer wealth from seniority.",
     "TARGET RESEARCH: Verify objective-required role/relationship/materiality, counter-evidence and public/professional route before promotion.",
-    "STOP: Stop only at a defensible answer or justified blocker."
+    "STOP: Stop only at a defensible answer or justified blocker.",
   ].join("\n");
 }
 
