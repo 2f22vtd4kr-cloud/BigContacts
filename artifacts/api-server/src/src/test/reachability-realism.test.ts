@@ -95,7 +95,7 @@ describe("target reachability realism", () => {
 
     expect(result.publicProminenceSignal).toBe(false);
     expect(result.status).toBe("bounded");
-    expect(result.mode).toBe("research_only");
+    expect(result.mode).toBe("targeted");
     expect(result.companyAssessment?.score).toBe(0);
     expect(result.hasDirectContact).toBe(false);
     expect(result.hasIntermediaryPath).toBe(false);
