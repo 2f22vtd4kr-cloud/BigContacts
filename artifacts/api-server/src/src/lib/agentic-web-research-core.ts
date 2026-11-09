@@ -6026,7 +6026,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets/URLs are leads, not evidence. Target-specific names come from the human brief or same-case observations, never model memory. No extra wealth or ownership criteria unless requested. SEARCH: market only if country in objective/scope; locale is language. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query.",
         terminalContractGuidance,
       ].join(" ");
-      const repairedSections = repaired.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const repairedSections = repaired.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       const duplicatedDiscoverySections = repairedSections.filter((section) =>
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section)
@@ -6035,7 +6035,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const kept = repairedSections.filter((section) => !duplicatedDiscoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
         kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
-        repaired = kept.join("\\n\\n");
+        repaired = kept.join("\n\n");
       }
     }
     let finalProjection = appendEmergencyObservationContext(
