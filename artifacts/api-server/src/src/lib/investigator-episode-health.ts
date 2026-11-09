@@ -1,6 +1,7 @@
 export type InvestigatorEpisodeFailureCode =
   | "investigator_episode_error"
   | "investigator_episode_unavailable_without_provider_record"
+  | "investigator_oversight_unavailable"
   | "investigator_episode_no_action";
 
 export type InvestigatorEpisodeHealthInput = {
@@ -50,6 +51,9 @@ export function classifyInvestigatorEpisodeFailure(
     return { code: "investigator_episode_error" };
   }
   if (input.status === "unavailable") {
+    if (input.stopReason === "OVERSIGHT_UNAVAILABLE") {
+      return { code: "investigator_oversight_unavailable" };
+    }
     if (input.stopReason === "LLM_UNAVAILABLE" && episodeRecords.some((record) => record.action === "investigator_provider_error")) {
       return null;
     }
