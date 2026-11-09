@@ -178,6 +178,27 @@ describe("target reachability realism", () => {
     expect(formatReachabilityDirective(result)).toContain("organization-level reachability, not personal access");
   });
 
+  it("does not let valuation headlines alone establish operating-company materiality", () => {
+    const result = assessTargetReachability({
+      type: "Corporation",
+      metadata: JSON.stringify({
+        companyScaleEvidence: [
+          { metric: "valuation", value: 5000000000, sourceUrl: "https://media-one.example/valuation", sourceType: "reputable_media", verified: true },
+          { metric: "valuation", value: 5000000000, sourceUrl: "https://media-two.example/valuation", sourceType: "reputable_media", verified: true },
+        ],
+        companyRegistryEvidence: [
+          { status: "active", sourceUrl: "https://registry.example/company/789", sourceType: "official_registry", verified: true },
+        ],
+        companyRouteEvidence: [
+          { type: "contact_page", sourceUrl: "https://company.example/contact", sourceType: "official_company", verified: true },
+        ],
+      }),
+    });
+    expect(result.companyAssessment?.hasSourceBackedScale).toBe(false);
+    expect(result.companyAssessment?.status).toBe("registry_only");
+    expect(result.mode).toBe("targeted");
+  });
+
   it("does not count two pages on one company domain as independent materiality sources", () => {
     const result = assessTargetReachability({
       type: "Corporation",
