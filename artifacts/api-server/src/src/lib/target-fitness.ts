@@ -73,7 +73,7 @@ export function evaluateTargetFitness(input: {
   }
 
   const isOrgType =
-    /^(corporation|corp|company|trust|org|organization|entity)$/i.test(type) ||
+    /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company)$/i.test(type) ||
     CORP_SHELL_RE.test(name);
 
   const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
