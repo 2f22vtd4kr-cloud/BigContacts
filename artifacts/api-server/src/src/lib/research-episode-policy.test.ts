@@ -11,6 +11,15 @@ describe("research episode policy", () => {
     expect(result.checkpoint).toBe(true);
     expect(result.reasons).toContain("episode_boundary");
   });
+  it("does not force an oversight checkpoint for a pre-execution policy block", () => {
+    const result = shouldCheckpointResearchEpisode({
+      actionsSinceCheckpoint: 1,
+      actionExecution: "blocked",
+      informationGain: 0.6,
+    });
+    expect(result.checkpoint).toBe(false);
+    expect(result.reasons).not.toContain("failed_action");
+  });
   it("escalates immediately for contradictions and failed actions", () => {
     const result = shouldCheckpointResearchEpisode({ actionsSinceCheckpoint: 1, contradictionCount: 1, actionExecution: "error" });
     expect(result.checkpoint).toBe(true);
