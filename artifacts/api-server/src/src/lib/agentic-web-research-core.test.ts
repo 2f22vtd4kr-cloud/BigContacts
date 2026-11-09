@@ -19,8 +19,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: No incidental celebrity/household-name defaults");
-    expect(systemCore).toContain("Broad B2B starts with an operating company");
+    expect(systemCore).toContain("REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.");
+    expect(systemCore).toContain("B2B may include operating companies and relevant decision-makers");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).toContain("before another search");
@@ -100,7 +100,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(targetPrompt).toContain("locale is language only, never geography");
     expect(targetPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(targetPrompt).toContain("investor firms need evidence of capital capacity or actual investment activity and mandate fit");
-    expect(targetPrompt).toContain("current private/mid-market operations");
+    expect(targetPrompt).toContain("Operating-company targets need evidence of current operations");
     expect(targetPrompt).toContain("Avoid stale years unless the objective is explicitly historical");
   });
 });
