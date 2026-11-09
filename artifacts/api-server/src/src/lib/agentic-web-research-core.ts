@@ -3388,7 +3388,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumTargetVerificationRule,
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures.",
     "BINARY URL POLICY: use visit for PDF/binary documents; browser_fetch is HTML-only. Failed extraction is unobserved; do not retry the same binary URL.",
-    "LEAD FOLLOW-UP GUIDANCE: during discovery, runtime requires one observed lead URL to be attempted before another search; during target research, choose follow-up by expected information gain. URLs/snippets remain leads until fetched.",
+    "LEAD FOLLOW-UP GUIDANCE: discovery and target research are model-directed. Inspect a lead when it has higher expected information gain than another focused source/query. URLs/snippets remain leads until fetched.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "After visit/browser_fetch, YOU decide whether a fetched organization merits a provisional review card; retain its fetched URL and state only what the page establishes.",
@@ -3546,7 +3546,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
-  const compactFallbackDiscoveryRule = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied; Investigator chooses. MISSION PRIORITY: preserve human objective and Boss-approved topic/geography; never broaden. No fixed action sequence. DISCOVERY SEARCH ECONOMY: at most two focused outbound searches; no provider fan-out. Inspect one exact in-scope lead URL before another search. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. One relevant sourced lead starts target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name review-only leads, not every result. Search snippets are leads, not evidence." : "";
+  const compactFallbackDiscoveryRule = isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied; Investigator chooses. MISSION PRIORITY: preserve human objective and Boss-approved topic/geography; never broaden. No fixed action sequence. DISCOVERY SEARCH ECONOMY: finish quickly using at most two outbound actions; prefer a bounded mixed-source batch across configured web providers and/or relevant registries, then make one model-selected quick look at the strongest plausible target only if useful. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. One relevant sourced lead starts target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name review-only leads, not every result. Search snippets are leads, not evidence." : "";
   const scopeRecoveryRule = isInvestigatorPrompt && /SCOPE GUARD BLOCKED ACTION|pivot_alignment_guard/i.test(observation)
     ? "SCOPE GUARD BLOCKED ACTION: blocked request is not evidence. Preserve subject/geography; source class may vary, never pivot sector or jurisdiction. Retry with a materially different in-scope query or ask Boss/Right-hand."
     : "";
@@ -3936,7 +3936,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (isDiscoveryPrompt) {
       const compactDiscoverySections = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. Target-specific names must come from the human brief or same-case observations, never model memory.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out. DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search.",
+        "DISCOVERY SEARCH ECONOMY: finish discovery quickly. Use at most two outbound search actions, preferably one bounded mixed-source batch across independent configured web providers and/or relevant registries. Compare source quality and targetability; do not enumerate a long list. A quick look at the strongest objective-relevant lead is enough to hand one plausible target into target research. No mandatory search-then-visit sequence; choose actions by expected information gain.",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; One source-backed relevant lead starts target research. Source class may vary by query.",
         "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Example: casinos in Slovenia. Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link.",
         "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; retain exact name, stated role or null, and associated public HTTPS URL; snippets are leads, not evidence."
@@ -5169,7 +5169,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "DISCOVERY MODE: no person or entity target is implied.",
     "MISSION PRIORITY: objective/scope govern; preserve the human objective, Boss scope, topic and geography; never broaden.",
     "No fixed action sequence. The Investigator chooses the target, query, source, provider and action.",
-    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer a bounded mixed-source batch across independent configured providers and/or relevant registries.",
     "DISCOVERY LEAD-INSPECTION GATE: inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
     "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; generic publisher homepages need a same-case evidence link.",
@@ -5757,7 +5757,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         if (end <= start) return;
         repaired = repaired.slice(0, start) + replacement + " " + repaired.slice(end).trimStart();
       };
-      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one focused query per action; no provider fan-out.", ["DISCOVERY LEAD-INSPECTION GATE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
+      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer a bounded mixed-source batch across independent configured providers and/or relevant registries.", ["DISCOVERY LEAD-INSPECTION GATE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
       compactClause("DISCOVERY LEAD-INSPECTION GATE:", "DISCOVERY LEAD-INSPECTION GATE: after a successful search, inspect one exact in-scope URL before another search; failed/blocked fetch counts as an attempt. Preserve sector and jurisdiction, e.g. casinos in Slovenia.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
       compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own criteria.", ["DISCOVERY MODE:"]);
       compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
@@ -6689,36 +6689,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 }
 
 /**
- * Discovery must inspect one concrete result from the latest successful
- * lead-producing search before spending another search request. This is a
- * bounded anti-fan-out guard, not a target/source preference: it never chooses
- * a target or executes a fetch, and a failed fetch counts as an attempted check.
+ * Compatibility projection only. Discovery never imposes a search-then-visit
+ * itinerary; the Investigator chooses by expected information gain.
  */
 export function discoveryLeadInspectionRequirement(
-  records: readonly AgenticTrajectoryRecord[],
+  _records: readonly AgenticTrajectoryRecord[],
 ): { leadUrl: string; searchTurn: number } | null {
-  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
-  const fetchAttempts = new Set(["success", "partial", "http_error", "timeout", "error", "blocked"]);
-  for (let i = records.length - 1; i >= 0; i -= 1) {
-    const search = records[i]!;
-    if (search.execution !== "success" || !searchActions.has(search.action) || !Array.isArray(search.leadUrls)) continue;
-    const normalizeLeadKey = (raw: unknown): string | null => {
-      const normalized = normalizedActionResourceUrl(raw);
-      if (!normalized) return null;
-      return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
-    };
-    const leadUrls = search.leadUrls
-      .map(normalizeLeadKey)
-      .filter((url): url is string => Boolean(url) && validateDiscoverySourceUrl(url!).allowed);
-    if (!leadUrls.length) continue;
-    const leadSet = new Set(leadUrls);
-    const inspected = records.some((record, recordIndex) => {
-      if (recordIndex === i || (record.action !== "visit" && record.action !== "browser_fetch") || !fetchAttempts.has(record.execution)) return false;
-      const requested = normalizeLeadKey(record.args?.url);
-      return requested !== null && leadSet.has(requested);
-    });
-    return inspected ? null : { leadUrl: leadUrls[0]!, searchTurn: search.turn };
-  }
   return null;
 }
 
@@ -6734,11 +6710,10 @@ export function countDiscoverySearchActions(records: readonly AgenticTrajectoryR
   ).length;
 }
 
-export function discoveryActionAllowlist(mode: string | undefined, actions: readonly string[]): string[] {
-  const available = [...actions];
-  return mode === "discovery"
-    ? available.filter((action) => action !== "parallel_web_search" && action !== "parallel_registry_search")
-    : available;
+export function discoveryActionAllowlist(_mode: string | undefined, actions: readonly string[]): string[] {
+  // Mixed-source batches are useful in discovery; the case-wide budget and
+  // active-scope validation remain authoritative.
+  return [...actions];
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
@@ -7297,18 +7272,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     runtimeStage = "model_action_validation";
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
 if (input.mode === "discovery") {
-  const pendingLead = discoveryLeadInspectionRequirement([...completePriorTrajectoryRecords, ...records]);
-  if (pendingLead && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action.action)) {
-    record.execution = "blocked";
-    record.failureDomain = "tool_execution";
-    record.failureKind = "request_failure";
-    record.observation = "DISCOVERY LEAD-INSPECTION GATE: a successful search at turn " + pendingLead.searchTurn + " already produced a usable source URL, but no lead from that result has been attempted. No search/provider request was sent. Choose one observed lead URL, preferably " + pendingLead.leadUrl + ", and inspect it with visit/browser_fetch; if the fetch fails or is blocked, then pivot to a materially different query/source. Do not fan out another search while a usable lead is waiting.";
-    lastObservation = record.observation;
-    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_lead_inspection_required");
-    await emitSanitizedTrajectoryRecord(record);
-    emit(action.action, { provider: "none", status: "blocked", summary: "Search held until one existing discovery lead is inspected." });
-    continue;
-  }
   if (DISCOVERY_SEARCH_ACTIONS.has(action.action) && countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
@@ -7320,17 +7283,8 @@ if (input.mode === "discovery") {
     emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted after two outbound search actions." });
     continue;
   }
-  if (action.action === "parallel_web_search" || action.action === "parallel_registry_search") {
-    record.execution = "blocked";
-    record.failureDomain = "tool_execution";
-    record.failureKind = "request_failure";
-    record.observation = "DISCOVERY SEARCH DISCIPLINE: use one focused web_search or registry_search query in this discovery action, not a multi-query/provider/registry fan-out. Inspect one useful returned lead before another search. This restriction applies only to discovery; target research may use justified independent searches.";
-    lastObservation = record.observation;
-    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_single_query");
-    await emitSanitizedTrajectoryRecord(record);
-    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery allows one focused search per action; parallel web and registry batches were not sent." });
-    continue;
-  }
+  // Mixed-source provider and registry batches are allowed in discovery;
+  // the same two-action budget and active-scope validation still apply.
 }
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
