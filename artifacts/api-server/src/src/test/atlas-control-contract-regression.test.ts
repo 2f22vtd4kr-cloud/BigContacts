@@ -845,7 +845,7 @@ describe("discovery trajectory turn persistence", () => {
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
-    expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
@@ -855,6 +855,7 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
     expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
+    expect(canonicalDiscoverySource).toContain('stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode"');
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
   });
