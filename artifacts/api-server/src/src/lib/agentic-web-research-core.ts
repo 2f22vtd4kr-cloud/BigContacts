@@ -5860,6 +5860,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const requiredFinalMarkers = [
       "PARTIAL FINDINGS (not terminal-only)",
+      ...(blockedScopeRecoveryMarker ? [blockedScopeRecoveryMarker] : []),
       "source-backed leads",
       "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
