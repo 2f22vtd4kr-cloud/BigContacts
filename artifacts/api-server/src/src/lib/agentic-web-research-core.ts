@@ -5970,7 +5970,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : [repaired, markerBlock].filter(Boolean).join("\n\n");
     }
     if (!hasCompleteSchema(repaired)) {
-      repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\\n\\n");
+      repaired = [repaired.trim(), requiredOutputSchema].filter(Boolean).join("\n\n");
     }
     const requiredFinalMarkers = [
       "PARTIAL FINDINGS (not terminal-only)",
@@ -6016,13 +6016,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (finalProjection.length > maxUserPromptChars) {
       const optionalFinalSections = [
         /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
-        /^SOURCE COVERAGE \\(not a checklist\\):/,
+        /^SOURCE COVERAGE \(not a checklist\):/,
         /^CAPABILITY GUIDANCE:/,
         /^DISCOVERY SEARCH DISCIPLINE:/,
         /^VALID REVIEW-LEAD SHAPE/,
-        /^\\[AUXILIARY CONTEXT BOUND:/,
+        /^\[AUXILIARY CONTEXT BOUND:/,
       ];
-      const sections = finalProjection.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const sections = finalProjection.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       for (const pattern of optionalFinalSections) {
         if (finalProjection.length <= maxUserPromptChars) break;
         const index = sections.findIndex((section) => pattern.test(section) && !/OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section));
@@ -6032,7 +6032,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         }
       }
       if (finalProjection.length > maxUserPromptChars && latestRecord) {
-        const recordPattern = /(LATEST TRAJECTORY RECORD — TURN \\d+[^:\\n]*:\\s*)(\\{[^\\n]*\\})/g;
+        const recordPattern = /(LATEST TRAJECTORY RECORD — TURN \d+[^:\n]*:\s*)(\{[^\n]*\})/g;
         finalProjection = finalProjection.replace(recordPattern, (whole, heading: string, json: string) => {
           try {
             const parsed = JSON.parse(json) as Record<string, unknown>;
