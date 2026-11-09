@@ -6657,6 +6657,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const emergencyObservation = buildEmergencyPriorTrajectoryObservation(
         [
+          blockedScopeRecoveryMarker,
           pinnedInventoryCandidate,
           ...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),
           ...(!latestFetchedSourceSummary && latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
