@@ -3895,7 +3895,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // source, qualification and discovery markers after this semantic projection.
     // Leave a 1,000-character reserve for provider-boundary rehydration of
     // source, qualification, objective and schema clauses.
-    const finalAssemblyBudget = Math.max(1_000, limit - 1_000);
+    const finalAssemblyBudget = Math.max(1_000, limit - 350);
     const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
       const value = raw.trim();
@@ -3916,38 +3916,35 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // The emergency prompt must retain the small, decision-critical contracts
-    // before optional observations, URLs, and historical narration consume budget.
-    // Preserve the complete human objective, then reserve space for runtime truth,
-    // evidence thresholds, PDF handling, and the fast discovery handoff.
-    appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
-    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
-    if (isDiscoveryPrompt) {
-      appendBudgeted(
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch; FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. Other objectives use their own evidence criteria. Do not require private/mid-market status unless requested.",
-        620,
-        "[discovery search economy omitted]",
-      );
-    }
+    // Reserve the emergency budget for the complete mission contract and the
+    // newest evidence before optional narrative or older memory is considered.
+    appendBudgeted(compactCaseObjective, 3_000, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumScopeContext, 420, "[Boss pivot detail omitted; durable case scope remains authoritative]");
+    appendBudgeted(minimumAvailableActionsSection, 950, "[additional runtime actions omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
     appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
-    appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
-    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
+    appendBudgeted(minimumDiscoveryContract, 900, "[discovery detail omitted; approved scope remains authoritative]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch; FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. Other objectives use their own evidence criteria. Do not require private/mid-market status unless requested.",
+        560,
+        "[discovery search economy omitted]",
+      );
+    }
+    appendBudgeted(fallbackEvidenceContract, 1_000, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    appendBudgeted(urlInventory, 650, "[additional URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
-    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(emergencyAiMemorySection, 360, "[older memory omitted; durable ledger remains authoritative]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 420, "[fetched-source excerpt omitted]");
+    appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
+    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
+    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     if (!minimumObservationTail) appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
-    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
     // Return the actual bounded projection; returning mandatoryMinimumTail here
     // silently discarded every compaction decision made by appendBudgeted.
