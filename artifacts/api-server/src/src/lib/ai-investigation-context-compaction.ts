@@ -316,24 +316,22 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
     return milliseconds > 0 && milliseconds <= 60 * 60 * 1_000;
   };
 
-  const hasStructuredShortWindow = records.some((record) => {
+  const hasStructuredModelTokenThrottle = records.some((record) => {
     if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429 || record.dailyTokenQuota === true) return false;
     const body = record.body && typeof record.body === "object" && !Array.isArray(record.body)
       ? record.body as Record<string, unknown>
       : {};
     const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
     const explicitDailySignal = quotaSignals.some((signal) =>
-      typeof signal === "string" && /tokens?[_\s-]*per[_\s-]*day|\bTPD\b|daily/i.test(signal));
+      typeof signal === "string" && /tokens?[_\\s-]*per[_\\s-]*day|\\bTPD\\b|daily/i.test(signal));
     if (explicitDailySignal) return false;
 
-    const headers = record.rateLimitHeaders && typeof record.rateLimitHeaders === "object"
-      && !Array.isArray(record.rateLimitHeaders)
-      ? record.rateLimitHeaders as Record<string, unknown>
-      : {};
-    const reset = headers["x-ratelimit-reset-tokens"];
-    const retryAfterMs = typeof record.retryAfterMs === "number" ? record.retryAfterMs : null;
-    return isShortReset(reset) || (retryAfterMs !== null && Number.isFinite(retryAfterMs)
-      && retryAfterMs > 0 && retryAfterMs <= 60 * 60 * 1_000);
+    // Some Groq 429 responses omit reset/remaining headers. When telemetry still
+    // identifies a token/model-scoped 429 and carries no daily-quota signal,
+    // recover once on the same Right-hand credential with the 120B model rather
+    // than misreporting an Investigator outage. This is model fallback, never
+    // credential rotation; explicit daily caps remain non-recoverable here.
+    return true;
   });
 
   const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
@@ -342,7 +340,7 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
   const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
     && /rate_limit_exceeded/i.test(diagnostic)
     && shortWindowText;
-  return (hasStructuredShortWindow || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
+  return (hasStructuredModelTokenThrottle || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
     && !dailyText;
 }
 async function requestRightHandSummary(
