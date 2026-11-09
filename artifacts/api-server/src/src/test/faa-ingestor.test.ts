@@ -245,6 +245,19 @@ describe("FAA ingestion scope", () => {
   });
 });
 
+describe("FAA dedup replay safety", () => {
+  it("clears only FAA v2 dedup keys and preserves every other ingestion lane", () => {
+    const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+    const queue = readFileSync(new URL("../lib/job-queue.ts", import.meta.url), "utf8");
+    expect(route).toContain('if (doClean) await clearDedup("faa:v2:");');
+    expect(queue).toContain("export async function clearDedup(prefix?:string)");
+    expect(queue).toContain('rc.sscan(DEDUP_KEY,cursor,"MATCH",`${prefix}*`,"COUNT",2000)');
+    expect(queue).toContain("rc.srem(DEDUP_KEY");
+    expect(queue).toContain('if(!prefix){');
+    expect(queue).toContain('await rc.del(DEDUP_KEY);');
+  });
+});
+
 describe("legacy FAA registrant repair", () => {
   it("records FAA source class separately from registry ingestion and corroboration", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
