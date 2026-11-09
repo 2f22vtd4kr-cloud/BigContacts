@@ -117,7 +117,7 @@ describe("target reachability realism", () => {
     expect(result.blockers).toContain("organization contact is not personal access to the individual");
   });
 
-  it("treats an Inc. 5000 listing as a company discovery lead, not a qualified material company", () => {
+  it("treats an Inc. 5000 listing as a poor-fit lead, not a qualified material company", () => {
     const result = assessTargetReachability({
       type: "Corporation",
       metadata: JSON.stringify({
