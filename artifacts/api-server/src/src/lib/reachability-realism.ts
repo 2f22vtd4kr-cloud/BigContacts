@@ -102,7 +102,7 @@ function sourceHostKey(value: unknown): string | null {
 }
 
 function isCompanyTargetType(type?: string | null): boolean {
-  return /^(corporation|corp|company|organization|org|professional firm|partnership|llc|limited liability company)$/i.test((type ?? "").trim());
+  return /^(corporation|corp|company|organization|org|professional firm|partnership|limited liability company|llc|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test((type ?? "").trim());
 }
 
 function verifiedCompanyEvidence(value: unknown, allowedSourceTypes: string[]): Record<string, unknown>[] {
@@ -403,10 +403,10 @@ export function formatReachabilityDirective(assessment?: ReachabilityAssessment 
   if (assessment.companyAssessment) {
     const company = assessment.companyAssessment;
     const companyObjective = assessment.mode === "research_only"
-      ? "This is a COMPANY RESEARCH-ONLY target. Confirm the legal entity and operating reality before searching for contacts."
+      ? "This is a COMPANY RESEARCH-ONLY target. Confirm the legal entity, current operations and objective fit before searching for contacts; for potential-investor firms, verify capital capacity or actual investment activity and mandate fit first."
       : assessment.mode === "targeted"
-        ? "This is a TARGETED COMPANY REALISM pass. Verify scale and growth from independent sources, then confirm the official organization route."
-        : "This company has source-backed materiality and an official business route; continue with evidence-led organization-level research.";
+        ? "This is a TARGETED COMPANY REALISM pass. Verify current operating scale or investor capital/investment activity from independent sources, then confirm the official organization route."
+        : "This company has source-backed materiality and an official business route; continue with evidence-led organization-level research, not assumptions about personal access.";
     const companyReasons = company.reasons.length ? company.reasons.join("; ") : "No positive company evidence is recorded.";
     const companyBlockers = company.blockers.length ? company.blockers.join("; ") : "No known company evidence blockers.";
     return `COMPANY REALISM / REACHABILITY CONTROL:
