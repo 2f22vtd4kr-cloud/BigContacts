@@ -6025,6 +6025,28 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       registryIdList,
       aiHistoricalMemory,
     );
+    // Emergency discovery can carry the same policy in several overlapping
+    // sections. Replace those duplicates with one compact, complete model-owned
+    // decision contract before removing any objective, scope, source or URL data.
+    if (input.mode === "discovery" && finalProjection.length > maxUserPromptChars) {
+      const compactDiscoveryContract = [
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch across web and/or registry sources. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, hand off to Boss. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
+        "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets/URLs are leads, not evidence. Target-specific names come from the human brief or same-case observations, never model memory. No extra wealth or ownership criteria unless requested. SEARCH: market only if country in objective/scope; locale is language. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query.",
+      ].join(" ");
+      const sections = finalProjection.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const discoverySections = sections.filter((section) =>
+        /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
+        && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section)
+      );
+      if (discoverySections.length > 0) {
+        const kept = sections.filter((section) => !discoverySections.includes(section));
+        const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
+        kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
+        finalProjection = kept.join("\\n\\n");
+      }
+    }
     // The auxiliary compactor can rebuild a valid contract yet exceed the outer
     // provider ceiling when it rehydrates the latest claim and recovery markers.
     // Shed only explicitly advisory sections, then compact the serialized
