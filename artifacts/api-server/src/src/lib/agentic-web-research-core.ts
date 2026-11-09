@@ -3812,7 +3812,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // The action allowlist is an exact runtime capability boundary, not
         // optional narration; never truncate it in the final emergency tier.
         minimumAvailableActionsSection,
-        minimumOrganizationTargetabilityMarker,
         // Keep the latest fetched source label and claim ahead of memory or
         // summaries so source-backed partial findings remain possible.
         fetchedSourceLabel,
