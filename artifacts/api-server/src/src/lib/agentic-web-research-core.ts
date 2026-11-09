@@ -5868,6 +5868,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "generic publisher homepage",
             "Other objectives use their own evidence criteria",
             "source class may vary by query",
+            "DISCOVERY TARGETABILITY / REALISM",
+            "Inc. 5000/fast-growth/unicorn rankings",
+            "ranking-only mentions are leads, not qualified targets",
+            "company-level discovery signals",
+            "Company growth and materiality must be assessed separately from an individual owner's wealth",
+            "Investor firms need evidence of capital capacity or actual investment activity and mandate fit",
           ]
         : []),
       ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
@@ -5903,6 +5909,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "generic publisher homepage") return "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.";
       if (marker === "Other objectives use their own evidence criteria") return marker + ".";
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
+      if (marker === "DISCOVERY TARGETABILITY / REALISM") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct; objective/scope set the target class; one source-backed relevant lead starts target research; no name blacklist or incidental celebrities.";
+      if (marker === "Inc. 5000/fast-growth/unicorn rankings") return "COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets.";
+      if (marker === "ranking-only mentions are leads, not qualified targets") return marker + ".";
+      if (marker === "company-level discovery signals") return marker + "; they are not qualification by themselves.";
+      if (marker === "Company growth and materiality must be assessed separately from an individual owner's wealth") return marker + "; verify ownership/control and person-level wealth independently before making any personal-wealth inference.";
+      if (marker === "Investor firms need evidence of capital capacity or actual investment activity and mandate fit") return marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
     const repairedProjection = recoveryText
