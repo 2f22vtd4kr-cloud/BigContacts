@@ -183,7 +183,7 @@ export function assessCompanyRealism(input: {
   const blockers: string[] = [];
 
   if (hasGrowthRankingSignal) reasons.push("an Inc. 5000/fast-growth/unicorn ranking is a poor-fit signal, not positive qualification; ranking-only mentions remain leads");
-  if (hasSourceBackedScale) reasons.push("company scale has a verified source-bound revenue, employee, asset, or valuation observation");
+  if (hasSourceBackedScale) reasons.push("company operating scale has a verified source-bound revenue, employee, or asset observation");
   if (hasCapitalCapacityEvidence) reasons.push("capital capacity has a verified source-bound fund-size, AUM, committed-capital, or deployable-capital observation");
   if (hasInvestmentActivityEvidence) reasons.push("actual investment activity has a verified source-bound transaction or portfolio observation");
   if (hasActiveCompanyRegistry) reasons.push("an active company-registry record is source-bound");
