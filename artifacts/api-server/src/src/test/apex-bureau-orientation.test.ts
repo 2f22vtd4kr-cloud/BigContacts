@@ -61,7 +61,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Tim Cook");
     }
     expect(apexOrientationCompact("boss")).toContain("or quota fillers");
-    expect(apexInvestigatorSystemCore()).toContain("Inc. 5000");
+    expect(apexOrientationCompact("investigator")).toContain("potential-investor firms");
   });
 
   it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
