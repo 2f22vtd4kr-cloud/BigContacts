@@ -250,6 +250,11 @@ describe("FAA dedup replay safety", () => {
     const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
     const queue = readFileSync(new URL("../lib/job-queue.ts", import.meta.url), "utf8");
     expect(route).toContain('if (doClean) await clearDedupPrefix("faa:v2:");');
+    const claimAt = route.indexOf('if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;');
+    const clearAt = route.indexOf('if (doClean) await clearDedupPrefix("faa:v2:");');
+    expect(claimAt).toBeGreaterThan(-1);
+    expect(clearAt).toBeGreaterThan(claimAt);
+    expect(route.slice(clearAt)).toContain('clearActiveJobIfMatches("faa", jobId).catch(() => false)');
     expect(route).toContain("clearDedupPrefix,");
     expect(queue).toContain("export async function clearDedupPrefix(prefix:string)");
     expect(queue).toContain('rc.sscan(DEDUP_KEY,cursor,"MATCH",`${prefix}*`,"COUNT",2000)');
