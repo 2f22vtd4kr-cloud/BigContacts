@@ -2116,13 +2116,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     // Objective and active Boss scope are independent authorities.
     addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 620, "case objective");
     addMatches(/^(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|CURRENT BOSS-DIRECTED)/i, 820, "approved scope", true);
-    // Reserve a small, high-priority discovery contract before optional evidence
-    // narration. This keeps the exact model-owned relevance and fast-handoff
-    // markers intact when a long case/trajectory leaves only a narrow prefix.
-    if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT/.test(prefix)) {
-      add("DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter; require direct relevance to the active objective. DISCOVERY SEARCH ECONOMY: at most two outbound searches; prefer one bounded mixed-source batch across web and registry. FAST HANDOFF: one quick source look is enough; choose the strongest objective-fit lead, not a shortlist. No registry is preferred; choose by evidence. Example: casinos in Slovenia.", 520, "discovery essentials");
-      add("COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. These are company-level discovery signals. Company growth and materiality must be assessed separately from an individual owner's wealth.", 520, "company qualification");
-    }
+
 
     // Keep exact immutable-event URLs and the newest action identity before
     // optional prose. Never reconstruct or shorten URL tokens.
@@ -4037,7 +4031,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // qualification narration so emergency compaction cannot erase them.
     if (isDiscoveryPrompt) {
       appendBudgeted(
-        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory. Do not require private/mid-market status unless requested. Company growth is not owner wealth. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
+        "DISCOVERY MODE: no target implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; other objectives use their own evidence criteria. DISCOVERY SEARCH ECONOMY: at most two outbound searches; prefer one bounded mixed-source batch. FAST HANDOFF: strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. No registry is preferred; choose by evidence. Example: casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; snippets are leads, not evidence.",
         1_250,
         "[optional discovery detail omitted; objective and handoff remain authoritative]",
       );
@@ -5882,12 +5876,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         if (end <= start) return;
         repaired = repaired.slice(0, start) + replacement + " " + repaired.slice(end).trimStart();
       };
-      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch across web and registry sources. FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough.", ["LEAD FOLLOW-UP GUIDANCE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
+      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound searches; prefer one bounded mixed-source batch. FAST HANDOFF: strongest objective-fit lead, not a shortlist; one quick source look is enough.", ["LEAD FOLLOW-UP GUIDANCE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
 
-      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not literal queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own criteria.", ["DISCOVERY MODE:"]);
-      compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no person or entity target is implied; human objective/Boss scope govern. Target-specific names come only from the human brief or same-case observations.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
+      compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable public-evidence hypothesis. Other objectives use their own criteria.", ["DISCOVERY MODE:"]);
+      compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no target implied; human objective/Boss scope govern. Names come from the brief or same-case observations.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
       compactClause("DISCOVERY LEAD HANDOFF CONTRACT:", "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name review-only leads, not every result; never auto-promote. A fetched/registry-confirmed organization may start target research, not final CRM/contact.", ["Conditional specialist actions only", "Conditional specialist OSINT actions:"]);
-      compactClause("MODEL-OWNED RELEVANCE SELF-CHECK:", "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties queries/sources to objective-required role, relationship or materiality; generic publisher homepages need same-case evidence.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "DISCOVERY TARGETABILITY / REALISM:"]);
+      compactClause("MODEL-OWNED RELEVANCE SELF-CHECK:", "MODEL-OWNED RELEVANCE SELF-CHECK: Investigator ties queries/sources to objective-required role, relationship or materiality; generic publisher homepage needs a same-case evidence link.", ["MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "DISCOVERY TARGETABILITY / REALISM:"]);
       compactClause("DISCOVERY TARGETABILITY / REALISM:", "DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. Popularity is not a filter: require direct relevance to the active objective; do not select solely for fame or exclude solely for fame. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals, not proof of owner wealth; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. No registry is preferred; choose by evidence. Example: casinos in Slovenia.", ["LEAD FOLLOW-UP GUIDANCE (non-binding):", "DISCOVERY LEAD HANDOFF CONTRACT:"]);
       compactClause("LEAD FOLLOW-UP GUIDANCE (non-binding):", "LEAD FOLLOW-UP GUIDANCE (non-binding): inspect a promising in-scope lead URL when useful; advisory, not evidence or a mandated next action; Investigator chooses.", ["DISCOVERY LEAD HANDOFF CONTRACT:", "SCOPE RECOVERY:"]);
       compactClause("SCOPE RECOVERY:", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query, never pivot sector or jurisdiction.", ["PAGE FORMAT / RETRIEVAL LIMITS:", "OUTPUT CONTRACT:"]);
@@ -5990,6 +5984,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
       ...(input.mode === "discovery" && requiredQualification ? [requiredQualification] : []),
+      ...(input.mode === "discovery" ? [
+        "Inc. 5000/fast-growth/unicorn rankings",
+        "ranking-only mentions are leads, not qualified targets",
+        "Investor firms need evidence of capital capacity or actual investment activity and mandate fit",
+        "company-level discovery signals",
+        "Company growth and materiality must be assessed separately from an individual owner's wealth",
+        "mixed-source batch",
+        "one quick source look is enough",
+        "Popularity is not a filter:",
+        "require direct relevance to the active objective",
+      ] : []),
       "visit supports bounded text extraction",
       "do not retry the same binary URL through the other fetch action",
       ...(input.mode === "discovery"
@@ -6218,7 +6223,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const optionalSectionPatterns = [
       /^SOURCE COVERAGE \(not a checklist\):/,
       /^CAPABILITY GUIDANCE:/,
-      /^DISCOVERY TARGETABILITY(?: \/ REALISM| GATE)?/,
+      /^DISCOVERY TARGETABILITY GATE:/,
       /^DISCOVERY SEARCH DISCIPLINE:/,
       /^VALID REVIEW-LEAD SHAPE/,
 
