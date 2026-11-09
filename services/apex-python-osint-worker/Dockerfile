@@ -5,12 +5,12 @@ FROM python:3.12-slim-bookworm AS worker-build
 
 ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PYTHON_INSTALL_DIR=/opt/python UV_CACHE_DIR=/opt/uv-cache UV_HTTP_RETRIES=10 UV_HTTP_TIMEOUT=120
 COPY --from=uvbin /uv /uvx /usr/local/bin/
+# Python 3.12 is supplied by the python:3.12-slim base image; install only the
+# additional runtimes and retry transient release-asset 5xx errors.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git build-essential util-linux libffi-dev libssl-dev libxml2-dev libxslt1-dev \
       libpcap-dev libmagic1 libjpeg62-turbo-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
-    # Python 3.12 is already supplied by the pinned python:3.12-slim base image.
-    # Download only the additional runtimes and retry transient release-asset 5xx errors.
     && uv python install 3.10 3.13 \
     && mkdir -p /opt/tools /opt/venvs /app /tmp/apex-spiderfoot-home \
     && chmod 0700 /tmp/apex-spiderfoot-home
