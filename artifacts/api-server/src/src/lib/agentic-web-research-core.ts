@@ -6035,7 +6035,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch across web and/or registry sources. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, hand off to Boss. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
         "MODEL-OWNED RELEVANCE SELF-CHECK: a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets/URLs are leads, not evidence. Target-specific names come from the human brief or same-case observations, never model memory. No extra wealth or ownership criteria unless requested. SEARCH: market only if country in objective/scope; locale is language. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query.",
       ].join(" ");
-      const sections = finalProjection.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const sections = finalProjection.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       const discoverySections = sections.filter((section) =>
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section)
@@ -6044,7 +6044,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const kept = sections.filter((section) => !discoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
         kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
-        finalProjection = kept.join("\\n\\n");
+        finalProjection = kept.join("\n\n");
       }
     }
     // The auxiliary compactor can rebuild a valid contract yet exceed the outer
