@@ -2492,7 +2492,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("do not exclude a person or company merely for being well-known");
+    expect(prompt).toContain("Popularity is not a filter:");
     expect(prompt).toContain("require direct relevance to the active objective");
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
   });
