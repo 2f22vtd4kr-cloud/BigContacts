@@ -3916,14 +3916,28 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Preserve the complete human objective and the separately approved Boss pivot
-    // before any auxiliary evidence or policy summary can consume the emergency budget.
+    // The emergency prompt must retain the small, decision-critical contracts
+    // before optional observations, URLs, and historical narration consume budget.
+    // Preserve the complete human objective, then reserve space for runtime truth,
+    // evidence thresholds, PDF handling, and the fast discovery handoff.
     appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch; FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. No registry is preferred; choose by evidence. Example: casinos in Slovenia. Other objectives use their own evidence criteria. Do not require private/mid-market status unless requested.",
+        620,
+        "[discovery search economy omitted]",
+      );
+    }
+    appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
+    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
     appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
-    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
-    appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
@@ -3934,21 +3948,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (!minimumObservationTail) appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
     appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
-    if (isDiscoveryPrompt) {
-      const compactDiscoverySections = [
-        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. Target-specific names must come from the human brief or same-case observations, never model memory.",
-        "DISCOVERY SEARCH ECONOMY: finish discovery quickly. Use at most two outbound search actions, preferably one bounded mixed-source batch across independent configured web providers and/or relevant registries. Compare source quality and targetability; do not enumerate a long list. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss; try one alternative only if clearly unsuitable. No mandatory search-then-visit sequence; choose actions by expected information gain.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; One source-backed relevant lead starts target research. Source class may vary by query.",
-        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Example: casinos in Slovenia. Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; retain exact name, stated role or null, and associated public HTTPS URL; snippets are leads, not evidence."
-      ];
-      for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
-    }
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
     // Return the actual bounded projection; returning mandatoryMinimumTail here
     // silently discarded every compaction decision made by appendBudgeted.
