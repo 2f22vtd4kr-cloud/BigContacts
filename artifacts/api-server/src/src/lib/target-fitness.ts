@@ -84,17 +84,21 @@ export function evaluateTargetFitness(input: {
     const companyReasons = [
       ...company.reasons,
       "Company-level realism is separate from individual owner wealth.",
-      "Inc. 5000/fast-growth/unicorn rankings are discovery signals; ranking-only mentions are leads, not qualified targets.",
+      "Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.",
     ];
     if (company.status === "materiality_evidenced"
       && company.hasActiveCompanyRegistry
-      && company.hasOwnershipControlEvidence
       && company.hasOfficialBusinessRoute) {
       return {
         fit: "strong",
         score: Math.max(0.7, Number((company.score / 100).toFixed(3))),
         reasons: companyReasons,
-        roleHints: ["source-backed company materiality", "verified organization-level route"],
+        roleHints: [
+          "source-backed company materiality",
+          "verified organization-level route",
+          ...(company.hasCapitalCapacityEvidence ? ["verified capital-capacity evidence"] : []),
+          ...(company.hasInvestmentActivityEvidence ? ["verified investment-activity evidence"] : []),
+        ],
       };
     }
     if (company.hasSourceBackedScale || company.hasGrowthRankingSignal || company.hasActiveCompanyRegistry) {
