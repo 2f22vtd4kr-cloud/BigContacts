@@ -274,6 +274,7 @@ export function assessTargetReachability(input: ReachabilityInput): Reachability
       || companyAssessment.hasOfficialWebsite
       || companyAssessment.hasOrganizationContactCandidate;
     const mode: ReachabilityMode = companyAssessment.status === "materiality_evidenced"
+      && companyAssessment.hasActiveCompanyRegistry
       && companyAssessment.hasOfficialBusinessRoute
       ? "full"
       : hasCompanyEvidence
