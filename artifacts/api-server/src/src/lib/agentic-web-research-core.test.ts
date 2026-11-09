@@ -21,7 +21,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("Virtual Globetrotting");
     expect(systemCore).toContain("REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.");
     expect(systemCore).toContain("B2B may include operating companies and relevant decision-makers");
-    expect(systemCore).toContain("SCENARIOS: Descriptors aren't queries");
+    expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).not.toContain("before another search");
     expect(systemCore).not.toContain("no provider fan-out");
