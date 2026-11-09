@@ -11,7 +11,7 @@ import { getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { investigatorRecordsFromEvents, replayInvestigatorIntelligence } from "./research-intelligence-replay";
-import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
+import { checkpointExecutionForAct, shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES } from "./agentic-web-research-core";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -399,7 +399,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            contradictionCount: state.contradictions.length,
            identityChanged: Boolean(act.findings.some((finding) => finding.personName && !knownIdentityNames.has(finding.personName.toLowerCase()))),
            highValueContact: act.findings.some((finding) => ["email", "phone", "linkedin"].includes(finding.vectorType) && Boolean(finding.personName)),
-           actionExecution: act.execution,
+           actionExecution: checkpointExecutionForAct(act.action, act.execution),
            terminalClaim: act.action === "done",
            informationGain: state.recentActions.at(-1)?.informationGain,
          });
