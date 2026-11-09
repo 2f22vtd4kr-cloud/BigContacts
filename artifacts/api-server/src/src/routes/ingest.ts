@@ -248,14 +248,13 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     }
   }
 
-  // The FAA replay must not erase dedup state for BRREG, land-registry or other ingestors.
-  if (doClean) await clearDedupPrefix("faa:v2:");
-
   const jobId = await createJob("faa");
   if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;
 
   (async () => {
     try {
+      // Clear only after the FAA lane is claimed, so a competing request cannot erase a live run's dedup progress.
+      if (doClean) await clearDedupPrefix("faa:v2:");
       await updateJob(jobId, { status: "running", total: safeMax, message: "Starting FAA ingestion…" });
       const result = await runFaaIngestion({ jobId, maxRecords: safeMax, forceRefresh, validateNamesWithLlm });
       await updateJob(jobId, {
@@ -271,6 +270,8 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err.message }, "FAA ingestion job failed");
       await updateJob(jobId, { status: "failed", message: err.message ?? "FAA ingestion failed" });
+    } finally {
+      await clearActiveJobIfMatches("faa", jobId).catch(() => false);
     }
   })();
 
