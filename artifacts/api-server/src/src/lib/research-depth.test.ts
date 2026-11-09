@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations } from "./research-depth";
+import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations } from "./research-depth";
 
 describe("bounded discovery allocation", () => {
   it("preserves the target-stage reserve even before a candidate is admitted", () => {
@@ -75,6 +75,19 @@ describe("bounded discovery allocation", () => {
   });
 });
 
+
+describe("opening Investigator correction budget", () => {
+  it("reserves a fourth model-owned turn for correcting invalid or policy-blocked actions", () => {
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 20)).toBe(4);
+    // Standard depth reserves 12 of 20 actions for target research, leaving
+    // eight discovery actions. The opening episode must still get four turns.
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 8)).toBe(3);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 8)).toBe(4);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 4 }, 12)).toBe(4);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 2 }, 2)).toBe(2);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
+  });
+});
 
 describe("mission versus episode budget semantics", () => {
   it("does not treat a bounded Investigator episode as an exhausted mission", () => {

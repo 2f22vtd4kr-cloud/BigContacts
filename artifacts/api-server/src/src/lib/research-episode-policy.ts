@@ -19,6 +19,15 @@ export type ResearchEpisodeCheckpoint = {
   reasons: ResearchEpisodeCheckpointReason[];
 };
 
+/**
+ * A deterministic pre-execution policy block is a correction signal for the
+ * Investigator, not a failed external act. Keep blocked terminal verification
+ * visible to oversight because it is a claim-level control boundary.
+ */
+export function checkpointExecutionForAct(action: string, execution?: string): string | undefined {
+  return execution === "blocked" && action !== "verification_required" ? "selected" : execution;
+}
+
 const DEFAULT_EPISODE_MIN_ACTIONS = 3;
 const DEFAULT_EPISODE_MAX_ACTIONS = 5;
 

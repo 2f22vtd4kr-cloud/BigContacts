@@ -6,6 +6,7 @@
  * credentials, cookies, or model reasoning.
  */
 export type AtlasFailureDomain =
+  | "model_oversight"
   | "model_provider"
   | "model_action"
   | "tool_execution"
@@ -43,6 +44,7 @@ export type AtlasFailureKind =
   | "response_size_limit"
   | "http_error"
   | "provider_unavailable"
+  | "oversight_unavailable"
   | "timeout"
   | "cancelled"
   | "job_missing"
@@ -201,6 +203,13 @@ export function classifyCanonicalAtlasFailure(input: {
   if ((input.stage === "investigator_episode" || input.stage === "orchestration")
     && /\binvestigator_episode_unavailable_without_provider_record\b/.test(error.message)) {
     return { domain: "model_provider", kind: "provider_unavailable" };
+  }
+  // Right-hand memory compaction is a distinct AI oversight lane. Keep it
+  // separate from Investigator provider outages, while preserving generic
+  // local exceptions at this stage as programming failures below.
+  if (input.stage === "oversight_control_decision"
+    && /\binvestigator_oversight_unavailable\b/.test(error.message)) {
+    return { domain: "model_oversight", kind: "oversight_unavailable" };
   }
   const isModelProviderStage = input.stage === "boss_opening_request"
     || input.stage === "right_hand_opening_review"

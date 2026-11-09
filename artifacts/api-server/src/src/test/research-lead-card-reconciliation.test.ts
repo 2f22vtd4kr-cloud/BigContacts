@@ -24,7 +24,8 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
     expect(orientation).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(orientation).toContain("Ranking-only mentions are leads, not qualified targets");
-    expect(orientation).toContain("currently operating private/mid-market businesses");
+    expect(orientation).toContain("do not prefer private or mid-market status unless the human objective asks for it");
+    expect(orientation).toContain("verify current operations, objective fit, identifiable decision-makers and practical public/professional routes");
     expect(orientation).toContain("For potential-investor firms");
   });
 

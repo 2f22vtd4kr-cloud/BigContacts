@@ -58,6 +58,22 @@ type PlanInput = {
     };
     rightHandAdvice?: unknown;
     researchDepth?: ResearchDepth;
+    discoveryContext?: {
+      humanBrief?: {
+        objective?: string;
+        motivation?: string;
+        geography?: string;
+        exclusions?: string[];
+      };
+      bossPremise?: string;
+    };
+    humanBrief?: {
+      objective?: string;
+      motivation?: string;
+      geography?: string;
+      exclusions?: string[];
+    };
+    bossPremise?: string;
     [key: string]: unknown;
   };
 };
@@ -111,7 +127,16 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
         rightHandNote: clipPrompt(file.bossPlan.rightHandNote, 220),
       }
     : null;
+  const humanBrief = file.discoveryContext?.humanBrief ?? file.humanBrief;
+  const bossPremise = file.discoveryContext?.bossPremise ?? file.bossPremise;
   return JSON.stringify({
+    humanMission: humanBrief ? {
+      objective: clipPrompt(humanBrief.objective ?? "", 900),
+      motivation: clipPrompt(humanBrief.motivation ?? "", 500),
+      geography: clipPrompt(humanBrief.geography ?? "", 240),
+      exclusions: clipPromptList(humanBrief.exclusions, 8, 220),
+    } : null,
+    bossPremise: clipPrompt(bossPremise ?? null, 900),
     target: file.target ? {
       name: clipPrompt(file.target.name ?? null, 240),
       type: clipPrompt(file.target.type ?? null, 120),
@@ -213,6 +238,16 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   const availableInvestigators = getAvailableInvestigatorCapabilities();
   const investigatorCapabilityList = availableInvestigators.length ? availableInvestigators.join(", ") : "none currently configured";
   const targetName = String(input.file.target?.name ?? "target");
+  const humanBrief = input.file.discoveryContext?.humanBrief ?? input.file.humanBrief;
+  const humanMissionBlock = humanBrief
+    ? [
+        "HUMAN MISSION (authoritative; preserve exactly and do not add requirements):",
+        `Objective: ${clipPrompt(humanBrief.objective ?? "", 900)}`,
+        `Motivation: ${clipPrompt(humanBrief.motivation ?? "", 500)}`,
+        `Geography: ${clipPrompt(humanBrief.geography ?? "", 240)}`,
+        `Explicit exclusions: ${clipPromptList(humanBrief.exclusions, 8, 220).join("; ")}`,
+      ].join("\n")
+    : "HUMAN MISSION: no persisted brief is available; do not invent one.";
   const creative = buildCreativeInvestigatorAngles({
     targetName: clipPrompt(targetName, 240) ?? "target",
     targetType: clipPrompt(input.file.target?.type ?? null, 120),
@@ -240,7 +275,9 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // What is newly known since the previous iteration?
   // What remains genuinely unresolved?
   // What would be redundant with work already done?
-  return boundBossPlanPrompt(`${apexOrientationCompact("boss")}
+  return boundBossPlanPrompt(`${humanMissionBlock}
+
+${apexOrientationCompact("boss")}
 
 You are the Apex Atlas Boss. Make the next evidence-led research assignment from the living case state below. You have no web access. The Investigator owns the research trajectory; you own direction, assignment choice, and whether work should continue.
 
@@ -281,8 +318,8 @@ Write a human-like, adaptive assignment, not a checklist. It should:
 - allow a better evidence-backed lead to replace the assigned lane, with the reason recorded;
 - stop or redirect when evidence conflicts rather than manufacturing a conclusion.
 
-TARGET FITNESS — AI-OWNED REALISM JUDGMENT
-Reachability matters more than fame, wealth, prestige, or title. Ignore incidental famous/celebrity/household-name ultra-wealthy people as outreach targets; do not surface them as provisional review leads, incidental suggestions, or quota fillers merely because a search result mentions them. Do not use a deterministic name list to make this judgment: Boss owns target relevance and must reason from the human objective, evidence, and practical targetability. Prefer less-public, source-backed operators and decision-makers with plausibly actionable professional routes. If the human explicitly names a famous person as the subject, assess whether a practical public/professional route is actually evidenced; absent that evidence, reject_target or reframe and state the blocker. A CEO/founder title, public visibility, wealth, or search-result mention is not evidence of access. Do not let realism suppress useful companies or lesser-known, objective-relevant operators. Such a decision must not erase unrelated useful evidence or routes.
+TARGET FITNESS — HUMAN-OBJECTIVE-ALIGNED RELEVANCE AND REACHABILITY
+The human mission in CASE STATE is authoritative. Do not invent a "less-public", anti-famous, wealth, ownership, investor, or personal-access preference unless the human objective, motivation, or exclusions explicitly require it. Fame, wealth, prestige, title, company size, and public visibility are not automatic filters. For B2B company/decision-maker discovery, well-known or publicly traded companies and their relevant decision-makers remain eligible when they directly fit the objective; assess the actual business role, company connection, and available public/professional route from evidence. Do not reject, suppress, or reframe an objective-relevant company or person merely because they are well-known. If the human explicitly asks for reachable individuals, private-company owners, potential investors, or non-celebrity outreach routes, evaluate that stated constraint using documented evidence; do not apply it to unrelated company discovery. Never use a deterministic name list. Practical reachability is a claim requiring evidence, not a popularity heuristic.
 
 RETURN ONE JSON OBJECT ONLY
 For proceed:

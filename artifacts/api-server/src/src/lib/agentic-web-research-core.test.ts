@@ -16,11 +16,11 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
     expect(systemCore.length).toBeLessThan(2_000);
-    expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
+    expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: No incidental celebrity/household-name defaults");
-    expect(systemCore).toContain("Broad B2B starts with an operating company");
+    expect(systemCore).toContain("REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.");
+    expect(systemCore).toContain("B2B may include operating companies and relevant decision-makers");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).toContain("casinos in Slovenia");
     expect(systemCore).toContain("before another search");
@@ -37,6 +37,13 @@ const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(),
 const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
 const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
+
+describe("AI memory-compaction failure attribution", () => {
+  it("classifies Right-hand compaction failures separately from Investigator provider outages", () => {
+    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);');
+    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);');
+  });
+});
 
 describe("canonical Atlas discovery path isolation", () => {
   it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
@@ -87,7 +94,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("company-level discovery signals");
     expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
-    expect(discoveryPrompt).toContain("no name/domain blacklist");
+    expect(discoveryPrompt).toContain("Popularity is not a filter:");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
     expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
@@ -96,11 +103,11 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
-    expect(targetPrompt).toContain("market=null unless the human objective or current approved Boss scope explicitly names a country/market");
+    expect(targetPrompt).toContain("market=null");
     expect(targetPrompt).toContain("locale is language only, never geography");
     expect(targetPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(targetPrompt).toContain("investor firms need evidence of capital capacity or actual investment activity and mandate fit");
-    expect(targetPrompt).toContain("current private/mid-market operations");
+    expect(targetPrompt).toContain("Operating-company targets need evidence of current operations");
     expect(targetPrompt).toContain("Avoid stale years unless the objective is explicitly historical");
   });
 });
@@ -2417,6 +2424,12 @@ Choose each next action yourself from the available capabilities and observed ev
       ...records,
       { ...livenessRecord("visit", "error"), turn: 2, args: { url: "https://company.example/team" } },
     ])).toBeNull();
+    // A policy/preflight-blocked visit is still a completed inspection attempt:
+    // the gate must let the model choose a different lead or research action.
+    expect(discoveryLeadInspectionRequirement([
+      ...records,
+      { ...livenessRecord("visit", "blocked"), turn: 2, args: { url: "https://company.example/team" } },
+    ])).toBeNull();
     expect(discoveryLeadInspectionRequirement([
       ...records,
       { ...livenessRecord("visit", "success"), turn: 2, args: { url: "https://unrelated.example/" } },
@@ -2474,6 +2487,21 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("at most two outbound search actions");
     expect(prompt).toContain("casinos in Slovenia");
     expect(prompt).toContain("Other objectives use their own evidence criteria");
+  });
+
+  it("does not turn popularity into an unstated discovery exclusion", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find B2B software companies and their current decision-makers.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("Popularity is not a filter:");
+    expect(prompt).toContain("require direct relevance to the active objective");
+    expect(prompt).not.toContain("No incidental celebrity/household-name targets");
   });
 
   it("removes parallel web and registry actions from discovery while retaining them for target research", () => {
@@ -3615,6 +3643,8 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt).toContain("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
+    expect(prompt).toContain("private/mid-market status matters only when requested");
+    expect(prompt).not.toContain("current private/mid-market operations");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
 });

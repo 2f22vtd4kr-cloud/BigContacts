@@ -205,7 +205,9 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(prompt).toContain("ranking-only mentions are leads, not qualified targets");
     expect(prompt).toContain("Only exact admitted name/type pairs may be recommended");
-    expect(prompt).toContain("Operating private/mid-market targets need evidence of current operations/fit");
+    expect(prompt).toContain("Operating-company targets need evidence of current operations and objective fit");
+    expect(prompt).toContain("apply private/mid-market constraints only when the human explicitly requests them");
+    expect(prompt).toContain("Find source-backed private technology company leads.");
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {

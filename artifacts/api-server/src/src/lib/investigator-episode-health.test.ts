@@ -144,6 +144,15 @@ describe("canonical Investigator continuation health", () => {
     })).toBeNull();
   });
 
+  it("classifies Right-hand oversight unavailability separately from Investigator outages", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "unavailable",
+      iterations: 1,
+      stopReason: "OVERSIGHT_UNAVAILABLE",
+      trajectoryRecords: [{ action: "web_search", execution: "blocked" }],
+    })).toEqual({ code: "investigator_oversight_unavailable" });
+  });
+
   it("fails closed when an unavailable episode has no local provider-error record", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "unavailable",

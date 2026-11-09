@@ -814,7 +814,7 @@ export const DEFAULT_DISCOVERY_GEOGRAPHY = "No geographic restriction supplied; 
 
 export const DEFAULT_DISCOVERY_EXCLUSIONS = [
   "Do not invent people, companies, wealth, contact details, relationships, or source claims.",
-  "Do not prioritize celebrity billionaires or famous public figures who are unrealistic to reach without a documented connection.",
+  "Evaluate practical reachability using documented public routes and evidence; do not favor or penalize a candidate solely because they are famous.",
   "Do not stop at generic reception numbers or irrelevant shared inboxes when a closer public route exists.",
   "Do not treat job titles, company association, fame, or search snippets as proof of personal wealth.",
 ];
@@ -946,7 +946,7 @@ export function buildDiscoveryCaseFile(input: {
     investigationRules: [
       "Public evidence only; preserve claim-level provenance.",
       "Wealth, relevance, identity, and practical access are separate questions.",
-      "Famous or wealthy does not mean reachable.",
+      "Fame or wealth alone does not establish reachability; assess each candidate using documented public routes and evidence.",
       "Candidates remain review-only until exact identity and attribution are established.",
       "Wallet-first seeds: attribute holder from public sources before any contact hop; reject exchange/mixer/protocol treasuries; never invent holder or contacts from chain data alone.",
       "The human operator remains the final decision-maker for contact use.",

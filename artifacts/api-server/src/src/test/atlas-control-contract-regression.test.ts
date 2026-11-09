@@ -16,6 +16,34 @@ const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/a
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
+describe("objective-aligned Boss control decisions", () => {
+  it("does not invent a less-public preference for a broad B2B objective", () => {
+    const objective = "Find B2B software companies and their current decision-makers."; 
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "No source-backed candidates have been admitted yet.",
+      compactState: "Human objective: " + objective,
+      pinnedControlState: "The exact human objective is authoritative.",
+      humanObjective: objective,
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "The Investigator should begin objective-led discovery.", direction: null, confidence: 0.9, model: "test-model", error: null },
+    });
+    expect(prompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference');
+    expect(prompt).toContain("For B2B discovery, well-known/public companies and their relevant decision-makers remain eligible");
+    expect(prompt).toContain(objective);
+    expect(prompt).not.toContain("Prefer less-public, source-backed operators");
+  });
+});
+describe("objective-aligned Right-hand control guidance", () => {
+  it("does not make private or mid-market status a default B2B target requirement", () => {
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "No source-backed B2B candidates have been admitted yet.",
+      compactState: "Human objective: Find B2B software companies and their current decision-makers.",
+    });
+    expect(prompt).toContain("Operating-company targets need evidence of current operations and objective fit");
+    expect(prompt).toContain("apply private/mid-market constraints only when the human explicitly requests them");
+    expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
+  });
+});
+
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
@@ -257,7 +285,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandPrompt).toContain(feedback);
     expect(bossPrompt).toContain(feedback);
     expect(rightHandPrompt).toContain("realism/targetability constraints outrank Boss suggestions");
-    expect(bossPrompt).toContain("Mission priority: the human objective's realistic-targetability constraint outranks generic public-company leadership or fame/ranking suggestions.");
+    expect(bossPrompt).toContain("Mission priority: the human objective governs target class and any reachability constraints.");
+    expect(bossPrompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
@@ -845,7 +874,7 @@ describe("discovery trajectory turn persistence", () => {
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
-    expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
@@ -855,6 +884,9 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
     expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
+    expect(canonicalDiscoverySource).toContain('actorRole: episodeFailure.code === "investigator_oversight_unavailable" ? "right_hand" : "head_investigator"');
+    expect(canonicalDiscoverySource).toContain('"Canonical Right-hand oversight unavailable; case parked for review."');
+    expect(canonicalDiscoverySource).toContain('stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode"');
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
   });

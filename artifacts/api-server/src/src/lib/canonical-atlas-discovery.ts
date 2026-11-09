@@ -6,7 +6,7 @@ import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, atlasEarlyTargetHandoffViolation, type AtlasControlAction } from "./atlas-control-decision";
-import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
+import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
@@ -2009,7 +2009,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // Protect the target-stage reserve from the first discovery act. If no qualifying lead is admitted by the discovery allocation, stop/park rather than spending the reserved research budget on more broad discovery.
     const discoveryIterationCeiling = depth.agenticMaxIterations;
     const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
-    const openingInvestigatorIterations = Math.min(3, discoveryIterationsPerAct, discoveryIterationCeiling);
+    const openingInvestigatorIterations = resolveOpeningInvestigatorIterations(depth, discoveryIterationCeiling);
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
     discovery = await runDiscoveryWithQuotaRecovery(
@@ -2530,9 +2530,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const runtimeFailureKind = runtimeFailureRecord?.failureKind;
           const diagnostic = runtimeFailureRecord?.action === "runtime_error" && runtimeFailureDomain && runtimeFailureKind
             ? { domain: runtimeFailureDomain, kind: runtimeFailureKind }
-            : classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error(episodeFailure.code) });
-          const errorSummary = safeThrownErrorSummary("Canonical Investigator continuation failed", underlyingError);
-          const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
+            : classifyCanonicalAtlasFailure({
+              stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode",
+              error: new Error(episodeFailure.code),
+            });
+          const errorSummary = safeThrownErrorSummary(
+            episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight failed" : "Canonical Investigator continuation failed",
+            underlyingError,
+          );
+          const failureMessage = `${episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : "Canonical Investigator continuation stopped before a usable new research pass"}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
             await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
@@ -2559,7 +2565,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
             await tx.update(researchCasesTable).set({
               status: "review",
-              currentAction: "canonical-investigator-episode-failed",
+              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed",
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
@@ -2570,10 +2576,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             await tx.insert(researchCaseEventsTable).values({
               caseId: discoveryCaseId,
               iteration: nextIteration,
-              actorRole: "head_investigator",
+              actorRole: episodeFailure.code === "investigator_oversight_unavailable" ? "right_hand" : "head_investigator",
               eventType: "observation",
               status: "error",
-              summary: "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
+              summary: episodeFailure.code === "investigator_oversight_unavailable"
+                ? "Canonical Right-hand oversight unavailable; case parked for review."
+                : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
               correlationKey: `${atlasJobId}:investigator-episode-failure:control:${controlTurns}`,
               payload: JSON.stringify({
                 jobId: atlasJobId,

@@ -1,12 +1,56 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_DISCOVERY_EXCLUSIONS,
   buildBossDiscoveryResponseFormat,
   buildGroqBossDiscoveryPrompt,
   parseBossDiscoveryResponse,
 } from "./case-bureau";
+import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 
 const investigator = "groq-investigator-1" as InvestigatorCapability;
+
+describe("objective-aligned Boss planning", () => {
+  it("includes the human B2B brief and does not impose an unstated less-public preference", () => {
+    const objective = "Find B2B software companies and their current decision-makers.";
+    const motivation = "Identify companies and relevant professional roles; do not infer personal wealth.";
+    const prompt = buildApexAtlasBossPlanPrompt({
+      iteration: 1,
+      rightHandAdvice: null,
+      file: {
+        discoveryContext: {
+          humanBrief: { objective, motivation, geography: "No geographic restriction", exclusions: [] },
+          bossPremise: "Discover objective-relevant B2B companies and professional routes.",
+        },
+        actionQueue: [],
+        target: { name: "B2B software company", type: "company", knownDomains: [] },
+        evidenceSummary: { discoveredPeople: [], relatedOrganizations: [], searchGaps: [], negativeFindings: [] },
+        contactRoutes: [],
+        hypotheses: [],
+        specialistRoster: [],
+        humanDirectives: [],
+        decisionLog: [],
+        researchDepth: "standard",
+      },
+    });
+
+    expect(prompt).toContain(objective);
+    expect(prompt).toContain(motivation);
+    expect(prompt).toContain("The human mission in CASE STATE is authoritative");
+    expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
+    expect(prompt).not.toContain("Prefer less-public, source-backed operators");
+    expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
+    expect(prompt).toContain("Apply less-public or private-company constraints only when explicitly requested");
+    expect(prompt).not.toContain("Operating firms need evidence of current private/mid-market operations");
+  });
+});
+
+describe("default discovery exclusions", () => {
+  it("assesses reachability from evidence rather than penalizing fame alone", () => {
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("do not favor or penalize a candidate solely because they are famous");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).not.toContain("Do not prioritize celebrity billionaires");
+  });
+});
 
 describe("source-grounded Boss opening contract", () => {
   it("does not expose candidate URLs or contact evidence in the Boss output schema", () => {

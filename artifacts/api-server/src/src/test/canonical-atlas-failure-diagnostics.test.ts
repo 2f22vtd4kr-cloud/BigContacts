@@ -101,4 +101,18 @@ describe("canonical Atlas lease-read diagnostics", () => {
     })).toEqual({ domain: "model_provider", kind: "provider_unavailable" });
   });
 
+  it("keeps Right-hand AI-memory compaction failure in its own oversight domain", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "oversight_control_decision",
+      error: new Error("investigator_oversight_unavailable"),
+    })).toEqual({ domain: "model_oversight", kind: "oversight_unavailable" });
+  });
+
+  it("does not disguise an unrelated local oversight-stage exception as provider unavailability", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "oversight_control_decision",
+      error: new Error("unexpected local invariant failure"),
+    })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
+  });
+
 });
