@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { apexInvestigatorSystemCore } from "./apex-bureau-orientation";
+import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
