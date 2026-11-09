@@ -87,7 +87,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("company-level discovery signals");
     expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
-    expect(discoveryPrompt).toContain("no name blacklist");
+    expect(discoveryPrompt).toContain("no name/domain blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
     expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
