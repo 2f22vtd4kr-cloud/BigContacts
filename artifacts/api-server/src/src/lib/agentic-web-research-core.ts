@@ -3893,7 +3893,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const finalParts: string[] = [];
     // Reserve room for the final provider-boundary pass, which restores exact
     // source, qualification and discovery markers after this semantic projection.
-    // Leave a 1,000-character reserve for provider-boundary rehydration of
+    // Leave a small 350-character reserve for provider-boundary rehydration of
     // source, qualification, objective and schema clauses.
     const finalAssemblyBudget = Math.max(1_000, limit - 350);
     const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
