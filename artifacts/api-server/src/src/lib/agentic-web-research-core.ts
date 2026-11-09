@@ -2066,17 +2066,95 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
 
   const prefixBudget = limit - protectedSuffix.length - (prefix ? separator.length : 0);
   let boundedPrefix = "";
-  // boundInvestigatorPromptSection has a minimum marker size; do not call it when
-  // that marker itself could exceed the remaining budget.
   if (prefix && prefixBudget >= 120) {
-    // At the provider boundary, exact source URLs must survive whenever they can
-    // fit. Prefer the URL-aware reducer instead of generic head/tail extraction.
-    boundedPrefix = boundInvestigatorPromptSection(prefix, prefixBudget);
-    if (boundedPrefix.length > prefixBudget) {
-      if (containsVerbatimCaseObjective(boundedPrefix)) {
-        throw new Error("Cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+    const selected: string[] = [];
+    const selectedSet = new Set<string>();
+    const used = () => selected.reduce((total, part) => total + part.length, 0) + Math.max(0, selected.length - 1) * 2;
+    const add = (raw: string, cap: number, label: string) => {
+      const value = raw.trim();
+      if (!value || selectedSet.has(value)) return;
+      const remaining = prefixBudget - used() - (selected.length ? 2 : 0);
+      const budget = Math.min(cap, remaining);
+      if (containsVerbatimCaseObjective(value)) {
+        if (value.length > budget) {
+          throw new Error("Cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+        }
+        selected.push(value);
+        selectedSet.add(value);
+        return;
       }
-      boundedPrefix = "";
+      if (budget < 60) return;
+      const compacted = value.length <= budget
+        ? value
+        : compactPromptSectionPreservingUrlTokens(value, budget, "[" + label + " omitted; durable case state remains authoritative]");
+      if (compacted && compacted.length <= budget) {
+        selected.push(compacted);
+        selectedSet.add(value);
+      }
+    };
+    const paragraphs = prefix.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const objectiveBlock = prefix.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
+    if (objectiveBlock) add(objectiveBlock, prefixBudget, "objective detail");
+
+    // A short invariant header replaces the much larger duplicate schema
+    // preamble; the complete field schema remains protected in the suffix.
+    if (/APEX INVESTIGATOR|MISSION PRIORITY:/.test(prefix)) {
+      add(
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography.",
+        520,
+        "Investigator header",
+      );
+    }
+    const withoutObjective = objectiveBlock ? prefix.replace(objectiveBlock, "") : prefix;
+    const remainingParagraphs = withoutObjective.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const addMatches = (pattern: RegExp, cap: number, label: string, latestOnly = false) => {
+      const matches = remainingParagraphs.filter((part) => pattern.test(part));
+      const chosen = latestOnly ? matches.slice(-1) : matches;
+      for (const part of chosen) add(part, cap, label);
+    };
+
+    // Objective and active Boss scope are independent authorities.
+    addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 620, "case objective");
+    addMatches(/^(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|CURRENT BOSS-DIRECTED)/i, 460, "approved scope", true);
+
+    // Keep exact immutable-event URLs and the newest action identity before
+    // optional prose. Never reconstruct or shorten URL tokens.
+    addMatches(/^(?:PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY)/i, 900, "additional URL inventory");
+    addMatches(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)/i, 680, "latest trajectory record", true);
+    addMatches(/(?:LATEST OBSERVATION|LATEST_OBSERVATION_START|SCOPE GUARD BLOCKED ACTION|SCOPE FILTERED PARALLEL SEARCHES|SOURCE-STAGE GUARD BLOCKED ACTION)/i, 420, "latest observation", true);
+    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \\()/i, 420, "fetched source excerpt", true);
+    addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 220, "lead follow-up guidance", true);
+
+    // Compact discovery policy is intentionally explicit and complete. It is
+    // still model judgment, not a deterministic source or action sequence.
+    if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(prefix)) {
+      add(
+        "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name leads are review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. Source class may vary by query. Example: casinos in Slovenia.",
+        1_150,
+        "discovery policy",
+      );
+    }
+    if (/PARTIAL FINDINGS|Qualification follows the active objective/.test(prefix)) {
+      add(
+        "PARTIAL FINDINGS: preserve Investigator-selected leads as review-only; retain exact observed name, stated role or null, and public HTTPS URL. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+        1_100,
+        "evidence policy",
+      );
+    }
+
+    // Runtime contracts are not optional prose: use only current adapters and
+    // actions, distinguish PDF extraction from HTML fetch, and keep terminal gates.
+    addMatches(/^AVAILABLE ACTIONS:/i, 420, "available actions");
+    addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 480, "runtime registry contract");
+    addMatches(/^PAGE FORMAT \/ RETRIEVAL LIMITS:/i, 380, "PDF retrieval contract");
+    addMatches(/^RESEARCH TERMINAL GATE/i, 260, "terminal evidence gate");
+    addMatches(/^VALID PROVIDERS:/i, 220, "provider contract");
+    addMatches(/^Conditional specialist OSINT actions/i, 220, "conditional capability contract");
+    addMatches(/^AI-COMPACTED HISTORICAL RESEARCH MEMORY|^AI HISTORICAL MEMORY/i, 520, "AI historical memory", true);
+
+    boundedPrefix = selected.join(separator);
+    if (boundedPrefix.length > prefixBudget) {
+      throw new Error("Cannot compose a contract-preserving Investigator context within maxPromptChars=" + limit + ".");
     }
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
