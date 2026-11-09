@@ -38,6 +38,13 @@ const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src
 const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
 const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
 
+describe("AI memory-compaction failure attribution", () => {
+  it("classifies Right-hand compaction failures separately from Investigator provider outages", () => {
+    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);');
+    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);');
+  });
+});
+
 describe("canonical Atlas discovery path isolation", () => {
   it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
     expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
