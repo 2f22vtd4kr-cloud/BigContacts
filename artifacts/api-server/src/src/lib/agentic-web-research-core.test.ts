@@ -83,6 +83,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(discoveryPrompt).toContain("ranking-only mentions are leads, not qualified targets");
+    expect(discoveryPrompt).toContain("company-level discovery signals");
+    expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
