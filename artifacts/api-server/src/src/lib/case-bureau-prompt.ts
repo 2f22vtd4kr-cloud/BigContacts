@@ -58,6 +58,15 @@ type PlanInput = {
     };
     rightHandAdvice?: unknown;
     researchDepth?: ResearchDepth;
+    discoveryContext?: {
+      humanBrief?: {
+        objective?: string;
+        motivation?: string;
+        geography?: string;
+        exclusions?: string[];
+      };
+      bossPremise?: string;
+    };
     humanBrief?: {
       objective?: string;
       motivation?: string;
@@ -118,14 +127,16 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
         rightHandNote: clipPrompt(file.bossPlan.rightHandNote, 220),
       }
     : null;
+  const humanBrief = file.discoveryContext?.humanBrief ?? file.humanBrief;
+  const bossPremise = file.discoveryContext?.bossPremise ?? file.bossPremise;
   return JSON.stringify({
-    humanMission: file.humanBrief ? {
-      objective: clipPrompt(file.humanBrief.objective ?? "", 900),
-      motivation: clipPrompt(file.humanBrief.motivation ?? "", 500),
-      geography: clipPrompt(file.humanBrief.geography ?? "", 240),
-      exclusions: clipPromptList(file.humanBrief.exclusions, 8, 220),
+    humanMission: humanBrief ? {
+      objective: clipPrompt(humanBrief.objective ?? "", 900),
+      motivation: clipPrompt(humanBrief.motivation ?? "", 500),
+      geography: clipPrompt(humanBrief.geography ?? "", 240),
+      exclusions: clipPromptList(humanBrief.exclusions, 8, 220),
     } : null,
-    bossPremise: clipPrompt(file.bossPremise ?? null, 900),
+    bossPremise: clipPrompt(bossPremise ?? null, 900),
     target: file.target ? {
       name: clipPrompt(file.target.name ?? null, 240),
       type: clipPrompt(file.target.type ?? null, 120),
