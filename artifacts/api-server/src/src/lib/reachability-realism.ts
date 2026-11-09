@@ -58,6 +58,7 @@ export interface ReachabilityDirective {
   score: number;
   reasons: string[];
   blockers: string[];
+  companyAssessment?: CompanyRealismAssessment;
 }
 
 function parseMetadata(raw: string | null | undefined): Record<string, unknown> {
