@@ -139,7 +139,7 @@ export function assessCompanyRealism(input: {
   ]).filter((record) => {
     const metric = String(record.metric ?? "").toLowerCase();
     const value = Number(record.value);
-    return ["revenue", "employees", "employee_count", "assets", "valuation"].includes(metric)
+    return ["revenue", "employees", "employee_count", "assets"].includes(metric)
       && Number.isFinite(value)
       && value > 0;
   });
