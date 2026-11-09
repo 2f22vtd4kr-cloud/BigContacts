@@ -2530,9 +2530,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const runtimeFailureKind = runtimeFailureRecord?.failureKind;
           const diagnostic = runtimeFailureRecord?.action === "runtime_error" && runtimeFailureDomain && runtimeFailureKind
             ? { domain: runtimeFailureDomain, kind: runtimeFailureKind }
-            : classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error(episodeFailure.code) });
-          const errorSummary = safeThrownErrorSummary("Canonical Investigator continuation failed", underlyingError);
-          const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
+            : classifyCanonicalAtlasFailure({
+              stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode",
+              error: new Error(episodeFailure.code),
+            });
+          const errorSummary = safeThrownErrorSummary(
+            episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight failed" : "Canonical Investigator continuation failed",
+            underlyingError,
+          );
+          const failureMessage = `${episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : "Canonical Investigator continuation stopped before a usable new research pass"}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
             await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
@@ -2559,7 +2565,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
             await tx.update(researchCasesTable).set({
               status: "review",
-              currentAction: "canonical-investigator-episode-failed",
+              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed",
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
