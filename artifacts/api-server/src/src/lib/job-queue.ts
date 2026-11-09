@@ -135,7 +135,7 @@ export async function getJobLog(jobId:string):Promise<string[]>{const r=await sa
 const DEDUP_KEY="apex:dedup:hnwi";export async function isDuplicate(k:string){return permSismember(DEDUP_KEY,k);}export async function markSeen(k:string){await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,k);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}export async function getDedupCount(){return permScard(DEDUP_KEY);}export async function clearDedup(){await withPermanentClient(async rc=>{await rc.del(DEDUP_KEY);logger.info({key:DEDUP_KEY},"Dedup set cleared");},undefined);}
 export async function clearDedupPrefix(prefix:string){
   if(!prefix)throw new Error("Dedup prefix is required for scoped cleanup");
-  await withPermanentClient(async rc=>{
+  const cleared=await withPermanentClient(async rc=>{
     const members=new Set<string>();
     let cursor="0";
     do{
@@ -146,7 +146,9 @@ export async function clearDedupPrefix(prefix:string){
     const values=[...members];
     for(let i=0;i<values.length;i+=1000)await rc.srem(DEDUP_KEY,...values.slice(i,i+1000));
     logger.info({key:DEDUP_KEY,prefix,removed:values.length},"Dedup prefix cleared");
-  },undefined);
+    return true;
+  },false);
+  if(!cleared)throw new Error("Could not confirm FAA dedup prefix cleanup; refusing replay.");
 }export async function preloadDedupPrefix(prefix:string){const seen=new Set<string>();await withPermanentClient(async rc=>{let c="0";do{const[n,m]=await rc.sscan(DEDUP_KEY,c,"MATCH",`${prefix}*`,`COUNT`,2000);c=n;for(const x of m)seen.add(x);}while(c!=="0");logger.info({prefix,count:seen.size},"Dedup prefix pre-loaded");},undefined);return seen;}export async function batchMarkSeen(keys:string[]){if(!keys.length)return;await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,...keys);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}
 const ACTIVE_JOB_TTL_SECONDS=15*60;const ACTIVE_JOB_RENEW_INTERVAL_MS=5*60*1000;const ACTIVE_JOB_READ_CACHE=new Map<string,{at:number;id:string|null}>();const ACTIVE_JOB_RENEWERS=new Map<string,ReturnType<typeof setInterval>>();const ACTIVE_JOB_READ_TTL_MS=8000;
 function stopActiveJobRenewal(type:string,jobId?:string):void{const timer=ACTIVE_JOB_RENEWERS.get(type);if(timer)clearInterval(timer);ACTIVE_JOB_RENEWERS.delete(type);if(jobId&&memoryActiveByType.get(type)===jobId)memoryActiveByType.delete(type);}
