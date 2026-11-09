@@ -132,13 +132,10 @@ export async function getJobStrict(jobId:string):Promise<JobState|null>{
 }
 
 export async function getJobLog(jobId:string):Promise<string[]>{const r=await safeRedis(rc=>rc.lrange(lk(jobId),0,LOG_CAP-1),null as string[]|null);return r&&r.length?r:memoryLogs.get(jobId)??[];}
-const DEDUP_KEY="apex:dedup:hnwi";export async function isDuplicate(k:string){return permSismember(DEDUP_KEY,k);}export async function markSeen(k:string){await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,k);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}export async function getDedupCount(){return permScard(DEDUP_KEY);}export async function clearDedup(prefix?:string){
+const DEDUP_KEY="apex:dedup:hnwi";export async function isDuplicate(k:string){return permSismember(DEDUP_KEY,k);}export async function markSeen(k:string){await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,k);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}export async function getDedupCount(){return permScard(DEDUP_KEY);}export async function clearDedup(){await withPermanentClient(async rc=>{await rc.del(DEDUP_KEY);logger.info({key:DEDUP_KEY},"Dedup set cleared");},undefined);}
+export async function clearDedupPrefix(prefix:string){
+  if(!prefix)throw new Error("Dedup prefix is required for scoped cleanup");
   await withPermanentClient(async rc=>{
-    if(!prefix){
-      await rc.del(DEDUP_KEY);
-      logger.info({key:DEDUP_KEY},"Dedup set cleared");
-      return;
-    }
     const members=new Set<string>();
     let cursor="0";
     do{
