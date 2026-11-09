@@ -85,7 +85,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("ranking-only mentions are leads, not qualified targets");
     expect(discoveryPrompt).toContain("Investor firms need evidence of capital capacity or actual investment activity and mandate fit");
     expect(discoveryPrompt).toContain("company-level discovery signals");
-    expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
+    expect(discoveryPrompt).toContain("Company growth is not owner wealth");
+    expect(discoveryPrompt).toContain("verify ownership/control and personal wealth separately");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
     expect(discoveryPrompt).toContain("no name blacklist");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
