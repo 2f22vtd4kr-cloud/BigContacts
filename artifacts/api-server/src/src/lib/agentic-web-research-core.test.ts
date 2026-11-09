@@ -2476,7 +2476,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("at most two outbound search actions");
     expect(prompt).toContain("mixed-source batch");
-    expect(prompt).toContain("Choose the single strongest objective-fit lead, not a shortlist");
+    expect(prompt).toContain("FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).toContain("casinos in Slovenia");
