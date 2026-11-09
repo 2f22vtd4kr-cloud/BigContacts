@@ -322,7 +322,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("AVAILABLE REVIEW TARGETS");
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
     expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
-    expect(control).toContain("Do not request more broad discovery, a larger candidate pool, or a geography comparison merely to delay target selection.");
+    expect(control).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(control).toContain("No target-count threshold; Right-hand advises and does not select or authorize targets.");
 
     // Runtime integrity checks may grade provenance, but cannot replace the
