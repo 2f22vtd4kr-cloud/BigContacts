@@ -2092,8 +2092,8 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
         selectedSet.add(value);
       }
     };
-    const paragraphs = prefix.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
-    const objectiveBlock = prefix.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
+    const paragraphs = prefix.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const objectiveBlock = prefix.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
     if (objectiveBlock) add(objectiveBlock, prefixBudget, "objective detail");
 
     // A short invariant header replaces the much larger duplicate schema
@@ -2122,7 +2122,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     addMatches(/^(?:PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY)/i, 900, "additional URL inventory");
     addMatches(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)/i, 680, "latest trajectory record", true);
     addMatches(/(?:LATEST OBSERVATION|LATEST_OBSERVATION_START|SCOPE GUARD BLOCKED ACTION|SCOPE FILTERED PARALLEL SEARCHES|SOURCE-STAGE GUARD BLOCKED ACTION)/i, 420, "latest observation", true);
-    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \\()/i, 420, "fetched source excerpt", true);
+    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \()/i, 420, "fetched source excerpt", true);
     addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 220, "lead follow-up guidance", true);
 
     // Compact discovery policy is intentionally explicit and complete. It is
