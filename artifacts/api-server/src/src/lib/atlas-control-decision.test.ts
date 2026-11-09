@@ -202,6 +202,9 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
     expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
     expect(prompt).toContain(urls[0]);
+    expect(prompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
+    expect(prompt).toContain("ranking-only mentions are leads, not qualified targets");
+    expect(prompt).toContain("Only exact admitted name/type pairs may be recommended");
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
