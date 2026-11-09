@@ -7084,7 +7084,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (!compactedMemory) {
           const message = "AI research-memory compaction was unavailable or failed its size/provenance checks. No action was sent with a code-trimmed substitute context.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
         aiCompactedHistoricalContext = compactedMemory;
         const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
@@ -7140,7 +7140,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           if (!compactedObservation) {
             const message = "AI compaction of an oversized recent observation was unavailable or failed size/provenance checks. No action was sent with a deterministically truncated substitute observation.";
             emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
@@ -7170,7 +7170,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           if (!compactedObservation) {
             const message = "AI compaction of an oversized observation without a trajectory record was unavailable or failed size/provenance checks.";
             emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
@@ -7217,7 +7217,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (!shorterMemory || shorterMemory === aiCompactedHistoricalContext) {
           const message = "AI historical research memory could not fit in the complete Investigator prompt without removing required schema/action contracts. No action was sent with that memory omitted.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
         aiCompactedHistoricalContext = shorterMemory;
         try {
@@ -7259,12 +7259,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         } catch {
           const message = "Investigator prompt could not be rebuilt with its required AI historical memory. No action was sent.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+          return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);
         }
         if (!prompt.includes(aiCompactedHistoricalContext)) {
           const message = "AI historical memory still did not fit in the full Investigator prompt after model compaction. No action was sent with memory silently omitted.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
       }
       runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
