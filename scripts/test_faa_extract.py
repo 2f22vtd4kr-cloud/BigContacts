@@ -45,11 +45,14 @@ class FaaExtractTests(unittest.TestCase):
                     row[29] = "2028/01/01"
                     row[30] = f"FAA-{i}"
                     writer.writerow(row)
-                for i, (code, name) in enumerate([
-                    ("3", "PUBLIC HOLDINGS LLC"),
-                    ("7", "PUBLIC HOLDINGS LLC"),
-                    ("5", "PUBLIC GOVERNMENT AIRFIELD"),
-                    ("4", "JOINT OWNERSHIP"),
+                for i, (code, name, status) in enumerate([
+                    ("2", "PUBLIC PARTNERSHIP", "V"),
+                    ("3", "PUBLIC HOLDINGS LLC", "V"),
+                    ("7", "PUBLIC HOLDINGS LLC", "V"),
+                    ("8", "FOREIGN AVIATION CORP", "N"),
+                    ("5", "PUBLIC GOVERNMENT AIRFIELD", "V"),
+                    ("4", "JOINT OWNERSHIP", "V"),
+                    ("9", "NON-CITIZEN CO-OWNED", "V"),
                 ], start=2000):
                     row = [""] * 34
                     row[0] = f"{i:05d}"
@@ -65,7 +68,7 @@ class FaaExtractTests(unittest.TestCase):
                     row[14] = "US"
                     row[18] = "5"
                     row[19] = "4"
-                    row[20] = "V"
+                    row[20] = status
                     row[22] = ""
                     row[29] = "2028/01/01"
                     row[30] = f"FAA-ENTITY-{i}"
@@ -88,17 +91,18 @@ class FaaExtractTests(unittest.TestCase):
             manifest = json.loads((output / "faa_extraction_manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(len(people), 1001)
             self.assertEqual(len(aircraft), 1001)
-            self.assertEqual(len(companies), 2)
-            self.assertEqual(len(corporate_aircraft), 2)
-            self.assertEqual({row["registrant_type_code"] for row in companies}, {"3", "7"})
+            self.assertEqual(len(companies), 4)
+            self.assertEqual(len(corporate_aircraft), 4)
+            self.assertEqual({row["registrant_type_code"] for row in companies}, {"2", "3", "7", "8"})
+            self.assertIn("Non-Citizen Corporation", {row["registrant_type_label"] for row in companies})
             self.assertEqual(manifest["distinct_individual_registrant_groups"], 1001)
-            self.assertEqual(manifest["distinct_corporate_registrant_groups"], 2)
-            self.assertEqual(manifest["corporate_aircraft_registration_rows"], 2)
-            self.assertEqual(manifest["eligible_individual_and_corporate_aircraft_registration_rows"], 1003)
-            self.assertEqual(manifest["non_individual_registrant_rows_scanned"], 4)
-            self.assertEqual(manifest["excluded_non_individual_registrant_rows"], 2)
+            self.assertEqual(manifest["distinct_corporate_registrant_groups"], 4)
+            self.assertEqual(manifest["corporate_aircraft_registration_rows"], 4)
+            self.assertEqual(manifest["eligible_individual_and_corporate_aircraft_registration_rows"], 1005)
+            self.assertEqual(manifest["non_individual_registrant_rows_scanned"], 7)
+            self.assertEqual(manifest["excluded_non_individual_registrant_rows"], 3)
             all_rows = list(csv.reader((output / "faa_sanitized_MASTER_ALL.txt").open(encoding="utf-8", newline="")))
-            self.assertEqual(len(all_rows), 1003)
+            self.assertEqual(len(all_rows), 1005)
             self.assertNotIn("PRIVATE STREET", (output / "faa_individual_registrants.csv").read_text(encoding="utf-8"))
             self.assertNotIn("PRIVATE STREET", (output / "faa_aircraft_registrations.csv").read_text(encoding="utf-8"))
             self.assertNotIn("PRIVATE STREET", (output / "faa_corporate_registrants.csv").read_text(encoding="utf-8"))
