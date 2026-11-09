@@ -83,7 +83,7 @@ export function apexInvestigatorSystemCore(): string {
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.",
     "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies. B2B may include operating companies and relevant decision-makers.",
-    "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); inspect one lead before another search; one focused query; no provider fan-out.",
+    "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); inspect one lead before another search; One focused discovery query; no provider fan-out.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; no auto-promotion.",
     "one relevant company is a valid partial result.",
     "AUTONOMY: Investigator chooses targets, queries, sources, tools, pivots and stopping; no fixed sequence.",
