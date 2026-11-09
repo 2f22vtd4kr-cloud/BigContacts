@@ -5439,7 +5439,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const raw = typeof latestSuccessfulFetchRecord.observation === "string"
             ? latestSuccessfulFetchRecord.observation.replaceAll("  ", " ").trim()
           : "";
-        const tail = extractEndingClaimSentence(raw) || raw.slice(-220);
+        const breaks = [...raw.matchAll(/[.!?]\\s+/g)];
+        const lastBreak = breaks.at(-1);
+        const sentenceStart = lastBreak ? (lastBreak.index ?? 0) + lastBreak[0].length : 0;
+        const finalSentence = raw.slice(sentenceStart).trim();
+        const tail = finalSentence.length >= 35 ? finalSentence.slice(0, 260) : raw.slice(-220);
         return tail
           ? "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording): " + tail
           : "";
