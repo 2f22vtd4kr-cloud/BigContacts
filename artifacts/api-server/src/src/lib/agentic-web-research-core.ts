@@ -6048,7 +6048,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Emergency discovery can carry the same policy in several overlapping
     // sections. Replace those duplicates with one compact, complete model-owned
     // decision contract before removing any objective, scope, source or URL data.
-    if (input.mode === "discovery") {
+    if (input.mode === "discovery" && finalProjection.length > maxUserPromptChars) {
       const compactDiscoveryContract = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
