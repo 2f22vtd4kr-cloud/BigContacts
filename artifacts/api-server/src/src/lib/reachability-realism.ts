@@ -8,6 +8,8 @@ export interface CompanyRealismAssessment {
   score: number;
   hasGrowthRankingSignal: boolean;
   hasSourceBackedScale: boolean;
+  hasCapitalCapacityEvidence: boolean;
+  hasInvestmentActivityEvidence: boolean;
   hasActiveCompanyRegistry: boolean;
   hasOwnershipControlEvidence: boolean;
   hasOfficialWebsite: boolean;
@@ -90,6 +92,15 @@ function isHttpsSourceUrl(value: unknown): value is string {
   }
 }
 
+function sourceHostKey(value: unknown): string | null {
+  if (!isHttpsSourceUrl(value)) return null;
+  try {
+    return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 function isCompanyTargetType(type?: string | null): boolean {
   return /^(corporation|corp|company|trust|organization|org|professional firm|partnership|llc|limited liability company)$/i.test((type ?? "").trim());
 }
@@ -132,6 +143,22 @@ export function assessCompanyRealism(input: {
       && Number.isFinite(value)
       && value > 0;
   });
+  const capitalRecords = verifiedCompanyEvidence(metadata.companyCapitalEvidence, [
+    "official_filing", "audited_report", "official_company", "reputable_media",
+  ]).filter((record) => {
+    const metric = String(record.metric ?? "").toLowerCase();
+    const value = Number(record.value);
+    return ["fund_size", "aum", "assets_under_management", "committed_capital", "deployable_capital", "investment_capacity"].includes(metric)
+      && Number.isFinite(value)
+      && value > 0;
+  });
+  const investmentRecords = verifiedCompanyEvidence(metadata.companyInvestmentEvidence, [
+    "official_filing", "official_company", "official_registry", "reputable_media",
+  ]).filter((record) => {
+    const activity = String(record.activityType ?? record.activity ?? record.kind ?? "").toLowerCase();
+    return record.investmentActivity === true
+      || ["investment", "portfolio_investment", "capital_deployment", "funding", "acquisition", "deal", "portfolio_company"].includes(activity);
+  });
   const registryRecords = verifiedCompanyEvidence(metadata.companyRegistryEvidence, ["official_registry"])
     .filter((record) => String(record.status ?? "").toLowerCase() === "active");
   const ownershipRecords = verifiedCompanyEvidence(metadata.companyOwnershipEvidence, ["official_registry", "official_filing"]);
@@ -139,25 +166,38 @@ export function assessCompanyRealism(input: {
     .filter((record) => ["official_website", "contact_page", "switchboard", "business_email"].includes(String(record.type ?? "").toLowerCase()));
   const officialWebsite = metadata.officialWebsiteVerified === true
     && isHttpsSourceUrl(metadata.officialWebsiteSourceUrl);
-  const sourceUrls = new Set<string>([
+  const sourceHosts = new Set<string>();
+  for (const record of [
     ...rankingRecords,
     ...scaleRecords,
+    ...capitalRecords,
+    ...investmentRecords,
     ...registryRecords,
     ...ownershipRecords,
     ...routeRecords,
-  ].map((record) => String(record.sourceUrl)));
-  if (officialWebsite && typeof metadata.officialWebsiteSourceUrl === "string") sourceUrls.add(metadata.officialWebsiteSourceUrl);
-  const independentSourceCount = sourceUrls.size;
+  ]) {
+    const host = sourceHostKey(record.sourceUrl);
+    if (host) sourceHosts.add(host);
+  }
+  if (officialWebsite) {
+    const host = sourceHostKey(metadata.officialWebsiteSourceUrl);
+    if (host) sourceHosts.add(host);
+  }
+  const independentSourceCount = sourceHosts.size;
   const hasGrowthRankingSignal = rankingRecords.length > 0;
   const hasSourceBackedScale = scaleRecords.length > 0;
+  const hasCapitalCapacityEvidence = capitalRecords.length > 0;
+  const hasInvestmentActivityEvidence = investmentRecords.length > 0;
   const hasActiveCompanyRegistry = registryRecords.length > 0;
   const hasOwnershipControlEvidence = ownershipRecords.length > 0;
   const hasOfficialBusinessRoute = routeRecords.length > 0;
   const reasons: string[] = [];
   const blockers: string[] = [];
 
-  if (hasGrowthRankingSignal) reasons.push("a source-backed Inc. 5000/fast-growth/unicorn ranking is a company-level discovery signal only");
+  if (hasGrowthRankingSignal) reasons.push("an Inc. 5000/fast-growth/unicorn ranking is a poor-fit signal, not positive qualification; ranking-only mentions remain leads");
   if (hasSourceBackedScale) reasons.push("company scale has a verified source-bound revenue, employee, asset, or valuation observation");
+  if (hasCapitalCapacityEvidence) reasons.push("capital capacity has a verified source-bound fund-size, AUM, committed-capital, or deployable-capital observation");
+  if (hasInvestmentActivityEvidence) reasons.push("actual investment activity has a verified source-bound transaction or portfolio observation");
   if (hasActiveCompanyRegistry) reasons.push("an active company-registry record is source-bound");
   if (hasOwnershipControlEvidence) reasons.push("ownership/control has separate official filing or registry evidence");
   if (officialWebsite) reasons.push("an official company website is source-bound");
@@ -166,34 +206,38 @@ export function assessCompanyRealism(input: {
   if (independentSourceCount >= 2) reasons.push(`${independentSourceCount} independent source URLs support the company evidence`);
 
   if (!hasSourceBackedScale) blockers.push("no source-backed company scale (revenue, employees, assets, or valuation) is recorded");
-  if (independentSourceCount < 2) blockers.push("fewer than two independent source URLs support company materiality");
+  if (independentSourceCount < 2) blockers.push("fewer than two independent source domains support company materiality");
   if (!hasActiveCompanyRegistry) blockers.push("current legal status has not been confirmed in an official company registry");
   if (!hasOwnershipControlEvidence) blockers.push("beneficial ownership/control remains unverified");
   if (!hasOfficialBusinessRoute) blockers.push("no verified official company contact route is recorded");
 
-  const status: CompanyRealismAssessment["status"] = hasSourceBackedScale && independentSourceCount >= 2
+  const hasSourceBackedMateriality = hasSourceBackedScale || hasCapitalCapacityEvidence || hasInvestmentActivityEvidence;
+  const status: CompanyRealismAssessment["status"] = hasSourceBackedMateriality && independentSourceCount >= 2
     ? "materiality_evidenced"
-    : hasSourceBackedScale
+    : hasSourceBackedMateriality
       ? "single_source_scale"
       : hasGrowthRankingSignal
         ? "growth_signal_lead"
         : hasActiveCompanyRegistry
           ? "registry_only"
           : "unverified";
-  const score = Math.min(100,
+  const score = Math.max(0, Math.min(100,
     (hasSourceBackedScale ? 35 : 0)
-    + (hasGrowthRankingSignal ? 15 : 0)
+    + (hasCapitalCapacityEvidence || hasInvestmentActivityEvidence ? 35 : 0)
     + (hasActiveCompanyRegistry ? 15 : 0)
     + (hasOwnershipControlEvidence ? 15 : 0)
     + (officialWebsite ? 10 : 0)
     + (hasOfficialBusinessRoute ? 10 : 0)
-    + (independentSourceCount >= 2 ? 10 : 0),
-  );
+    + (independentSourceCount >= 2 ? 10 : 0)
+    - (hasGrowthRankingSignal ? 10 : 0),
+  ));
   return {
     status,
     score,
     hasGrowthRankingSignal,
     hasSourceBackedScale,
+    hasCapitalCapacityEvidence,
+    hasInvestmentActivityEvidence,
     hasActiveCompanyRegistry,
     hasOwnershipControlEvidence,
     hasOfficialWebsite: officialWebsite,
@@ -224,7 +268,8 @@ export function assessTargetReachability(input: ReachabilityInput): Reachability
     const intermediaryConnections = input.intermediaryConnections ?? 0;
     const hasIntermediaryPath = gatekeeperConnections > 0 || intermediaryConnections > 0;
     const hasCompanyEvidence = companyAssessment.hasSourceBackedScale
-      || companyAssessment.hasGrowthRankingSignal
+      || companyAssessment.hasCapitalCapacityEvidence
+      || companyAssessment.hasInvestmentActivityEvidence
       || companyAssessment.hasActiveCompanyRegistry
       || companyAssessment.hasOfficialWebsite
       || companyAssessment.hasOrganizationContactCandidate;
@@ -359,7 +404,7 @@ export function formatReachabilityDirective(assessment?: ReachabilityAssessment 
     return `REALISM RULES:
 - For people, direct reachability must be supported by a validated person-level phone/email or a corroborated intermediary.
 - For companies, assess active legal status, actual operations, source-backed scale and growth separately from individual owner wealth.
-- Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets.
+- Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.
 - Company growth is not owner wealth. Verify ownership/control and personal wealth independently.
 - A company website, contact page or switchboard is an organization-level route, not personal access.
 - If no credible company evidence or corroborated person-level route exists, use research_only; do not pad the result with speculative contact paths.`;
@@ -379,8 +424,8 @@ Company evidence status: ${company.status.toUpperCase()} · company realism scor
 ${companyObjective}
 Positive evidence: ${companyReasons}
 Known blockers: ${companyBlockers}
-Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals only; ranking-only mentions are leads, not qualified targets.
-Company materiality requires source-backed revenue, employee count, assets or valuation supported by at least two independent source URLs. Verify active legal status and actual operations. Verify ownership/control separately; an FAA registrant is not necessarily a beneficial owner.
+Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.
+Company materiality requires source-backed operating scale or, for investor firms, capital capacity/actual investment activity supported by at least two independent source domains. Verify active legal status and actual operations. Verify ownership/control separately when the objective requires it; an FAA registrant is not necessarily a beneficial owner. Potential-investor firms require relevant mandate fit plus capital-capacity or actual investment-activity evidence.
 A verified company website, contact page or switchboard is organization-level reachability, not personal access. Company growth is not owner wealth; never infer founders' or shareholders' personal wealth from rankings, revenue, assets or growth.`;
   }
 
