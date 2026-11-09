@@ -3681,7 +3681,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumAvailableActionsSection = availableActionsSection;
   // Emergency discovery compaction must preserve approved geography; do not broaden geography.
   const minimumDiscoveryContract = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/scope govern; preserve human objective and Boss-approved geography. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES; descriptors are signals, not literal queries. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity is not a filter; require direct relevance to the active objective. One source-backed relevant lead starts target research. Private/mid-market status matters only when requested; company growth is not owner wealth. No registry is preferred; choose by evidence. Example: casinos in Slovenia. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name review-only leads, not every result; snippets are leads, not evidence. MODEL-OWNED RELEVANCE SELF-CHECK: the Investigator decides relevance; generic publisher homepages need a same-case evidence link. Target-specific names come from the human brief or same-case observations, never model memory."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. One source-backed relevant lead starts target research; do not request more broad discovery, a larger candidate pool, or a geography comparison merely to delay target selection. COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals, not qualification; ranking-only mentions are leads, not qualified targets. Company growth and materiality must be assessed separately from an individual owner's wealth. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Operating-company targets need evidence of current operations, objective fit and relevant decision-makers; private/mid-market status matters only when requested. No registry is preferred; choose by evidence. Example: casinos in Slovenia. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch; FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss; try one alternative only if clearly unsuitable. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads review-only; snippets/URLs are leads, not evidence. SEARCH: market only if country in objective/scope; locale=language. Target-specific names come from the human brief or same-case observations, never model memory/placeholders."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
@@ -3916,28 +3916,39 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Preserve the objective and scope, then reserve space for the small
-    // irreducible action/evidence rules before optional observation or memory.
-    appendBudgeted(compactCaseObjective, 3_000, "[objective detail omitted; full objective remains in durable case state]");
+    // Preserve the complete human objective and the separately approved Boss pivot
+    // before any auxiliary evidence or policy summary can consume the emergency budget.
+    appendBudgeted(compactCaseObjective, 4_100, "[objective detail omitted; full objective remains in durable case state]");
+    appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
     appendBudgeted(minimumScopeContext, 360, "[Boss pivot detail omitted; durable case scope remains authoritative]");
-    appendBudgeted(minimumAvailableActionsSection, 700, "[additional runtime actions omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
-    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
-    appendBudgeted(minimumDiscoveryContract, 1_000, "[discovery detail omitted; approved scope remains authoritative]");
+    appendBudgeted(minimumDiscoveryContract, 1_200, "[discovery detail omitted; approved scope remains authoritative]");
     appendBudgeted(fallbackEvidenceContract, 1_100, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(minimumAvailableActionsSection, 1_200, "[additional runtime actions omitted]");
+    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(carriedFetchedSourceSummary, 260, "[fetched-source event omitted]");
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 360, "[fetched-source excerpt omitted]");
-    appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
-    appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
-    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
+    appendBudgeted(urlInventory, 600, "[additional URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(emergencyAiMemorySection, 360, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     if (!minimumObservationTail) appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
+    appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 190, "[organization review status omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 260, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 220, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 180, "[terminal detail omitted]");
+    if (isDiscoveryPrompt) {
+      const compactDiscoverySections = [
+        "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective and Boss scope govern; preserve topic/geography; do not broaden geography. No fixed action sequence. Target-specific names must come from the human brief or same-case observations, never model memory.",
+        "DISCOVERY SEARCH ECONOMY: finish discovery quickly. Use at most two outbound search actions, preferably one bounded mixed-source batch across independent configured web providers and/or relevant registries. Compare source quality and targetability; do not enumerate a long list. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss; try one alternative only if clearly unsuitable. No mandatory search-then-visit sequence; choose actions by expected information gain.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY: people, companies and assets stay distinct; no name blacklist; One source-backed relevant lead starts target research. Source class may vary by query.",
+        "SOURCE-NEUTRAL: No registry is preferred; choose by evidence. Example: casinos in Slovenia. Preserve sector/jurisdiction. MODEL-OWNED RELEVANCE SELF-CHECK: The Investigator decides relevance; generic publisher homepage needs a same-case evidence link.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; retain exact name, stated role or null, and associated public HTTPS URL; snippets are leads, not evidence."
+      ];
+      for (const section of compactDiscoverySections) appendBudgeted(section, 620, "[discovery detail omitted]");
+    }
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
     // Return the actual bounded projection; returning mandatoryMinimumTail here
     // silently discarded every compaction decision made by appendBudgeted.
