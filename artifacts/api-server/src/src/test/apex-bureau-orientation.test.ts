@@ -92,7 +92,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("One focused discovery query");
+    expect(core).toContain("quick bounded mixed-source first pass");
     expect(core).toContain("Investigator chooses actions; no fixed recovery sequence.");
     expect(core).toContain("selects targets, queries, sources, tools, pivots and stopping.");
   });
