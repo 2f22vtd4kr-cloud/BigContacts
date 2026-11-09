@@ -31,7 +31,7 @@ The extractor exports only public registrant names, state/country, aircraft iden
 
 ## Company realism
 
-A company registrant is a company-level research candidate, not automatically a high-value target. Apex's cognitive research workflow may use Inc. 5000, fast-growth and unicorn rankings as company-level discovery signals. Ranking-only mentions remain leads, not qualified targets. Company growth/materiality is assessed separately from any individual owner's wealth; founder or shareholder wealth requires independent ownership/control and personal-wealth evidence.
+A company registrant is a company-level research candidate, not automatically a high-value target. Inc. 5000, fast-growth and unicorn rankings are poor-fit signals for practical targetability, never positive qualification; do not prioritize a firm merely for appearing on such a list. Ranking-only mentions remain leads, not qualified targets. For operating-company targets, prefer currently operating private/mid-market businesses with objective fit, identifiable decision-makers and practical public/professional routes. Potential-investor firms require independent evidence of capital capacity or actual investment activity and relevant mandate fit. Company growth/materiality is assessed separately from any individual owner's wealth; founder or shareholder wealth requires independent ownership/control and personal-wealth evidence.
 
 The company description, legal status, disclosed scale, ownership/control and public professional route must be researched from relevant authoritative sources. Do not infer a company affiliation, beneficial owner, revenue, valuation, or personal wealth from the FAA registration record.
 
