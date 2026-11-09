@@ -152,6 +152,23 @@ export function resolveDiscoveryIterationsPerAct(
  * ceiling, leave the protected budget unused rather than letting discovery expand
  * into the entire job.
  */
+/**
+ * The opening Investigator episode gets one bounded correction opportunity
+ * beyond the original three-turn cap. Invalid action contracts and deterministic
+ * policy blocks are fed back to the model; this extra turn lets it repair its own
+ * action without handing research decisions to a deterministic fallback.
+ */
+export function resolveOpeningInvestigatorIterations(
+  config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
+  discoveryIterationCeiling: number,
+): number {
+  const available = Number.isFinite(discoveryIterationCeiling)
+    ? Math.max(0, Math.floor(discoveryIterationCeiling))
+    : 0;
+  if (available === 0) return 0;
+  return Math.min(4, resolveDiscoveryIterationsPerAct(config, available), available);
+}
+
 export function resolveRemainingDiscoveryIterations(input: {
   totalIterationCeiling: number;
   discoveryIterationCeiling: number;
