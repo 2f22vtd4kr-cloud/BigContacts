@@ -168,7 +168,6 @@ export function assessCompanyRealism(input: {
     && isHttpsSourceUrl(metadata.officialWebsiteSourceUrl);
   const sourceHosts = new Set<string>();
   for (const record of [
-    ...rankingRecords,
     ...scaleRecords,
     ...capitalRecords,
     ...investmentRecords,
