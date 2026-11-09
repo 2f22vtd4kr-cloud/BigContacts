@@ -457,6 +457,17 @@ describe("company-scoped target fitness realism", () => {
     expect(shouldRejectTarget(result)).toBe(true);
   });
 
+  it("keeps trusts distinct from operating-company and person fitness", () => {
+    const result = evaluateTargetFitness({
+      name: "Example Family Trust",
+      type: "Trust",
+      personScoped: false,
+    });
+    expect(result.fit).toBe("review");
+    expect(result.reasons.join(" ")).toContain("Trust is a distinct legal structure");
+    expect(shouldRejectTarget(result)).toBe(false);
+  });
+
   it("keeps an FAA-registrant-only company in review rather than inventing scale or owner wealth", () => {
     const result = evaluateTargetFitness({
       name: "Unverified Holdings LLC",
