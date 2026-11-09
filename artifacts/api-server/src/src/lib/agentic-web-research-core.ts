@@ -5705,10 +5705,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ...(input.mode === "discovery"
         ? semanticRecoveryClauses.filter(([marker]) => !repaired.includes(marker)).map(([, clause]) => clause)
         : []),
-      input.mode === "discovery" && !repaired.includes("No registry is preferred; choose by evidence.")
+      mode === "discovery" && !repaired.includes("No registry is preferred; choose by evidence.")
         ? "SOURCE SELECTION: No registry is preferred; choose by evidence."
         : "",
-      input.mode === "discovery" && !repaired.includes("FAST HANDOFF:")
+      mode === "discovery" && !repaired.includes("FAST HANDOFF:")
         ? "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick look; if plausible, stop discovery and hand to Boss."
         : "",
       !repaired.includes("visit supports bounded text extraction") ? minimumBinaryRecovery : "",
