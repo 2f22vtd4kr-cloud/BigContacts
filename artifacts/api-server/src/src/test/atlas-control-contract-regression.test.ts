@@ -32,6 +32,18 @@ describe("objective-aligned Boss control decisions", () => {
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
   });
 });
+describe("objective-aligned Right-hand control guidance", () => {
+  it("does not make private or mid-market status a default B2B target requirement", () => {
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "No source-backed B2B candidates have been admitted yet.",
+      compactState: "Human objective: Find B2B software companies and their current decision-makers.",
+    });
+    expect(prompt).toContain("Operating-company targets need evidence of current operations and objective fit");
+    expect(prompt).toContain("apply private/mid-market constraints only when the human explicitly requests them");
+    expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
+  });
+});
+
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
