@@ -34,7 +34,7 @@ const OPERATOR_ROLE_RE =
   /\b(founder|co-?founder|cofounder|ceo|chief executive|managing partner|general partner|gp\b|operator|owner-?operator|proprietor|managing director|executive chairman|president(?!\s+of\s+the\s+united)|cto|cfo|coo|chief\s+\w+\s+officer|board\s+member|director(?!\s+of\s+photography)|shareholder|principal)\b/i;
 
 const CORP_SHELL_RE =
-  /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?|private equity|venture capital|investment firm|family office|asset manager|fund|professional firm)\b/i;
+  /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?|private equity|venture capital|investment firm|investment company|family office|asset manager|fund manager|private capital|capital management|fund|professional firm)\b/i;
 
 const PERSON_NAME_RE = /^[A-Za-zÀ-ÿ'’.\-]+(?:\s+[A-Za-zÀ-ÿ'’.\-]+){0,4}$/;
 
@@ -73,7 +73,7 @@ export function evaluateTargetFitness(input: {
   }
 
   const isOrgType =
-    /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test(type) ||
+    /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|investment company|private equity(?: firm| fund)?|venture capital(?: firm| fund)?|family office|asset manager|investment fund|fund manager|private capital firm|capital management|fund|holding company|limited partnership)$/i.test(type) ||
     CORP_SHELL_RE.test(name);
   const isCompanyType =
     /^(corporation|corp|company|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test(type) ||
