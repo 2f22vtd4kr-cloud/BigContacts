@@ -2106,7 +2106,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
       );
     }
     const withoutObjective = objectiveBlock ? prefix.replace(objectiveBlock, "") : prefix;
-    const remainingParagraphs = withoutObjective.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const remainingParagraphs = withoutObjective.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
     const addMatches = (pattern: RegExp, cap: number, label: string, latestOnly = false) => {
       const matches = remainingParagraphs.filter((part) => pattern.test(part));
       const chosen = latestOnly ? matches.slice(-1) : matches;
