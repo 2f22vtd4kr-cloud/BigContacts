@@ -143,6 +143,7 @@ describe("target reachability realism", () => {
     expect(formatReachabilityDirective(result)).toContain("poor-fit signals, not positive qualification");
     expect(formatReachabilityDirective(result)).toContain("ranking-only mentions are leads, not qualified targets");
     expect(formatReachabilityDirective(result)).toContain("Company growth is not owner wealth");
+    expect(formatReachabilityDirective(result)).toContain("Confirm the legal entity, current operations and objective fit before searching for contacts");
   });
 
   it("requires independent source-backed scale, legal status, ownership and an official route for full company realism", () => {
