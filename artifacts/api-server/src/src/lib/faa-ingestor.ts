@@ -223,7 +223,15 @@ export function createFaaRegistrationDedupKey(input: {
   registrantTypeCode: string;
   statusCode: string;
   lastActivityDate: string;
+  expirationDate: string;
+  fractionalOwnershipFlag: string;
   uniqueId: string;
+  serialNumber: string;
+  yearManufactured: string;
+  typeAircraft: string;
+  typeEngine: string;
+  manufacturerModelCode: string;
+  engineModelCode: string;
 }): string {
   const nNumber = input.nNumber.trim().toUpperCase().replace(/^N?/, "N");
   const registrantKey = createFaaRegistrantEntityKey(
@@ -232,9 +240,20 @@ export function createFaaRegistrationDedupKey(input: {
     input.country,
     input.registrantTypeCode,
   );
-  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId]
-    .map((value) => encodeURIComponent(value.trim()))
-    .join(":");
+  const version = [
+    registrantKey,
+    input.statusCode,
+    input.lastActivityDate,
+    input.expirationDate,
+    input.fractionalOwnershipFlag,
+    input.uniqueId,
+    input.serialNumber,
+    input.yearManufactured,
+    input.typeAircraft,
+    input.typeEngine,
+    input.manufacturerModelCode,
+    input.engineModelCode,
+  ].map((value) => encodeURIComponent(value.trim())).join(":");
   return `faa:v2:${nNumber}:${version}`;
 }
 
@@ -826,7 +845,15 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       registrantTypeCode: typeReg,
       statusCode,
       lastActivityDate,
+      expirationDate,
+      fractionalOwnershipFlag,
       uniqueId,
+      serialNumber: serial,
+      yearManufactured: yearMfr,
+      typeAircraft,
+      typeEngine,
+      manufacturerModelCode,
+      engineModelCode,
     });
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
