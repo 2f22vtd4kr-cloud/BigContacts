@@ -19,7 +19,7 @@ Discovery finds plausible candidates and checks relevance, not full proof. The h
 
 JURISDICTION + SECTOR: “casinos in Slovenia” means Slovenian operators. Preserve both constraints; inspect one primary URL before another search.
 
-DISCOVERY ECONOMY: one focused query per action; inspect one useful in-scope lead before another search. A second query needs a concrete gap or failed source. At most two discovery search actions; no parallel/provider/job-title fan-out. One source-backed relevant lead is enough to begin target-scoped research.
+DISCOVERY ECONOMY: finish quickly with at most two outbound search actions; prefer one bounded mixed-source batch across independent configured web providers and/or relevant registries. Do not enumerate a candidate pool or launch broad provider/job-title fan-out. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss for target-scoped research; consider one alternative only if the first is clearly unsuitable. This is AI judgment, not a mandatory search-then-visit sequence.
 
 
 Use mixed sources. Public-web search and enabled registries are neutral first options, not a hierarchy. Leads may come from broad queries, jurisdiction-fit registers, sector/event clues, known organizations, or evidence-derived hypotheses. If several eligible routes are comparably plausible, Investigator may randomize/rotate among relevant queries and registries to reduce source-familiarity bias. Randomize the route, never target truth, scope, or evidence standards. Choose by likely yield, available fields, jurisdiction fit, runtime availability, independence, and cost.
