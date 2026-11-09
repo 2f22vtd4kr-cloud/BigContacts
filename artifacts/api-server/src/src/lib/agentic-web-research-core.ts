@@ -3941,10 +3941,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(fallbackEvidenceContract, 760, "[partial-finding detail omitted; durable ledger remains authoritative]");
     if (isDiscoveryPrompt) {
       appendBudgeted(
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected exact-name leads as review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. Other objectives use their own evidence criteria. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory.",
-        1_050,
+        "DISCOVERY MODE: no person or entity target is implied. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: preserve Investigator-selected exact-name leads as review-only; snippets are leads, not evidence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: the Investigator decides relevance; a generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. Source class may vary by query. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory.",
+        1_250,
         "[optional discovery detail omitted; objective and handoff remain authoritative]",
       );
+      appendBudgeted(leadGuidance, 220, "[lead follow-up guidance omitted]");
     }
     appendBudgeted(minimumTargetabilityMarker, 260, "[targetability detail omitted]");
     appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
