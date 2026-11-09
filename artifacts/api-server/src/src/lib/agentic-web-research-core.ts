@@ -3244,17 +3244,26 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const discoveryContractRequested = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
   const hasSemanticInvestigatorContract = (prompt: string): boolean => {
     if (!requiresCompleteActionSchema) return true;
+    const observationMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"].filter((marker) => observation.includes(marker));
     const common = hasCompleteActionSchema(prompt)
       && /OUTPUT CONTRACT:/.test(prompt)
       && /AVAILABLE ACTIONS:/.test(prompt)
       && /VALID PROVIDERS:/.test(prompt)
       && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt)
+      && /never invent an ID based on a jurisdiction/i.test(prompt)
       && /PAGE FORMAT \/ RETRIEVAL LIMITS:/.test(prompt)
       && prompt.includes("visit supports bounded text extraction")
-      && /RESEARCH TERMINAL GATE/.test(prompt);
+      && /image-only PDFs require OCR \(unavailable\)/i.test(prompt)
+      && /browser_fetch is HTML-only/i.test(prompt)
+      && /RESEARCH TERMINAL GATE/.test(prompt)
+      && prompt.includes("Qualification follows the active objective")
+      && /wealth\/investor targets also need source-backed ownership\/control\/equity\/investment/i.test(prompt)
+      && observationMarkers.every((marker) => prompt.includes(marker));
     if (!common || !discoveryContractRequested) return common;
     return prompt.includes("DISCOVERY SEARCH ECONOMY")
       && prompt.includes("DISCOVERY LEAD HANDOFF CONTRACT")
+      && prompt.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES")
+      && prompt.includes("Popularity is not a filter:")
       && prompt.includes("PARTIAL FINDINGS")
       && prompt.includes("MODEL-OWNED RELEVANCE SELF-CHECK")
       && prompt.includes("No fixed action sequence.")
@@ -3762,7 +3771,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. One source-backed relevant lead starts target research; do not request more broad discovery, a larger candidate pool, or a geography comparison merely to delay target selection. COMPANY REALISM: Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals, not qualification; ranking-only mentions are leads, not qualified targets. Company growth and materiality must be assessed separately from an individual owner's wealth. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Operating-company targets need evidence of current operations, objective fit and relevant decision-makers; private/mid-market status matters only when requested. No registry is preferred; choose by evidence. Example: casinos in Slovenia. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch; FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss; try one alternative only if clearly unsuitable. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence link. SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query; never pivot sector/jurisdiction. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads review-only; snippets/URLs are leads, not evidence. SEARCH: market only if country in objective/scope; locale=language. Target-specific names come from the human brief or same-case observations, never model memory/placeholders."
     : "";
   const minimumObservationTail = observationTail
-    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220)
+    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 360)
     : "";
   const mandatoryMinimumParts = [
     fallbackOutputContract,
