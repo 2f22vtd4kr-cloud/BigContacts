@@ -37,6 +37,10 @@ const FAA_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip";
 const TMP_DIR = join(tmpdir(), "apexfinder-faa");
 const ZIP_PATH = join(TMP_DIR, "ReleasableAircraft.zip");
 const FAA_SEED_MASTER_CANDIDATES = [
+  join(process.cwd(), "data/registry-seeds/faa_sanitized_MASTER_ALL.txt"),
+  join(process.cwd(), "../../data/registry-seeds/faa_sanitized_MASTER_ALL.txt"),
+  join(process.cwd(), "../../../data/registry-seeds/faa_sanitized_MASTER_ALL.txt"),
+  // Compatibility fallback for deployments that have not yet received the combined extract.
   join(process.cwd(), "data/registry-seeds/faa_sanitized_MASTER.txt"),
   join(process.cwd(), "../../data/registry-seeds/faa_sanitized_MASTER.txt"),
   join(process.cwd(), "../../../data/registry-seeds/faa_sanitized_MASTER.txt"),
@@ -204,9 +208,11 @@ function parseFaaEntityMetadata(entity: Pick<InsertEntity, "metadata">): Record<
 }
 
 /** Stable source key: FAA's published name is grouped only with registry state/country. */
-export function createFaaRegistrantEntityKey(name: string, state: string, country: string): string {
+export function createFaaRegistrantEntityKey(name: string, state: string, country: string, registrantTypeCode = "1"): string {
   const normalizedName = name.trim().toLowerCase().replace(/\s+/g, " ");
-  return normalizedName + "|" + state.trim().toUpperCase() + "|" + (country.trim() || "US").toUpperCase();
+  const baseKey = normalizedName + "|" + state.trim().toUpperCase() + "|" + (country.trim() || "US").toUpperCase();
+  // Preserve the existing individual key format while keeping same-name legal forms distinct.
+  return registrantTypeCode === "1" ? baseKey : baseKey + "|type:" + registrantTypeCode;
 }
 
 /** Return a key only for FAA-sourced candidates; never merge a same-name non-FAA identity. */
@@ -214,7 +220,7 @@ export function faaRegistrantEntityKey(entity: Pick<InsertEntity, "name" | "meta
   const metadata = parseFaaEntityMetadata(entity);
   if (metadata.source !== "faa-aircraft-registry") return null;
   if (typeof metadata.faaRegistrantKey === "string" && metadata.faaRegistrantKey.trim()) return metadata.faaRegistrantKey;
-  return createFaaRegistrantEntityKey(entity.name, String(metadata.registrantState ?? ""), String(metadata.country ?? "US"));
+  return createFaaRegistrantEntityKey(entity.name, String(metadata.registrantState ?? ""), String(metadata.country ?? "US"), String(metadata.registrantTypeCode ?? "1"));
 }
 
 export function buildFaaRegistrantEntity(input: {
@@ -291,7 +297,7 @@ export function buildFaaRegistrantEntity(input: {
       lastActivityDate: faaDateToIso(input.lastActivityDate),
       sourceFieldSemantics: "FAA registrant type identifies the registration applicant; it does not establish ultimate beneficial ownership or personal wealth.",
       candidateKind: isPersonCandidate ? "individual_registrant_candidate" : "legal_entity_registrant_candidate",
-      faaRegistrantKey: createFaaRegistrantEntityKey(name, input.state, input.country),
+      faaRegistrantKey: createFaaRegistrantEntityKey(name, input.state, input.country, classification.registrantTypeCode),
     }),
   };
 }
@@ -779,9 +785,9 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
     if (!nNumber) continue;
-    // Match the committed sanitized individual-only snapshot on both download and fallback paths.
-    // Corporate/partnership registrants are handled by a separate source-backed workstream.
-    if (typeReg !== "1") continue;
+    // Include supported individual and legal-entity registrants from the official archive
+    // or combined sanitized fallback. Co-owned, government and unknown types remain unresolved.
+    if (!["1", "2", "3", "7", "8"].includes(typeReg)) continue;
     const classification = classifyFaaRegistrant(typeReg, { fractionalOwnershipFlag, statusCode });
     // Keep current/renewal-pending registrations; do not seed sold, expired,
     // revoked, reserved, or unknown status rows as live asset candidates.
