@@ -3,13 +3,15 @@
 FROM ghcr.io/astral-sh/uv:0.8.22 AS uvbin
 FROM python:3.12-slim-bookworm AS worker-build
 
-ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PYTHON_INSTALL_DIR=/opt/python UV_CACHE_DIR=/opt/uv-cache
+ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PYTHON_INSTALL_DIR=/opt/python UV_CACHE_DIR=/opt/uv-cache UV_HTTP_RETRIES=10 UV_HTTP_TIMEOUT=120
 COPY --from=uvbin /uv /uvx /usr/local/bin/
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git build-essential util-linux libffi-dev libssl-dev libxml2-dev libxslt1-dev \
       libpcap-dev libmagic1 libjpeg62-turbo-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && uv python install 3.10 3.12 3.13 \
+    # Python 3.12 is already supplied by the pinned python:3.12-slim base image.
+    # Download only the additional runtimes and retry transient release-asset 5xx errors.
+    && uv python install 3.10 3.13 \
     && mkdir -p /opt/tools /opt/venvs /app /tmp/apex-spiderfoot-home \
     && chmod 0700 /tmp/apex-spiderfoot-home
 
@@ -26,12 +28,12 @@ RUN git clone --depth 1 --branch v4.0 https://github.com/smicallef/spiderfoot.gi
 # release contract. It runs via its Python API, avoiding its updater side channel.
 RUN git clone https://github.com/megadose/holehe.git /opt/tools/holehe \
     && git -C /opt/tools/holehe checkout 14da70f588538936b20d238783c5e28a0772a2b3 \
-    && uv venv --python 3.12 /opt/venvs/holehe \
+    && uv venv --python /usr/local/bin/python /opt/venvs/holehe \
     && uv pip install --python /opt/venvs/holehe/bin/python /opt/tools/holehe
 
-RUN uv venv --python 3.12 /opt/venvs/maigret \
+RUN uv venv --python /usr/local/bin/python /opt/venvs/maigret \
     && uv pip install --python /opt/venvs/maigret/bin/python maigret==0.6.6 \
-    && uv venv --python 3.12 /opt/venvs/sherlock \
+    && uv venv --python /usr/local/bin/python /opt/venvs/sherlock \
     && uv pip install --python /opt/venvs/sherlock/bin/python sherlock-project==0.16.2
 
 # theHarvester 4.11.1 is isolated on Python 3.13 to avoid conflicts with other tool environments.
