@@ -5814,7 +5814,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : []),
       ["source class may vary by query", "SCOPE RECOVERY: preserve approved subject/geography; source class may vary by query."],
     ];
-    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner’s wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one mixed-source batch. FAST HANDOFF: one quick source look is enough; select one strongest objective-fit lead, not a shortlist.";
+    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner’s wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one mixed-source batch. FAST HANDOFF: one quick source look is enough; select one strongest objective-fit lead, not a shortlist. Target-specific names come from the human brief or same-case observations, never model memory.";
     const providerBoundaryTerminal = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
     const providerBoundaryTerminalRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + providerBoundaryTerminal.minEvidence + "; minIndependentSourceUnits=" + providerBoundaryTerminal.minIndependentSourceUnits + "; requireExactSpanForFindings=" + providerBoundaryTerminal.requireExactSpanForFindings + "; requireFalsification=" + providerBoundaryTerminal.requireFalsification + "; done only when this mode-specific gate passes.";
     const requiredAdditions = [
@@ -6011,6 +6011,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "one quick source look is enough",
         "Popularity is not a filter:",
         "require direct relevance to the active objective",
+      "Target-specific names come from the human brief or same-case observations",
       ] : []),
       "visit supports bounded text extraction",
       "do not retry the same binary URL through the other fetch action",
@@ -6109,7 +6110,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return finalProjection;
     }
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !finalProjection.includes(marker));
-    const recoveryText = missingFinalMarkers.map((marker) => {
+    const recoveryText = [
+      missingFinalMarkers.map((marker) => {
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
       if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === "Qualification follows the active objective") return marker + ".";
@@ -6121,7 +6123,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "Other objectives use their own evidence criteria") return marker + ".";
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
-    }).filter(Boolean).join("\n\n");
+      }).filter(Boolean),
+      input.mode === "discovery" && missingFinalMarkers.some((marker) => marker.includes("Inc. 5000") || marker.includes("mixed-source batch") || marker.includes("Target-specific names")) ? compactDiscoveryGate : "",
+      !finalProjection.includes("minEvidence=") ? providerBoundaryTerminalRule : "",
+    ].filter(Boolean).join("\n\n");
     const repairedProjection = recoveryText
       ? [finalProjection.trim(), recoveryText].filter(Boolean).join("\n\n")
       : finalProjection;
