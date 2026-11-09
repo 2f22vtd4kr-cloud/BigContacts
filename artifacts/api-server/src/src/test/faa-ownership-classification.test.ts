@@ -106,6 +106,7 @@ describe("FAA registrant ownership classification", () => {
     ["19", "pending"],
     ["20", "pending"],
     ["V", "valid"],
+    ["N", "valid"],
   ] as const)("classifies FAA registration status %s without asserting current ownership", (statusCode, expected) => {
     const result = classifyFaaRegistrant("1", { statusCode });
     expect(result.registrationStatus).toBe(expected);
