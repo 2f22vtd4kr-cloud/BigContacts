@@ -6029,7 +6029,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section)
       );
-      if (duplicatedDiscoverySections.length > 0) {
+      {
         const kept = repairedSections.filter((section) => !duplicatedDiscoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
         kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
@@ -6048,7 +6048,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Emergency discovery can carry the same policy in several overlapping
     // sections. Replace those duplicates with one compact, complete model-owned
     // decision contract before removing any objective, scope, source or URL data.
-    if (input.mode === "discovery" && finalProjection.length > maxUserPromptChars) {
+    if (input.mode === "discovery") {
       const compactDiscoveryContract = [
         "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. Other objectives use their own evidence criteria.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth.",
