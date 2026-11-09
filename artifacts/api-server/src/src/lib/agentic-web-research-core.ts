@@ -6042,13 +6042,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // so apply the final semantic compaction to that rebuilt projection as well.
     if (finalProjection.length > maxUserPromptChars) {
       finalProjection = finalProjection
-        .replace(/PARTIAL FINDINGS[^:\\n]*:[^\\n]*/g,
+        .replace(/PARTIAL FINDINGS[^:\n]*:[^\n]*/g,
           "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only; exact name, role or null, public HTTPS URL. Search snippets remain leads, not evidence; failed fetches are unobserved. Qualification follows the active objective; B2B decision-makers need a fetched source binding current role, company connection and public/professional route. Wealth/ownership/relationships require source-backed evidence; never infer wealth from seniority. After fetch, sourceUrls=[that fetched URL only]; claims bind to exact span.")
-        .replace(/DISCOVERY TARGETABILITY \\/ REALISM:[^\\n]*/g,
+        .replace(/DISCOVERY TARGETABILITY \/ REALISM:[^\n]*/g,
           "DISCOVERY TARGETABILITY / REALISM: One source-backed relevant lead starts target research. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Example: casinos in Slovenia.")
-        .replace(/PAGE FORMAT \\/ RETRIEVAL LIMITS:[^\\n]*/g,
+        .replace(/PAGE FORMAT \/ RETRIEVAL LIMITS:[^\n]*/g,
           "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.")
-        .replace(/RUNTIME-AVAILABLE REGISTRY IDS ONLY \\(CALLABLE ADAPTERS\\):[^\\n]*/g,
+        .replace(/RUNTIME-AVAILABLE REGISTRY IDS ONLY \(CALLABLE ADAPTERS\):[^\n]*/g,
           "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): kbo-belgium, ares-czechia, borme-spain, faa, atoka-italy, cvr-denmark, ytj-finland, brreg, sec-edgar, zefix-switzerland, bodacc-france, gleif. Never invent IDs; unavailable/failed is not a no-hit; verify documented ownership fields.");
     }
     // The auxiliary compactor can rebuild a valid contract yet exceed the outer
