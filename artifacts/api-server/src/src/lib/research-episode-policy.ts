@@ -49,7 +49,7 @@ export function shouldCheckpointResearchEpisode(input: {
   if (input.contradictionCount && input.contradictionCount > 0) reasons.push("contradiction");
   if (input.identityChanged) reasons.push("identity_change");
   if (input.highValueContact) reasons.push("high_value_contact");
-  if (input.actionExecution && !["success", "selected"].includes(input.actionExecution)) reasons.push("failed_action");
+  if (input.actionExecution && !["success", "selected", "blocked"].includes(input.actionExecution)) reasons.push("failed_action");
   if (input.terminalClaim) reasons.push("terminal_claim");
   if (typeof input.informationGain === "number" && input.actionsSinceCheckpoint >= window.minActions && input.informationGain < 0.12) {
     reasons.push("low_information_gain");
