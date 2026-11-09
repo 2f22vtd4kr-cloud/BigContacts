@@ -247,6 +247,7 @@ def main() -> None:
         "master_rows_scanned_including_header_if_present": scanned,
         "distinct_individual_registrant_groups": len(people),
         "individual_aircraft_registration_rows": len(aircraft_rows),
+        "aircraft_registration_rows": len(aircraft_rows),
         "distinct_corporate_registrant_groups": len(corporations),
         "corporate_aircraft_registration_rows": len(corporate_aircraft_rows),
         "eligible_individual_and_corporate_aircraft_registration_rows": len(all_eligible_aircraft_rows),
