@@ -4022,7 +4022,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 620, "[older trajectory detail omitted; immutable case events remain authoritative]");
     appendBudgeted(markerSuffix, 160, "[trajectory marker omitted]");
-    appendBudgeted(minimumObservationTail || (header + " " + observationTail), 360, "[observation detail omitted]");
+    appendBudgeted(minimumObservationTail || (header + " " + observationTail), 280, "[observation detail omitted]");
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 300, "[fetched-source excerpt detail omitted]");
 
@@ -4031,7 +4031,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // qualification narration so emergency compaction cannot erase them.
     if (isDiscoveryPrompt) {
       appendBudgeted(
-        "DISCOVERY MODE: no target implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; other objectives use their own evidence criteria. DISCOVERY SEARCH ECONOMY: at most two outbound searches; prefer one bounded mixed-source batch. FAST HANDOFF: strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. No registry is preferred; choose by evidence. Example: casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; snippets are leads, not evidence.",
+        "DISCOVERY MODE: no target implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; other objectives use their own criteria. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY TARGETABILITY / REALISM: people, companies and assets stay distinct. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals, not proof of owner wealth; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality are separate from individual owner wealth. No registry is preferred; choose by evidence. Example: casinos in Slovenia. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence.",
         1_250,
         "[optional discovery detail omitted; objective and handoff remain authoritative]",
       );
@@ -5876,7 +5876,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         if (end <= start) return;
         repaired = repaired.slice(0, start) + replacement + " " + repaired.slice(end).trimStart();
       };
-      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound searches; prefer one bounded mixed-source batch. FAST HANDOFF: strongest objective-fit lead, not a shortlist; one quick source look is enough.", ["LEAD FOLLOW-UP GUIDANCE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
+      compactClause("DISCOVERY SEARCH ECONOMY:", "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research.", ["LEAD FOLLOW-UP GUIDANCE:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:"]);
 
       compactClause("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:", "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable public-evidence hypothesis. Other objectives use their own criteria.", ["DISCOVERY MODE:"]);
       compactClause("DISCOVERY MODE:", "DISCOVERY MODE: no target implied; human objective/Boss scope govern. Names come from the brief or same-case observations.", ["MODEL-OWNED RELEVANCE SELF-CHECK:"]);
