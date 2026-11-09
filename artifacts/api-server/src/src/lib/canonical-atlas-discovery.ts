@@ -2576,10 +2576,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             await tx.insert(researchCaseEventsTable).values({
               caseId: discoveryCaseId,
               iteration: nextIteration,
-              actorRole: "head_investigator",
+              actorRole: episodeFailure.code === "investigator_oversight_unavailable" ? "right_hand" : "head_investigator",
               eventType: "observation",
               status: "error",
-              summary: "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
+              summary: episodeFailure.code === "investigator_oversight_unavailable"
+                ? "Canonical Right-hand oversight unavailable; case parked for review."
+                : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
               correlationKey: `${atlasJobId}:investigator-episode-failure:control:${controlTurns}`,
               payload: JSON.stringify({
                 jobId: atlasJobId,
