@@ -102,7 +102,7 @@ function sourceHostKey(value: unknown): string | null {
 }
 
 function isCompanyTargetType(type?: string | null): boolean {
-  return /^(corporation|corp|company|trust|organization|org|professional firm|partnership|llc|limited liability company)$/i.test((type ?? "").trim());
+  return /^(corporation|corp|company|organization|org|professional firm|partnership|llc|limited liability company)$/i.test((type ?? "").trim());
 }
 
 function verifiedCompanyEvidence(value: unknown, allowedSourceTypes: string[]): Record<string, unknown>[] {
