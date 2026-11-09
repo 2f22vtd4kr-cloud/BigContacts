@@ -248,7 +248,8 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     }
   }
 
-  if (doClean) await clearDedup();
+  // The FAA replay must not erase dedup state for BRREG, land-registry or other ingestors.
+  if (doClean) await clearDedup("faa:v2:");
 
   const jobId = await createJob("faa");
   if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;
