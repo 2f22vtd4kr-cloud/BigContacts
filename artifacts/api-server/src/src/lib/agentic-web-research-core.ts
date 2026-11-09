@@ -4022,31 +4022,32 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[fetched-source excerpt detail omitted]");
 
-    // Compact, irreducible evidence and action rules. Keep the discovery
-    // handoff short: one bounded mixed-source batch, one strongest lead, then
-    // target research; never turn discovery into a candidate shortlist.
+    // The action/evidence contract is mandatory, not optional prose. Put the
+    // discovery decision rule and live runtime capabilities before long
+    // qualification narration so emergency compaction cannot erase them.
+    if (isDiscoveryPrompt) {
+      appendBudgeted(
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Example: casinos in Slovenia. Target-specific names come from human brief or same-case observations, never model memory. Private/mid-market status only when requested; company growth is not owner wealth.",
+        1_100,
+        "[optional discovery detail omitted; objective and handoff remain authoritative]",
+      );
+    }
+    appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 360, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
+    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability omitted]");
+
     appendBudgeted(
       isDiscoveryPrompt
         ? "PARTIAL FINDINGS: preserve Investigator-selected source-backed leads as review-only; retain exact observed name, stated role or null, and public HTTPS URL. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
         : fallbackEvidenceContract,
-      900,
+      1_100,
       "[partial-finding detail omitted; durable ledger remains authoritative]",
     );
-    if (isDiscoveryPrompt) {
-      appendBudgeted(
-        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Example: casinos in Slovenia. Target-specific names come from human brief or same-case observations, never model memory. Private/mid-market status only when requested; company growth is not owner wealth.",
-        950,
-        "[optional discovery detail omitted; objective and handoff remain authoritative]",
-      );
-      appendBudgeted(leadGuidance, 220, "[lead follow-up guidance omitted]");
-    }
-    appendBudgeted(minimumTargetabilityMarker, 260, "[targetability detail omitted]");
-    appendBudgeted(minimumOrganizationTargetabilityMarker, 180, "[organization review status omitted]");
-    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 360, "[PDF retrieval detail omitted]");
-    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 180, "[conditional specialist capability omitted]");
+    appendBudgeted(minimumTargetabilityMarker, 180, "[targetability detail omitted]");
+    appendBudgeted(minimumOrganizationTargetabilityMarker, 150, "[organization review status omitted]");
+    if (isDiscoveryPrompt) appendBudgeted(leadGuidance, 220, "[lead follow-up guidance omitted]");
     appendBudgeted(emergencyAiMemorySection || aiMemorySection, 240, "[older AI memory omitted; durable case ledger remains authoritative]");
 
     mandatoryMinimumTail = joinPromptParts(finalParts);
