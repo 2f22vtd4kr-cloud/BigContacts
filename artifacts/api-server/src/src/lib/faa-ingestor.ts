@@ -215,6 +215,29 @@ export function createFaaRegistrantEntityKey(name: string, state: string, countr
   return registrantTypeCode === "1" ? baseKey : baseKey + "|type:" + registrantTypeCode;
 }
 
+export function createFaaRegistrationDedupKey(input: {
+  nNumber: string;
+  registrantName: string;
+  state: string;
+  country: string;
+  registrantTypeCode: string;
+  statusCode: string;
+  lastActivityDate: string;
+  uniqueId: string;
+}): string {
+  const nNumber = input.nNumber.trim().toUpperCase().replace(/^N?/, "N");
+  const registrantKey = createFaaRegistrantEntityKey(
+    input.registrantName,
+    input.state,
+    input.country,
+    input.registrantTypeCode,
+  );
+  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId]
+    .map((value) => encodeURIComponent(value.trim()))
+    .join(":");
+  return `faa:v2:${nNumber}:${version}`;
+}
+
 /** Return a key only for FAA-sourced candidates; never merge a same-name non-FAA identity. */
 export function faaRegistrantEntityKey(entity: Pick<InsertEntity, "name" | "metadata">): string | null {
   const metadata = parseFaaEntityMetadata(entity);
@@ -793,7 +816,18 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     // revoked, reserved, or unknown status rows as live asset candidates.
     if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
-    const dkey = `faa:v2:${nNumber}`;
+    // Reprocess a tail number when its published registrant, legal form, status,
+    // last-action date or FAA record identifier changes; N-number-only dedup hid transfers.
+    const dkey = createFaaRegistrationDedupKey({
+      nNumber,
+      registrantName: rawName,
+      state,
+      country,
+      registrantTypeCode: typeReg,
+      statusCode,
+      lastActivityDate,
+      uniqueId,
+    });
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
