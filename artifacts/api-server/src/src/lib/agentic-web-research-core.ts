@@ -3928,7 +3928,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Dynamic evidence outranks generic narrative. URLs are copied verbatim;
     // the latest record retains its exact turn and query/action identity.
     appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 620, "[older trajectory detail omitted; immutable case events remain authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 620, "[older trajectory detail omitted; immutable case events remain authoritative]");
     appendBudgeted(markerSuffix, 160, "[trajectory marker omitted]");
     appendBudgeted(minimumObservationTail || (header + " " + observationTail), 360, "[observation detail omitted]");
     appendBudgeted(carriedFetchedSourceSummary, 220, "[fetched-source event detail omitted]");
