@@ -3237,7 +3237,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // filing, appointment, or transaction fact. Keep it whole instead of taking
     // the last N characters, which can cut away the claim's subject or verb.
     if (lastSentence.length >= 35) {
-      return lastSentence.length > 260 ? lastSentence.slice(0, 260) : lastSentence;
+      return lastSentence.length > 260 ? lastSentence.slice(-260) : lastSentence;
     }
     return normalized.slice(-220);
   };
@@ -5443,7 +5443,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const lastBreak = breaks.at(-1);
         const sentenceStart = lastBreak ? (lastBreak.index ?? 0) + lastBreak[0].length : 0;
         const finalSentence = raw.slice(sentenceStart).trim();
-        const tail = finalSentence.length >= 35 ? finalSentence.slice(0, 260) : raw.slice(-220);
+        const tail = finalSentence.length >= 35 ? finalSentence.slice(-260) : raw.slice(-220);
         return tail
           ? "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording): " + tail
           : "";
