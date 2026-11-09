@@ -3629,7 +3629,7 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("mixed-source");
     expect(prompt).toContain("one quick source look is enough to hand it to target research");
-    expect(prompt).toContain("A relevant exact-name organization confirmed by fetched/registry source may set promotionDecision=promote for target research only, not final CRM/contact");
+    expect(prompt).toContain("ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
     expect(prompt).toContain("private/mid-market status matters only when requested");
