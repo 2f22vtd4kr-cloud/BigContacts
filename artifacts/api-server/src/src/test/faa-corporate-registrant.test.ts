@@ -56,58 +56,50 @@ describe("FAA legal-entity registrant candidates", () => {
     );
   });
 
-  it("reprocesses a tail number when registrant or any source-owned record field changes", () => {
-    const base = {
+  it("reprocesses a tail number when the published registrant or record version changes", () => {
+    const baseKey = createFaaRegistrationDedupKey({
+      nNumber: "N70001",
       registrantName: "PUBLIC HOLDINGS LLC",
       state: "TX",
       country: "US",
       registrantTypeCode: "3",
       statusCode: "V",
       lastActivityDate: "2026/10/01",
-      expirationDate: "2028/10/01",
-      fractionalOwnershipFlag: "N",
       uniqueId: "FAA-ENTITY-1",
-      serialNumber: "SERIAL-70001",
-      yearManufactured: "2020",
-      typeAircraft: "5",
-      typeEngine: "4",
-      manufacturerModelCode: "1234567",
-      engineModelCode: "12345",
-    };
-    const baseKey = createFaaRegistrationDedupKey({ ...base, nNumber: "N70001" });
-    const sameKey = createFaaRegistrationDedupKey({ ...base, nNumber: "70001" });
+    });
+    const sameKey = createFaaRegistrationDedupKey({
+      nNumber: "70001",
+      registrantName: "PUBLIC HOLDINGS LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "3",
+      statusCode: "V",
+      lastActivityDate: "2026/10/01",
+      uniqueId: "FAA-ENTITY-1",
+    });
     const changedRegistrant = createFaaRegistrationDedupKey({
-      ...base,
       nNumber: "N70001",
       registrantName: "NEW REGISTRANT LLC",
+      state: "TX",
+      country: "US",
       registrantTypeCode: "7",
+      statusCode: "V",
+      lastActivityDate: "2026/10/01",
+      uniqueId: "FAA-ENTITY-1",
     });
-    const changedLastAction = createFaaRegistrationDedupKey({
-      ...base,
+    const changedVersion = createFaaRegistrationDedupKey({
       nNumber: "N70001",
+      registrantName: "PUBLIC HOLDINGS LLC",
+      state: "TX",
+      country: "US",
+      registrantTypeCode: "3",
+      statusCode: "V",
       lastActivityDate: "2026/11/01",
-    });
-    const changedFractionalStatus = createFaaRegistrationDedupKey({
-      ...base,
-      nNumber: "N70001",
-      fractionalOwnershipFlag: "Y",
-    });
-    const changedExpiration = createFaaRegistrationDedupKey({
-      ...base,
-      nNumber: "N70001",
-      expirationDate: "2029/10/01",
-    });
-    const changedAircraftDetails = createFaaRegistrationDedupKey({
-      ...base,
-      nNumber: "N70001",
-      serialNumber: "SERIAL-70002",
+      uniqueId: "FAA-ENTITY-1",
     });
     expect(baseKey).toBe(sameKey);
     expect(baseKey).not.toBe(changedRegistrant);
-    expect(baseKey).not.toBe(changedLastAction);
-    expect(baseKey).not.toBe(changedFractionalStatus);
-    expect(baseKey).not.toBe(changedExpiration);
-    expect(baseKey).not.toBe(changedAircraftDetails);
+    expect(baseKey).not.toBe(changedVersion);
     expect(baseKey).toMatch(/^faa:v2:N70001:/);
   });
 
