@@ -49,22 +49,27 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toContain("do not impose person-first discovery when the objective is company- or asset-led");
   });
 
-  it("keeps famous-wealthy target realism as an AI reasoning rule across roles", () => {
+  it("keeps target relevance and reachability neutral to fame across every AI role", () => {
     const mission = APEX_WHAT_IS_ATLAS;
-    expect(mission).toContain("not a hard-coded name blacklist");
+    expect(mission).toContain("The exact human objective, motivation, and exclusions determine target class");
+    expect(mission).toContain("neither qualify nor disqualify a candidate by themselves");
+    expect(mission).toContain("Apply less-public, private-company, non-celebrity, or individual-reachability constraints only when the human explicitly requests them");
     expect(mission).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(mission).toContain("For potential-investor firms, require independent evidence of capital capacity or actual investment activity");
-    expect(mission).toContain("currently operating private/mid-market businesses");
+    expect(mission).toContain("do not prefer private or mid-market status unless the human objective asks for it");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toMatch(/REALISM[\s\S]*famous[\s\S]*wealthy people/i);
-      expect(prompt).toMatch(/not a hard-coded name (?:list|blacklist)|use no name blacklist/);
+      expect(prompt).toContain("fame, celebrity, household-name status");
+      expect(prompt).toContain("neither qualify nor disqualify");
+      expect(prompt).toContain("Apply less-public or private-company constraints only when explicitly requested");
       expect(prompt).toContain("COMPANY REALISM");
       expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).toContain("capital capacity or actual investment activity");
+      expect(prompt).not.toContain("ignore incidental famous");
+      expect(prompt).not.toContain("Prefer less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexOrientationCompact("boss")).toContain("or quota fillers");
+    expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
   it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
