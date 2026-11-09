@@ -4031,7 +4031,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // qualification narration so emergency compaction cannot erase them.
     if (isDiscoveryPrompt) {
       appendBudgeted(
-        "DISCOVERY MODE: no target implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. DISCOVERY SEARCH ECONOMY: at most two outbound actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose one strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance. One source-backed relevant lead starts target research. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Inc. 5000/fast-growth/unicorn rankings are company-level signals; ranking-only mentions are leads, not qualified targets. Target-specific names come from the human brief or same-case observations, never model memory.",
+        "DISCOVERY MODE: no target implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose one strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: require direct relevance. One source-backed relevant lead starts target research. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Inc. 5000/fast-growth/unicorn rankings are company-level signals; ranking-only mentions are leads, not qualified targets. Target-specific names come from the human brief or same-case observations, never model memory.",
         900,
         "[optional discovery detail omitted; objective and handoff remain authoritative]",
       );
@@ -4039,11 +4039,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 360, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
-    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
 
     appendBudgeted(
       isDiscoveryPrompt
-        ? "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched current-role/company/professional-route binding; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth potential; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required claims and counter-evidence."
+        ? "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
         : fallbackEvidenceContract,
       760,
       "[partial-finding detail omitted; durable ledger remains authoritative]",
@@ -4052,7 +4051,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       appendBudgeted(minimumTargetabilityMarker, 180, "[targetability detail omitted]");
       appendBudgeted(minimumOrganizationTargetabilityMarker, 150, "[organization review status omitted]");
     }
-    if (isDiscoveryPrompt) appendBudgeted(leadGuidance, 220, "[lead follow-up guidance omitted]");
     appendBudgeted(emergencyAiMemorySection || aiMemorySection, 200, "[older AI memory omitted; durable case ledger remains authoritative]");
 
     mandatoryMinimumTail = joinPromptParts(finalParts);
