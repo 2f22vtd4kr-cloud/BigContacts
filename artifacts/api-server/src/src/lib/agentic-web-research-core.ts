@@ -5710,7 +5710,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // When the full objective is long, compact duplicated discovery guidance rather
     // than trimming the verbatim objective, source claim, scope, or JSON envelope.
-    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: objective/scope govern target class and geography; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. No invented targets. Preserve relevant sourced leads; wealth/ownership only if required. Investigator chooses query, source and action.";
+    const compactDiscoveryGate = "DISCOVERY PROGRESS/TARGETABILITY GATE: objective/scope govern target class and geography; Popularity is not a filter: do not select people solely for celebrity status or exclude a person/company merely for being well-known; require direct relevance to the active objective. No invented targets. Preserve relevant sourced leads; wealth/ownership only if required. No registry is preferred; choose by evidence. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. If plausible, stop discovery and hand it to Boss.";
     if (repaired.length > maxUserPromptChars) {
       // Compact verbose discovery clauses independently even when a fallback
       // assembler joined them into one paragraph. Stop at the next known clause,
