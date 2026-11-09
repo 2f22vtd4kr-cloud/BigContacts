@@ -93,6 +93,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
     expect(core).toContain("quick bounded mixed-source first pass");
+    expect(core).toContain("single strongest objective-fit lead, not a shortlist");
     expect(core).toContain("Investigator chooses actions; no fixed recovery sequence.");
     expect(core).toContain("selects targets, queries, sources, tools, pivots and stopping.");
   });
