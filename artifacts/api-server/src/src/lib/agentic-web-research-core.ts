@@ -2100,7 +2100,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     // preamble; the complete field schema remains protected in the suffix.
     if (/APEX INVESTIGATOR|MISSION PRIORITY:/.test(prefix)) {
       add(
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography.",
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography.",
         520,
         "Investigator header",
       );
