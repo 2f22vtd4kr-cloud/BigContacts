@@ -16,6 +16,22 @@ const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/a
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
+describe("objective-aligned Boss control decisions", () => {
+  it("does not invent a less-public preference for a broad B2B objective", () => {
+    const objective = "Find B2B software companies and their current decision-makers."; 
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "No source-backed candidates have been admitted yet.",
+      compactState: "Human objective: " + objective,
+      pinnedControlState: "The exact human objective is authoritative.",
+      humanObjective: objective,
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "The Investigator should begin objective-led discovery.", direction: null, confidence: 0.9, model: "test-model", error: null },
+    });
+    expect(prompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference');
+    expect(prompt).toContain("For B2B discovery, well-known/public companies and their relevant decision-makers remain eligible");
+    expect(prompt).toContain(objective);
+    expect(prompt).not.toContain("Prefer less-public, source-backed operators");
+  });
+});
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
