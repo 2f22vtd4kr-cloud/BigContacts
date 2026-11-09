@@ -3940,7 +3940,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(fetchedSourceLabel, 220, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 420, "[fetched-source excerpt omitted]");
     appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
