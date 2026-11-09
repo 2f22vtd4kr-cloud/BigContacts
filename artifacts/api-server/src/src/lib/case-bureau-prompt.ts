@@ -277,9 +277,9 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // What would be redundant with work already done?
   return boundBossPlanPrompt(`${humanMissionBlock}
 
-${apexOrientationCompact("boss")}
-
 You are the Apex Atlas Boss. Make the next evidence-led research assignment from the living case state below. You have no web access. The Investigator owns the research trajectory; you own direction, assignment choice, and whether work should continue.
+
+${apexOrientationCompact("boss")}
 
 CORE RULES
 - Choose exactly one currently available Investigator capability for proceed; never substitute a different capability or credential.
