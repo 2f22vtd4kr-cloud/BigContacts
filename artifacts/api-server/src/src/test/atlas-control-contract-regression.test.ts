@@ -884,6 +884,8 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
     expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
+    expect(canonicalDiscoverySource).toContain('actorRole: episodeFailure.code === "investigator_oversight_unavailable" ? "right_hand" : "head_investigator"');
+    expect(canonicalDiscoverySource).toContain('"Canonical Right-hand oversight unavailable; case parked for review."');
     expect(canonicalDiscoverySource).toContain('stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode"');
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
