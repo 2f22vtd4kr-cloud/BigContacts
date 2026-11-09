@@ -3935,7 +3935,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumObservationTail, 260, "[latest blocked-action context omitted]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope guard detail omitted]");
     appendBudgeted(markerSuffix, 140, "[latest trajectory marker omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\\n\\n"), 420, "[latest trajectory record detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[latest trajectory record detail omitted]");
     appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     if (!minimumObservationTail) appendBudgeted(header + " " + observationTail, 520, "[latest observation detail omitted]");
     appendBudgeted(aiMemorySection, 300, "[older memory omitted; durable ledger remains authoritative]");
