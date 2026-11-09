@@ -5708,6 +5708,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       input.mode === "discovery" && !repaired.includes("No registry is preferred; choose by evidence.")
         ? "SOURCE SELECTION: No registry is preferred; choose by evidence."
         : "",
+      input.mode === "discovery" && !repaired.includes("FAST HANDOFF:")
+        ? "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick look; if plausible, stop discovery and hand to Boss."
+        : "",
       !repaired.includes("visit supports bounded text extraction") ? minimumBinaryRecovery : "",
     ].filter(Boolean);
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
