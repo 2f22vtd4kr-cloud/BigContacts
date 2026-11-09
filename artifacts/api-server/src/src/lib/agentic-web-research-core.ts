@@ -5196,6 +5196,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // structured pivot heading. Preserve that accepted scope in every prompt tier.
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
+  const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
+    ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; not evidence. Preserve Boss scope; revise the failed dimension or ask Boss."
+    : "";
   const activeBossScopeSection = activeBossDirection
     ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
     : "";
@@ -6228,6 +6231,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalEmergencyObjective = [
         authoritativeCaseObjective,
         activeBossScopeSection,
+        blockedScopeRecoveryMarker,
       ].filter(Boolean).join("\n");
       const finalEmergencyPrefix = [
         finalEmergencyAssignment,
@@ -6501,6 +6505,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
        const absoluteMinimumObjective = [
          authoritativeCaseObjective,
          activeBossDirection ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 260) : activeBossScopeSection,
+         blockedScopeRecoveryMarker,
          "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary; no silent pivot. After a block revise only the failed dimension or request Boss scope approval; failure is not disproof.",
        ].filter(Boolean).join("\n");
       // The last-resort tier must reserve room for the latest action and fetched
