@@ -18,5 +18,6 @@ const checks=[
 ["oversight fail-closes when Gemini is unavailable",/action\s*:\s*"stop"/.test(oversight)&&/fail-closed/.test(oversight)],
 ["oversight persists control decisions",/eventType\s*:\s*"control_decision"/.test(oversight)&&/investigatorActOversight/.test(oversight)],
 ["target oversight allocates monotonic durable event iterations",/resolveMonotonicResearchCaseIteration/.test(oversight)&&/MAX\(\$\{researchCaseEventsTable\.iteration\}\)/.test(oversight)&&/eventIterationFloor=resolveMonotonicResearchCaseIteration\(sourceTurn,eventIterationFloor\)/.test(oversight)],
+["target replay writes historical source observations before current act and Boss decision",oversight.indexOf("const sourceEventIds")<oversight.indexOf("const inserted=await tx.insert(researchCaseEventsTable)")&&oversight.indexOf("eventType:\"tool_observation\"")<oversight.indexOf("eventType:\"control_decision\"")&&/sourceRecord of \[\.\.\.\(safeAct\.sourceRecords\?\?\[\]\)\]\.sort\(\(a,b\)=>a\.turn-b\.turn\)/.test(oversight)],
 ];
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
