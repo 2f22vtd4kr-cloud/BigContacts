@@ -75,11 +75,14 @@ export function evaluateTargetFitness(input: {
   const isOrgType =
     /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company)$/i.test(type) ||
     CORP_SHELL_RE.test(name);
+  const isCompanyType =
+    /^(corporation|corp|company|org|organization|entity|partnership|llc|limited liability company)$/i.test(type) ||
+    CORP_SHELL_RE.test(name);
 
   const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
   const hasOperatorRole = OPERATOR_ROLE_RE.test(text);
 
-  if (input.companyScoped === true || (input.personScoped === false && isOrgType)) {
+  if (input.companyScoped === true || (input.personScoped === false && isCompanyType)) {
     const company = assessCompanyRealism({ metadata: input.companyMetadata });
     const companyReasons = [
       ...company.reasons,
