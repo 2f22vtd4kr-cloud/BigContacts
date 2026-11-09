@@ -6697,7 +6697,7 @@ export function discoveryLeadInspectionRequirement(
   records: readonly AgenticTrajectoryRecord[],
 ): { leadUrl: string; searchTurn: number } | null {
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
-  const fetchAttempts = new Set(["success", "partial", "http_error", "timeout", "error"]);
+  const fetchAttempts = new Set(["success", "partial", "http_error", "timeout", "error", "blocked"]);
   for (let i = records.length - 1; i >= 0; i -= 1) {
     const search = records[i]!;
     if (search.execution !== "success" || !searchActions.has(search.action) || !Array.isArray(search.leadUrls)) continue;
