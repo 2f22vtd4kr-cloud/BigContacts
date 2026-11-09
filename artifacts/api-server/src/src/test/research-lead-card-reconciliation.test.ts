@@ -23,8 +23,8 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("Any enabled registry may seed the first company, person, or asset candidate");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
     expect(orientation).toContain("Inc. 5000/fast-growth or unicorn rankings");
-    expect(orientation).toContain("Ranking-only mentions are leads, not qualification.");
-    expect(orientation).toContain("currently operating private/mid-market firms");
+    expect(orientation).toContain("Ranking-only mentions are leads, not qualified targets;");
+    expect(orientation).toContain("For operating-company targets, require independent evidence the business is currently operating");
   });
 
   it("keeps registry rows as supporting observations and never lets adapters select cards", () => {
