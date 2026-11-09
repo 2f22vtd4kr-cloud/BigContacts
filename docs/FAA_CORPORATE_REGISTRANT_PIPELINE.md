@@ -37,7 +37,7 @@ The company description, legal status, disclosed scale, ownership/control and pu
 
 ## Import procedure
 
-After the combined fallback and importer are deployed, the operator uses the authenticated `POST /api/ingest/faa` endpoint. For the first corrected full replay, use:
+After merging the extractor, wait for the `FAA official registry extraction` push workflow to finish and commit `faa_sanitized_MASTER_ALL.txt`, the corporate CSVs and the updated manifest. Verify those files are present on `main` before deploying the importer or starting a fallback-based job; a deploy racing ahead of the extraction commit may contain only the legacy individual-only fallback. The combined fallback is then used by the authenticated `POST /api/ingest/faa` endpoint. For the first corrected full replay, use:
 
 ```json
 {"maxRecords":200000,"forceRefresh":true,"clearDedup":true}
