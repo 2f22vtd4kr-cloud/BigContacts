@@ -51,7 +51,7 @@ describe("FAA legal-entity registrant candidates", () => {
     expect(faaRegistrantEntityKey(partnership!)).not.toBe(faaRegistrantEntityKey(corporation!));
     expect(faaRegistrantEntityKey(corporation!)).not.toBe(faaRegistrantEntityKey(llc!));
     expect(faaRegistrantEntityKey(partnership!)).toBe(
-      createFaaRegistrantEntityKey("Public Holdings LLC", "TX", "US", "2"),
+      createFaaRegistrantEntityKey(partnership!.name, "TX", "US", "2"),
     );
   });
 
