@@ -17,5 +17,6 @@ const checks=[
 ["oversight has explicit continue redirect stop dispositions",/continue[\s\S]{0,200}redirect[\s\S]{0,200}stop/.test(oversight)],
 ["oversight fail-closes when Gemini is unavailable",/action\s*:\s*"stop"/.test(oversight)&&/fail-closed/.test(oversight)],
 ["oversight persists control decisions",/eventType\s*:\s*"control_decision"/.test(oversight)&&/investigatorActOversight/.test(oversight)],
+["target oversight allocates monotonic durable event iterations",/resolveMonotonicResearchCaseIteration/.test(oversight)&&/MAX\(\$\{researchCaseEventsTable\.iteration\}\)/.test(oversight)&&/eventIterationFloor=resolveMonotonicResearchCaseIteration\(sourceTurn,eventIterationFloor\)/.test(oversight)],
 ];
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
