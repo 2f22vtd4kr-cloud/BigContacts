@@ -2106,7 +2106,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
       );
     }
     const withoutObjective = objectiveBlock ? prefix.replace(objectiveBlock, "") : prefix;
-    const remainingParagraphs = withoutObjective.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const remainingParagraphs = withoutObjective.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
     const addMatches = (pattern: RegExp, cap: number, label: string, latestOnly = false) => {
       const matches = remainingParagraphs.filter((part) => pattern.test(part));
       const chosen = latestOnly ? matches.slice(-1) : matches;
@@ -2141,14 +2141,14 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     addMatches(/(?:LATEST OBSERVATION|LATEST_OBSERVATION_START|SCOPE GUARD BLOCKED ACTION|SCOPE FILTERED PARALLEL SEARCHES|SOURCE-STAGE GUARD BLOCKED ACTION)/i, 360, "latest observation", true);
     addMatches(/^(?:LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS)/i, 600, "exact prior search lead URLs", true);
     addMatches(/^LAST SUCCESSFUL FETCHED SOURCE CLAIM/i, 280, "exact fetched source claim", true);
-    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \\()/i, 360, "fetched source excerpt", true);
+    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \()/i, 360, "fetched source excerpt", true);
     addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 160, "lead follow-up guidance", true);
 
     // Runtime contracts are not optional prose: use only current adapters and
     // actions, distinguish PDF extraction from HTML fetch, and keep terminal gates.
     addMatches(/^AVAILABLE ACTIONS:/i, 260, "available actions");
     addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 400, "runtime registry contract");
-    addMatches(/^PAGE FORMAT \\/ RETRIEVAL LIMITS:/i, 280, "PDF retrieval contract");
+    addMatches(/^PAGE FORMAT \/ RETRIEVAL LIMITS:/i, 280, "PDF retrieval contract");
     addMatches(/^RESEARCH TERMINAL GATE/i, 200, "terminal evidence gate");
     addMatches(/^VALID PROVIDERS:/i, 180, "provider contract");
     addMatches(/^Conditional specialist OSINT actions/i, 180, "conditional capability contract");
