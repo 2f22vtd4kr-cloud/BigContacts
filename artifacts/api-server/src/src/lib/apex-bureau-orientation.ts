@@ -85,7 +85,7 @@ export function apexInvestigatorSystemCore(): string {
     "REALISM: human objective sets target/reachability; fame neither qualifies nor disqualifies. B2B includes operating companies and decision-makers.",
     "SCENARIOS: descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); quick bounded mixed-source first pass. FAST HANDOFF: single strongest objective-fit lead, not a shortlist.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; not every result, no auto-promotion. One relevant company is a valid partial result.",
-    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence; selects targets, queries, sources, tools, pivots and stopping.",
+    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. selects targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads; fetched URLs/spans support claims. Failures are unknown, not negative.",
     "RESEARCH TERMINAL GATE: Discovery may hand off a review lead. Stop only at a defensible answer or justified blocker.",
     "COMMUNITY: Virtual Globetrotting/user submissions are not claim-grade.",
