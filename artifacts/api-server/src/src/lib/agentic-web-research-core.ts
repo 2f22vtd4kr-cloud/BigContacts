@@ -2100,13 +2100,13 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     // preamble; the complete field schema remains protected in the suffix.
     if (/APEX INVESTIGATOR|MISSION PRIORITY:/.test(prefix)) {
       add(
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; preserve the human case objective and Boss-approved scope. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography. OUTPUT CONTRACT: one root JSON object; Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them." + " INACTIVE ACTION FIELD SHAPE: " + JSON.stringify({ url: null, searches: [], findings: [] }),
-        520,
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence; Investigator chooses. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. SEARCH SCOPE: market=null unless objective or approved scope explicitly names a country; locale is language only, never geography.",
+        320,
         "Investigator header",
       );
     }
     const withoutObjective = objectiveBlock ? prefix.replace(objectiveBlock, "") : prefix;
-    const remainingParagraphs = withoutObjective.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const remainingParagraphs = withoutObjective.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
     const addMatches = (pattern: RegExp, cap: number, label: string, latestOnly = false) => {
       const matches = remainingParagraphs.filter((part) => pattern.test(part));
       const chosen = latestOnly ? matches.slice(-1) : matches;
@@ -2114,47 +2114,45 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     };
 
     // Objective and active Boss scope are independent authorities.
-    addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 620, "case objective");
-    addMatches(/^(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|CURRENT BOSS-DIRECTED)/i, 820, "approved scope", true);
+    addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 560, "case objective");
+    addMatches(/^(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|CURRENT BOSS-DIRECTED)/i, 700, "approved scope", true);
 
-
-    // Keep exact immutable-event URLs and the newest action identity before
-    // optional prose. Never reconstruct or shorten URL tokens.
-    addMatches(/^(?:PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY)/i, 900, "additional URL inventory");
-    addMatches(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)/i, 680, "latest trajectory record", true);
-    addMatches(/(?:LATEST OBSERVATION|LATEST_OBSERVATION_START|SCOPE GUARD BLOCKED ACTION|SCOPE FILTERED PARALLEL SEARCHES|SOURCE-STAGE GUARD BLOCKED ACTION)/i, 420, "latest observation", true);
-    addMatches(/^(?:LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS)/i, 900, "exact prior search lead URLs", true);
-    addMatches(/^LAST SUCCESSFUL FETCHED SOURCE CLAIM/i, 320, "exact fetched source claim", true);
-    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \()/i, 420, "fetched source excerpt", true);
-    addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 220, "lead follow-up guidance", true);
-
-    // Compact discovery policy is intentionally explicit and complete. It is
-    // still model judgment, not a deterministic source or action sequence.
+    // These compact policies are higher priority than optional trajectory
+    // narration. Keep their complete semantic clauses rather than allowing
+    // generic head/tail compaction to erase qualification or fast-handoff rules.
     if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(prefix)) {
       add(
-        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not literal queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; snippets are leads, not evidence. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter: Company-quality rankings (Inc. 5000/fast-growth/unicorn rankings) are company-level signals, not qualification or proof of owner wealth.  require direct relevance. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Example: casinos in Slovenia. Target-specific names come from the human brief or same-case observations, never model memory. Do not require private/mid-market status unless requested. No extra wealth or ownership criteria unless requested. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
-        1_250,
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. DISCOVERY TARGETABILITY / REALISM: Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. One source-backed relevant lead starts target research. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. SEARCH: market only if country in objective/scope; locale=language. Do not require private/mid-market status unless requested.",
+        1_300,
         "discovery policy",
       );
     }
     if (/PARTIAL FINDINGS|Qualification follows the active objective/.test(prefix)) {
       add(
-        "PARTIAL FINDINGS: preserve Investigator-selected leads as review-only; retain exact observed name, stated role or null, and public HTTPS URL. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-        1_100,
+        "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span.",
+        1_000,
         "evidence policy",
       );
     }
 
+    // Keep exact immutable-event URLs and the newest source evidence before
+    // optional prose. The newest action itself remains protected in the suffix.
+    addMatches(/^(?:PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY)/i, 600, "additional URL inventory");
+    addMatches(/(?:LATEST OBSERVATION|LATEST_OBSERVATION_START|SCOPE GUARD BLOCKED ACTION|SCOPE FILTERED PARALLEL SEARCHES|SOURCE-STAGE GUARD BLOCKED ACTION)/i, 360, "latest observation", true);
+    addMatches(/^(?:LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS)/i, 600, "exact prior search lead URLs", true);
+    addMatches(/^LAST SUCCESSFUL FETCHED SOURCE CLAIM/i, 280, "exact fetched source claim", true);
+    addMatches(/(?:LAST SUCCESSFUL FETCHED SOURCE EXCERPT|LAST SUCCESSFUL FETCHED SOURCE CLAIM|LAST SUCCESSFUL FETCHED SOURCE \\()/i, 360, "fetched source excerpt", true);
+    addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 160, "lead follow-up guidance", true);
+
     // Runtime contracts are not optional prose: use only current adapters and
     // actions, distinguish PDF extraction from HTML fetch, and keep terminal gates.
-    addMatches(/^AVAILABLE ACTIONS:/i, 420, "available actions");
-    addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 480, "runtime registry contract");
-    addMatches(/^PAGE FORMAT \/ RETRIEVAL LIMITS:/i, 380, "PDF retrieval contract");
-    addMatches(/^RESEARCH TERMINAL GATE/i, 260, "terminal evidence gate");
-    addMatches(/^VALID PROVIDERS:/i, 220, "provider contract");
-    addMatches(/^Conditional specialist OSINT actions/i, 220, "conditional capability contract");
-    addMatches(/^AI-COMPACTED HISTORICAL RESEARCH MEMORY|^AI HISTORICAL MEMORY/i, 520, "AI historical memory", true);
-
+    addMatches(/^AVAILABLE ACTIONS:/i, 260, "available actions");
+    addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 400, "runtime registry contract");
+    addMatches(/^PAGE FORMAT \\/ RETRIEVAL LIMITS:/i, 280, "PDF retrieval contract");
+    addMatches(/^RESEARCH TERMINAL GATE/i, 200, "terminal evidence gate");
+    addMatches(/^VALID PROVIDERS:/i, 180, "provider contract");
+    addMatches(/^Conditional specialist OSINT actions/i, 180, "conditional capability contract");
+    addMatches(/^AI-COMPACTED HISTORICAL RESEARCH MEMORY|^AI HISTORICAL MEMORY/i, 400, "AI historical memory", true);
     boundedPrefix = selected.join(separator);
     if (boundedPrefix.length > prefixBudget) {
       throw new Error("Cannot compose a contract-preserving Investigator context within maxPromptChars=" + limit + ".");
