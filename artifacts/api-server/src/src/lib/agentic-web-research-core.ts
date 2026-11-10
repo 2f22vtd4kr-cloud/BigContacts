@@ -6205,12 +6205,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const scopeLine = activeBossDirection
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 360)
         : activeBossScopeSection;
-      const providerLine = repaired.match(/^VALID PROVIDERS:[^\\n]*/m)?.[0] ?? "";
-      const providerContract = providerLine || (
-        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch="
+      const providerContract = "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch="
         + (availableBrowserProviders.join("|") || "unavailable")
-        + "; domain_lookup=rdap|whoisjson."
-      );
+        + "; domain_lookup=rdap|whoisjson.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
         + ". Never invent adapter IDs; unavailable/failed is not a no-hit. Do not assume owners, shareholders, members or managers without observed documentation.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: only when the exact action is in this turn's ACTION ALLOWLIST and AVAILABLE ACTIONS after fresh worker attestation; no fixed tool order.";
