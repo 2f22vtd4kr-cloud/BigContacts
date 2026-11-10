@@ -5602,7 +5602,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(520, 3),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const maxUserPromptChars = Math.max(1_000, Math.min(8_200, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
+  const maxUserPromptChars = Math.max(1_000, Math.min(6_800, 8_400 - INVESTIGATOR_SYSTEM_PROMPT().length, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
   const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "searches", "findings"] as const;
