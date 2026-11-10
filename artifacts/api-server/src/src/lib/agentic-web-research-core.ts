@@ -6169,7 +6169,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const recoveryBaseParts = [
       input.mode === "discovery" ? "DISCOVERY MODE: no person or entity target is implied; preserve the objective and make a fast, mixed-source, model-owned lead choice." : "",
       basePrompt,
-      latestRecordTail,
+      latestRecordTail && !basePrompt.includes(latestRecordTail) ? latestRecordTail : "",
     ].filter(Boolean);
     const recoveryBase = recoveryBaseParts.join("\n\n");
     const appended = appendEmergencyObservationContext(
