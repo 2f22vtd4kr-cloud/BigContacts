@@ -6003,6 +6003,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             ...(carryForwardSuccessfulSearch ? ["consider inspecting a promising in-scope lead URL next"] : []),
             "generic publisher homepage",
             "MODEL-OWNED RELEVANCE SELF-CHECK",
+            "same-case evidence link",
+            "PAGE FORMAT / RETRIEVAL LIMITS",
+            "never invent an ID based on a jurisdiction",
             "casinos in Slovenia",
             ...(carryForwardSuccessfulSearch ? ["not evidence or a mandated next action"] : []),
             "RUNTIME-AVAILABLE REGISTRY IDS ONLY",
@@ -6042,7 +6045,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LATEST_OBSERVATION_(?:START|END)|LAST SUCCESSFUL FETCHED SOURCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|leadUrlsOmittedFromPromptCount|https?:\/\//i.test(section)
       );
-      if (input.mode === "discovery" && (repaired.length > maxUserPromptChars || !repaired.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY") || ![
+      if (input.mode === "discovery" && (repaired.length > maxUserPromptChars || !repaired.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY") || !repaired.includes(registryIdList) || ![
         "DISCOVERY MODE:",
         "MISSION PRIORITY: objective/scope govern",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
@@ -6159,6 +6162,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^VALID REVIEW-LEAD SHAPE/,
       /^DISCOVERY TARGETABILITY GATE:/,
       /^DISCOVERY LEAD HANDOFF CONTRACT:/,
+      /^DISCOVERY TARGETABILITY \/ REALISM:/,
+      /^MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:/,
+      /^DISCOVERY SEARCH ECONOMY:/,
+      /^FAST HANDOFF:/,
+      /^MODEL-OWNED RELEVANCE SELF-CHECK:/,
+      /^SOURCE SELECTION:/,
       /^\[AUXILIARY CONTEXT BOUND:/,
     ];
     if (recoveryMarkers.length) {
