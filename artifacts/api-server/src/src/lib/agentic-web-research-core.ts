@@ -3587,7 +3587,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|SCOPE RECOVERY:|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|ALL REQUIRED TOP-LEVEL FIELDS:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
+    /MISSION PRIORITY:|DISCOVERY MODEL POLICY:|CASE OBJECTIVE:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|SCOPE RECOVERY:|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|ALL REQUIRED TOP-LEVEL FIELDS:|RUNTIME-AVAILABLE REGISTRY IDS ONLY|DURABLE EXACT URL INVENTORY|RESEARCH TERMINAL GATE/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part)) ?? "";
   const verbatimCaseObjective = base.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
@@ -5834,6 +5834,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "ACTIVE BOSS-DIRECTED QUESTION:",
           "BOSS-DIRECTED RESEARCH QUESTION",
           "MISSION PRIORITY:",
+          "DISCOVERY MODEL POLICY:",
           "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
           "MODEL-OWNED RELEVANCE SELF-CHECK:",
           "DISCOVERY TARGETABILITY / REALISM:",
@@ -6120,10 +6121,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
+    // Reserve bounded room for markers that emergency compaction may need to
+    // rehydrate. The source claim and schema remain protected in the base; this
+    // headroom prevents recovery from overflowing an envelope already filled
+    // to the provider ceiling.
+    const anticipatedRecoveryChars = requiredFinalMarkers
+      .filter((marker) => !repaired.includes(marker))
+      .reduce((total, marker) => total + Math.min(marker.length, 420) + 2, 0);
+    const recoveryReserve = Math.min(1_600, Math.max(240, anticipatedRecoveryChars));
+    const recoveryBaseBudget = Math.max(3_200, maxUserPromptChars - recoveryReserve);
     let compactedRecoveryBase = appendEmergencyObservationContext(
       repaired,
       "",
-      maxUserPromptChars,
+      recoveryBaseBudget,
       input.mode,
       activeBossDirection,
       registryIdList,
