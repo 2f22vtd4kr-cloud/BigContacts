@@ -3783,9 +3783,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactPartialEvidenceContract = isInvestigatorPrompt
     ? [
-        "PARTIAL FINDINGS: selected exact-name leads are review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches unknown. After fetch, sourceUrls=[that URL only]; claims bind to its exact span.",
-        requiredQualificationRule,
-        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never infer wealth from seniority.",
+        "PARTIAL FINDINGS (not terminal-only): preserve only relevant exact-name person/company leads as review-only; do not card every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads, not evidence; failed fetches are unknown.",
+        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. Qualification follows the active objective: B2B needs fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment. investor firms need evidence of capital capacity or actual investment activity and mandate fit. Never infer wealth from seniority.",
+        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
       ].join(" ")
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
@@ -3799,10 +3799,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Example: casinos in Slovenia. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. ORG LEAD: exact-name fetched/registry leads may advance to target research only, never final CRM/contact.",
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
-        "Conditional specialist OSINT actions only when the exact action is in AVAILABLE ACTIONS this turn and freshly attested; do not assume owner/member fields without observed documentation."
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance. No registry is preferred; choose by evidence. Example: casinos in Slovenia. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: relevant exact-name leads are review-only; no auto-promotion. ORG LEAD: fetched/registry exact-name leads may advance to target research only, never final CRM/contact.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected/malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+        "Conditional specialist OSINT actions only when the exact action is in AVAILABLE ACTIONS this turn and freshly attested; never assume owner/member fields without observed documentation."
       ].join(" ")
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
