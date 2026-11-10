@@ -6173,7 +6173,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const hasLatestRecordContext = !latestRecord || normalizedBase.includes(latestRecordMarker);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
-      || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
+      || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
     const hasFetchedSourceClaimContext = !latestFetchedSourceClaimMarker
       || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE CLAIM");
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
