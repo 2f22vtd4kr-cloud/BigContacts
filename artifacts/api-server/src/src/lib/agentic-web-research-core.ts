@@ -5283,14 +5283,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     "DISCOVERY MODE: no person/entity target is implied. Preserve the complete human objective and latest Boss-approved topic/geography/scope; no silent pivot.",
-    "No fixed action sequence: Investigator chooses falsifiable hypothesis, target, query, source, provider and action from current capabilities.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a concrete public-evidence hypothesis. Other objectives use their own evidence criteria.",
-    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch is allowed. FAST HANDOFF: choose one strongest objective-fit lead; one quick source look can hand a plausible lead to Boss.",
-    "TARGETABILITY: people, companies and assets are distinct; popularity is neither filter. Require direct objective fit; no blacklist or registry-first preference. Preserve requested sector/jurisdiction.",
-    "LEAD HANDOFF: exact-name relevant leads only, review-only; preserve observed name, role/null and associated public URL. Never auto-promote or card every result.",
-    "QUALIFICATION: follow the active objective. B2B requires fetched current role, company connection and professional route; wealth requires sourced ownership/control/equity/investment. Never infer wealth from seniority.",
+    "No fixed action sequence: Investigator chooses hypothesis, target, query, source, provider and action from current capabilities.",
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batches allowed. FAST HANDOFF: one strongest objective-fit lead; one quick source look can hand a plausible lead to Boss.",
+    "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct objective fit; no blacklist. No registry is preferred; choose by evidence. Preserve requested sector/jurisdiction.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence. DISCOVERY LEAD HANDOFF CONTRACT: exact-name relevant leads only, review-only; preserve observed name, role/null and public URL; never auto-promote or card every result.",
+    "Qualification follows the active objective. B2B requires fetched current role, company connection and professional route; wealth/investor targets also need source-backed ownership/control/equity/investment. Never infer wealth from seniority.",
     "EVIDENCE: snippets are leads; failed fetches are unknown. Claims bind to exact fetched source text; do not invent identities, ownership or contact routes.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs need unavailable OCR; encrypted/password-protected/malformed PDFs fail distinctly. Do not retry the same binary URL."
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Do not retry the same binary URL through the other fetch action."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
