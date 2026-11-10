@@ -6002,6 +6002,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "No registry is preferred; choose by evidence.",
             ...(carryForwardSuccessfulSearch ? ["consider inspecting a promising in-scope lead URL next"] : []),
             "generic publisher homepage",
+            "MODEL-OWNED RELEVANCE SELF-CHECK",
+            "casinos in Slovenia",
+            ...(carryForwardSuccessfulSearch ? ["not evidence or a mandated next action"] : []),
+            "RUNTIME-AVAILABLE REGISTRY IDS ONLY",
+            registryIdList,
             "Other objectives use their own evidence criteria",
             "source class may vary by query",
           ]
@@ -6132,7 +6137,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
-    const compactedRecoveryBase = appendEmergencyObservationContext(
+    let compactedRecoveryBase = appendEmergencyObservationContext(
       repaired,
       "",
       maxUserPromptChars,
@@ -6141,28 +6146,37 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       registryIdList,
       aiHistoricalMemory,
     );
-    // The evidence-aware compactor can legitimately remove recovery markers
-    // while reducing duplicate policy text. Recompute omissions AFTER compaction,
-    // then reserve space for those exact markers before the final projection.
-    const postCompactionMissingMarkers = requiredFinalMarkers.filter((marker) => !compactedRecoveryBase.includes(marker));
-    const postCompactionRecoveryText = postCompactionMissingMarkers.join("\n\n");
-    const postCompactionRecoveryBudget = postCompactionRecoveryText.length + (postCompactionRecoveryText ? 2 : 0);
-    const budgetedRecoveryBase = postCompactionMissingMarkers.length
-      ? appendEmergencyObservationContext(
-          repaired,
-          "",
-          maxUserPromptChars - postCompactionRecoveryBudget,
-          input.mode,
-          activeBossDirection,
-          registryIdList,
-          aiHistoricalMemory,
-        )
-      : compactedRecoveryBase;
-    const finalMissingMarkers = requiredFinalMarkers.filter((marker) => !budgetedRecoveryBase.includes(marker));
-    const finalRecoveryText = finalMissingMarkers.join("\n\n");
+    // Rehydrate any exact required markers removed by the emergency compactor.
+    // Keep the human objective and current evidence context intact; shed only
+    // explicitly advisory paragraphs if the marker recovery needs more room.
+    const missingAfterCompaction = () => requiredFinalMarkers.filter((marker) => !compactedRecoveryBase.includes(marker));
+    let recoveryMarkers = missingAfterCompaction();
+    const optionalRecoverySections = [
+      /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
+      /^SOURCE COVERAGE \\(not a checklist\\):/,
+      /^CAPABILITY GUIDANCE:/,
+      /^DISCOVERY SEARCH DISCIPLINE:/,
+      /^VALID REVIEW-LEAD SHAPE/,
+      /^DISCOVERY TARGETABILITY GATE:/,
+      /^DISCOVERY LEAD HANDOFF CONTRACT:/,
+      /^\\[AUXILIARY CONTEXT BOUND:/,
+    ];
+    if (recoveryMarkers.length) {
+      const sections = compactedRecoveryBase.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      for (const pattern of optionalRecoverySections) {
+        if (compactedRecoveryBase.length + recoveryMarkers.join("\\n\\n").length + 2 <= maxUserPromptChars) break;
+        const index = sections.findIndex((section) => pattern.test(section) && !/OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section));
+        if (index >= 0) {
+          sections.splice(index, 1);
+          compactedRecoveryBase = sections.join("\\n\\n");
+          recoveryMarkers = missingAfterCompaction();
+        }
+      }
+    }
+    const finalRecoveryText = recoveryMarkers.join("\\n\\n");
     const repairedProjection = finalRecoveryText
-      ? [budgetedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\n\n")
-      : budgetedRecoveryBase;
+      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\\n\\n")
+      : compactedRecoveryBase;
     if (
       repairedProjection.length <= maxUserPromptChars
       && hasCompleteSchema(repairedProjection)
