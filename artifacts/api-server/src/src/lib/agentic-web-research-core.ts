@@ -6004,6 +6004,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "generic publisher homepage",
             "MODEL-OWNED RELEVANCE SELF-CHECK",
             "same-case evidence link",
+            "concrete, falsifiable public-evidence hypothesis",
             "PAGE FORMAT / RETRIEVAL LIMITS",
             "never invent an ID based on a jurisdiction",
             "casinos in Slovenia",
@@ -6170,7 +6171,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^SOURCE SELECTION:/,
       /^\[AUXILIARY CONTEXT BOUND:/,
     ];
-    if (recoveryMarkers.length) {
+    if (recoveryMarkers.length || compactedRecoveryBase.length > maxUserPromptChars) {
       const sections = compactedRecoveryBase.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       for (const pattern of optionalRecoverySections) {
         if (compactedRecoveryBase.length + recoveryMarkers.join("\n\n").length + 2 <= maxUserPromptChars) break;
@@ -6182,9 +6183,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         }
       }
     }
-    const finalRecoveryText = recoveryMarkers.join("\\n\\n");
+    const finalRecoveryText = recoveryMarkers.join("\n\n");
     const repairedProjection = finalRecoveryText
-      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\\n\\n")
+      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\n\n")
       : compactedRecoveryBase;
     if (
       repairedProjection.length <= maxUserPromptChars
