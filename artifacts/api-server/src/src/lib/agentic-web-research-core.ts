@@ -6128,7 +6128,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const anticipatedRecoveryChars = requiredFinalMarkers
       .filter((marker) => !repaired.includes(marker))
       .reduce((total, marker) => total + Math.min(marker.length, 420) + 2, 0);
-    const recoveryReserve = Math.min(1_600, Math.max(240, anticipatedRecoveryChars));
+    // The provider-boundary repair may restore the exact runtime action allowlist,
+    // fetched-claim envelope, observation sentinels and schema markers even when
+    // every prose marker is already present. A tiny reserve based only on missing
+    // prose markers caused the second pass to consume the entire provider budget,
+    // then overflow when it restored those machine-critical fields. Keep a fixed
+    // recovery reserve; this constrains transport size, never model action choice.
+    const recoveryReserve = Math.min(1_800, Math.max(1_400, anticipatedRecoveryChars));
     const recoveryBaseBudget = Math.max(3_200, maxUserPromptChars - recoveryReserve);
     let compactedRecoveryBase = appendEmergencyObservationContext(
       repaired,
