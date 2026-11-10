@@ -5282,19 +5282,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; match an attested capability to a grounded public identifier; never invent identifiers; worker outputs are leads, not proof."
     : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
-    "DISCOVERY MODE: no person/entity target is implied.",
-    "MISSION PRIORITY: preserve the complete human objective and latest Boss-approved topic/geography/scope; never broaden or silently pivot.",
-    "No fixed action sequence: YOU choose target, falsifiable hypothesis, query, source, provider and action from current runtime capabilities.",
-    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: select the strongest objective-fit lead; one quick source look is enough; hand a plausible lead to Boss.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable public-evidence hypothesis. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria.",
-    "MODEL-OWNED RELEVANCE SELF-CHECK: connect every query/source to the objective-required entity, role, relationship or materiality; generic publisher pages need same-case evidence.",
-    "DISCOVERY TARGETABILITY: people, companies and assets remain distinct. Popularity neither qualifies nor disqualifies; require direct objective fit. No name/domain blacklist. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " One relevant source-backed lead starts target research; no registry-first preference. Preserve requested sector/jurisdiction. market only when country is in objective/scope; locale is language.",
-    "DISCOVERY LEAD HANDOFF: select relevant exact-name person/company leads for review-only, not every result. Preserve exact observed name, stated role or null, and associated public HTTPS URL. No fetch/ownership proof required for provisional review; never auto-promote.",
-    "QUALIFICATION: B2B requires fetched current role, company connection and public/professional route; wealth requires sourced ownership/control/equity/investment and credible potential. Other objectives use their own criteria. Never infer wealth from seniority.",
-    "A relevant exact-name organization confirmed by fetch/registry may advance to target research only, not final CRM/contact.",
-    "EVIDENCE: snippets/URLs are leads, not evidence. Failed/blocked fetches are unknown, not negative evidence.",
-    "PDF: visit extracts bounded text from text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs need unavailable OCR; encrypted/password-protected/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
-    "OUTPUT: one root JSON object using the complete required action schema and exact runtime allowlist."
+    "DISCOVERY MODE: no person/entity target is implied. Preserve the complete human objective and latest Boss-approved topic/geography/scope; no silent pivot.",
+    "No fixed action sequence: Investigator chooses falsifiable hypothesis, target, query, source, provider and action from current capabilities.",
+    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a concrete public-evidence hypothesis. Other objectives use their own evidence criteria.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch is allowed. FAST HANDOFF: choose one strongest objective-fit lead; one quick source look can hand a plausible lead to Boss.",
+    "TARGETABILITY: people, companies and assets are distinct; popularity is neither filter. Require direct objective fit; no blacklist or registry-first preference. Preserve requested sector/jurisdiction.",
+    "LEAD HANDOFF: exact-name relevant leads only, review-only; preserve observed name, role/null and associated public URL. Never auto-promote or card every result.",
+    "QUALIFICATION: follow the active objective. B2B requires fetched current role, company connection and professional route; wealth requires sourced ownership/control/equity/investment. Never infer wealth from seniority.",
+    "EVIDENCE: snippets are leads; failed fetches are unknown. Claims bind to exact fetched source text; do not invent identities, ownership or contact routes.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs need unavailable OCR; encrypted/password-protected/malformed PDFs fail distinctly. Do not retry the same binary URL."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
