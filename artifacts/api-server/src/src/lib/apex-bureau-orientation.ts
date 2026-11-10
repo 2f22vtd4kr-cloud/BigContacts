@@ -81,9 +81,9 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.",
-    "REALISM: human objective sets target/reachability; fame neither qualifies nor disqualifies. B2B includes operating companies and decision-makers.",
-    "SCENARIOS: descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); quick bounded mixed-source first pass. FAST HANDOFF: single strongest objective-fit lead, not a shortlist.",
+    "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.",
+    "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies. B2B may include operating companies and relevant decision-makers.",
+    "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia); quick bounded mixed-source first pass. FAST HANDOFF: single strongest objective-fit lead, not a shortlist.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; not every result, no auto-promotion. One relevant company is a valid partial result.",
     "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. selects targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads; fetched URLs/spans support claims. Failures are unknown, not negative.",
@@ -92,7 +92,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: One root JSON object, no prose. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "IDENTITY/SAFETY: separate person/company/trust/asset; use public professional routes.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable is not a no-hit.",
-    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority. Verify objective-required role/materiality, counter-evidence and public route before promotion.",
+    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority.",
   ].join("\n");
 }
 
