@@ -6121,67 +6121,71 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
-    // Emergency compaction can remove required clauses that were present in
-    // the input projection. Reserve space for the clauses actually missing
-    // after each pass, not only markers missing before compaction. Re-run the
-    // projection with that measured reserve until the base and its rehydrated
-    // markers fit together. This is transport budgeting only; it does not pick
-    // or restrict Investigator actions.
+    // Run the emergency composer once at the real provider ceiling. Do not
+    // subtract a large marker reserve from its input budget: that can force the
+    // complete objective/schema below the composer's own minimum viable size.
+    // Instead, let it preserve the evidence envelope, then measure and fit the
+    // exact missing contract clauses against the finished projection.
+    let compactedRecoveryBase = appendEmergencyObservationContext(
+      repaired,
+      "",
+      maxUserPromptChars,
+      input.mode,
+      activeBossDirection,
+      registryIdList,
+      aiHistoricalMemory,
+    );
     const missingAfterCompaction = () => requiredFinalMarkers
-      .filter((marker) => !compactedRecoveryBase.includes(marker))
-      .map((marker) => marker === "DISCOVERY MODEL POLICY:" ? compactEmergencyDiscoveryContractParts.join(" ") : marker);
-    let recoveryBudget = maxUserPromptChars;
-    let compactedRecoveryBase = "";
-    let recoveryMarkers: string[] = [];
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      compactedRecoveryBase = appendEmergencyObservationContext(
-        repaired,
-        "",
-        recoveryBudget,
-        input.mode,
-        activeBossDirection,
-        registryIdList,
-        aiHistoricalMemory,
-      );
-      recoveryMarkers = missingAfterCompaction();
-      const markerBlockChars = recoveryMarkers.join("\n\n").length;
-      const separatorChars = markerBlockChars > 0 && compactedRecoveryBase.trim() ? 2 : 0;
-      const projectedLength = compactedRecoveryBase.trim().length + markerBlockChars + separatorChars;
-      if (projectedLength <= maxUserPromptChars) break;
-
-      const nextRecoveryBudget = maxUserPromptChars - markerBlockChars - separatorChars;
-      if (nextRecoveryBudget < 1_000 || nextRecoveryBudget >= recoveryBudget) break;
-      recoveryBudget = nextRecoveryBudget;
-    }
+      .filter((marker) => !compactedRecoveryBase.includes(marker));
+    const recoveryClauseFor = (marker: string): string => {
+      if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
+      if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
+      if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
+      if (marker === requiredQualification) return marker;
+      if (marker === terminalContractGuidance) return marker;
+      if (marker === "Qualification follows the active objective") return marker + ".";
+      if (marker === "PAGE FORMAT / RETRIEVAL LIMITS:") return minimumBinaryRecovery;
+      if (marker === "do not retry the same binary URL through the other fetch action") return marker + ".";
+      if (marker === "No registry is preferred; choose by evidence.") return "SOURCE-NEUTRAL: " + marker;
+      if (marker === "consider inspecting a promising in-scope lead URL next") return "LEAD FOLLOW-UP GUIDANCE (non-binding): " + marker + "; advisory, not evidence or a mandated next action.";
+      if (marker === "generic publisher homepage") return "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.";
+      if (marker === "Other objectives use their own evidence criteria") return marker + ".";
+      if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
+      return marker;
+    };
     const optionalRecoverySections = [
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
-      /^SOURCE COVERAGE \(not a checklist\):/,
+      /^SOURCE COVERAGE \\(not a checklist\\):/,
       /^CAPABILITY GUIDANCE:/,
       /^DISCOVERY SEARCH DISCIPLINE:/,
       /^VALID REVIEW-LEAD SHAPE/,
-      /^\[AUXILIARY CONTEXT BOUND:/,
+      /^\\[AUXILIARY CONTEXT BOUND:/,
     ];
-    if (recoveryMarkers.length || compactedRecoveryBase.length > maxUserPromptChars) {
-      const sections = compactedRecoveryBase.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const composeRecoveryProjection = () => {
+      const recoveryMarkers = missingAfterCompaction();
+      const recoveryText = recoveryMarkers.map(recoveryClauseFor).filter(Boolean).join("\\n\\n");
+      return recoveryText
+        ? [compactedRecoveryBase.trim(), recoveryText].filter(Boolean).join("\\n\\n")
+        : compactedRecoveryBase;
+    };
+    let repairedProjection = composeRecoveryProjection();
+    if (repairedProjection.length > maxUserPromptChars) {
+      const sections = compactedRecoveryBase.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
       for (const pattern of optionalRecoverySections) {
-        if (compactedRecoveryBase.length + recoveryMarkers.join("\n\n").length + 2 <= maxUserPromptChars) break;
-        const index = sections.findIndex((section) => pattern.test(section) && !/OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section));
+        if (repairedProjection.length <= maxUserPromptChars) break;
+        const index = sections.findIndex((section) => pattern.test(section)
+          && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LAST SUCCESSFUL FETCHED SOURCE|https?:\\/\\//i.test(section));
         if (index >= 0) {
           sections.splice(index, 1);
-          compactedRecoveryBase = sections.join("\n\n");
-          recoveryMarkers = missingAfterCompaction();
+          compactedRecoveryBase = sections.join("\\n\\n");
+          repairedProjection = composeRecoveryProjection();
         }
       }
     }
-    const finalRecoveryText = recoveryMarkers.join("\n\n");
-    const repairedProjection = finalRecoveryText
-      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\n\n")
-      : compactedRecoveryBase;
-    // Recovery can rehydrate exact markers as separate paragraphs after the
-    // first normalization pass. Collapse repeated separators only: objective,
-    // source, schema and marker text remain intact while formatting overhead
-    // no longer causes an otherwise valid prompt to exceed the provider cap.
-    const budgetedRepairedProjection = repairedProjection.replace(/\n{2,}/g, "\n");
+    // Paragraph separators are presentation only; collapse them after semantic
+    // recovery so the exact objective, source claim, schema and required markers
+    // remain intact under the provider's hard character ceiling.
+    const budgetedRepairedProjection = repairedProjection.replace(/\\n{2,}/g, "\\n");
     if (
       budgetedRepairedProjection.length <= maxUserPromptChars
       && hasCompleteSchema(budgetedRepairedProjection)
