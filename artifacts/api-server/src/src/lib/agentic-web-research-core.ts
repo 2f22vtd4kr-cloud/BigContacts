@@ -3783,8 +3783,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactPartialEvidenceContract = isInvestigatorPrompt
     ? [
-        "PARTIAL FINDINGS (not terminal-only): preserve relevant exact-name person/company leads as review-only; do not card every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved.",
-        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. " + requiredQualificationRule + " investor firms need evidence of capital capacity or actual investment activity and mandate fit. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. YOU decide whether a fetched organization merits a provisional review card."
+        "PARTIAL FINDINGS (not terminal-only): preserve relevant exact-name source-backed leads as review-only; do not card every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets remain leads, not evidence; failed fetches are unobserved.",
+        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. YOU decide whether a fetched organization merits a provisional review card."
       ].join(" ")
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
@@ -3809,9 +3809,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         compactEmergencyOutputContract,
         compactPartialEvidenceContract,
         compactFinalEmergencyInvariants,
-        minimumRegistryEvidenceRule,
+        runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.",
         isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
-        terminalEvidenceRule,
+        terminalContractGuidance,
       ].filter(Boolean).join(" ")
     : "";
 const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "";
