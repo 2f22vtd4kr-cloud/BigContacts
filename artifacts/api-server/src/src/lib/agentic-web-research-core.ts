@@ -3425,6 +3425,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           turn: parsed.turn ?? Number(match[1]),
           action: parsed.action,
           execution: parsed.execution,
+          pivotScopeKey: parsed.pivotScopeKey,
           // The emergency record summary must retain a bounded excerpt of the
           // newest observed action, not only its action/URL metadata. Without
           // this, the smallest tier can omit the evidence the next decision
@@ -3746,7 +3747,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       // Keep the current query and omitted-URL counters ahead of narration;
       // the complete latest observation is supplied in its own protected slot.
       const compactRecord: Record<string, unknown> = {};
-      for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
+      for (const key of ["turn", "action", "execution", "pivotScopeKey"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
       if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
       for (const key of ["leadUrlCount", "leadUrlsOmittedFromPromptCount", "observedUrlCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
         if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
