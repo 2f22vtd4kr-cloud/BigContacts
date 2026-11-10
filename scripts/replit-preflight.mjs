@@ -10,9 +10,9 @@ const developmentMode = process.env.NODE_ENV === "development";
 console.log(`Apex Atlas preflight — core runtime and configured integrations (presence only); operator auth: ${developmentMode ? "bypassed in development" : "required"}.\n`);
 let requiredMiss = 0;
 for (const k of REQUIRED_NAMES) { const ok = present(k); if (!ok) requiredMiss++; console.log(`${ok ? "SET " : "MISS "} ${k}`); }
-const redisConfigured = present("REDIS_URL") || present("REDIS_URL_1");
+const redisConfigured = present("REDIS_URL_1");
 if (!redisConfigured) requiredMiss++;
-console.log(`${redisConfigured ? "SET " : "MISS "} REDIS_URL or REDIS_URL_1`);
+console.log(`${redisConfigured ? "SET " : "MISS "} REDIS_URL_1 (canonical durable store)`);
 const searchProviderConfigured = SEARCH_PROVIDER_NAMES.some(present);
 if (!searchProviderConfigured) requiredMiss++;
 console.log(`${searchProviderConfigured ? "SET " : "MISS "} at least one search provider (${SEARCH_PROVIDER_NAMES.join(", ")})`);
