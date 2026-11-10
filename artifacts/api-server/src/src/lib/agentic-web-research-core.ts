@@ -5781,7 +5781,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         .replace(/LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*/g,
           "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; unfetched URLs remain leads; action choice stays with the Investigator; this is advisory, not evidence or a mandated next action.")
         .replace(/Conditional specialist OSINT actions:[^\n]*/g,
-          "Conditional specialist OSINT actions: allowlisted only.");
+          "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.");
     }
     const minimumBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
     const evidenceRecoveryClauses: Array<[string, string]> = [
@@ -5981,21 +5981,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "source-backed leads",
       "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
-      ...(input.mode === "discovery" ? [
-        requiredQualification,
-        "Target-stage research verifies objective-required role/relationship/materiality",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
-        "concrete, falsifiable public-evidence hypothesis",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions",
-        "mixed-source batch",
-        "FAST HANDOFF:",
-        "DISCOVERY TARGETABILITY / REALISM:",
-        "SEARCH: market only if country in objective/scope; locale=language.",
-        "No registry is preferred; choose by evidence.",
-      ] : []),
+      ...(input.mode === "discovery" ? ["DISCOVERY MODEL POLICY:"] : []),
       terminalContractGuidance,
-      minimumBinaryRecovery,
-      ...(registryIdList ? ["RUNTIME-AVAILABLE REGISTRY IDS ONLY", registryIdList] : []),
+      "PAGE FORMAT / RETRIEVAL LIMITS:",
+      "do not retry the same binary URL through the other fetch action",
       ...(latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
       ...latestObservationBoundaryMarkers,
       ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
@@ -6115,6 +6104,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !repaired.includes(marker));
     const recoveryText = missingFinalMarkers.map((marker) => {
+      if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
       if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === requiredQualification) return marker;
@@ -6142,7 +6132,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Rehydrate any exact required markers removed by the emergency compactor.
     // Keep the human objective and current evidence context intact; shed only
     // explicitly advisory paragraphs if the marker recovery needs more room.
-    const missingAfterCompaction = () => requiredFinalMarkers.filter((marker) => !compactedRecoveryBase.includes(marker));
+    const missingAfterCompaction = () => requiredFinalMarkers
+      .filter((marker) => !compactedRecoveryBase.includes(marker))
+      .map((marker) => marker === "DISCOVERY MODEL POLICY:" ? compactEmergencyDiscoveryContractParts.join(" ") : marker);
     let recoveryMarkers = missingAfterCompaction();
     const optionalRecoverySections = [
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
