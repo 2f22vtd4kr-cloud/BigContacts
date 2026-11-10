@@ -6225,23 +6225,21 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
         + ". Never invent adapter IDs; unavailable/failed is not a no-hit. Do not assume owners, shareholders, members or managers without observed documentation.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: only when the exact action is in this turn's ACTION ALLOWLIST and AVAILABLE ACTIONS after fresh worker attestation; no fixed tool order.";
-      const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, unused arrays=[]. Except action=done, hypothesis/purpose are non-empty and expectedInformationGain is 0..1; done may use null. Findings require vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision and promotionReason.";
+      const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Except done, hypothesis/purpose are non-empty and expectedInformationGain is [0,1]; done may null them. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
         "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only; Investigator selects exact-name person/company leads, not every result; no auto-promotion.",
-        "Search snippets remain leads, not evidence; unfetched URLs are leads and failed fetches are unobserved, not negative. Preserve exact observed names and associated public URLs.",
-        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span.",
+        "Search snippets remain leads, not evidence; unfetched URLs are leads and failed fetches are unobserved, not negative. Preserve exact observed names and public URLs. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span.",
         requiredQualification,
-        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
-        "Investigator decides whether a fetched organization merits provisional review. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null. Investigator selects whether fetched organizations merit provisional review; target-stage research verifies required role/relationship/materiality, counter-evidence and professional route."
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
-            "DISCOVERY MODE: no person/entity target is implied; human objective and Boss-approved scope set target class/geography, with no silent pivot. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, falsification and stopping; no fixed sequence.",
-            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
-            "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
-            "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity/fame neither qualifies nor excludes; require direct objective fit. Do not add wealth/ownership/private-market criteria unless requested. Investor firms need evidence of capital capacity or actual investment activity and mandate fit.",
-            "MODEL-OWNED RELEVANCE SELF-CHECK: connect each query/source to objective-required entity, role, relationship or materiality. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
-            "DISCOVERY LEAD HANDOFF CONTRACT: select relevant exact-name person/company leads as review-only, not every result; preserve observed name, role/null and public URL; no auto-promotion. Names come only from the human brief or same-case observations."
+            "DISCOVERY MODE: no person/entity target implied. Human objective/Boss scope set target class/geography; no silent pivot. DISCOVERY MODEL POLICY: Investigator chooses targets, hypotheses, queries, sources, providers/tools, pivots, falsification and stopping by evidence; no fixed sequence.",
+            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable evidence hypothesis. Other objectives use their own criteria.",
+            "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory. FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
+            "DISCOVERY TARGETABILITY / REALISM: people/companies/assets are distinct; popularity/fame neither qualifies nor excludes; direct objective fit only. Do not add wealth/ownership/private-market criteria unless requested. Investor firms need evidence of capital capacity or actual investment activity and mandate fit.",
+            "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity, role, relationship or materiality. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
+            "DISCOVERY LEAD HANDOFF CONTRACT: select relevant exact-name person/company leads as review-only, not every result; preserve observed name, role/null and public URL; no auto-promotion; names only from human brief/same-case observations."
           ].join(" ")
         : "";
       const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
@@ -6279,10 +6277,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             leadUrlsOmittedFromPromptCount: carriedLeadSample.omittedFromPromptCount
           })
         : "";
+      const compactLeadGuidance = carriedLeadUrls.length
+        ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; not evidence or a mandated next action. Investigator chooses."
+        : "";
       const observationMarkers = latestObservationBoundaryMarkers.join(" ");
       const memoryPrefix = aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : "";
       const requiredParts = [
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. No fixed action sequence; deterministic controls validate authorization, budgets, provenance and persistence only.",
+        "APEX INVESTIGATOR: Human objective and Boss scope govern; Investigator chooses actions. Deterministic controls enforce authorization, budgets, provenance and persistence; no fixed sequence.",
         objectiveBlock,
         scopeLine,
         authoritativeAvailableActions,
@@ -6300,6 +6301,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         latestFetchedSourceClaimMarker,
         latestQueryLine,
         carriedLeadLine,
+        compactLeadGuidance,
         latestRecordLine,
         latestObservationLine,
         observationMarkers,
@@ -6327,6 +6329,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         };
         const minimalRecordLine = "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + ": " + JSON.stringify(minimalRecord);
         candidate = compactCandidate(requiredParts.map((part) => part === latestRecordLine ? minimalRecordLine : part));
+      }
+      if (candidate.length > maxUserPromptChars && compactLeadGuidance) {
+        candidate = compactCandidate(requiredParts.filter((part) => part !== compactLeadGuidance));
       }
       if (candidate.length > maxUserPromptChars && latestQueryLine && latestRecordLine) {
         candidate = compactCandidate(requiredParts.filter((part) => part !== latestQueryLine));
