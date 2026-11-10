@@ -3797,13 +3797,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
-        "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION DESCRIPTORS: These are signal categories, not a query.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead; one quick source look is enough to hand it to Boss.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame/prestige neither qualifies nor excludes; objective and Boss scope set sector/geography. Popularity is not a filter.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. Target-stage research verifies objective-required role/relationship/materiality before promotion.",
+        "MISSION PRIORITY: objective/scope govern target class, geography and criteria; source selection follows evidence fit. No fixed action sequence.",
+        "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS: These are signal categories, not a query. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch.",
+        "FAST HANDOFF: choose the single strongest objective-fit lead; one quick source look is enough to hand it to Boss. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame/prestige neither qualifies nor excludes; popularity is not a filter.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
         "Investor firms need evidence of capital capacity or actual investment activity and mandate fit. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Never infer wealth from seniority.",
-        "Conditional specialist OSINT actions: ONLY if the exact action appears in (ACTION ALLOWLIST and AVAILABLE ACTIONS) this turn with fresh signed worker attestation. RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (runtimeRegistryIdsRule || "callable adapters only") + "; never invent an ID based on a jurisdiction or agency name; do not assume records expose owners, shareholders, members, or managers without observed documentation.",
-        "PDF: visit supports text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in (ACTION ALLOWLIST and AVAILABLE ACTIONS) this turn with fresh signed worker attestation. RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (runtimeRegistryIdsRule || "callable adapters only") + "; never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
+        "PDF: visit supports text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured failures.",
       ].join(" ")
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
