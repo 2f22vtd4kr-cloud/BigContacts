@@ -3649,7 +3649,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries, sources, providers, jurisdictions or an action sequence; form a concrete objective-fit public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Target-specific names come from the human brief or same-case observations, never model memory. Generic publisher homepages need a same-case evidence link; source class may vary by query. Other objectives use their own evidence criteria."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence; Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research and Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve selected exact-name people/company leads for review only (exact name, role or null, associated public URL); no fetch or ownership proof required; never auto-promote. Target-specific names come from the human brief or same-case observations, never model memory. Snippets are leads, not evidence."
     : "";
   // Keep the irreducible model decision/evidence contract compact. Discovery policy,
   // qualification, company realism and the mode-specific terminal gate must remain
@@ -3657,20 +3657,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // narration, but must not silently drop any of these decision rules.
   const fallbackOutputContract = isInvestigatorPrompt
     ? [
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; human objective and approved scope remain authoritative; do not broaden.",
-        "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence; Investigator chooses. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or approved scope explicitly names a country; locale is language only, never geography.",
+        "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope. The human objective and approved scope remain authoritative; do not broaden. No fixed action sequence; Investigator chooses.",
+        "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or approved scope explicitly names a country; locale is language only, never geography.",
         "OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
         conditionalCapabilityRule,
-        fallbackDiscoveryPolicy,
-        APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-        minimumRegistryEvidenceRule,
-        minimumBinaryUrlRule,
-        terminalEvidenceRule,
-        "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence.",
-        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never infer wealth from seniority.",
-        "investor firms need evidence of capital capacity or actual investment activity and mandate fit.",
-        "Operating-company targets need evidence of current operations, objective fit, identifiable decision-makers and practical public/professional routes; private or mid-market status matters only when requested.",
-        "INACTIVE ACTION FIELD SHAPE: " + JSON.stringify({ url: null, searches: [], findings: [] }) + ".",
       ].filter(Boolean).join(" ")
     : "";
   const minimumProviderRule = isInvestigatorPrompt
@@ -3708,13 +3698,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       if (typeof args.query === "string") compactArgs.query = args.query.slice(0, 90);
       if (typeof args.provider === "string") compactArgs.provider = args.provider;
       if (typeof args.action === "string") compactArgs.action = args.action;
+      // This is an action recovery index, not another observation summary.
+      // Keep the current query and omitted-URL counters ahead of narration;
+      // the complete latest observation is supplied in its own protected slot.
       const compactRecord: Record<string, unknown> = {};
       for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
       if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
-      if (typeof parsed.observation === "string" && parsed.observation.trim()) {
-        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 300);
-      }
-      for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
+      for (const key of ["leadUrlCount", "leadUrlsOmittedFromPromptCount", "observedUrlCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
         if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
       }
       return marker + " " + JSON.stringify(compactRecord);
@@ -3967,7 +3957,10 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     // prompt, but can never displace the current case evidence above.
     appendBudgeted(requiredQualificationRule, 420, "[qualification detail omitted; active objective remains authoritative]");
     appendBudgeted(fallbackEvidenceContract, 500, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 700, "[discovery detail omitted; objective and fast handoff remain authoritative]");
+    if (isDiscoveryPrompt) {
+      appendBudgeted(minimumDiscoveryContract, 700, "[discovery detail omitted; objective and fast handoff remain authoritative]");
+      appendBudgeted("DISCOVERY TARGETABILITY / REALISM: " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT, 900, "[company realism detail omitted; objective controls qualification]");
+    }
     appendBudgeted(terminalEvidenceRule, 260, "[terminal evidence detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 320, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
