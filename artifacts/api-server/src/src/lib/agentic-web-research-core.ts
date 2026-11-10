@@ -6178,7 +6178,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete falsifiable evidence hypothesis; source class may vary by query.";
       if (marker === "Follow the active case objective and Boss-approved scope") return "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope.";
       if (marker === "Never invent an ID based on a jurisdiction or agency name") return "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name.";
-      if (marker === "ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn") return "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required.";
+      if (marker === "ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn") return "Specialist OSINT actions only when exact action is allowlisted and available this turn with fresh signed worker attestation; no fixed tool order.";
       if (marker === requiredTargetStageContract) return requiredTargetStageContract;
       if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
       if (marker === "DISCOVERY TARGETABILITY / REALISM:") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity neither qualifies nor excludes; require direct objective fit.";
@@ -6395,7 +6395,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
                 : part === conditionalCapabilityRule
                   ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required."
                   : part === schemaContract
-                    ? "OUTPUT CONTRACT: one JSON root, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain 0..1. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason."
+                    ? "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain 0..1. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason."
                     : part === compactBinaryRecovery
                       ? "PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through another fetch action."
                       : part
