@@ -3775,6 +3775,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "DISCOVERY TARGETABILITY / REALISM: objective and Boss scope set target class; fame neither qualifies nor disqualifies; require direct objective fit. Preserve the requested sector and jurisdiction (for example, casinos in Slovenia). Do not require private/mid-market status unless requested. Operating companies need current-operations evidence; Investor firms need evidence of capital capacity or actual investment activity and mandate fit; company growth is not owner wealth.",
         "MODEL-OWNED RELEVANCE SELF-CHECK: direct objective fit; a generic publisher homepage needs a same-case evidence link. Popularity is not a filter: require direct relevance.",
         "Other objectives use their own evidence criteria; source class may vary by query.",
+        hasSearchLeadContextAtEntry ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; advisory, not a mandated action." : "",
         minimumDiscoverySourceNeutralityMarker,
         minimumOrganizationTargetabilityMarker,
       ].filter(Boolean).join(" ")
