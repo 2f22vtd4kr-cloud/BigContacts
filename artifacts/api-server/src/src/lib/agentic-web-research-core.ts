@@ -6806,7 +6806,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const absoluteMinimumTerminalContract = "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
-        ...compactEmergencyDiscoveryContractParts,
+        "DISCOVERY MODE: no person/entity target is implied; preserve the complete human objective and Boss-approved scope. No fixed action sequence. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis.",
         absoluteMinimumObjective,
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
