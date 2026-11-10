@@ -3765,13 +3765,31 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory."
     : "";
 
+  const compactDiscoveryEmergencyContract = isDiscoveryPrompt
+    ? [
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; the Investigator forms a concrete, falsifiable hypothesis.",
+        "DISCOVERY SEARCH ECONOMY: prefer one bounded mixed-source web/registry batch; no fixed itinerary.",
+        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. If plausible, hand it to Boss.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name person/company leads are review-only; preserve observed public URLs; no automatic promotion.",
+        "DISCOVERY TARGETABILITY / REALISM: objective and Boss scope set target class; fame neither qualifies nor disqualifies; direct objective relevance is required. Preserve the requested sector and jurisdiction (for example, casinos in Slovenia). Do not require private/mid-market status unless requested; company growth is not owner wealth.",
+        minimumRelevanceMarker,
+        minimumDiscoverySourceNeutralityMarker,
+        minimumOrganizationTargetabilityMarker,
+      ].filter(Boolean).join(" ")
+    : "";
+  const compactPartialEvidenceContract = isInvestigatorPrompt
+    ? [
+        "PARTIAL FINDINGS: retain Investigator-selected exact-name leads as review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span.",
+        requiredQualificationRule,
+        "Never infer wealth from seniority.",
+      ].join(" ")
+    : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
         minimalFallbackOutputContract,
-        isDiscoveryPrompt ? compactFallbackDiscoveryRule : compactTargetFallbackPolicy,
+        isDiscoveryPrompt ? compactDiscoveryEmergencyContract : compactTargetFallbackPolicy,
         conditionalCapabilityRule,
-        fallbackEvidenceContract,
-        "Never infer wealth from seniority.",
+        compactPartialEvidenceContract,
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
         terminalEvidenceRule,
