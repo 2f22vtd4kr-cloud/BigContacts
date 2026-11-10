@@ -3789,7 +3789,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
     ? [
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence; the Investigator chooses.",
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence. The Investigator chooses.",
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
         'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose non-empty; expectedInformationGain numeric [0,1] and only done may null it. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.'
       ].join(" ")
