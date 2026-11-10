@@ -4267,7 +4267,7 @@ function removePivotGeographyPhrases(direction: string): string {
     .filter((token) => token.length >= 3)
     .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return geographyTokens.length
-    ? withoutPhrases.replace(new RegExp(`\b(?:${geographyTokens.join("|")})\b`, "giu"), " ")
+    ? withoutPhrases.replace(new RegExp(`\\b(?:${geographyTokens.join("|")})\\b`, "giu"), " ")
     : withoutPhrases;
 }
 
@@ -5062,8 +5062,8 @@ function geographicScopeMention(text: string): string | null {
 
   for (const region of DISCOVERY_REGION_TERMS) {
     const pattern = new RegExp(
-      "\b(?:(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?)?" +
-      escapeDiscoveryRegex(region) + "\b",
+      "\\b(?:(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?)?" +
+      escapeDiscoveryRegex(region) + "\\b",
       "i",
     );
     const match = pattern.exec(normalized);
@@ -5078,8 +5078,8 @@ function geographicScopeMention(text: string): string | null {
     const name = displayNames.of(code);
     if (!name || name === code || name.length < 3) continue;
     const pattern = new RegExp(
-      "\b(?:in|within|across|throughout|around|from|based in|located in|operating in)\\s+(?:the\\s+)?" +
-      escapeDiscoveryRegex(name) + "\b",
+      "\\b(?:(?:in|within|across|throughout|around|based in|located in|operating in)\\s+(?:the\\s+)?)?" +
+      escapeDiscoveryRegex(name) + "\\b",
       "i",
     );
     const match = pattern.exec(normalized);
