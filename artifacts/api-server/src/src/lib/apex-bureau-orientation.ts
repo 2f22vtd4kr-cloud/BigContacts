@@ -92,7 +92,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: One root JSON object, no prose. Non-done hypothesis/purpose non-empty; expectedInformationGain in [0,1], never null except done. Inactive: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel searches need 2–4 query/provider/locale/market/purpose objects.",
     "IDENTITY/SAFETY: Distinguish person, company, trust and asset; public professional routes only.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable is not a no-hit.",
-    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment; never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
   ].join("\n");
 }
 
