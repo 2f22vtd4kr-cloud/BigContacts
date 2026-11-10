@@ -6021,15 +6021,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // assembler enforces the provider ceiling; doing this afterward is too late.
     if (input.mode === "discovery") {
       const compactDiscoveryContract = [
-        "DISCOVERY MODE: no implied person/entity target. Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence; Investigator chooses.",
+        "DISCOVERY MODE: no implied person/entity target. Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; no fixed action sequence.",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch.",
         "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; then hand a plausible lead to Boss. One source-backed relevant lead starts target research.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: fame neither qualifies nor excludes; require direct objective fit. Do not require private/mid-market status unless requested. Operating companies need current-operations evidence. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads as review-only, not every result; preserve observed public URLs; no auto-promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity is not a filter; fame neither qualifies nor excludes. Do not require private/mid-market status unless requested. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " SEARCH: market only if country in objective/scope; locale=language.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name person/company leads are review-only, not every result; preserve observed URLs; no auto-promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+        "Investor firms need evidence of capital capacity or actual investment activity and mandate fit. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Never infer wealth from seniority.",
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it. " + runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
+        "PDF: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
         "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria; source class may vary by query. No registry is preferred; choose by evidence.",
-        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it. RUNTIME-AVAILABLE REGISTRY IDS ONLY: use only the current callable IDs; never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
-        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. Never infer wealth from seniority.",
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
       ].join(" ");
       const sections = finalProjection.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       const discoverySections = sections.filter((section) =>
@@ -6038,13 +6038,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       );
       if (input.mode === "discovery" && ![
         "DISCOVERY MODE:",
+        "MISSION PRIORITY: objective/scope govern",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
-        "DISCOVERY SEARCH ECONOMY:",
-        "FAST HANDOFF:",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions",
+        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist",
+        "One source-backed relevant lead starts target research",
         "DISCOVERY TARGETABILITY / REALISM:",
-        "DISCOVERY LEAD HANDOFF CONTRACT:",
-        "Conditional specialist OSINT actions:",
-        "PAGE FORMAT / RETRIEVAL LIMITS:",
+        "Investor firms need evidence of capital capacity or actual investment activity and mandate fit",
+        "ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn",
+        "Do not assume records expose owners, shareholders, members, or managers without observed documentation",
+        "image-only PDFs require OCR (unavailable)",
       ].every((marker) => finalProjection.includes(marker))) {
         const kept = sections.filter((section) => !discoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
