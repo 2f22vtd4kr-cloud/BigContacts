@@ -3783,22 +3783,22 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactPartialEvidenceContract = isInvestigatorPrompt
     ? [
-        "PARTIAL FINDINGS (not terminal-only): preserve relevant exact-name source-backed leads as review-only; do not card every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets remain leads, not evidence; failed fetches are unobserved. Never infer wealth from seniority.",
-        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. YOU decide whether a fetched organization merits a provisional review card."
+        "PARTIAL FINDINGS (not terminal-only): relevant exact-name source-backed leads are review-only; do not card every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets remain leads, not evidence; failed fetches are unobserved. Never infer wealth from seniority.",
+        "After visit/browser_fetch, sourceUrls=[fetched URL only]; claims bind exact span. Target-stage verifies objective-required role/relationship/materiality, counter-evidence and professional route. YOU decide whether a fetched organization merits a provisional review card."
       ].join(" ")
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
     ? [
         "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence. The Investigator chooses.",
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
-        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose non-empty; expectedInformationGain numeric [0,1] and only done may null it. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.'
+        'OUTPUT CONTRACT: one root JSON; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]; non-done hypothesis/purpose nonempty; expectedInformationGain [0,1] (only done may null). Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.'
       ].join(" ")
     : "";
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance. No registry is preferred; choose by evidence. Example: casinos in Slovenia. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " Do not assume records expose owners, shareholders, members, or managers without observed documentation. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance. No registry is preferred; choose by evidence. Example: casinos in Slovenia. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
         "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only; no auto-promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
         "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL.",
         "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it."
@@ -3809,7 +3809,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         compactEmergencyOutputContract,
         compactPartialEvidenceContract,
         compactFinalEmergencyInvariants,
-        runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.",
+        runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
         isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
