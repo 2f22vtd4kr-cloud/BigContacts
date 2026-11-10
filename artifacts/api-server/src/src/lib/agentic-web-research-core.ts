@@ -3941,6 +3941,11 @@ const minimumObservationTail = observationTail
     appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
     appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
     appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
+    // Objective-specific discovery and evidence semantics outrank optional
+    // transport metadata and historical narration in the last-resort prompt.
+    if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 1_450, "[discovery detail omitted; objective and fast handoff remain authoritative]");
+    appendBudgeted(fallbackEvidenceContract, 850, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
 
     // Exact source inventory and the newest evidence remain first-class context.
@@ -3951,12 +3956,8 @@ const minimumObservationTail = observationTail
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 320, "[fetched-source excerpt detail omitted]");
 
-    // Keep objective-specific discovery and evidence rules ahead of optional
-    // transport metadata. These are decision semantics, not expendable narration.
-    if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 1_450, "[discovery detail omitted; objective and fast handoff remain authoritative]");
-    appendBudgeted(fallbackEvidenceContract, 850, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 260, "[additional runtime actions omitted]");
+    // Runtime adapter and binary retrieval semantics remain explicit after
+    // the objective, evidence, action schema, and latest source context.
     appendBudgeted(minimumRegistryEvidenceRule, 360, "[runtime registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 300, "[PDF retrieval detail omitted]");
     appendBudgeted(emergencyAiMemorySection || aiMemorySection, 140, "[older AI memory omitted; durable case ledger remains authoritative]");
