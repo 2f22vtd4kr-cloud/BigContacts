@@ -6184,13 +6184,18 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const finalRecoveryText = recoveryMarkers.join("\n\n");
     const repairedProjection = finalRecoveryText
-      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\n\n")
+      ? [compactedRecoveryBase.trim(), finalRecoveryText].filter(Boolean).join("\\n\\n")
       : compactedRecoveryBase;
+    // Recovery can rehydrate exact markers as separate paragraphs after the
+    // first normalization pass. Collapse repeated separators only: objective,
+    // source, schema and marker text remain intact while formatting overhead
+    // no longer causes an otherwise valid prompt to exceed the provider cap.
+    const budgetedRepairedProjection = repairedProjection.replace(/\\n{2,}/g, "\\n");
     if (
-      repairedProjection.length <= maxUserPromptChars
-      && hasCompleteSchema(repairedProjection)
-      && requiredFinalMarkers.every((marker) => repairedProjection.includes(marker))
-    ) return repairedProjection;
+      budgetedRepairedProjection.length <= maxUserPromptChars
+      && hasCompleteSchema(budgetedRepairedProjection)
+      && requiredFinalMarkers.every((marker) => budgetedRepairedProjection.includes(marker))
+    ) return budgetedRepairedProjection;
     throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + repairedProjection.length + ", budget " + maxUserPromptChars + ", missing=" + requiredFinalMarkers.filter((marker) => !repairedProjection.includes(marker)).join(" | ") + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
