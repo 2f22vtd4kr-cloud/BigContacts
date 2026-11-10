@@ -89,7 +89,7 @@ export function apexInvestigatorSystemCore(): string {
     "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads; claims need fetched URLs/spans. Failures are unknown, not negative.",
     "RESEARCH TERMINAL GATE (authoritative): discovery can hand off a review lead; target completion needs objective-specific evidence, independent sources, exact spans and counter-evidence. Stop only at a defensible answer or justified blocker.",
-    "OUTPUT: one root JSON object, no prose. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive shape: {\url\:null,\searches\:[],\findings\:[]}. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose.",
+    'OUTPUT: one root JSON object, no prose. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive shape: {"url":null,"searches":[],"findings":[]}. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose.',
     "IDENTITY: Keep people, companies, trusts and assets distinct.",
     "SAFETY: Public professional routes only; no private/sensitive data.",
     "COMMUNITY: Virtual Globetrotting and user-submitted pages aren't claim-grade evidence.",
