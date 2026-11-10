@@ -3640,7 +3640,57 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackOutputContract = isInvestigatorPrompt
     ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; human objective and approved scope remain authoritative; do not broaden. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or approved scope explicitly names a country; locale is language only, never geography. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. " + conditionalCapabilityRule + " INACTIVE ACTION FIELD SHAPE: " + JSON.stringify({ url: null, searches: [], findings: [] }) + "."
     : "";
-  const fallbackEvidenceContract = isInvestigatorPrompt
+  
+  const minimumProviderRule = isInvestigatorPrompt
+    ? (fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson.")
+    : "";
+  const scopeRecoveryRule = isInvestigatorPrompt && /SCOPE GUARD BLOCKED ACTION|pivot_alignment_guard/i.test(observation)
+    ? "SCOPE GUARD BLOCKED ACTION: blocked request is not evidence. Preserve subject/geography; source class may vary, never pivot sector or jurisdiction. Retry with a materially different in-scope query or ask Boss/Right-hand."
+    : "";
+  const minimumScopeContext = activeScopeContext
+    ? (() => {
+        const isCaseObjective = /^CASE OBJECTIVE:/i.test(activeScopeContext);
+        const normalizedScope = isCaseObjective || /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/i.test(activeScopeContext)
+          ? activeScopeContext
+          : "ACTIVE BOSS SCOPE: " + activeScopeContext;
+        if (normalizedScope.length <= 300) return normalizedScope;
+        if (isCaseObjective) return boundInvestigatorPromptSection(normalizedScope, 300);
+        const semanticScope = compactActiveBossScope(normalizedScope, 300);
+        return semanticScope ? "ACTIVE BOSS SCOPE: " + semanticScope : normalizedScope.slice(0, 110) + " … " + normalizedScope.slice(-185);
+      })()
+    : "";
+  const minimumAvailableActionsSection = availableActionsSection;
+  const minimumFetchedSourceExcerpt = fetchedSourceClaimExcerpt
+    ? fetchedSourceClaimExcerpt
+    : fetchedSourceExcerpt
+      ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 160)
+      : "";
+  const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
+    const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \\d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
+    const jsonAt = summary.indexOf("{");
+    if (jsonAt < 0) return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
+    try {
+      const parsed = JSON.parse(summary.slice(jsonAt)) as Record<string, unknown>;
+      const args = parsed.args && typeof parsed.args === "object" ? parsed.args as Record<string, unknown> : {};
+      const compactArgs: Record<string, unknown> = {};
+      if (typeof args.query === "string") compactArgs.query = args.query.slice(0, 90);
+      if (typeof args.provider === "string") compactArgs.provider = args.provider;
+      if (typeof args.action === "string") compactArgs.action = args.action;
+      const compactRecord: Record<string, unknown> = {};
+      for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
+      if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
+      if (typeof parsed.observation === "string" && parsed.observation.trim()) {
+        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 300);
+      }
+      for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
+        if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
+      }
+      return marker + " " + JSON.stringify(compactRecord);
+    } catch {
+      return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
+    }
+  });
+const fallbackEvidenceContract = isInvestigatorPrompt
     ? "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span."
     : "";
 
