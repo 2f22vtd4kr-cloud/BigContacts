@@ -3676,8 +3676,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY MODE: objective and Boss scope govern target class/geography; no implied target or preset list. No fixed action sequence. The Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: convert descriptors into falsifiable queries. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Operating-company targets need evidence of current operations, objective fit, decision-makers and public/professional routes. One source-backed relevant lead starts target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name people/company leads are review-only, not every result; no fetch or ownership clue is required; never auto-promote. ORG LEAD: fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. Never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Do not require private/mid-market status unless requested. Other objectives use their own evidence criteria. Source class may vary by query. Example: casinos in Slovenia. Search snippets are leads, not evidence."
-    : "";
+    ? "DISCOVERY MODE: the human objective and Boss-approved scope govern target class/geography; no implied target or preset list. No fixed action sequence. The Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; a bounded mixed-source web/registry batch is available, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY LEAD HANDOFF CONTRACT: selected people/company leads are review-only, not every result; no auto-promotion. ORG LEAD: fetched/registry leads may be promoted for target research only, never final CRM/contact. MODEL-OWNED RELEVANCE SELF-CHECK: assess direct objective fit; a generic publisher homepage needs a same-case evidence link. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Operating-company targets need evidence of current operations and objective fit. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. Search snippets are leads, not evidence."
+    : "";"";
   const fallbackOutputContract = isInvestigatorPrompt
     ? [
         "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. Human objective and approved scope are authoritative; do not broaden. No fixed action sequence; the Investigator chooses.",
@@ -3688,6 +3688,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         ...fallbackProtectedRules,
         conditionalCapabilityRule,
       ].filter(Boolean).join(" ")
+    : "";
+  const minimalFallbackOutputContract = isInvestigatorPrompt
+    ? [
+        "APEX INVESTIGATOR: Follow the human case objective and Boss-approved scope; do not broaden. No fixed action sequence; the Investigator chooses.",
+        "MISSION PRIORITY: objective/scope govern target class, geography and criteria; source selection follows evidence fit.",
+        "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; parallel searches require query/provider/locale/market/purpose.",
+        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain must be in [0,1]; only done may null them. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.',
+      ].join(" ")
     : "";
   const minimumProviderRule = isInvestigatorPrompt
     ? (fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson.")
@@ -3804,7 +3812,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads, not evidence until fetched. This is not evidence or a mandated next action."
       : "";
     const compactParts = [
-      fallbackOutputContract,
+      minimalFallbackOutputContract,
       fallbackEvidenceContract,
       compactCaseObjective,
         minimumTargetabilityMarker,
@@ -3824,8 +3832,9 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     mandatoryMinimumTail = joinPromptParts(compactParts);
     if (mandatoryMinimumTail.length > limit) {
       mandatoryMinimumTail = joinPromptParts([
-        fallbackOutputContract,
+        minimalFallbackOutputContract,
         fallbackEvidenceContract,
+        ...(isDiscoveryPrompt ? [fallbackDiscoveryPolicy] : []),
         compactCaseObjective,
             minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
@@ -3850,7 +3859,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       // claim. Optional duplicate guidance is added only when the exact provider
       // ceiling leaves room; otherwise the durable event ledger remains authoritative.
       const coreParts = [
-        fallbackOutputContract,
+        minimalFallbackOutputContract,
         minimumObservationTail,
         fallbackEvidenceContract,
         compactCaseObjective,
@@ -3960,10 +3969,10 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       if (selected && selected.length <= budget) finalParts.push(selected);
     };
 
-    if (fallbackOutputContract.length > limit) {
+    if (minimalFallbackOutputContract.length > limit) {
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
-    finalParts.push(fallbackOutputContract);
+    finalParts.push(minimalFallbackOutputContract);
 
     // Human objective and Boss scope are separate authorities. Preserve the
     // complete objective verbatim before any bounded policy or history.
@@ -3985,6 +3994,10 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     // Objective-specific evidence and terminal rules still travel with the
     // prompt, but can never displace the current case evidence above.
     appendBudgeted(fallbackEvidenceContract, 500, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    if (isDiscoveryPrompt) appendBudgeted(fallbackDiscoveryPolicy, 1_300, "[discovery policy detail omitted; model autonomy and objective-fit rules remain authoritative]");
+    appendBudgeted(minimumRegistryEvidenceRule, 520, "[registry detail omitted; callable adapter allowlist remains authoritative]");
+    appendBudgeted(minimumBinaryUrlRule, 420, "[retrieval detail omitted; failed fetches remain unobserved]");
+    appendBudgeted(terminalEvidenceRule, 260, "[terminal detail omitted; do not claim completion without the mode-specific evidence gate]");
     if (isDiscoveryPrompt) {
     }
     appendBudgeted(emergencyAiMemorySection || aiMemorySection, 120, "[older AI memory omitted; durable case ledger remains authoritative]");
@@ -6133,7 +6146,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // over a prompt that already fits and retains its latest action, fetched
     // evidence, lead follow-up, and all explicit geography alternatives.
     if (
-      normalizedBase.length <= maxUserPromptChars
+      normalizedBase.length <= maxUserPromptChars - 96
       && hasRequiredPromptContract
       && hasRecoveryContext
       && hasLatestRecordContext
@@ -6196,7 +6209,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const appended = appendEmergencyObservationContext(
       basePrompt,
       recoveryObservation,
-      maxUserPromptChars,
+      Math.max(0, maxUserPromptChars - 96),
       input.mode,
       activeBossDirection,
       registryIdList,
