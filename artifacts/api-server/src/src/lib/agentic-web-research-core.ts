@@ -3649,7 +3649,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries, sources, providers, jurisdictions or an action sequence; form a concrete objective-fit public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Target-specific names come from the human brief or same-case observations, never model memory. Other objectives use their own evidence criteria."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries, sources, providers, jurisdictions or an action sequence; form a concrete objective-fit public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Target-specific names come from the human brief or same-case observations, never model memory. Generic publisher homepages need a same-case evidence link; source class may vary by query. Other objectives use their own evidence criteria."
     : "";
   // Keep the irreducible model decision/evidence contract compact. Discovery policy,
   // qualification, company realism and the mode-specific terminal gate must remain
@@ -3740,7 +3740,6 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     compactCaseObjective,
     minimumOrganizationTargetabilityMarker,
     ...(isDiscoveryPrompt ? [minimumTargetabilityMarker] : []),
-    minimumDiscoveryContract,
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
     conditionalCapabilityRule,
@@ -3794,8 +3793,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       fallbackOutputContract,
       fallbackEvidenceContract,
       compactCaseObjective,
-      minimumDiscoveryContract,
-      minimumTargetabilityMarker,
+        minimumTargetabilityMarker,
       minimumOrganizationTargetabilityMarker,
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
@@ -3820,8 +3818,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
         fallbackOutputContract,
         fallbackEvidenceContract,
         compactCaseObjective,
-        minimumDiscoveryContract,
-        minimumTargetabilityMarker,
+            minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
         minimumRegistryEvidenceRule,
         minimumBinaryUrlRule,
