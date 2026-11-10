@@ -3632,8 +3632,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Preserve that observation in a separate bounded slot before removing the
   // serialized record, and combine it with current feedback without duplicating
   // an identical payload.
-  const observationWithoutCarriedSource = [...new Set([latestTrajectoryObservation, cleanedCurrentObservation].filter(Boolean))].join("\n\n");
-  const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420);
+  const observationAlreadyInBase = Boolean(cleanedCurrentObservation && base.includes(cleanedCurrentObservation));
+  const observationWithoutCarriedSource = [...new Set([latestTrajectoryObservation, observationAlreadyInBase ? "" : cleanedCurrentObservation].filter(Boolean))].join("\n\n");
+  const observationTail = observationAlreadyInBase ? "" : compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420);
+  const observationHeader = observationAlreadyInBase ? "" : header;
   const fetchedSourceLabel = fetchedSourceExcerptLabel;
   const fallbackRuleCandidates = [
     "No fixed action sequence; the Investigator chooses actions.",
@@ -3668,7 +3670,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
     : "";
       const minimumBinaryUrlRule = isInvestigatorPrompt
-    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
@@ -3823,7 +3825,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     observationMarkerSource.match(/\b(?:[A-Z][A-Z0-9]*[ _]){1,6}SENTINEL\b|\bLATEST_OBSERVATION_(?:START|END|[A-Z0-9_]+)\b/g) ?? [],
   )].slice(0, 12);
   const minimumObservationTail = [
-    header,
+    observationHeader,
     latestTrajectoryObservation ? "LATEST TRAJECTORY RECORD" : "",
     latestObservationOpening,
     ...preservedObservationMarkers,
