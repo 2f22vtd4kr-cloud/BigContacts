@@ -5723,7 +5723,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       }
     }
     if (latestFetchedSourceClaimMarker && !repaired.includes(latestFetchedSourceClaimMarker)) {
-      const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.find((value) => /^https?:\/\//i.test(value)) ?? "";
+      const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.map(completePromptUrl).find((value): value is string => Boolean(value)) ?? "";
       const claimBlock = [
         "SOURCE URL (exact observed URL): " + sourceUrl,
         latestFetchedSourceClaimMarker,
@@ -6214,14 +6214,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "Search snippets remain leads, not evidence; failed fetches are unobserved.",
         "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span.",
         requiredQualification,
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD: a discovered exact-name person stays review-only until objective-required evidence is verified.",
         "After visit/browser_fetch, YOU decide whether a fetched organization merits a provisional review card; preserve exact observed name and source URL; this is not an automatic every-result rule.",
         "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
-            "DISCOVERY MODE: no person or entity target is implied. DISCOVERY MODEL POLICY: objective/scope govern. Follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
+            "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/scope govern; preserve the complete human objective and accepted Boss scope, with no silent pivot. DISCOVERY MODEL POLICY: follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
             "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not query terms; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
-            "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batches are available when useful, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
+            "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed when useful, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
             "Popularity is not a filter: require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
             "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads as review-only, not every result; preserve observed name, role/null and associated public URL; no auto-promotion. Target-specific names come from the human brief or same-case observations, never model memory."
           ].join(" ")
@@ -6246,19 +6247,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             turn: latestSuccessfulFetchRecord.turn,
             action: latestSuccessfulFetchRecord.action,
             execution: latestSuccessfulFetchRecord.execution,
-            observedUrls: sourceUrl ? [sourceUrl] : []
+            observedUrls: sourceUrl ? [sourceUrl] : [],
+            observedUrlOmittedFromPromptCount: sourceUrl ? 0 : latestSuccessfulFetchRecord.observedUrls?.length ?? 0
           })
         : "";
       const pinnedInventoryLine = extractPinnedDurableUrlInventory(
         [input.durableUrlInventory, repaired].filter(Boolean).join("\n")
       );
-      const carriedLeadUrls = (carryForwardSuccessfulSearch?.leadUrls ?? [])
-        .filter((value): value is string => typeof value === "string" && /^https?:\/\//i.test(value))
-        .slice(0, 2);
+      const carriedLeadSample = completePromptUrlSample(carryForwardSuccessfulSearch?.leadUrls ?? [], 2);
+      const carriedLeadUrls = carriedLeadSample.urls;
       const carriedLeadLine = carriedLeadUrls.length
         ? "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (unfetched URLs remain leads, not evidence): " + JSON.stringify({
             leadUrls: carriedLeadUrls,
-            leadUrlsOmittedFromPromptCount: Math.max(0, (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) - carriedLeadUrls.length)
+            leadUrlsOmittedFromPromptCount: carriedLeadSample.omittedFromPromptCount
           })
         : "";
       const latestRecordHasActiveLeads = Boolean(latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0);
@@ -6267,6 +6268,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const memoryPrefix = aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : "";
       const observationMarkers = latestObservationBoundaryMarkers.join(" ");
+      let compactFallbackSegmentLengths = "";
       const requiredParts = [
         "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses; deterministic controls validate authorization, budgets, provenance and persistence only.",
         objectiveBlock,
@@ -6294,6 +6296,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         observationMarkers,
         memoryPrefix
       ].filter(Boolean);
+      compactFallbackSegmentLengths = requiredParts.map((part, index) => index + ":" + part.length).join(",");
       const compactCandidate = (parts: string[]) => parts.filter(Boolean).join("\n").trim();
       let candidate = compactCandidate(requiredParts);
       // Preserve exact current action arguments and URL/omission counters while
@@ -6334,7 +6337,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasCompleteSchema(compactFallbackPrompt)
       && requiredFinalMarkers.every((marker) => compactFallbackPrompt.includes(marker))
     ) return compactFallbackPrompt;
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + Math.max(repairedProjection.length, compactFallbackPrompt.length) + ", budget " + maxUserPromptChars + ", missing=" + requiredFinalMarkers.filter((marker) => !compactFallbackPrompt.includes(marker)).join(" | ") + "); no action should be sent.");
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (repaired=" + repairedProjection.length + ", fallback=" + compactFallbackPrompt.length + ", budget=" + maxUserPromptChars + ", parts=" + compactFallbackSegmentLengths + ", missing=" + requiredFinalMarkers.filter((marker) => !compactFallbackPrompt.includes(marker)).join(" | ") + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
