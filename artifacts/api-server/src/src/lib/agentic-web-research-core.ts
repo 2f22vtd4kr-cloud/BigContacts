@@ -6373,14 +6373,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 
       if (candidate.length > maxUserPromptChars) {
         const emergencyPartialEvidence = [
-          "PARTIAL FINDINGS (not terminal-only): keep only Investigator-selected exact-name source-backed person/company leads as review-only; never auto-promote.",
-          "Snippets are leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
+          "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads only when the Investigator selects exact-name people/company; keep review-only; never auto-promote.",
+          "Search snippets remain leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
           requiredQualification,
           "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
           requiredTargetStageContract
         ].join(" ");
         const emergencyDiscovery = [
-          "DISCOVERY MODE: no person or entity target is implied. Human objective/latest Boss scope govern target class and geography; no silent pivot or fixed action sequence. Investigator owns hypotheses, targets, queries, sources/providers/tools, pivots, corroboration and stopping.",
+          "DISCOVERY MODE: no person or entity target is implied. Human objective/latest Boss scope govern class/geography; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator owns hypotheses, targets, queries, sources/providers/tools, pivots, corroboration and stopping.",
           "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis; descriptors are signals, not queries. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence. Other objectives use their own evidence criteria; source class may vary by query.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; one source-backed lead starts target research.",
           "DISCOVERY TARGETABILITY / REALISM: people/companies/assets distinct. Popularity is not a filter: require direct relevance to the active objective; fame neither qualifies nor excludes. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Keep company-level discovery signals separate from proof; Company growth and materiality must be assessed separately from an individual owner's wealth.",
@@ -6397,7 +6397,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
                   : part === schemaContract
                     ? "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain 0..1. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason."
                     : part === compactBinaryRecovery
-                      ? "PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through another fetch action."
+                      ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
                       : part
         ));
       }
