@@ -6133,8 +6133,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return marker;
     }).filter(Boolean).join("\n\n");
     const repairedProjection = recoveryText
-      ? [finalProjection.trim(), recoveryText].filter(Boolean).join("\n\n")
-      : finalProjection;
+      ? [repaired.trim(), recoveryText].filter(Boolean).join("\n\n")
+      : repaired;
     if (
       repairedProjection.length <= maxUserPromptChars
       && hasCompleteSchema(repairedProjection)
