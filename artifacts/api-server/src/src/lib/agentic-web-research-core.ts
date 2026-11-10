@@ -4037,6 +4037,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     appendBudgeted(minimumScopeContext, 520, "[scope detail omitted; canonical Boss scope remains authoritative]");
     appendBudgeted(scopeRecoveryRule, 260, "[scope recovery detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 700, "[additional runtime actions omitted]");
+    appendBudgeted(minimumProviderRule, 220, "[additional provider detail omitted; live actions remain authoritative]");
     appendBudgeted(urlInventory, 900, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 420, "[fetched-source excerpt detail omitted]");
@@ -4045,6 +4046,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     appendBudgeted(minimumObservationTail || (header + " " + observationTail), 260, "[observation detail omitted]");
     appendBudgeted(compactPartialEvidenceContract, 1_100, "[optional evidence explanation omitted; source ledger remains authoritative]");
     appendBudgeted(compactDiscoveryEmergencyContract, 1_550, "[optional discovery explanation omitted; objective and action contract remain authoritative]");
+    appendBudgeted(compactTargetFallbackPolicy, 520, "[optional target-specific explanation omitted; objective remains authoritative]");
     appendBudgeted(compactFinalEmergencyInvariants, 650, "[optional retrieval/capability explanation omitted; live allowlist remains authoritative]");
     appendBudgeted(runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.", 520, "[additional registry metadata omitted]");
     appendBudgeted(terminalEvidenceRule, 360, "[terminal explanation omitted; machine terminal gate remains authoritative]");
