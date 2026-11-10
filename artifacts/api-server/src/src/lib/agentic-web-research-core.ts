@@ -3705,18 +3705,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactTargetFallbackPolicy = isInvestigatorPrompt && !isDiscoveryPrompt
     ? "TARGET MODE: market=null; locale is language only, never geography. Avoid stale years unless the objective is explicitly historical. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. investor firms need evidence of capital capacity or actual investment activity and mandate fit. Operating-company targets need evidence of current operations. Do not require private/mid-market status unless requested."
     : "";
-  const finalEmergencyCoreContract = isInvestigatorPrompt
-    ? [
-        minimalFallbackOutputContract,
-        isDiscoveryPrompt ? compactFallbackDiscoveryRule : compactTargetFallbackPolicy,
-        conditionalCapabilityRule,
-        fallbackEvidenceContract,
-        "Never infer wealth from seniority.",
-        minimumBinaryUrlRule,
-        minimumRegistryEvidenceRule,
-        terminalEvidenceRule,
-      ].filter(Boolean).join(" ")
-    : "";
+
 
   const minimumProviderRule = isInvestigatorPrompt
     ? (fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson.")
@@ -3774,6 +3763,19 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
 
   const compactFallbackDiscoveryRule = isDiscoveryPrompt
     ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory."
+    : "";
+
+  const finalEmergencyCoreContract = isInvestigatorPrompt
+    ? [
+        minimalFallbackOutputContract,
+        isDiscoveryPrompt ? compactFallbackDiscoveryRule : compactTargetFallbackPolicy,
+        conditionalCapabilityRule,
+        fallbackEvidenceContract,
+        "Never infer wealth from seniority.",
+        minimumBinaryUrlRule,
+        minimumRegistryEvidenceRule,
+        terminalEvidenceRule,
+      ].filter(Boolean).join(" ")
     : "";
 const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "";
   const latestObservationOpening = latestTrajectoryObservation
