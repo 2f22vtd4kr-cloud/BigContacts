@@ -3797,13 +3797,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
-        "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. MISSION PRIORITY: objective/scope govern target class, geography and criteria; source selection follows evidence fit.",
-        "MISSION DESCRIPTORS: These are signal categories, not a query. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead; one quick source look is enough to hand it to target research, then Boss. One source-backed relevant lead starts target research.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame/prestige neither qualifies nor excludes; popularity is not a filter. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+        "Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch.",
+        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity is not a filter; direct objective fit. Do not require private/mid-market status unless requested.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
         "Investor firms need evidence of capital capacity or actual investment activity and mandate fit. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Never infer wealth from seniority.",
-        "Conditional specialist OSINT actions: ONLY if the exact action appears in (ACTION ALLOWLIST and AVAILABLE ACTIONS) this turn with fresh signed worker attestation. RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + (runtimeRegistryIdsRule || "callable adapters only") + "; never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
-        "PDF: visit supports text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured failures.",
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
+        "PDF: visit supports text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
       ].join(" ")
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
