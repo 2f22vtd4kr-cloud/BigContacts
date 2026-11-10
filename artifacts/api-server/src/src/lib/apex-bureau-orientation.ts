@@ -89,7 +89,6 @@ export function apexInvestigatorSystemCore(): string {
     "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
     "EVIDENCE: Snippets are leads; claims need fetched URLs/spans. Failures are unknown, not negative.",
     "RESEARCH TERMINAL GATE (authoritative): discovery may hand off a source-backed review lead; target completion requires objective-specific evidence, independent source units, exact spans and counter-evidence. Budget expiry, failed fetches and unresolved leads are not completion.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures; do not retry the same binary URL through the other fetch action.",
     "OUTPUT: Full JSON; Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose.",
     "IDENTITY: Keep people, companies, trusts and assets distinct.",
     "SAFETY: Public professional routes only; no private/sensitive data.",
@@ -100,7 +99,7 @@ export function apexInvestigatorSystemCore(): string {
     "PROMOTION: Verify required role, fit, counter-evidence and public route.",
     "STOP: Stop only at a defensible answer or justified blocker.",
   ].join("\n");
-}
+
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
   const roleLine = role === "boss"
