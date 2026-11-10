@@ -2070,13 +2070,14 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     const selected: string[] = [];
     const selectedSet = new Set<string>();
     const used = () => selected.reduce((total, part) => total + part.length, 0) + Math.max(0, selected.length - 1) * 2;
-    const add = (raw: string, cap: number, label: string) => {
+    const add = (raw: string, cap: number, label: string, requireWhole = false) => {
       const value = raw.trim();
       if (!value || selectedSet.has(value) || contract.includes(value)) return;
       const remaining = prefixBudget - used() - (selected.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
-      if (containsVerbatimCaseObjective(value)) {
+      if (containsVerbatimCaseObjective(value) || requireWhole) {
         if (value.length > budget) {
+          if (requireWhole) throw new Error("Cannot preserve required Investigator policy '" + label + "' within maxPromptChars=" + limit + ".");
           throw new Error("Cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
         }
         selected.push(value);
@@ -2096,15 +2097,6 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     const objectiveBlock = prefix.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0] ?? "";
     if (objectiveBlock) add(objectiveBlock, prefixBudget, "objective detail");
 
-    // A short invariant header replaces the much larger duplicate schema
-    // preamble; the complete field schema remains protected in the suffix.
-    if (/APEX INVESTIGATOR|MISSION PRIORITY:/.test(prefix)) {
-      add(
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence. Investigator chooses. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. SEARCH SCOPE: market=null unless objective or approved scope explicitly names a country; locale is language only, never geography.",
-        320,
-        "Investigator header",
-      );
-    }
     const withoutObjective = objectiveBlock ? normalized.replace(objectiveBlock, "") : normalized;
     const remainingParagraphs = withoutObjective.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
     const addMatches = (pattern: RegExp, cap: number, label: string, latestOnly = false) => {
@@ -2114,7 +2106,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     };
 
     // Objective and active Boss scope are independent authorities.
-    addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 560, "case objective");
+    if (!objectiveBlock) addMatches(/^(?:CASE OBJECTIVE:|HUMAN CASE OBJECTIVE:)/i, 560, "case objective");
     addMatches(/^(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|CURRENT BOSS-DIRECTED)/i, 700, "approved scope", true);
 
     // These compact policies are higher priority than optional trajectory
@@ -2123,15 +2115,17 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     if (/DISCOVERY MODE|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(normalized)) {
       add(
         "DISCOVERY MODE: no person or entity target is implied. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY TARGETABILITY / REALISM: Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. One source-backed relevant lead starts target research. Popularity is not a filter: require direct relevance to the active objective. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria. Example: casinos in Slovenia. SEARCH: market only if country in objective/scope; locale=language. Do not require private/mid-market status unless requested.",
-        1_300,
+        1_600,
         "discovery policy",
+        true,
       );
     }
     if (/Operating-company targets need evidence of current operations|Avoid stale years unless the objective is explicitly historical/.test(normalized)) {
       add(
         "Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Operating-company targets need evidence of current operations. Avoid stale years unless the objective is explicitly historical.",
-        850,
+        900,
         "target company realism",
+        true,
       );
     }
     if (/Operating-company targets need evidence of current operations|Avoid stale years unless the objective is explicitly historical/.test(normalized)) {
@@ -2144,17 +2138,18 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     if (/PARTIAL FINDINGS|Qualification follows the active objective/.test(normalized)) {
       add(
         "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span.",
-        1_000,
+        1_100,
         "evidence policy",
+        true,
       );
     }
 
     // Preserve runtime capabilities and evidence gates before optional
     // trajectory prose. These may live on either side of the schema marker.
     addMatches(/^AVAILABLE ACTIONS:/i, 900, "available actions");
-    addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 520, "runtime registry contract");
-    addMatches(/^PAGE FORMAT \/ RETRIEVAL LIMITS:/i, 320, "PDF retrieval contract");
-    addMatches(/^RESEARCH TERMINAL GATE/i, 280, "terminal evidence gate");
+    addMatches(/^RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/i, 850, "runtime registry contract");
+    addMatches(/^PAGE FORMAT \/ RETRIEVAL LIMITS:/i, 420, "PDF retrieval contract");
+    addMatches(/^RESEARCH TERMINAL GATE/i, 420, "terminal evidence gate");
     addMatches(/^VALID PROVIDERS:/i, 200, "provider contract");
     addMatches(/^Conditional specialist OSINT actions/i, 200, "conditional capability contract");
 

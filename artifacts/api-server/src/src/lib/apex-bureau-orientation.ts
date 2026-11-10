@@ -82,8 +82,8 @@ export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.",
-    "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies. B2B includes operating companies and relevant decision-makers.",
-    "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction (casinos in Slovenia). Use a quick bounded mixed-source first pass. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick look; if plausible, hand to Boss.",
+    "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.",
+    "SCENARIOS: Descriptors aren't queries; preserve sector and jurisdiction (casinos in Slovenia). Use a quick bounded mixed-source first pass. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; if plausible, hand to Boss.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant people/company leads as review-only; no auto-promotion.",
     "one relevant company is a valid partial result.",
     "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. The Investigator selects targets, queries, sources, tools, pivots and stopping.",
@@ -92,6 +92,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: one root JSON object. Non-done hypothesis/purpose are non-empty; expectedInformationGain is [0,1]; only done may null them. Parallel searches need 2–4 objects with query/provider/locale/market/purpose.",
     "IDENTITY: Keep people, companies, trusts and assets distinct.",
     "SAFETY: Public professional routes only; no private/sensitive data.",
+    "COMMUNITY: Virtual Globetrotting and user-submitted pages aren't claim-grade evidence.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable isn't a no-hit.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority.",
