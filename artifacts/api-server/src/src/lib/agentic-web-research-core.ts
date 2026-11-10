@@ -3807,11 +3807,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
         compactEmergencyOutputContract,
         isDiscoveryPrompt
-          ? "DISCOVERY: descriptors are signal categories, not a query; form a falsifiable hypothesis. The Investigator chooses any in-scope web/registry action; no fixed itinerary. Select the strongest directly relevant lead for review-only handoff; no automatic promotion. Popularity is not a filter."
+          ? "DISCOVERY: These are signal categories, not a query; form a falsifiable hypothesis. The Investigator chooses any in-scope web/registry action; no fixed itinerary. Select the strongest directly relevant lead for review-only handoff; no automatic promotion. Popularity is not a filter."
           : compactTargetFallbackPolicy,
         "EVIDENCE: snippets are leads; failed fetches are unknown. Fetched claims bind to the exact URL and observed span. Keep exact-name discovery leads review-only. Qualification follows the objective; never infer wealth from seniority.",
         "Conditional specialist OSINT actions are available only when attested and authorized for this turn.",
-        "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned, encrypted and malformed PDFs are distinct failures; failed extraction is unobserved.",
+        "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR; password-protected and malformed PDFs are distinct structured failures; failed extraction is unobserved.",
         "REGISTRIES: callable runtime IDs only; never invent IDs or infer ownership fields absent observed documentation.",
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
@@ -3825,6 +3825,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     observationMarkerSource.match(/\b(?:[A-Z][A-Z0-9]*[ _]){1,6}SENTINEL\b|\bLATEST_OBSERVATION_(?:START|END|[A-Z0-9_]+)\b/g) ?? [],
   )].slice(0, 12);
   const minimumObservationTail = [
+    header,
     latestTrajectoryObservation ? "LATEST TRAJECTORY RECORD" : "",
     latestObservationOpening,
     ...preservedObservationMarkers,
@@ -4044,7 +4045,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     finalParts.push(finalEmergencyCoreContract);
 
     appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
-    appendBudgeted(minimumScopeContext, 720, "[scope detail omitted; canonical Boss scope remains authoritative]");
+    appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
     appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
