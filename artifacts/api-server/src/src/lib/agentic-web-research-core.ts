@@ -6021,50 +6021,31 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // assembler enforces the provider ceiling; doing this afterward is too late.
     if (input.mode === "discovery") {
       const compactDiscoveryContract = [
-        "DISCOVERY MODE: no implied person/entity target. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form falsifiable public-evidence hypotheses. PARTIAL FINDINGS: selected exact-name leads remain review-only; snippets are leads, failed fetches unknown.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; then hand a plausible lead to Boss. No registry is preferred; choose by evidence. Preserve sector/jurisdiction (casinos in Slovenia).",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: fame neither qualifies nor excludes; require direct objective fit. Do not require private/mid-market status unless requested. Operating companies need current-operations evidence. Investor firms need evidence of capital capacity or investment activity. Company growth is not owner wealth.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads as review-only, not every result; preserve observed public URLs; no auto-promotion. One source-backed relevant lead starts target research. ORG LEAD: fetched/registry exact-name leads may enter target research, never final CRM/contact. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria; source class may vary by query. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-        terminalContractGuidance,
-      ].join(" ");
-      const repairedSections = repaired.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-      const duplicatedDiscoverySections = repairedSections.filter((section) =>
-        /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
-        && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LATEST_OBSERVATION_(?:START|END)|LAST SUCCESSFUL FETCHED SOURCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|leadUrlsOmittedFromPromptCount|https?:\/\//i.test(section)
-      );
-      {
-        const kept = repairedSections.filter((section) => !duplicatedDiscoverySections.includes(section));
-        const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
-        kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
-        repaired = kept.join("\n\n");
-      }
-    }
-    let finalProjection = appendEmergencyObservationContext(
-      repaired,
-      "",
-      Math.max(4_000, maxUserPromptChars - 1_300),
-      input.mode,
-      activeBossDirection,
-      registryIdList,
-      aiHistoricalMemory,
-    );
-    // Emergency discovery can carry the same policy in several overlapping
-    // sections. Replace those duplicates with one compact, complete model-owned
-    // decision contract before removing any objective, scope, source or URL data.
-    if (input.mode === "discovery" && finalProjection.length > maxUserPromptChars) {
-      const compactDiscoveryContract = [
-        "DISCOVERY MODE: no implied person/entity target. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form falsifiable public-evidence hypotheses. PARTIAL FINDINGS: selected exact-name leads remain review-only; snippets are leads, failed fetches unknown.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; then hand a plausible lead to Boss. No registry is preferred; choose by evidence. Preserve sector/jurisdiction (casinos in Slovenia).",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: fame neither qualifies nor excludes; require direct objective fit. Do not require private/mid-market status unless requested. Operating companies need current-operations evidence. Investor firms need evidence of capital capacity or investment activity. Company growth is not owner wealth.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads as review-only, not every result; preserve observed public URLs; no auto-promotion. One source-backed relevant lead starts target research. ORG LEAD: fetched/registry exact-name leads may enter target research, never final CRM/contact. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria; source class may vary by query. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-        terminalContractGuidance,
+        "DISCOVERY MODE: no implied person/entity target. Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence; Investigator chooses.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch.",
+        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; then hand a plausible lead to Boss. One source-backed relevant lead starts target research.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: fame neither qualifies nor excludes; require direct objective fit. Do not require private/mid-market status unless requested. Operating companies need current-operations evidence. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads as review-only, not every result; preserve observed public URLs; no auto-promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.",
+        "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. Other objectives use their own evidence criteria; source class may vary by query. No registry is preferred; choose by evidence.",
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it. RUNTIME-AVAILABLE REGISTRY IDS ONLY: use only the current callable IDs; never invent an ID based on a jurisdiction or agency name. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. Never infer wealth from seniority.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
       ].join(" ");
       const sections = finalProjection.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       const discoverySections = sections.filter((section) =>
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LATEST_OBSERVATION_(?:START|END)|LAST SUCCESSFUL FETCHED SOURCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|leadUrlsOmittedFromPromptCount|https?:\/\//i.test(section)
       );
-      if (discoverySections.length > 0) {
+      if (input.mode === "discovery" && ![
+        "DISCOVERY MODE:",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
+        "DISCOVERY SEARCH ECONOMY:",
+        "FAST HANDOFF:",
+        "DISCOVERY TARGETABILITY / REALISM:",
+        "DISCOVERY LEAD HANDOFF CONTRACT:",
+        "Conditional specialist OSINT actions:",
+        "PAGE FORMAT / RETRIEVAL LIMITS:",
+      ].every((marker) => finalProjection.includes(marker))) {
         const kept = sections.filter((section) => !discoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
         kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
