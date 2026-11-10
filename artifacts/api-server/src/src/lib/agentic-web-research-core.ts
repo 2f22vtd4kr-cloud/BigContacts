@@ -6036,7 +6036,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const runtimeRegistryIdsRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ".";
       const compactDiscoveryContract = [
         "DISCOVERY MODE: no implied person/entity target. Preserve the complete human objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; no fixed action sequence.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch allowed. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. One source-backed relevant lead starts target research.",
         "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. Do not require private/mid-market status unless requested. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " SEARCH: market only if country in objective/scope; locale=language.",
         "DISCOVERY LEAD HANDOFF CONTRACT: exact-name person/company leads are review-only, not every result; preserve observed names and URLs; no auto-promotion. ORG LEAD: fetched/registry leads may advance to target research only, never final CRM/contact.",
@@ -6835,7 +6835,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const basePromptBudget = Math.max(700, maxUserPromptChars - emergencyObservationReserveChars - 2);
       const compactAbsoluteMinimumBaseParts = [
         finalEmergencyAssignment,
-        ...compactEmergencyDiscoveryContractParts,
         absoluteMinimumObjective,
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
