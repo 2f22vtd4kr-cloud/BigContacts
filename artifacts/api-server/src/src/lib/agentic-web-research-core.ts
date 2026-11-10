@@ -6222,7 +6222,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
-            "DISCOVERY MODEL POLICY: Follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
+            "DISCOVERY MODE: no person or entity target is implied. DISCOVERY MODEL POLICY: Follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
             "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not query terms; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
             "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batches are available when useful, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
             "Popularity is not a filter: require direct objective fit. MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence.",
@@ -6294,6 +6294,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         scopeLine,
         authoritativeAvailableActions,
         providerLine,
+        searchProviderContract,
         registryEvidenceRule,
         schemaContract,
         partialEvidencePolicy,
@@ -6301,7 +6302,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         terminalContractGuidance,
         compactBinaryRecovery,
         "do not retry the same binary URL through the other fetch action",
-        "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording):".replace("LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording):", latestFetchedSourceClaimMarker ? "" : ""),
+        conditionalCapabilityRule,
         sourceRecordLine,
         sourceUrlLine,
         latestFetchedSourceClaimMarker,
