@@ -6199,10 +6199,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // This is context budgeting only: the Investigator still owns every research
     // choice and no provider/source/action itinerary is introduced.
     const compactBoundaryFallback = (): string => {
-      const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
+      const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
         ?? authoritativeCaseObjective;
-      const providerLine = repaired.match(/^VALID PROVIDERS:[^\\n]*/m)?.[0] ?? "";
-      const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.find((value) => /^https?:\\/\\//i.test(value)) ?? "";
+      const providerLine = repaired.match(/^VALID PROVIDERS:[^\n]*/m)?.[0] ?? "";
+      const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.find((value) => /^https?:\/\//i.test(value)) ?? "";
       const sourceUrlLine = sourceUrl ? "LAST SUCCESSFUL FETCHED SOURCE URL (exact observed URL): " + sourceUrl : "";
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
@@ -6239,19 +6239,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         observationMarkers,
         aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : ""
       ].filter(Boolean);
-      let candidate = schemaAndRuntime.join("\\n\\n").replace(/\\n{2,}/g, "\\n");
+      let candidate = schemaAndRuntime.join("\n\n").replace(/\n{2,}/g, "\n");
       // The immutable event ledger is authoritative for historical detail. If a
       // large trajectory summary still crowds the live contract, keep its turn
       // marker while retaining the exact fetched claim and URL above.
       if (candidate.length > maxUserPromptChars && latestRecordTail) {
         candidate = candidate.replace(latestRecordTail, "LATEST TRAJECTORY RECORD (full event remains durable).");
       }
-      // Historical memory is a lossy aid. Preserve its required identifying
-      // prefix, but not duplicate narrative that can be reconstructed from events.
-      if (candidate.length > maxUserPromptChars && aiHistoricalMemory?.trim()) {
-        candidate = candidate.replace(aiHistoricalMemory.trim().slice(0, 120), "");
-      }
-      return candidate.replace(/\\n{2,}/g, "\\n").trim();
+      return candidate.replace(/\n{2,}/g, "\n").trim();
     };
     const compactFallbackPrompt = compactBoundaryFallback();
     if (
