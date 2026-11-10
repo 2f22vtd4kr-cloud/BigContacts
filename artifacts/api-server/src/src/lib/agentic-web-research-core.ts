@@ -3483,7 +3483,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + JSON.stringify(exactInventoryUrls)
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
-  const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY MODE|DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|FAST HANDOFF|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/.test(base));
+  const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY MODE|DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY|DISCOVERY LEAD HANDOFF CONTRACT|FAST HANDOFF|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES/i.test(base));
   const minimumRelevanceMarker = isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. The Investigator chooses the source and action." : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt ? "DISCOVERY TARGETABILITY: objective/scope sets target class; fame neither qualifies nor disqualifies; require direct relevance to the active objective. One source-backed relevant lead starts target research; preserve supplied sector/jurisdiction. Do not require private/mid-market status unless requested. Company growth is not owner wealth." : "";
   const minimumDiscoverySourceNeutralityMarker = isDiscoveryPrompt ? "SOURCE SELECTION: No registry is preferred; choose by evidence." : "";
@@ -3652,7 +3652,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame neither qualifies nor disqualifies; require direct objective relevance. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research/Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Target-specific names come from the human brief or same-case observations, never model memory. No registry is preferred; choose by evidence. " + minimumRegistryEvidenceRule + " " + minimumBinaryUrlRule
+    ? "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame neither qualifies nor disqualifies; require direct objective relevance. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research/Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Target-specific names come from the human brief or same-case observations, never model memory. No registry is preferred; choose by evidence. SEARCH: market only if country in objective/scope; locale=language. " + minimumDiscoveryContract + " " + fallbackEvidenceContract + " " + minimumRegistryEvidenceRule + " " + minimumBinaryUrlRule
     : "";
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
@@ -6166,8 +6166,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       carriedSearchLeadRecovery,
       pinnedInventoryRecovery && !normalizedBase.includes(pinnedInventoryRecovery) ? pinnedInventoryRecovery : "",
     ].filter(Boolean).join("\n\n");
-    const appended = appendEmergencyObservationContext(
+    const recoveryBaseParts = [
+      input.mode === "discovery" ? "DISCOVERY MODE: no person or entity target is implied; preserve the objective and make a fast, mixed-source, model-owned lead choice." : "",
       basePrompt,
+      latestRecordTail,
+    ].filter(Boolean);
+    const recoveryBase = recoveryBaseParts.join("\n\n");
+    const appended = appendEmergencyObservationContext(
+      recoveryBase,
       recoveryObservation,
       maxUserPromptChars,
       input.mode,
