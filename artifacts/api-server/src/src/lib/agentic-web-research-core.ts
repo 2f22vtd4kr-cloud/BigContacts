@@ -2172,7 +2172,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number, promp
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
-  const maxUserPromptChars = Math.max(1_000, Math.min(8_200, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
+  const maxUserPromptChars = Math.max(1_000, Math.min(6_800, 8_400 - systemPrompt.length, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
   const inferredMode = input.promptMode ?? (actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(prompt) ? "target" : "discovery");
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
@@ -2744,7 +2744,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
   }
   try {
     const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
-    const maxUserPromptChars = Math.max(1_000, Math.min(8_200, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
+    const maxUserPromptChars = Math.max(1_000, Math.min(6_800, 8_400 - systemPromptChars, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     let boundedPrompt = prompt;
     if (prompt.length > maxUserPromptChars) {
@@ -3649,7 +3649,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence; Investigator chooses. At most two outbound search actions; prefer one bounded mixed-source first pass. Select the single strongest objective-fit lead, not a shortlist; one quick source look is enough for handoff to Boss. Preserve exact-name review-only leads; never auto-promote. Snippets/URLs are leads, not evidence. Mission descriptors are signal categories, not queries."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries, sources, providers, jurisdictions or an action sequence; form a concrete objective-fit public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Target-specific names come from the human brief or same-case observations, never model memory. Other objectives use their own evidence criteria."
     : "";
   // Keep the irreducible model decision/evidence contract compact. Discovery policy,
   // qualification, company realism and the mode-specific terminal gate must remain
@@ -3663,6 +3663,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         conditionalCapabilityRule,
         fallbackDiscoveryPolicy,
         APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
+        minimumRegistryEvidenceRule,
+        minimumBinaryUrlRule,
         terminalEvidenceRule,
         "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence.",
         "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never infer wealth from seniority.",
@@ -3728,10 +3730,8 @@ const requiredQualificationRule = "Qualification follows the active objective: B
   const compactFallbackDiscoveryRule = isDiscoveryPrompt
     ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory."
     : "";
-const minimumDiscoveryContract = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence; Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not a query, target, source, provider, jurisdiction or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research/Boss. One source-backed relevant lead starts target research. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads for review-only, not every result; preserve exact name, stated role or null, and associated public HTTPS URL. No fetch or ownership proof is required for a provisional lead; never auto-promote. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame neither qualifies nor disqualifies; require direct objective relevance. Inc. 5000/fast-growth/unicorn rankings are leads, not qualification. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth. No registry is preferred; other objectives use their own criteria. Preserve supplied sector/jurisdiction; market only if country is in objective/scope; locale is language. Generic publisher homepages need a same-case evidence link. Do not require private/mid-market status unless requested. Example: casinos in Slovenia."
-    : "";
-const minimumObservationTail = observationTail
+const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "";
+  const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 360)
     : "";
   const mandatoryMinimumParts = [
@@ -3944,7 +3944,7 @@ const minimumObservationTail = observationTail
       Math.max(0, finalParts.length - 1) * 2;
     const appendBudgeted = (raw: string, cap: number, omission: string) => {
       const value = raw.trim();
-      if (!value) return;
+      if (!value || finalParts.some((part) => part.includes(value))) return;
       const remaining = finalAssemblyBudget - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
       const isVerbatimObjective = containsVerbatimCaseObjective(value);
@@ -6023,6 +6023,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /^CAPABILITY GUIDANCE:/,
         /^DISCOVERY SEARCH DISCIPLINE:/,
         /^VALID REVIEW-LEAD SHAPE/,
+        /^DISCOVERY TARGETABILITY GATE:/,
+        /^DISCOVERY LEAD HANDOFF CONTRACT:/,
         /^\[AUXILIARY CONTEXT BOUND:/,
       ];
       const sections = finalProjection.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
@@ -6040,7 +6042,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           try {
             const parsed = JSON.parse(json) as Record<string, unknown>;
             if (typeof parsed.observation !== "string" || !parsed.observation.trim()) return whole;
-            parsed.observation = compactEmergencyTrajectoryObservation(parsed.observation, 140);
+            parsed.observation = compactEmergencyTrajectoryObservation(parsed.observation, 80);
             return heading + JSON.stringify(parsed);
           } catch {
             return whole;
