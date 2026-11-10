@@ -6153,7 +6153,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let recoveryMarkers = missingAfterCompaction();
     const optionalRecoverySections = [
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
-      /^SOURCE COVERAGE \\(not a checklist\\):/,
+      /^SOURCE COVERAGE \(not a checklist\):/,
       /^CAPABILITY GUIDANCE:/,
       /^DISCOVERY SEARCH DISCIPLINE:/,
       /^VALID REVIEW-LEAD SHAPE/,
@@ -6162,13 +6162,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^\\[AUXILIARY CONTEXT BOUND:/,
     ];
     if (recoveryMarkers.length) {
-      const sections = compactedRecoveryBase.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const sections = compactedRecoveryBase.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       for (const pattern of optionalRecoverySections) {
-        if (compactedRecoveryBase.length + recoveryMarkers.join("\\n\\n").length + 2 <= maxUserPromptChars) break;
+        if (compactedRecoveryBase.length + recoveryMarkers.join("\n\n").length + 2 <= maxUserPromptChars) break;
         const index = sections.findIndex((section) => pattern.test(section) && !/OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(section));
         if (index >= 0) {
           sections.splice(index, 1);
-          compactedRecoveryBase = sections.join("\\n\\n");
+          compactedRecoveryBase = sections.join("\n\n");
           recoveryMarkers = missingAfterCompaction();
         }
       }
