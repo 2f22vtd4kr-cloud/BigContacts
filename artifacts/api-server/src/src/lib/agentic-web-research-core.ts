@@ -6949,23 +6949,14 @@ export function countDiscoverySearchActions(records: readonly AgenticTrajectoryR
   ).length;
 }
 
-const DISCOVERY_ALLOWED_ACTIONS = new Set([
-  "web_search",
-  "parallel_web_search",
-  "registry_search",
-  "parallel_registry_search",
-  "visit",
-  "browser_fetch",
-  "done",
-]);
-
-export function discoveryActionAllowlist(mode: string | undefined, actions: readonly string[]): string[] {
-  if (mode !== "discovery") return [...actions];
-  // Discovery is a fast lead-selection pass, not target-scoped OSINT. Keep
-  // mixed web/registry batches and one quick source look available, but defer
-  // specialist footprinting, domain harvesting, and enrichment until Boss
-  // accepts a target and the run enters target research.
-  return actions.filter((action) => DISCOVERY_ALLOWED_ACTIONS.has(action));
+/**
+ * The runtime-generated action list is already the security boundary: worker
+ * actions appear only after fresh signed attestation and egress checks. Do not
+ * add a deterministic discovery/target phase gate here; the Investigator owns
+ * tool selection in every phase. Discovery search-count limits remain separate.
+ */
+export function discoveryActionAllowlist(_mode: string | undefined, actions: readonly string[]): string[] {
+  return [...actions];
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
