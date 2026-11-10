@@ -5692,6 +5692,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   };
   const preserveFetchedClaimAtProviderBoundary = (prompt: string): string => {
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence.";
+    const requiredTargetStageContract = "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.";
     let repaired = prompt;
     const authoritativeAvailableActions = availableActions.length ? "AVAILABLE ACTIONS: " + availableActions.join(" | ") + "." : "";
     if (authoritativeAvailableActions) {
@@ -5997,7 +5998,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "Follow the active case objective and Boss-approved scope",
         "Never invent an ID based on a jurisdiction or agency name",
         "ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn",
-        targetStageContract
+        requiredTargetStageContract
       ] : []),
       terminalContractGuidance,
       "PAGE FORMAT / RETRIEVAL LIMITS:",
@@ -6131,7 +6132,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "Follow the active case objective and Boss-approved scope") return "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope.";
       if (marker === "Never invent an ID based on a jurisdiction or agency name") return "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name.";
       if (marker === "ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn") return "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required.";
-      if (marker === targetStageContract) return targetStageContract;
+      if (marker === requiredTargetStageContract) return requiredTargetStageContract;
       if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
       if (marker === "DISCOVERY TARGETABILITY / REALISM:") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity neither qualifies nor excludes; require direct objective fit.";
       if (marker === "at most two outbound search actions") return "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory.";
@@ -6178,7 +6179,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "Follow the active case objective and Boss-approved scope") return "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope.";
       if (marker === "Never invent an ID based on a jurisdiction or agency name") return "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name.";
       if (marker === "ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn") return "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required.";
-      if (marker === targetStageContract) return targetStageContract;
+      if (marker === requiredTargetStageContract) return requiredTargetStageContract;
       if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
       if (marker === "DISCOVERY TARGETABILITY / REALISM:") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity neither qualifies nor excludes; require direct objective fit.";
       if (marker === "at most two outbound search actions") return "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory.";
@@ -6257,13 +6258,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Owner/member/shareholder claims need observed documentation.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required; no fixed tool order.";
       const schemaContract = "OUTPUT CONTRACT: one JSON root object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Except done, hypothesis/purpose are nonempty and expectedInformationGain is 0..1; done may null. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
-      const targetStageContract = "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.";
+
       const partialEvidencePolicy = [
         "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only; Investigator selects exact-name people/company leads, not every result; never auto-promote.",
         "Search snippets remain leads, not evidence; failed fetches and unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span.",
         requiredQualification,
         "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
-        targetStageContract
+        requiredTargetStageContract
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
