@@ -3790,10 +3790,23 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
     ? [
-        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope; do not broaden. No fixed action sequence; the Investigator chooses.",
-        "MISSION PRIORITY: objective/scope govern target class, geography and criteria; source selection follows evidence fit. No extra wealth or ownership criteria unless requested.",
+        "APEX INVESTIGATOR: follow the active human objective and Boss scope. No fixed action sequence; the Investigator chooses.",
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
-        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive: {"url":null,"searches":[],"findings":[]}. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.',
+        'OUTPUT CONTRACT: one root JSON object, no prose. Required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose non-empty; expectedInformationGain numeric [0,1]. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.',
+      ].join(" ")
+    : "";
+  const compactFinalEmergencyInvariants = isInvestigatorPrompt
+    ? [
+        "No fixed action sequence.",
+        "MISSION DESCRIPTORS: These are signal categories, not a query; form a falsifiable hypothesis.",
+        "DISCOVERY SEARCH ECONOMY: choose one bounded mixed-source web/registry batch when useful; Investigator selects sources and actions.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: select the strongest directly relevant exact-name lead for review-only handoff; no automatic promotion.",
+        "DISCOVERY TARGETABILITY: objective and Boss scope govern target class, sector and geography; fame or prestige is not qualification. People—not companies, when the objective asks for people.",
+        "Target-stage research verifies objective-required role, relationship and materiality before promotion.",
+        "PYTHON SPECIALISTS: Conditional specialist OSINT actions ONLY if the exact action appears in the runtime-generated AVAILABLE ACTIONS for this turn and signed worker attestation authorizes it.",
+        "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only; never invent an ID or infer undocumented ownership fields.",
+        "PDF: text-bearing PDFs use visit; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
+        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. Snippets are leads; failed fetches are unknown. Never infer wealth from seniority.",
       ].join(" ")
     : "";
   const compactEmergencyBinaryRule = isInvestigatorPrompt
@@ -3806,13 +3819,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
         compactEmergencyOutputContract,
-        isDiscoveryPrompt
-          ? "DISCOVERY: These are signal categories, not a query; form a falsifiable hypothesis. The Investigator chooses any in-scope web/registry action; no fixed itinerary. Select the strongest directly relevant lead for review-only handoff; no automatic promotion. Popularity is not a filter."
-          : compactTargetFallbackPolicy,
-        "EVIDENCE: snippets are leads; failed fetches are unknown. Fetched claims bind to the exact URL and observed span. Keep exact-name discovery leads review-only. Qualification follows the objective; never infer wealth from seniority.",
-        "Conditional specialist OSINT actions are available only when attested and authorized for this turn.",
-        "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR; password-protected and malformed PDFs are distinct structured failures; failed extraction is unobserved.",
-        "REGISTRIES: callable runtime IDs only; never invent IDs or infer ownership fields absent observed documentation.",
+        compactFinalEmergencyInvariants,
+        isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
     : "";
