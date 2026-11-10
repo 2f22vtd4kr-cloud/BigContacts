@@ -3783,32 +3783,32 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactPartialEvidenceContract = isInvestigatorPrompt
     ? [
-        "PARTIAL FINDINGS: retain Investigator-selected exact-name leads as review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span.",
+        "PARTIAL FINDINGS: selected exact-name leads are review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches unknown. After fetch, sourceUrls=[that URL only]; claims bind to its exact span.",
         requiredQualificationRule,
-        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-        "Never infer wealth from seniority.",
+        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never infer wealth from seniority.",
       ].join(" ")
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
     ? [
-        "APEX INVESTIGATOR: follow the human objective and Boss-approved scope; do not broaden or add wealth/ownership criteria unless requested. No fixed action sequence; Investigator chooses.",
-        "MISSION PRIORITY: objective and scope govern target class/geography; source selection follows evidence fit.",
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope; do not broaden. No fixed action sequence; the Investigator chooses.",
+        "MISSION PRIORITY: objective/scope govern target class, geography and criteria; source selection follows evidence fit. No extra wealth or ownership criteria unless requested.",
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
         'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive: {"url":null,"searches":[],"findings":[]}. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.',
       ].join(" ")
     : "";
   const compactEmergencyBinaryRule = isInvestigatorPrompt
-    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL."
     : "";
   const compactEmergencyRegistryRule = isInvestigatorPrompt
     ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ")
-      + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is unknown. Registry availability does not prove owner/shareholder fields."
+      + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is unknown. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
         compactEmergencyOutputContract,
-        minimumAvailableActionsSection,
         isDiscoveryPrompt ? compactDiscoveryEmergencyContract : compactTargetFallbackPolicy,
+        minimumAvailableActionsSection,
+        conditionalCapabilityRule,
         compactPartialEvidenceContract,
         compactEmergencyBinaryRule,
         compactEmergencyRegistryRule,
