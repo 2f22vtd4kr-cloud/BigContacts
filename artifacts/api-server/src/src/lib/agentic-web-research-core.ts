@@ -3722,7 +3722,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   });
 const requiredQualificationRule = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence.";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. " + requiredQualificationRule + " Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span."
+    ? "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span."
     : "";
 
   const compactFallbackDiscoveryRule = isDiscoveryPrompt
