@@ -6037,7 +6037,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LATEST_OBSERVATION_(?:START|END)|LAST SUCCESSFUL FETCHED SOURCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|leadUrlsOmittedFromPromptCount|https?:\/\//i.test(section)
       );
-      if (input.mode === "discovery" && (repaired.length > maxUserPromptChars || ![
+      if (input.mode === "discovery" && (repaired.length > maxUserPromptChars || !repaired.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY") || ![
         "DISCOVERY MODE:",
         "MISSION PRIORITY: objective/scope govern",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
@@ -6132,9 +6132,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
-    const repairedProjection = recoveryText
-      ? appendEmergencyObservationContext(repaired, recoveryText, maxUserPromptChars, input.mode, activeBossDirection, registryIdList, aiHistoricalMemory)
+    const recoveryBudget = recoveryText.length + (recoveryText ? 2 : 0);
+    const compactedRecoveryBase = recoveryText
+      ? appendEmergencyObservationContext(repaired, "", maxUserPromptChars - recoveryBudget, input.mode, activeBossDirection, registryIdList, aiHistoricalMemory)
       : repaired;
+    const repairedProjection = recoveryText
+      ? [compactedRecoveryBase.trim(), recoveryText].filter(Boolean).join("\n\n")
+      : compactedRecoveryBase;
     if (
       repairedProjection.length <= maxUserPromptChars
       && hasCompleteSchema(repairedProjection)
