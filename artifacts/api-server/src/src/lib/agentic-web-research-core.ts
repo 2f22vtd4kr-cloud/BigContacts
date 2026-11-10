@@ -5972,6 +5972,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Detailed discovery realism and provider metadata are carried in the compact
     // policy section above; rehydrating each synonym separately caused avoidable
     // prompt bloat and could displace the objective or current evidence.
+    // Preserve the semantic contract as compact clauses. Explanatory variants
+    // and examples remain in the policy paragraph; they are not each rehydrated
+    // as separate copies after emergency compaction.
     const requiredFinalMarkers = [
       "PARTIAL FINDINGS (not terminal-only)",
       ...(blockedScopeRecoveryMarker ? [blockedScopeRecoveryMarker] : []),
@@ -5981,36 +5984,18 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ...(input.mode === "discovery" ? [
         requiredQualification,
         "Target-stage research verifies objective-required role/relationship/materiality",
-        "DISCOVERY MODE: no person",
-        "No fixed action sequence",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES",
         "concrete, falsifiable public-evidence hypothesis",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions",
         "mixed-source batch",
         "FAST HANDOFF:",
-        "one quick source look is enough",
-        "One source-backed relevant lead starts target research",
         "DISCOVERY TARGETABILITY / REALISM:",
-        "Popularity is not a filter:",
-        "require direct relevance to the active objective",
-        "Inc. 5000/fast-growth/unicorn rankings",
-        "company-level discovery signals",
-        "ranking-only mentions are leads, not qualified targets",
-        "Operating-company targets need evidence of current operations",
-        "Investor firms need evidence of capital capacity or actual investment activity and mandate fit",
-        "Company growth and materiality must be assessed separately from an individual owner's wealth",
-        "No registry is preferred; choose by evidence.",
-        "generic publisher homepage",
-        "same-case evidence link",
         "SEARCH: market only if country in objective/scope; locale=language.",
-        "casinos in Slovenia",
-        "Other objectives use their own evidence criteria",
-        "source class may vary by query",
-        "RUNTIME-AVAILABLE REGISTRY IDS ONLY",
+        "No registry is preferred; choose by evidence.",
       ] : []),
       terminalContractGuidance,
-      "visit supports bounded text extraction",
-      "do not retry the same binary URL through the other fetch action",
+      minimumBinaryRecovery,
+      ...(registryIdList ? ["RUNTIME-AVAILABLE REGISTRY IDS ONLY", registryIdList] : []),
       ...(latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
       ...latestObservationBoundaryMarkers,
       ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
@@ -6165,14 +6150,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^CAPABILITY GUIDANCE:/,
       /^DISCOVERY SEARCH DISCIPLINE:/,
       /^VALID REVIEW-LEAD SHAPE/,
-      /^DISCOVERY TARGETABILITY GATE:/,
-      /^DISCOVERY LEAD HANDOFF CONTRACT:/,
-      /^DISCOVERY TARGETABILITY \/ REALISM:/,
-      /^MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:/,
-      /^DISCOVERY SEARCH ECONOMY:/,
-      /^FAST HANDOFF:/,
-      /^MODEL-OWNED RELEVANCE SELF-CHECK:/,
-      /^SOURCE SELECTION:/,
       /^\[AUXILIARY CONTEXT BOUND:/,
     ];
     if (recoveryMarkers.length || compactedRecoveryBase.length > maxUserPromptChars) {
