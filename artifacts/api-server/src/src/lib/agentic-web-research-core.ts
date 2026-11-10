@@ -3645,141 +3645,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
 
   const compactFallbackDiscoveryRule = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; Popularity is not a filter; require direct relevance to the active objective. One source-backed relevant lead starts target research. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; snippets are leads, not evidence. Target-specific names come from the human brief or same-case observations, never model memory. Do not require private/mid-market status unless requested. Example: casinos in Slovenia. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact."
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory."
     : "";
-  const scopeRecoveryRule = isInvestigatorPrompt && /SCOPE GUARD BLOCKED ACTION|pivot_alignment_guard/i.test(observation)
-    ? "SCOPE GUARD BLOCKED ACTION: blocked request is not evidence. Preserve subject/geography; source class may vary, never pivot sector or jurisdiction. Retry with a materially different in-scope query or ask Boss/Right-hand."
+const minimumDiscoveryContract = isDiscoveryPrompt
+    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. The Investigator decides relevance. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research. Target-specific names come from the human brief or same-case observations, never model memory. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Leave promotionDecision unset for review-only company cards. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. SEARCH: market only if country in objective/scope; locale=language. Example: casinos in Slovenia. Do not require private/mid-market status unless requested."
     : "";
-  const protectedTail = [
-    fallbackOutputContract,
-    fallbackEvidenceContract,
-    ...(isDiscoveryPrompt ? [compactFallbackDiscoveryRule, minimumOrganizationTargetabilityMarker] : []),
-    compactCaseObjective,
-    ...(leadGuidance ? [leadGuidance] : []),
-    conditionalCapabilityRule,
-    urlInventory,
-    observationTail,
-    activeScopeContext,
-    aiMemorySection,
-    availableActionsSection,
-    fetchedSourceLabel,
-    fetchedSourceExcerpt,
-    header,
-    markerSuffix,
-    ...durableRecordSummaries.slice(-1),
-    // Keep only the irreducible runtime/provider/PDF/terminal rules here;
-    // detailed versions already exist in the full contract and duplicated
-    // copies must not crowd out current source facts or the active scope.
-    minimumRegistryEvidenceRule,
-    minimumBinaryUrlRule,
-    fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "",
-    terminalEvidenceRule,
-    scopeRecoveryRule,
-  ].filter(Boolean).join("\n\n");
-  const contractBudget = Math.max(0, limit - protectedTail.length - 2);
-  const boundedContract = contractText.length <= contractBudget
-    ? contractText
-    : boundInvestigatorPromptSection(contractText, contractBudget);
-  const fallback = [boundedContract, protectedTail].filter(Boolean).join("\n\n");
-  const hasCompleteEmergencyContract = !isInvestigatorPrompt || (
-    hasCompleteActionSchema(fallback)
-    && fallback.includes("AVAILABLE ACTIONS:")
-    && fallback.includes("VALID PROVIDERS:")
-    && fallback.includes("RUNTIME-AVAILABLE REGISTRY IDS ONLY")
-    && fallback.includes("PAGE FORMAT / RETRIEVAL LIMITS")
-    && fallback.includes("RESEARCH TERMINAL GATE (authoritative)")
-    // A structurally complete prompt is not recoverable if it silently drops
-    // current scope, the verbatim objective, or the newest source/trajectory.
-    && (!compactCaseObjective || fallback.includes(compactCaseObjective))
-    && (!activeScopeContext || fallback.includes(activeScopeContext))
-    && (!urlInventory || fallback.includes(urlInventory))
-    && (!carriedFetchedSourceSummary || fallback.includes(carriedFetchedSourceSummary))
-    && (!fetchedSourceLabel || fallback.includes(fetchedSourceLabel))
-    && (!markerSuffix || fallback.includes(markerSuffix))
-    && (!observationTail || fallback.includes(header))
-    && (!/LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(combinedSourceText) || fallback.includes("LAST SUCCESSFUL FETCHED SOURCE EXCERPT"))
-    && (!/LATEST TRAJECTORY RECORD — TURN \d+/.test(combinedSourceText) || /LATEST TRAJECTORY RECORD — TURN \d+/.test(fallback))
-    && (!isDiscoveryPrompt || (
-      fallback.includes("DISCOVERY MODE: no person or entity target is implied")
-      && fallback.includes("at most two outbound search actions")
-      && fallback.includes("DISCOVERY SEARCH ECONOMY")
-      && fallback.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES")
-      && fallback.includes("Other objectives use their own evidence criteria")
-      && fallback.includes("DISCOVERY LEAD HANDOFF CONTRACT")
-      && fallback.includes("PARTIAL FINDINGS")
-      && fallback.includes("MODEL-OWNED RELEVANCE SELF-CHECK")
-      && fallback.includes("The Investigator decides relevance")
-      && fallback.includes("No registry is preferred; choose by evidence.")
-    ))
-  );
-  if (fallback.length <= limit && hasCompleteEmergencyContract && hasSemanticInvestigatorContract(fallback)) return fallback;
-  // Dynamic evidence and corrective feedback come first in the last-resort layout.
-  // Truncation must never discard the newest model correction merely to retain
-  // repeated static policy text that is already represented in the base contract.
-  const minimumProviderRule = isInvestigatorPrompt
-    ? (fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson.")
-    : "";
-  // The final layout keeps a complete minimal schema/evidence contract independent
-  // of the larger, lossy base sections. Drop optional duplicated guidance first.
-  // Build the last-resort tail by priority rather than concatenating several
-  // overlapping policy summaries. Exact URLs, schema, provenance, current scope,
-  // latest observation/correction, and the newest durable record are protected;
-  // optional narration is included only when it fits the remaining provider budget.
-  const minimumScopeContext = activeScopeContext
-    ? (() => {
-        const isCaseObjective = /^CASE OBJECTIVE:/i.test(activeScopeContext);
-        const normalizedScope = isCaseObjective || /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/i.test(activeScopeContext)
-          ? activeScopeContext
-          : "ACTIVE BOSS SCOPE: " + activeScopeContext;
-        if (normalizedScope.length <= 300) return normalizedScope;
-        if (isCaseObjective) return boundInvestigatorPromptSection(normalizedScope, 300);
-        const semanticScope = compactActiveBossScope(normalizedScope, 300);
-        return semanticScope ? "ACTIVE BOSS SCOPE: " + semanticScope : normalizedScope.slice(0, 110) + " … " + normalizedScope.slice(-185);
-      })()
-    : "";
-  // The excerpt is already bounded to a short head + tail. Use the two-ended
-  // text compactor here so a discriminating fact at the end of a fetched page
-  // survives the last-resort prompt; URL-preserving compaction alone can keep
-  // the head and silently discard the only useful claim span.
-  const minimumFetchedSourceExcerpt = fetchedSourceClaimExcerpt
-    ? fetchedSourceClaimExcerpt
-    : fetchedSourceExcerpt
-      ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 160)
-      : "";
-  const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
-    const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
-    const jsonAt = summary.indexOf("{");
-    if (jsonAt < 0) return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
-    try {
-      const parsed = JSON.parse(summary.slice(jsonAt)) as Record<string, unknown>;
-      const args = parsed.args && typeof parsed.args === "object" ? parsed.args as Record<string, unknown> : {};
-      const compactArgs: Record<string, unknown> = {};
-      if (typeof args.query === "string") compactArgs.query = args.query.slice(0, 90);
-      if (typeof args.provider === "string") compactArgs.provider = args.provider;
-      if (typeof args.action === "string") compactArgs.action = args.action;
-      const compactRecord: Record<string, unknown> = {};
-      for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
-      if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
-      // Carry the newest observation through this second projection as well;
-      // otherwise the prior summary retains it only to have the minimal-tail
-      // builder silently discard it before the model request is finalized.
-      if (typeof parsed.observation === "string" && parsed.observation.trim()) {
-        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 300);
-      }
-      for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
-        if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
-      }
-      return marker + " " + JSON.stringify(compactRecord);
-    } catch {
-      return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
-    }
-  });
-  const minimumAvailableActionsSection = availableActionsSection;
-  // Emergency discovery compaction must preserve approved geography; do not broaden geography.
-  const minimumDiscoveryContract = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. The Investigator decides relevance. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: max two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity is not a filter; require direct relevance to the active objective. Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. One source-backed relevant lead starts target research. No registry is preferred; choose by evidence. Other objectives use their own evidence criteria; source class may vary by query. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result. SEARCH: market only if country in objective/scope; locale=language. Example: casinos in Slovenia. Do not require private/mid-market status unless requested. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory. Leave promotionDecision unset for review-only company cards."
-    : "";
-  const minimumObservationTail = observationTail
+const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 360)
     : "";
   const mandatoryMinimumParts = [
@@ -4015,29 +3886,28 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
     finalParts.push(fallbackOutputContract);
 
-    // Human objective and Boss scope are separate authorities. Keep both.
-    appendBudgeted(compactCaseObjective, 1_800, "[objective detail omitted; canonical case objective remains authoritative]");
-    appendBudgeted(minimumScopeContext, 360, "[scope detail omitted; canonical Boss scope remains authoritative]");
-    appendBudgeted(scopeRecoveryRule, 180, "[scope recovery detail omitted]");
+    // Human objective and Boss scope are separate authorities. Preserve the
+    // complete objective verbatim before any bounded policy or history.
+    appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
+    appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
+    appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
 
-    // Mandatory terminal, registry and retrieval contracts come before
-    // discovery/evidence policy and before optional trajectory narration.
-    appendBudgeted(terminalEvidenceRule, 260, "[terminal evidence detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 560, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 420, "[PDF retrieval detail omitted]");
+    // Exact source inventory and the newest evidence remain first-class context.
+    appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 520, "[older trajectory detail omitted; immutable case events remain authoritative]");
+    appendBudgeted(markerSuffix, 160, "[trajectory marker omitted]");
+    appendBudgeted(minimumObservationTail || (header + " " + observationTail), 240, "[observation detail omitted]");
+    appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 320, "[fetched-source excerpt detail omitted]");
+
+    // Required terminal, registry, retrieval, discovery and finding rules.
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 420, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 340, "[PDF retrieval detail omitted]");
     if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 1_700, "[optional discovery detail omitted; objective and handoff remain authoritative]");
     appendBudgeted(fallbackEvidenceContract, 980, "[partial-finding detail omitted; durable ledger remains authoritative]");
-
-    // Dynamic source and trajectory context remains available after the full
-    // contract is secured, and is the only material eligible for compaction.
-    appendBudgeted(urlInventory, 420, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 240, "[older trajectory detail omitted; immutable case events remain authoritative]");
-    appendBudgeted(markerSuffix, 100, "[trajectory marker omitted]");
-    appendBudgeted(minimumObservationTail || (header + " " + observationTail), 140, "[observation detail omitted]");
-    appendBudgeted(fetchedSourceLabel, 120, "[fetched-source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 200, "[fetched-source excerpt detail omitted]");
-    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 100, "[older AI memory omitted; durable case ledger remains authoritative]");
+    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 140, "[older AI memory omitted; durable case ledger remains authoritative]");
     mandatoryMinimumTail = joinPromptParts(finalParts);
   }
   return mandatoryMinimumTail;
