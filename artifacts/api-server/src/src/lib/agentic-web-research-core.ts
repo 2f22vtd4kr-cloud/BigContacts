@@ -6255,7 +6255,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + (availableBrowserProviders.join("|") || "unavailable")
         + "; domain_lookup=rdap|whoisjson.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
-        + ". Never invent an adapter ID; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers."; unavailable/failed is not a no-hit; owner/member/shareholder claims need observed documentation.";
+        + ". Never invent an adapter ID; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh signed worker attestation required; no fixed tool order.";
       const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Except done, hypothesis/purpose are nonempty and expectedInformationGain is 0..1; done may null. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
