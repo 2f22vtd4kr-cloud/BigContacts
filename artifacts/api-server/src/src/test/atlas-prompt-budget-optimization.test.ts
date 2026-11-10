@@ -7,7 +7,7 @@ import {
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, discoveryPivotScopeKey } from "../lib/agentic-web-research-core";
 import { apexInvestigatorSystemCore } from "../lib/apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt, getApexAtlasBossPlanPromptMaxChars } from "../lib/case-bureau-prompt";
 
@@ -56,6 +56,7 @@ describe("Apex Atlas prompt budget optimization", () => {
         turn: 8,
         model: "groq:test",
         action: "web_search",
+        pivotScopeKey: discoveryPivotScopeKey("Identify real operating companies and their current business decision-makers from public professional evidence.") ?? undefined,
         args: { query: "Joe Aguilar LinkedIn" },
         execution: "success" as const,
         observedUrls: ["https://source.example/search-result"],

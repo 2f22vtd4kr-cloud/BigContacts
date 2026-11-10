@@ -601,6 +601,8 @@ describe("Investigator prompt URL integrity", () => {
       model: "test-model",
       action: "web_search",
       execution: "success",
+      pivotScopeKey: discoveryPivotScopeKey("Find source-backed owner/operator evidence from public registries.") ?? undefined,
+      pivotScopeKey: discoveryPivotScopeKey("Find source-backed owner/operator evidence from public registries.") ?? undefined,
       args: { query: "official registry filing" },
       observation: "Search returned one potential official registry source.",
       observedUrls: [],
@@ -1154,18 +1156,21 @@ describe("Investigator prompt architecture", () => {
   });
 
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
-    const prompt = buildStepPrompt({
-      targetName: "",
-      objective: [
+    const objective = [
         "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context.",
         "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence):",
         "Report: Opening assessment: No concrete target entity has been provided.",
         "Next directions: " + JSON.stringify(["Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."]),
         "Uncertainties: [\"No target entity was supplied.\"]",
-      ].join("\n"),
+      ].join("\n");
+    const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
       history: [],
       trajectoryRecords: Array.from({ length: 24 }, (_, index) => ({
         turn: index + 1,
+        pivotScopeKey,
         model: "openai/gpt-oss-20b",
         action: "parallel_web_search",
         execution: "success",
