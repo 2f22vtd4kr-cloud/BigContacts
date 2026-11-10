@@ -93,7 +93,7 @@ export function apexInvestigatorSystemCore(): string {
     "IDENTITY/SAFETY: Separate person/company/trust/asset; use public professional routes.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority."
-  ].join("\\n");
+  ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
   const roleLine = role === "boss"
