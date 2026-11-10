@@ -6205,6 +6205,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const scopeLine = activeBossDirection
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 360)
         : activeBossScopeSection;
+      const providerLine = repaired.match(/^VALID PROVIDERS:[^\\n]*/m)?.[0] ?? "";
       const providerContract = providerLine || (
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch="
         + (availableBrowserProviders.join("|") || "unavailable")
