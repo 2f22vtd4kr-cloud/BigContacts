@@ -6191,7 +6191,75 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasCompleteSchema(budgetedRepairedProjection)
       && requiredFinalMarkers.every((marker) => budgetedRepairedProjection.includes(marker))
     ) return budgetedRepairedProjection;
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + repairedProjection.length + ", budget " + maxUserPromptChars + ", missing=" + requiredFinalMarkers.filter((marker) => !repairedProjection.includes(marker)).join(" | ") + "); no action should be sent.");
+
+    // The helper above is intentionally conservative and can return a prompt
+    // containing several overlapping recovery tiers. At the final provider
+    // boundary, rebuild a compact projection from the authoritative pieces
+    // instead of sending an over-budget prompt or dropping the source claim.
+    // This is context budgeting only: the Investigator still owns every research
+    // choice and no provider/source/action itinerary is introduced.
+    const compactBoundaryFallback = (): string => {
+      const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
+        ?? authoritativeCaseObjective;
+      const providerLine = repaired.match(/^VALID PROVIDERS:[^\\n]*/m)?.[0] ?? "";
+      const sourceUrl = latestSuccessfulFetchRecord?.observedUrls?.find((value) => /^https?:\\/\\//i.test(value)) ?? "";
+      const sourceUrlLine = sourceUrl ? "LAST SUCCESSFUL FETCHED SOURCE URL (exact observed URL): " + sourceUrl : "";
+      const compactDiscoveryPolicy = input.mode === "discovery"
+        ? [
+            "DISCOVERY MODEL POLICY: the human objective and Boss-approved scope govern; no fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
+            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis; descriptors are not a query, target, source, provider or jurisdiction. Other objectives use their own evidence criteria; source class may vary by query.",
+            "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batching is available when useful, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
+            "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence."
+          ].join(" ")
+        : "";
+      const partialEvidencePolicy = [
+        "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only; do not auto-promote.",
+        "Search snippets remain leads, not evidence; failed fetches are unobserved.",
+        requiredQualification,
+        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
+      ].join(" ");
+      const observationMarkers = latestObservationBoundaryMarkers.join(" ");
+      const schemaAndRuntime = [
+        "APEX INVESTIGATOR: follow the active human objective and Boss-approved scope. The Investigator chooses the next action; deterministic controls validate authorization, provenance, budgets and persistence only.",
+        objectiveBlock,
+        activeBossScopeSection,
+        authoritativeAvailableActions,
+        providerLine,
+        "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.",
+        requiredOutputSchema + " Inactive scalars=null, arrays=[]; non-done hypothesis/purpose nonempty; expectedInformationGain in [0,1] (only done may null). Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
+        partialEvidencePolicy,
+        compactDiscoveryPolicy,
+        terminalContractGuidance,
+        minimumBinaryRecovery,
+        "do not retry the same binary URL through the other fetch action.",
+        blockedScopeRecoveryMarker,
+        sourceUrlLine,
+        latestFetchedSourceClaimMarker,
+        latestRecordTail,
+        observationMarkers,
+        aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : ""
+      ].filter(Boolean);
+      let candidate = schemaAndRuntime.join("\\n\\n").replace(/\\n{2,}/g, "\\n");
+      // The immutable event ledger is authoritative for historical detail. If a
+      // large trajectory summary still crowds the live contract, keep its turn
+      // marker while retaining the exact fetched claim and URL above.
+      if (candidate.length > maxUserPromptChars && latestRecordTail) {
+        candidate = candidate.replace(latestRecordTail, "LATEST TRAJECTORY RECORD (full event remains durable).");
+      }
+      // Historical memory is a lossy aid. Preserve its required identifying
+      // prefix, but not duplicate narrative that can be reconstructed from events.
+      if (candidate.length > maxUserPromptChars && aiHistoricalMemory?.trim()) {
+        candidate = candidate.replace(aiHistoricalMemory.trim().slice(0, 120), "");
+      }
+      return candidate.replace(/\\n{2,}/g, "\\n").trim();
+    };
+    const compactFallbackPrompt = compactBoundaryFallback();
+    if (
+      compactFallbackPrompt.length <= maxUserPromptChars
+      && hasCompleteSchema(compactFallbackPrompt)
+      && requiredFinalMarkers.every((marker) => compactFallbackPrompt.includes(marker))
+    ) return compactFallbackPrompt;
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim, qualification rule and complete action schema within the provider budget (length " + Math.max(repairedProjection.length, compactFallbackPrompt.length) + ", budget " + maxUserPromptChars + ", missing=" + requiredFinalMarkers.filter((marker) => !compactFallbackPrompt.includes(marker)).join(" | ") + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
