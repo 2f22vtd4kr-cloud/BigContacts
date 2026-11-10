@@ -3960,14 +3960,11 @@ const minimumObservationTail = observationTail
     appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
     appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
     appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
-    // Objective-specific discovery and evidence semantics outrank optional
-    // transport metadata and historical narration in the last-resort prompt.
-    if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 1_450, "[discovery detail omitted; objective and fast handoff remain authoritative]");
-    appendBudgeted(fallbackEvidenceContract, 850, "[partial-finding detail omitted; durable ledger remains authoritative]");
-    appendBudgeted(terminalEvidenceRule, 220, "[terminal evidence detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
 
-    // Exact source inventory and the newest evidence remain first-class context.
+    // The live action contract and durable evidence outrank descriptive policy.
+    // Preserve exact URLs, the latest trajectory, observation, and fetched claim
+    // before spending remaining room on repeated policy narration.
+    appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 520, "[older trajectory detail omitted; immutable case events remain authoritative]");
     appendBudgeted(markerSuffix, 160, "[trajectory marker omitted]");
@@ -3975,11 +3972,14 @@ const minimumObservationTail = observationTail
     appendBudgeted(fetchedSourceLabel, 180, "[fetched-source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 320, "[fetched-source excerpt detail omitted]");
 
-    // Runtime adapter and binary retrieval semantics remain explicit after
-    // the objective, evidence, action schema, and latest source context.
-    appendBudgeted(minimumRegistryEvidenceRule, 360, "[runtime registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 300, "[PDF retrieval detail omitted]");
-    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 140, "[older AI memory omitted; durable case ledger remains authoritative]");
+    // Objective-specific evidence and terminal rules still travel with the
+    // prompt, but can never displace the current case evidence above.
+    appendBudgeted(fallbackEvidenceContract, 700, "[partial-finding detail omitted; durable ledger remains authoritative]");
+    if (isDiscoveryPrompt) appendBudgeted(minimumDiscoveryContract, 850, "[discovery detail omitted; objective and fast handoff remain authoritative]");
+    appendBudgeted(terminalEvidenceRule, 180, "[terminal evidence detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 320, "[runtime registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
+    appendBudgeted(emergencyAiMemorySection || aiMemorySection, 120, "[older AI memory omitted; durable case ledger remains authoritative]");
     mandatoryMinimumTail = joinPromptParts(finalParts);
   }
   return mandatoryMinimumTail;
@@ -5933,6 +5933,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           ]
         : []),
       ...(latestFetchedSourceClaimMarker ? [latestFetchedSourceClaimMarker] : []),
+      ...latestObservationBoundaryMarkers,
       ...(aiHistoricalMemory?.trim() ? [aiHistoricalMemory.trim().slice(0, 120)] : []),
     ];
     const recoveryMarkersPresent = requiredFinalMarkers.every((marker) => repaired.includes(marker));
