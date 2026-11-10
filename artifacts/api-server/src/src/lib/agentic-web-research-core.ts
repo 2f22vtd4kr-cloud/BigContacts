@@ -3806,10 +3806,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
         compactEmergencyOutputContract,
-        isDiscoveryPrompt ? compactDiscoveryEmergencyContract : compactTargetFallbackPolicy,
-        compactPartialEvidenceContract,
-        compactEmergencyBinaryRule,
-        compactEmergencyRegistryRule,
+        isDiscoveryPrompt
+          ? "DISCOVERY: descriptors are signal categories, not a query; form a falsifiable hypothesis. The Investigator chooses any in-scope web/registry action; no fixed itinerary. Select the strongest directly relevant lead for review-only handoff; no automatic promotion. Popularity is not a filter."
+          : compactTargetFallbackPolicy,
+        "EVIDENCE: snippets are leads; failed fetches are unknown. Fetched claims bind to the exact URL and observed span. Keep exact-name discovery leads review-only. Qualification follows the objective; never infer wealth from seniority.",
+        "Conditional specialist OSINT actions are available only when attested and authorized for this turn.",
+        "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned, encrypted and malformed PDFs are distinct failures; failed extraction is unobserved.",
+        "REGISTRIES: callable runtime IDs only; never invent IDs or infer ownership fields absent observed documentation.",
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
     : "";
@@ -3822,6 +3825,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     observationMarkerSource.match(/\b(?:[A-Z][A-Z0-9]*[ _]){1,6}SENTINEL\b|\bLATEST_OBSERVATION_(?:START|END|[A-Z0-9_]+)\b/g) ?? [],
   )].slice(0, 12);
   const minimumObservationTail = [
+    latestTrajectoryObservation ? "LATEST TRAJECTORY RECORD" : "",
     latestObservationOpening,
     ...preservedObservationMarkers,
     observationTail ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 280) : "",
