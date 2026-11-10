@@ -6155,29 +6155,29 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     };
     const optionalRecoverySections = [
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
-      /^SOURCE COVERAGE \\(not a checklist\\):/,
+      /^SOURCE COVERAGE \(not a checklist\):/,
       /^CAPABILITY GUIDANCE:/,
       /^DISCOVERY SEARCH DISCIPLINE:/,
       /^VALID REVIEW-LEAD SHAPE/,
-      /^\\[AUXILIARY CONTEXT BOUND:/,
+      /^\[AUXILIARY CONTEXT BOUND:/,
     ];
     const composeRecoveryProjection = () => {
       const recoveryMarkers = missingAfterCompaction();
-      const recoveryText = recoveryMarkers.map(recoveryClauseFor).filter(Boolean).join("\\n\\n");
+      const recoveryText = recoveryMarkers.map(recoveryClauseFor).filter(Boolean).join("\n\n");
       return recoveryText
-        ? [compactedRecoveryBase.trim(), recoveryText].filter(Boolean).join("\\n\\n")
+        ? [compactedRecoveryBase.trim(), recoveryText].filter(Boolean).join("\n\n")
         : compactedRecoveryBase;
     };
     let repairedProjection = composeRecoveryProjection();
     if (repairedProjection.length > maxUserPromptChars) {
-      const sections = compactedRecoveryBase.split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      const sections = compactedRecoveryBase.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
       for (const pattern of optionalRecoverySections) {
         if (repairedProjection.length <= maxUserPromptChars) break;
         const index = sections.findIndex((section) => pattern.test(section)
-          && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LAST SUCCESSFUL FETCHED SOURCE|https?:\\/\\//i.test(section));
+          && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LAST SUCCESSFUL FETCHED SOURCE|https?:\/\//i.test(section));
         if (index >= 0) {
           sections.splice(index, 1);
-          compactedRecoveryBase = sections.join("\\n\\n");
+          compactedRecoveryBase = sections.join("\n\n");
           repairedProjection = composeRecoveryProjection();
         }
       }
@@ -6185,7 +6185,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Paragraph separators are presentation only; collapse them after semantic
     // recovery so the exact objective, source claim, schema and required markers
     // remain intact under the provider's hard character ceiling.
-    const budgetedRepairedProjection = repairedProjection.replace(/\\n{2,}/g, "\\n");
+    const budgetedRepairedProjection = repairedProjection.replace(/\n{2,}/g, "\n");
     if (
       budgetedRepairedProjection.length <= maxUserPromptChars
       && hasCompleteSchema(budgetedRepairedProjection)
