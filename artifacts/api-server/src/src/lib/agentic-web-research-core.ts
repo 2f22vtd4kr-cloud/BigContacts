@@ -6169,15 +6169,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       carriedSearchLeadRecovery,
       pinnedInventoryRecovery && !normalizedBase.includes(pinnedInventoryRecovery) ? pinnedInventoryRecovery : "",
     ].filter(Boolean).join("\n\n");
+    // Keep recovery payload in one place. The exact latest observation, fetched
+    // source, trajectory, carried leads, and pinned URLs are passed to the
+    // evidence-aware composer below; duplicating them in basePrompt as well
+    // double-charges the same evidence against the hard transport budget and
+    // forces the lossy emergency tier precisely when those facts are needed.
     const recoveryBaseParts = [
       input.mode === "discovery" ? "DISCOVERY MODE: no person or entity target is implied; preserve the objective and make a fast, mixed-source, model-owned lead choice." : "",
       basePrompt,
       latestRecordTail && !basePrompt.includes(latestRecordTail) ? latestRecordTail : "",
-      pinnedInventoryRecovery && !basePrompt.includes(pinnedInventoryRecovery) ? pinnedInventoryRecovery : "",
-      latestFetchedSourceRecovery && !basePrompt.includes(latestFetchedSourceRecovery) ? latestFetchedSourceRecovery : "",
-      latestObservationRecovery && !basePrompt.includes(latestObservationRecovery) ? latestObservationRecovery : "",
-      latestTrajectoryRecovery && !basePrompt.includes(latestTrajectoryRecovery) ? latestTrajectoryRecovery : "",
-      carriedSearchLeadRecovery && !basePrompt.includes(carriedSearchLeadRecovery) ? carriedSearchLeadRecovery : "",
     ].filter(Boolean);
     basePrompt = recoveryBaseParts.join("\n\n");
     const appended = appendEmergencyObservationContext(
