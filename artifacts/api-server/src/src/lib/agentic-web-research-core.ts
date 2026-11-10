@@ -3811,7 +3811,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         compactFinalEmergencyInvariants,
         runtimeRegistryIdsRule + " Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.",
         isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
-        terminalContractGuidance,
+        terminalEvidenceRule,
       ].filter(Boolean).join(" ")
     : "";
 const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "";
