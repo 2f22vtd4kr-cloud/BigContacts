@@ -6037,7 +6037,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         /DISCOVERY MODE:|DISCOVERY TARGETABILITY|DISCOVERY SEARCH ECONOMY:|FAST HANDOFF:|MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:|MODEL-OWNED RELEVANCE SELF-CHECK:|DISCOVERY LEAD HANDOFF CONTRACT:|SOURCE SELECTION:/.test(section)
         && !/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>|OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:|LATEST TRAJECTORY RECORD|LATEST OBSERVATION|LATEST_OBSERVATION_(?:START|END)|LAST SUCCESSFUL FETCHED SOURCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|PINNED DURABLE URL INVENTORY|EXACT DURABLE URL INVENTORY|DURABLE EXACT URL INVENTORY|leadUrlsOmittedFromPromptCount|https?:\/\//i.test(section)
       );
-      if (input.mode === "discovery" && ![
+      if (input.mode === "discovery" && (repaired.length > maxUserPromptChars || ![
         "DISCOVERY MODE:",
         "MISSION PRIORITY: objective/scope govern",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES:",
@@ -6050,7 +6050,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn",
         "Do not assume records expose owners, shareholders, members, or managers without observed documentation",
         "image-only PDFs require OCR (unavailable)",
-      ].every((marker) => repaired.includes(marker))) {
+      ].every((marker) => repaired.includes(marker)))) {
         const kept = sections.filter((section) => !discoverySections.includes(section));
         const objectiveIndex = kept.findIndex((section) => section.includes("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>"));
         kept.splice(objectiveIndex >= 0 ? objectiveIndex + 1 : 1, 0, compactDiscoveryContract);
@@ -6133,7 +6133,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return marker;
     }).filter(Boolean).join("\n\n");
     const repairedProjection = recoveryText
-      ? [repaired.trim(), recoveryText].filter(Boolean).join("\n\n")
+      ? appendEmergencyObservationContext(repaired, recoveryText, maxUserPromptChars, input.mode, activeBossDirection, registryIdList, aiHistoricalMemory)
       : repaired;
     if (
       repairedProjection.length <= maxUserPromptChars
