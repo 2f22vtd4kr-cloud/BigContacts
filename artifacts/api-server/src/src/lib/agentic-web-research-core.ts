@@ -6135,7 +6135,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // This preserves every word/URL/marker while reclaiming budget from repeated
     // section separators; it does not impose a research itinerary or trim evidence.
     if (repaired.length > maxUserPromptChars - 128) {
-      repaired = repaired.replace(/\\n{2,}/g, "\\n");
+      repaired = repaired.replace(/\n{2,}/g, "\n");
     }
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !repaired.includes(marker));
     const recoveryText = missingFinalMarkers.map((marker) => {
