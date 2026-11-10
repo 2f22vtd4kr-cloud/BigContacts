@@ -3767,12 +3767,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
 
   const compactDiscoveryEmergencyContract = isDiscoveryPrompt
     ? [
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; the Investigator forms a concrete, falsifiable hypothesis.",
-        "DISCOVERY SEARCH ECONOMY: prefer one bounded mixed-source web/registry batch; no fixed itinerary.",
-        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. If plausible, hand it to Boss.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator-selected exact-name person/company leads are review-only; preserve observed public URLs; no automatic promotion.",
-        "DISCOVERY TARGETABILITY / REALISM: objective and Boss scope set target class; fame neither qualifies nor disqualifies; direct objective relevance is required. Preserve the requested sector and jurisdiction (for example, casinos in Slovenia). Do not require private/mid-market status unless requested; company growth is not owner wealth.",
-        minimumRelevanceMarker,
+        "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. The Investigator chooses.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a concrete, falsifiable public-evidence hypothesis.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch.",
+        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; hand a plausible lead to Boss.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name person/company leads for review-only, not every result; preserve observed public URLs; no auto-promotion.",
+        "DISCOVERY TARGETABILITY / REALISM: objective and Boss scope set target class; fame neither qualifies nor disqualifies; require direct objective fit. Preserve the requested sector and jurisdiction (for example, casinos in Slovenia). Do not require private/mid-market status unless requested; operating companies need current-operations evidence; company growth is not owner wealth.",
+        "MODEL-OWNED RELEVANCE SELF-CHECK: direct objective fit; a generic publisher homepage needs a same-case evidence link. Popularity is not a filter: require direct relevance.",
+        "Other objectives use their own evidence criteria; source class may vary by query.",
         minimumDiscoverySourceNeutralityMarker,
         minimumOrganizationTargetabilityMarker,
       ].filter(Boolean).join(" ")
@@ -3781,6 +3783,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
         "PARTIAL FINDINGS: retain Investigator-selected exact-name leads as review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span.",
         requiredQualificationRule,
+        "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
         "Never infer wealth from seniority.",
       ].join(" ")
     : "";
