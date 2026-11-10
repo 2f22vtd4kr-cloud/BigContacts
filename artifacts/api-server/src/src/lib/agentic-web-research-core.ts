@@ -3769,7 +3769,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactDiscoveryEmergencyContract = isDiscoveryPrompt
     ? [
         "DISCOVERY MODE: no person or entity target is implied. No fixed action sequence. The Investigator chooses.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a concrete, falsifiable public-evidence hypothesis.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis.",
         "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch.",
         "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research; hand a plausible lead to Boss.",
         "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name person/company leads for review-only, not every result; preserve observed public URLs; no auto-promotion. One relevant company is a valid partial result. One source-backed relevant lead starts target research.",
@@ -3797,20 +3797,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
-        "Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern. No fixed action sequence.",
-        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query; form a concrete, falsifiable public-evidence hypothesis. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch.",
-        "FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research. DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity is not a filter; direct objective fit. Do not require private/mid-market status unless requested. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
-        "Investor firms need evidence of capital capacity or actual investment activity and mandate fit. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Never infer wealth from seniority.",
-        "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn and fresh signed worker attestation authorizes it. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
-        minimumRegistryEvidenceRule,
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures. Do not retry the same binary URL through the other fetch action.",
+        "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective. No registry is preferred; choose by evidence. Example: casinos in Slovenia. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT + " MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name leads are review-only, not every result; no automatic promotion. ORG LEAD: exact-name fetched/registry leads may advance to target research only, never final CRM/contact.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+        "Conditional specialist OSINT actions only when the exact action is in AVAILABLE ACTIONS this turn and freshly attested; do not assume owner/member fields without observed documentation."
       ].join(" ")
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
         compactEmergencyOutputContract,
+        compactPartialEvidenceContract,
         compactFinalEmergencyInvariants,
+        minimumRegistryEvidenceRule,
         isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
