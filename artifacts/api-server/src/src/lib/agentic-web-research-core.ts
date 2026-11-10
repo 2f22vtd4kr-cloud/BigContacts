@@ -6261,7 +6261,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             leadUrlsOmittedFromPromptCount: Math.max(0, (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) - carriedLeadUrls.length)
           })
         : "";
-      const compactLeadGuidance = carriedLeadUrls.length
+      const latestRecordHasActiveLeads = Boolean(latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0);
+      const compactLeadGuidance = carriedLeadUrls.length || latestRecordHasActiveLeads
         ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when useful; the Investigator retains action choice. This is advisory, not evidence or a mandated next action."
         : "";
       const memoryPrefix = aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : "";
