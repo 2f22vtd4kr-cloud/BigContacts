@@ -6198,6 +6198,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // instead of sending an over-budget prompt or dropping the source claim.
     // This is context budgeting only: the Investigator still owns every research
     // choice and no provider/source/action itinerary is introduced.
+    let compactFallbackSegmentLengths = "";
     const compactBoundaryFallback = (): string => {
       const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
         ?? authoritativeCaseObjective;
@@ -6268,7 +6269,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const memoryPrefix = aiHistoricalMemory?.trim() ? aiHistoricalMemory.trim().slice(0, 120) : "";
       const observationMarkers = latestObservationBoundaryMarkers.join(" ");
-      let compactFallbackSegmentLengths = "";
       const requiredParts = [
         "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. No fixed action sequence. The Investigator chooses; deterministic controls validate authorization, budgets, provenance and persistence only.",
         objectiveBlock,
