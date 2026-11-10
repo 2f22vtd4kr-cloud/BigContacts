@@ -3787,14 +3787,29 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "Never infer wealth from seniority.",
       ].join(" ")
     : "";
+  const compactEmergencyOutputContract = isInvestigatorPrompt
+    ? [
+        "APEX INVESTIGATOR: follow the human objective and Boss-approved scope; do not broaden or add wealth/ownership criteria unless requested. No fixed action sequence; Investigator chooses.",
+        "MISSION PRIORITY: objective and scope govern target class/geography; source selection follows evidence fit.",
+        "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
+        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive: {"url":null,"searches":[],"findings":[]}. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.',
+      ].join(" ")
+    : "";
+  const compactEmergencyBinaryRule = isInvestigatorPrompt
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    : "";
+  const compactEmergencyRegistryRule = isInvestigatorPrompt
+    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ")
+      + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is unknown. Registry availability does not prove owner/shareholder fields."
+    : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
-        minimalFallbackOutputContract,
+        compactEmergencyOutputContract,
         isDiscoveryPrompt ? compactDiscoveryEmergencyContract : compactTargetFallbackPolicy,
         conditionalCapabilityRule,
         compactPartialEvidenceContract,
-        minimumBinaryUrlRule,
-        minimumRegistryEvidenceRule,
+        compactEmergencyBinaryRule,
+        compactEmergencyRegistryRule,
         terminalEvidenceRule,
       ].filter(Boolean).join(" ")
     : "";
