@@ -5982,7 +5982,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "source-backed leads",
       "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
-      ...(input.mode === "discovery" ? ["DISCOVERY MODEL POLICY:"] : []),
+      ...(input.mode === "discovery" ? [
+        "DISCOVERY MODEL POLICY:",
+        "DISCOVERY TARGETABILITY / REALISM:",
+        "at most two outbound search actions",
+        "one quick source look is enough to hand it to target research",
+        "No registry is preferred; choose by evidence."
+      ] : []),
       terminalContractGuidance,
       "PAGE FORMAT / RETRIEVAL LIMITS:",
       "do not retry the same binary URL through the other fetch action",
@@ -6106,6 +6112,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const missingFinalMarkers = requiredFinalMarkers.filter((marker) => !repaired.includes(marker));
     const recoveryText = missingFinalMarkers.map((marker) => {
       if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
+      if (marker === "DISCOVERY TARGETABILITY / REALISM:") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity neither qualifies nor excludes; require direct objective fit.";
+      if (marker === "at most two outbound search actions") return "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory.";
+      if (marker === "one quick source look is enough to hand it to target research") return "FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research.";
+      if (marker === "No registry is preferred; choose by evidence.") return marker;
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
       if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === requiredQualification) return marker;
@@ -6139,6 +6149,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       .filter((marker) => !compactedRecoveryBase.includes(marker));
     const recoveryClauseFor = (marker: string): string => {
       if (marker === "DISCOVERY MODEL POLICY:") return compactEmergencyDiscoveryContractParts.join(" ");
+      if (marker === "DISCOVERY TARGETABILITY / REALISM:") return "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity neither qualifies nor excludes; require direct objective fit.";
+      if (marker === "at most two outbound search actions") return "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory.";
+      if (marker === "one quick source look is enough to hand it to target research") return "FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research.";
+      if (marker === "No registry is preferred; choose by evidence.") return marker;
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
       if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === requiredQualification) return marker;
@@ -6213,24 +6227,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: only when the exact action is in this turn's ACTION ALLOWLIST and AVAILABLE ACTIONS after fresh worker attestation; no fixed tool order.";
       const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, unused arrays=[]. Except action=done, hypothesis/purpose are non-empty and expectedInformationGain is 0..1; done may use null. Findings require vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision and promotionReason.";
       const partialEvidencePolicy = [
-        "PARTIAL FINDINGS (not terminal-only): Investigator selects relevant exact-name person/company leads for review-only cards, not every result; never auto-promote.",
-        "Search snippets and unfetched URLs are leads, not evidence; failed fetch/extraction is unknown, not negative. Preserve exact observed names and associated public URLs; never invent identity or contact.",
+        "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only; Investigator selects exact-name person/company leads, not every result; no auto-promotion.",
+        "Search snippets remain leads, not evidence; unfetched URLs are leads and failed fetches are unobserved, not negative. Preserve exact observed names and associated public URLs.",
         "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span.",
         requiredQualification,
         "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
-        "Investigator may select a fetched organization for provisional review, not every result. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
+        "Investigator decides whether a fetched organization merits provisional review. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
-            "DISCOVERY MODE: no person or entity target is implied. Human objective and Boss-approved scope set target class and geography; preserve them without silent pivot. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping by evidence and expected information gain; no fixed sequence.",
-            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+            "DISCOVERY MODE: no person/entity target is implied; human objective and Boss-approved scope set target class/geography, with no silent pivot. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, falsification and stopping; no fixed sequence.",
+            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria.",
             "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is allowed, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research. One source-backed relevant lead starts target research.",
-            "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity/fame neither qualifies nor excludes. Require direct objective fit; do not add wealth, ownership or private/mid-market criteria unless requested. Investor firms need evidence of capital capacity or actual investment activity and mandate fit.",
-            "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
-            "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads as review-only, not every result; preserve observed name, role/null and associated public URL; no auto-promotion. Target-specific names come from the human brief or same-case observations, never model memory."
+            "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; popularity/fame neither qualifies nor excludes; require direct objective fit. Do not add wealth/ownership/private-market criteria unless requested. Investor firms need evidence of capital capacity or actual investment activity and mandate fit.",
+            "MODEL-OWNED RELEVANCE SELF-CHECK: connect each query/source to objective-required entity, role, relationship or materiality. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
+            "DISCOVERY LEAD HANDOFF CONTRACT: select relevant exact-name person/company leads as review-only, not every result; preserve observed name, role/null and public URL; no auto-promotion. Names come only from the human brief or same-case observations."
           ].join(" ")
         : "";
-      const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text from text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs need OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
+      const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const query = typeof latestRecord?.args?.query === "string" ? latestRecord.args.query.trim() : "";
       const latestQueryLine = query ? "LATEST TRAJECTORY QUERY (exact current action): " + query.slice(0, 120) : "";
       const latestRecordEnvelope = latestRecord ? compactRecordEnvelope(latestRecord, 0, 2) : null;
