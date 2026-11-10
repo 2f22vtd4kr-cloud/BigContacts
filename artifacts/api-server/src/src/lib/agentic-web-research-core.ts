@@ -6818,7 +6818,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const protectedTargetRecovery = input.mode === "target"
         ? [
             APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-            "Operating-company targets need evidence of current operations. Avoid stale years unless the objective is explicitly historical.",
+            "investor firms need evidence of capital capacity or actual investment activity and mandate fit. Operating-company targets need evidence of current operations. Avoid stale years unless the objective is explicitly historical.",
           ].join("\n\n")
         : "";
       const protectedFetchedSourceClaim = latestSuccessfulFetchRecord && latestFetchedSourceClaimMarker
