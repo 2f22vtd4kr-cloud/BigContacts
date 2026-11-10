@@ -6219,6 +6219,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion."
       ].join(" ");
       const observationMarkers = latestObservationBoundaryMarkers.join(" ");
+      const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const schemaAndRuntime = [
         "APEX INVESTIGATOR: follow the active human objective and Boss-approved scope. The Investigator chooses the next action; deterministic controls validate authorization, provenance, budgets and persistence only.",
         objectiveBlock,
@@ -6230,7 +6231,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         partialEvidencePolicy,
         compactDiscoveryPolicy,
         terminalContractGuidance,
-        minimumBinaryRecovery,
+        compactBinaryRecovery,
         "do not retry the same binary URL through the other fetch action.",
         blockedScopeRecoveryMarker,
         sourceUrlLine,
