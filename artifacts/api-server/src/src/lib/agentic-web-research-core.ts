@@ -6121,37 +6121,38 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source class may vary by query") return "SCOPE RECOVERY: " + marker + ".";
       return marker;
     }).filter(Boolean).join("\n\n");
-    // Reserve bounded room for markers that emergency compaction may need to
-    // rehydrate. The source claim and schema remain protected in the base; this
-    // headroom prevents recovery from overflowing an envelope already filled
-    // to the provider ceiling.
-    const anticipatedRecoveryChars = requiredFinalMarkers
-      .filter((marker) => !repaired.includes(marker))
-      .reduce((total, marker) => total + Math.min(marker.length, 420) + 2, 0);
-    // The provider-boundary repair may restore the exact runtime action allowlist,
-    // fetched-claim envelope, observation sentinels and schema markers even when
-    // every prose marker is already present. A tiny reserve based only on missing
-    // prose markers caused the second pass to consume the entire provider budget,
-    // then overflow when it restored those machine-critical fields. Keep a fixed
-    // recovery reserve; this constrains transport size, never model action choice.
-    const recoveryReserve = Math.min(1_800, Math.max(1_400, anticipatedRecoveryChars));
-    const recoveryBaseBudget = Math.max(3_200, maxUserPromptChars - recoveryReserve);
-    let compactedRecoveryBase = appendEmergencyObservationContext(
-      repaired,
-      "",
-      recoveryBaseBudget,
-      input.mode,
-      activeBossDirection,
-      registryIdList,
-      aiHistoricalMemory,
-    );
-    // Rehydrate any exact required markers removed by the emergency compactor.
-    // Keep the human objective and current evidence context intact; shed only
-    // explicitly advisory paragraphs if the marker recovery needs more room.
+    // Emergency compaction can remove required clauses that were present in
+    // the input projection. Reserve space for the clauses actually missing
+    // after each pass, not only markers missing before compaction. Re-run the
+    // projection with that measured reserve until the base and its rehydrated
+    // markers fit together. This is transport budgeting only; it does not pick
+    // or restrict Investigator actions.
     const missingAfterCompaction = () => requiredFinalMarkers
       .filter((marker) => !compactedRecoveryBase.includes(marker))
       .map((marker) => marker === "DISCOVERY MODEL POLICY:" ? compactEmergencyDiscoveryContractParts.join(" ") : marker);
-    let recoveryMarkers = missingAfterCompaction();
+    let recoveryBudget = maxUserPromptChars;
+    let compactedRecoveryBase = "";
+    let recoveryMarkers: string[] = [];
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      compactedRecoveryBase = appendEmergencyObservationContext(
+        repaired,
+        "",
+        recoveryBudget,
+        input.mode,
+        activeBossDirection,
+        registryIdList,
+        aiHistoricalMemory,
+      );
+      recoveryMarkers = missingAfterCompaction();
+      const markerBlockChars = recoveryMarkers.join("\n\n").length;
+      const separatorChars = markerBlockChars > 0 && compactedRecoveryBase.trim() ? 2 : 0;
+      const projectedLength = compactedRecoveryBase.trim().length + markerBlockChars + separatorChars;
+      if (projectedLength <= maxUserPromptChars) break;
+
+      const nextRecoveryBudget = maxUserPromptChars - markerBlockChars - separatorChars;
+      if (nextRecoveryBudget < 1_000 || nextRecoveryBudget >= recoveryBudget) break;
+      recoveryBudget = nextRecoveryBudget;
+    }
     const optionalRecoverySections = [
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:/,
       /^SOURCE COVERAGE \(not a checklist\):/,
