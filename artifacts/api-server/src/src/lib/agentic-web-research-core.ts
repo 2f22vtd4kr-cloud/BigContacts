@@ -3807,8 +3807,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
         compactEmergencyOutputContract,
         isDiscoveryPrompt ? compactDiscoveryEmergencyContract : compactTargetFallbackPolicy,
-        minimumAvailableActionsSection,
-        conditionalCapabilityRule,
         compactPartialEvidenceContract,
         compactEmergencyBinaryRule,
         compactEmergencyRegistryRule,
@@ -4042,7 +4040,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     finalParts.push(finalEmergencyCoreContract);
 
     appendBudgeted(compactCaseObjective, 3_200, "[objective detail omitted; canonical case objective remains authoritative]");
-    appendBudgeted(minimumScopeContext, 420, "[scope detail omitted; canonical Boss scope remains authoritative]");
+    appendBudgeted(minimumScopeContext, 720, "[scope detail omitted; canonical Boss scope remains authoritative]");
     appendBudgeted(scopeRecoveryRule, 240, "[scope recovery detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 520, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 760, "[additional exact URLs omitted whole; immutable case events remain authoritative]");
