@@ -3797,24 +3797,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
-        "No fixed action sequence.",
-        "MISSION DESCRIPTORS: These are signal categories, not a query; form a falsifiable hypothesis.",
-        "DISCOVERY SEARCH ECONOMY: choose one bounded mixed-source web/registry batch when useful; Investigator selects sources and actions.",
-        "DISCOVERY LEAD HANDOFF CONTRACT: select the strongest directly relevant exact-name lead for review-only handoff; no automatic promotion.",
-        "DISCOVERY TARGETABILITY: objective and Boss scope govern target class, sector and geography; fame or prestige is not qualification. People—not companies, when the objective asks for people.",
-        "Target-stage research verifies objective-required role, relationship and materiality before promotion.",
-        "PYTHON SPECIALISTS: Conditional specialist OSINT actions ONLY if the exact action appears in the runtime-generated AVAILABLE ACTIONS for this turn and signed worker attestation authorizes it.",
-        "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only; never invent an ID or infer undocumented ownership fields.",
-        "PDF: text-bearing PDFs use visit; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
-        "After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. Snippets are leads; failed fetches are unknown. Never infer wealth from seniority.",
+        "No fixed action sequence. MISSION DESCRIPTORS: These are signal categories, not a query.",
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; choose a bounded mixed-source web/registry batch when useful. FAST HANDOFF: one quick source look is enough to hand the strongest relevant lead to Boss.",
+        "DISCOVERY TARGETABILITY / REALISM: objective and Boss scope govern target class, sector and geography; fame/prestige neither qualifies nor excludes. People—not companies, when people are requested.",
+        "DISCOVERY LEAD HANDOFF CONTRACT: exact-name person/company leads are review-only; no automatic promotion. Target-stage research verifies objective-required role, relationship, materiality and professional route before promotion.",
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; snippets are leads; failed fetches are unknown. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span. Never infer wealth from seniority.",
+        "Conditional specialist OSINT actions ONLY if the exact action appears in the runtime-generated AVAILABLE ACTIONS for this turn and signed worker attestation authorizes it.",
+        (runtimeRegistryIdsRule || "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only.") + " Never invent registry IDs or infer undocumented ownership fields.",
+        "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; image-only PDFs require OCR (unavailable); password-protected and malformed PDFs are distinct structured failures.",
       ].join(" ")
-    : "";
-  const compactEmergencyBinaryRule = isInvestigatorPrompt
-    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL."
-    : "";
-  const compactEmergencyRegistryRule = isInvestigatorPrompt
-    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ")
-      + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is unknown. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
