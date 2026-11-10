@@ -2127,6 +2127,13 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
         "discovery policy",
       );
     }
+    if (/Operating-company targets need evidence of current operations|Avoid stale years unless the objective is explicitly historical/.test(normalized)) {
+      add(
+        "Inc. 5000/fast-growth/unicorn rankings are company-level discovery signals; ranking-only mentions are leads, not qualified targets. investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth and materiality must be assessed separately from an individual owner's wealth. Operating-company targets need evidence of current operations. Avoid stale years unless the objective is explicitly historical.",
+        850,
+        "target company realism",
+      );
+    }
     if (/PARTIAL FINDINGS|Qualification follows the active objective/.test(normalized)) {
       add(
         "PARTIAL FINDINGS: preserve exact observed names, stated roles or null, and public HTTPS URLs as review-only. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. Target-specific names come from the human brief or same-case observations, never model memory. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact span.",
