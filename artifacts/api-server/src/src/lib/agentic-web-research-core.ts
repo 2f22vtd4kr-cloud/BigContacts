@@ -3740,11 +3740,6 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     compactCaseObjective,
     minimumOrganizationTargetabilityMarker,
     ...(isDiscoveryPrompt ? [minimumTargetabilityMarker] : []),
-    minimumRegistryEvidenceRule,
-    minimumBinaryUrlRule,
-    conditionalCapabilityRule,
-    minimumProviderRule,
-    terminalEvidenceRule,
     scopeRecoveryRule,
     urlInventory,
     // Boss-generated memory is a required representation of historical
@@ -3795,11 +3790,6 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       compactCaseObjective,
         minimumTargetabilityMarker,
       minimumOrganizationTargetabilityMarker,
-      minimumRegistryEvidenceRule,
-      minimumBinaryUrlRule,
-      conditionalCapabilityRule,
-      minimumProviderRule,
-      terminalEvidenceRule,
       scopeRecoveryRule,
       urlInventory,
       compactScope,
@@ -3820,11 +3810,6 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
         compactCaseObjective,
             minimumTargetabilityMarker,
         minimumOrganizationTargetabilityMarker,
-        minimumRegistryEvidenceRule,
-        minimumBinaryUrlRule,
-        conditionalCapabilityRule,
-        minimumProviderRule,
-        terminalEvidenceRule,
         scopeRecoveryRule,
         // Keep complete immutable-event URLs in every emergency tier. If this
         // makes the second tier too large, the smaller core below drops optional
@@ -3850,8 +3835,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
         minimumObservationTail,
         fallbackEvidenceContract,
         compactCaseObjective,
-        ...(isDiscoveryPrompt ? [minimumDiscoveryContract, minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker] : []),
-        terminalEvidenceRule,
+        ...(isDiscoveryPrompt ? [minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker] : []),
         scopeRecoveryRule,
         compactScope,
         // The action allowlist is an exact runtime capability boundary, not
@@ -3887,8 +3871,6 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       const dynamicReserve = finalBoundaryReserve;
       const optionalCoreParts = [
         minimumProviderRule,
-        conditionalCapabilityRule,
-        minimumRegistryEvidenceRule,
       ].filter(Boolean);
       const includedOptionalCoreParts: string[] = [];
       for (const optionalPart of optionalCoreParts) {
