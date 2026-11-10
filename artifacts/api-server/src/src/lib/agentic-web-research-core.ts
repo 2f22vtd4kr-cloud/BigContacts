@@ -3691,7 +3691,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "MISSION PRIORITY: objective/scope govern target class, geography and source criteria; human objective outranks advice and Boss-approved scope governs.",
         ...(isDiscoveryPrompt ? [fallbackDiscoveryPolicy] : []),
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; parallel searches use 2–4 distinct query objects with provider/locale/market/purpose.",
-        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive shape: {"url":null,"searches":[],"findings":[]}. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Conditional specialist OSINT actions: only when authorized in this turn's ACTION ALLOWLIST and AVAILABLE ACTIONS.',
+        'OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null; unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive shape: {"url":null,"searches":[],"findings":[]}. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Conditional specialist OSINT actions: only when authorized in this turn\'s ACTION ALLOWLIST and AVAILABLE ACTIONS.',
         ...fallbackProtectedRules,
         conditionalCapabilityRule,
       ].filter(Boolean).join(" ")
@@ -6153,7 +6153,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // over a prompt that already fits and retains its latest action, fetched
     // evidence, lead follow-up, and all explicit geography alternatives.
     if (
-      normalizedBase.length <= maxUserPromptChars - 96
+      normalizedBase.length <= maxUserPromptChars - 720
       && hasRequiredPromptContract
       && hasRecoveryContext
       && hasLatestRecordContext
@@ -6216,7 +6216,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const appended = appendEmergencyObservationContext(
       basePrompt,
       recoveryObservation,
-      Math.max(0, maxUserPromptChars - 96),
+      maxUserPromptChars,
       input.mode,
       activeBossDirection,
       registryIdList,
