@@ -23,6 +23,9 @@ if [[ -z "${REDIS_URL:-}" && -n "${REDIS_URL_1:-}" ]]; then
 fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
+# Fail before building/starting when an active provider secret is missing. The
+# preflight checks presence only and never prints secret values.
+node scripts/replit-preflight.mjs
 if fuser "${PORT}/tcp" >/dev/null 2>&1; then
   echo "[replit-boot] port ${PORT} is already owned by another process."
   echo "[replit-boot] refusing to kill a sibling workflow; run exactly one Apex Atlas API workflow."
