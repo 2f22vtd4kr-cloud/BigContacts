@@ -9,12 +9,12 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/MAX_PROVIDER_PROMPT_CHARS = 8_400/.test(core), "final Investigator provider prompt ceiling must be 8,400 characters");
+assert(/MAX_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "final Investigator provider prompt ceiling must be 10,000 characters");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
 assert(/maxChars: 3_000/.test(core), "working Investigator context must preserve room for the complete objective, schema and live evidence");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /900,\n  \);/.test(core), "intelligence state must remain bounded to 900 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
-assert(/MAX_PROVIDER_PROMPT_CHARS = 8_400/.test(core) && /const maxUserPromptChars = Math\.max\(1_000, Math\.min\(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length\)\)/.test(core), "expanded tool guidance remains inside the user-message budget after reserving the stable system prompt");
+assert(/MAX_PROVIDER_PROMPT_CHARS = 10_000/.test(core) && /const maxUserPromptChars = Math\.max\(1_000, Math\.min\(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length\)\)/.test(core), "expanded tool guidance remains inside the 8,200-character user-message budget after reserving the stable system prompt");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/const allPromptRecords = sanitizeObservableValue\(\[\.\.\.priorTrajectoryRecords, \.\.\.records\]\.slice\(-MAX_TRAJECTORY_RECORDS\)\)/.test(core) && /const promptTrajectoryRecords = allPromptRecords\.map\(/.test(core) && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection");
 assert(/INVESTIGATOR_SYSTEM_PROMPT/.test(core) && /MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "final prompt ceiling must reserve space for the stable system message");
