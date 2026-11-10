@@ -6200,7 +6200,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // choice and no provider/source/action itinerary is introduced.
     let compactFallbackSegmentLengths = "";
     const compactBoundaryFallback = (): string => {
-      const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\\s\\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
+      const objectiveBlock = repaired.match(/<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>[\s\S]*?<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>/)?.[0]
         ?? authoritativeCaseObjective;
       const scopeLine = activeBossDirection
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 360)
@@ -6257,7 +6257,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           })
         : "";
       const pinnedInventoryLine = extractPinnedDurableUrlInventory(
-        [input.durableUrlInventory, repaired].filter(Boolean).join("\\n")
+        [input.durableUrlInventory, repaired].filter(Boolean).join("\n")
       );
       const carriedLeadSample = completePromptUrlSample(carryForwardSuccessfulSearch?.leadUrls ?? [], 2);
       const carriedLeadUrls = carriedLeadSample.urls;
@@ -6294,7 +6294,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         memoryPrefix
       ].filter(Boolean);
       compactFallbackSegmentLengths = requiredParts.map((part, index) => index + ":" + part.length).join(",");
-      const compactCandidate = (parts: string[]) => parts.filter(Boolean).join("\\n").trim();
+      const compactCandidate = (parts: string[]) => parts.filter(Boolean).join("\n").trim();
       let candidate = compactCandidate(requiredParts);
       // The durable record already carries the current action and its arguments.
       // Keep the longer query excerpt beside it, but avoid a second copy of the
