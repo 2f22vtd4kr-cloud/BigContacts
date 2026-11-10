@@ -3186,6 +3186,22 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."} fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`,
     );
   }
+  const observationStartMarker = "LATEST_OBSERVATION_START";
+  const observationEndMarker = "LATEST_OBSERVATION_END";
+  const startMarkerAt = normalized.indexOf(observationStartMarker);
+  const endMarkerAt = normalized.lastIndexOf(observationEndMarker);
+  if (startMarkerAt >= 0 && endMarkerAt > startMarkerAt) {
+    const head = normalized.slice(0, startMarkerAt + observationStartMarker.length);
+    const tail = normalized.slice(endMarkerAt);
+    const omission = " … [middle of observation omitted; full observation remains durable] … ";
+    if (head.length + omission.length + tail.length <= limit) return head + omission + tail;
+    const available = Math.max(observationStartMarker.length + observationEndMarker.length + 8, limit - omission.length);
+    const headChars = Math.max(observationStartMarker.length, Math.floor(available * 0.55));
+    const tailChars = Math.max(observationEndMarker.length, available - headChars);
+    return normalized.slice(0, Math.min(headChars, startMarkerAt + observationStartMarker.length))
+      + omission
+      + normalized.slice(Math.max(endMarkerAt, normalized.length - tailChars));
+  }
   // Ordinary fetched-page observations can carry the exact company/person facts
   // needed for a partial finding. Preserve both ends of a bounded excerpt.
   return carriedSource
@@ -3635,10 +3651,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
+  const fallbackDiscoveryPolicy = isDiscoveryPrompt
+    ? "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; fame neither qualifies nor disqualifies; require direct objective relevance. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; prefer one bounded mixed-source web/registry batch. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research/Boss. DISCOVERY LEAD HANDOFF CONTRACT: preserve exact-name relevant people/company leads as review-only; no fetch or ownership proof required; never auto-promote. ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: form a concrete, falsifiable public-evidence hypothesis. No registry is preferred; choose by evidence."
+    : "";
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; human objective and approved scope remain authoritative; do not broaden. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or approved scope explicitly names a country; locale is language only, never geography. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. " + conditionalCapabilityRule + " INACTIVE ACTION FIELD SHAPE: " + JSON.stringify({ url: null, searches: [], findings: [] }) + "."
+    ? "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: objective/scope govern; human objective and approved scope remain authoritative; do not broaden. VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. No fixed action sequence. Investigator chooses. Parallel web searches require 2–4 distinct query objects, each with provider/locale/market/purpose. SEARCH SCOPE: market=null unless the human objective or approved scope explicitly names a country; locale is language only, never geography. OUTPUT CONTRACT: one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. " + conditionalCapabilityRule + (fallbackDiscoveryPolicy ? " " + fallbackDiscoveryPolicy : "") + " INACTIVE ACTION FIELD SHAPE: " + JSON.stringify({ url: null, searches: [], findings: [] }) + "."
     : "";
   
   const minimumProviderRule = isInvestigatorPrompt
