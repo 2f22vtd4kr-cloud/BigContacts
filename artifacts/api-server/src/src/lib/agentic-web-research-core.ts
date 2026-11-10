@@ -3818,7 +3818,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const finalEmergencyCoreContract = isInvestigatorPrompt
     ? [
-        compactEmergencyOutputContract,
+        minimalFallbackOutputContract,
         compactFinalEmergencyInvariants,
         isDiscoveryPrompt ? "" : compactTargetFallbackPolicy,
         terminalEvidenceRule,
