@@ -6159,7 +6159,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^VALID REVIEW-LEAD SHAPE/,
       /^DISCOVERY TARGETABILITY GATE:/,
       /^DISCOVERY LEAD HANDOFF CONTRACT:/,
-      /^\\[AUXILIARY CONTEXT BOUND:/,
+      /^\[AUXILIARY CONTEXT BOUND:/,
     ];
     if (recoveryMarkers.length) {
       const sections = compactedRecoveryBase.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
