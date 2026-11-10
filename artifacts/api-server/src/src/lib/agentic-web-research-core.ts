@@ -6239,7 +6239,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs fail distinctly. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: only when the exact action is present in AVAILABLE ACTIONS and fresh worker attestation authorizes it; capability controls do not prescribe tool order.";
-      const schemaContract = "OUTPUT CONTRACT: Return exactly one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]; non-done hypothesis/purpose nonempty; expectedInformationGain in [0,1] (only done may null). Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
+      const schemaContract = "OUTPUT CONTRACT: one root JSON object. Return exactly one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]; non-done hypothesis/purpose nonempty; expectedInformationGain in [0,1] (only done may null). Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const query = typeof latestRecord?.args?.query === "string" ? latestRecord.args.query.trim() : "";
       const latestQueryLine = query ? "LATEST TRAJECTORY QUERY (exact current action): " + query.slice(0, 120) : "";
       const latestRecordUrls = latestRecord
@@ -6308,6 +6308,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         latestFetchedSourceClaimMarker,
         latestQueryLine,
         carriedLeadLine,
+        leadGuidance,
         latestRecordLine,
         latestObservationLine,
         observationMarkers,
