@@ -5922,7 +5922,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "Search snippets remain leads, not evidence",
       "Qualification follows the active objective",
       ...(input.mode === "discovery" && requiredQualification ? [requiredQualification] : []),
-      terminalEvidenceRule,
+      terminalContractGuidance,
       ...(input.mode === "discovery" ? [
         "Inc. 5000/fast-growth/unicorn rankings",
         "ranking-only mentions are leads, not qualified targets",
@@ -6072,7 +6072,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (marker === "source-backed leads") return "PARTIAL FINDINGS: preserve relevant source-backed leads as review-only.";
       if (marker === "Search snippets remain leads, not evidence") return marker + "; failed fetches are unobserved.";
       if (marker === requiredQualification) return marker;
-      if (marker === terminalEvidenceRule) return marker;
+      if (marker === terminalContractGuidance) return marker;
       if (marker === "Qualification follows the active objective") return marker + ".";
       if (marker === "Operating-company targets need evidence of current operations") return marker + ", objective fit, identifiable decision-makers and practical public/professional routes; private or mid-market status matters only when requested.";
       if (marker === "visit supports bounded text extraction") return "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Do not retry the same binary URL through the other fetch action.";
