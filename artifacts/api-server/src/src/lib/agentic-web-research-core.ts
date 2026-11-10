@@ -3772,8 +3772,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
         "DISCOVERY MODE: no person/entity target is implied. Preserve the complete human objective and latest Boss-approved topic/geography/scope; no silent pivot. No fixed action sequence: the Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots and stopping from current capabilities.",
         "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
-        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; a bounded mixed-source web/registry batch is available when useful, not a fixed itinerary. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough. One source-backed relevant lead starts target research.",
-        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective; no preset target or name blacklist. Preserve requested sector/jurisdiction. No registry is preferred; choose by evidence. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
+        "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is available when useful, not a fixed itinerary. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to Boss. One source-backed relevant lead starts target research.",
+        "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Popularity is not a filter: require direct relevance to the active objective; no preset target or name blacklist. Preserve requested sector/jurisdiction, e.g. casinos in Slovenia. No registry is preferred; choose by evidence. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
         "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name leads as review-only, not every result; preserve observed name, role/null and associated public URL; no auto-promotion.",
         "SEARCH: market only if country in objective/scope; locale=language. Source class/provider choice remains model-owned.",
       ].join(" ")
@@ -3783,7 +3783,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const compactEmergencyOutputContract = isInvestigatorPrompt
     ? [
-        "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope. No fixed action sequence; the Investigator chooses.",
+        "APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: the human objective and latest Boss-approved scope govern; No fixed action sequence. The Investigator chooses targets, hypotheses, queries, sources, providers, tools, pivots and stopping.",
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
         'OUTPUT CONTRACT: one root JSON object; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]; non-done hypothesis/purpose nonempty; expectedInformationGain [0,1] (only done may null). Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.'
       ].join(" ")
@@ -3791,7 +3791,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactFinalEmergencyInvariants = isInvestigatorPrompt
     ? [
         "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
-        "Conditional specialist OSINT actions are available only when the exact action appears in the current AVAILABLE ACTIONS and fresh worker attestation authorizes it; capability controls do not prescribe tool order."
+        "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation is required. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Capability controls do not prescribe tool order."
       ].join(" ")
     : "";
   const finalEmergencyCoreContract = compactEmergencyOutputContract;
