@@ -215,6 +215,29 @@ export function compactPromptSectionPreservingUrlTokens(
     + (tailStart < source.length ? source.slice(tailStart).trimStart() : "");
 }
 
+
+/**
+ * Non-semantic fallback for an oversized recent observation when the AI
+ * compactor is unavailable. The complete observation remains in the immutable
+ * case-event ledger; this projection only bounds the model-facing copy.
+ * URLs are kept whole or omitted whole, and omissions are explicitly unknown.
+ */
+export function buildDeterministicObservationFallback(value: string, maxChars: number): string {
+  const source = typeof value === "string" ? value.trim() : "";
+  const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
+  const limit = Math.max(0, requested);
+  if (!source || limit === 0) return "";
+  if (source.length <= limit) return source;
+
+  const fullMarker = "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic excerpt; full observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]";
+  const shortMarker = "[DETERMINISTIC EXCERPT; full observation remains durable; omitted content is unknown]";
+  return compactPromptSectionPreservingUrlTokens(
+    source,
+    limit,
+    limit >= fullMarker.length + 2 ? fullMarker : shortMarker,
+  );
+}
+
 function trim(value: unknown, max: number): string {
   return typeof value === "string"
     ? sanitizeUrlsInText(compactPromptSectionPreservingUrlTokens(value.trim(), max, "[TEXT EXCERPT COMPACTED: URL tokens intersecting the excerpt boundary were omitted whole; full source remains durable]"))
