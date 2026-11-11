@@ -6255,12 +6255,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + (availableBrowserProviders.join("|") || "unavailable")
         + "; domain_lookup=rdap|whoisjson.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
-        + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.";
+        + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit; do not assume owner fields.";
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.";
-      const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain [0,1], never null; only done may null. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
+      const schemaContract = "OUTPUT CONTRACT: root JSON only, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain [0,1], never null; only done may null. Finding fields: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
-        "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; exact-name people/company only, not every result; never auto-promote.",
-        "Search snippets remain leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
+        "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected exact-name people/company source-backed leads as review-only, not every result; never auto-promote.",
+        "Search snippets remain leads, not evidence; failed/unvisited URLs unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
         requiredQualification,
         "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null. Never infer wealth from seniority.",
         requiredTargetStageContract
@@ -6383,9 +6383,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/Boss scope govern; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping.",
           "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch allowed, not mandatory. FAST HANDOFF: strongest objective-fit lead, not shortlist; one quick source look is enough to hand it to target research.",
-          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. People/company/assets differ. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
-          "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
-          "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads for review only, not every result; preserve observed name, role/null and public URL; no auto-promotion."
+          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
+          "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
         ].join(" ");
         candidate = compactCandidate(requiredParts.map((part) =>
           part === partialEvidencePolicy ? emergencyPartialEvidence
@@ -6508,7 +6507,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // double-charges the same evidence against the hard transport budget and
     // forces the lossy emergency tier precisely when those facts are needed.
     const recoveryBaseParts = [
-      input.mode === "discovery" ? "DISCOVERY MODE: no person or entity target is implied; preserve the objective and make a fast, mixed-source, model-owned lead choice." : "",
+      input.mode === "discovery" ? "DISCOVERY MODE: no person or entity target is implied; preserve objective/scope; mixed-source choices remain model-owned. FAST HANDOFF: choose the strongest objective-fit lead; one quick source look is enough to hand it to target research." : "",
       basePrompt,
       latestRecordTail && !basePrompt.includes(latestRecordTail) ? latestRecordTail : "",
     ].filter(Boolean);
