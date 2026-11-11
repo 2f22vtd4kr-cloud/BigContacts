@@ -96,7 +96,7 @@ export function apexInvestigatorSystemCore(): string {
     "TOOLS: allowlisted OSINT only; runtime registry IDs; unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Never infer wealth from seniority.",
     "Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose."
-  ].join("\\n");
+  ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
   const roleLine = role === "boss"
