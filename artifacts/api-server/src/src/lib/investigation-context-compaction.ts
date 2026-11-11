@@ -240,11 +240,20 @@ export function buildDeterministicContextProjection(
   const shortMarker = kind === "observation"
     ? "[DETERMINISTIC OBSERVATION EXCERPT; full observation remains durable; omitted content is unknown]"
     : "[DETERMINISTIC HISTORICAL MEMORY EXCERPT; evidence and decisions remain durable; omitted context is unknown]";
-  return compactPromptSectionPreservingUrlTokens(
+  const requiredObservationMarkers = kind === "observation"
+    ? ["OBSERVATION_START", "OBSERVATION_END"].filter((marker) => source.includes(marker))
+    : [];
+  // Structural observation delimiters are provenance boundaries, not expendable
+  // prose. Reserve room for any delimiter omitted by the head/tail excerpt.
+  const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !source.slice(0, limit).includes(marker));
+  const markerSuffix = missingObservationMarkers.join(" ");
+  const projectionBudget = Math.max(0, limit - (markerSuffix ? markerSuffix.length + 1 : 0));
+  const projection = compactPromptSectionPreservingUrlTokens(
     source,
-    limit,
-    limit >= fullMarker.length + 2 ? fullMarker : shortMarker,
+    projectionBudget,
+    projectionBudget >= fullMarker.length + 2 ? fullMarker : shortMarker,
   );
+  return markerSuffix ? [projection, markerSuffix].filter(Boolean).join(" ") : projection;
 }
 
 /** Observation-specific alias used by the recent-observation recovery path. */
