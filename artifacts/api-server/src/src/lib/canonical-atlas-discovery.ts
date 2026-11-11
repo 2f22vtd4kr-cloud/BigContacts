@@ -1840,7 +1840,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
-      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
         .for("update")
@@ -1848,9 +1848,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
         throw new Error("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
       }
+      const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+        .from(researchCaseEventsTable)
+        .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+        .orderBy(desc(researchCaseEventsTable.id))
+        .limit(1);
+      const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
-        iteration: 0,
+        iteration: nextIteration,
         actorRole: "right_hand",
         eventType: "observation",
         status: rightHand.status === "completed" ? "recorded" : "unavailable",
@@ -1985,7 +1991,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
-      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
         .for("update")
@@ -1993,9 +1999,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
         throw new Error("Canonical Atlas discovery case was cancelled before Investigator assignment event.");
       }
+      const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+        .from(researchCaseEventsTable)
+        .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+        .orderBy(desc(researchCaseEventsTable.id))
+        .limit(1);
+      const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
-        iteration: 0,
+        iteration: nextIteration,
         actorRole: "head_investigator",
         eventType: "assignment",
         status: "recorded",
