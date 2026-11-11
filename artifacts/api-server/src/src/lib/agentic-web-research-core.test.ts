@@ -793,7 +793,7 @@ describe("discovery lead inventory", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
     const search = {
       turn: 1, model: "test-model", action: "parallel_web_search", args: {}, execution: "success",
-      observation: "Search results are leads only.", observedUrls: [], leadUrls: urls, findings: [],
+      observation: "Search results include CKX Lands and a reported $1 billion investment transaction. These are unverified result leads, not fetched evidence.", observedUrls: [], leadUrls: urls, findings: [],
     } as AgenticTrajectoryRecord;
     const failedFetch = {
       turn: 2, model: "test-model", action: "browser_fetch", args: { url: urls[0] }, execution: "error",
@@ -819,6 +819,10 @@ describe("discovery lead inventory", () => {
     });
     expect(state.unfetchedLeadUrlCount).toBe(14);
     expect(state.unfetchedLeadUrls).toContain(urls[3]);
+    expect(state.unfetchedLeadObservations).toHaveLength(1);
+    expect(state.unfetchedLeadObservations[0]).toMatchObject({ turn: 1, action: "parallel_web_search", leadUrlCount: 14 });
+    expect(state.unfetchedLeadObservations[0]?.observation).toContain("CKX Lands");
+    expect(state.unfetchedLeadObservations[0]?.observation).toContain("unverified result leads");
     expect(state.unfetchedLeadUrls).not.toContain(urls[2]);
     expect(state.failedLeadUrls.some((item) => item.url === urls[2])).toBe(false);
     expect(state.blockedLeadUrlCount).toBe(1);
