@@ -5382,7 +5382,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
           durableUrlInventory: input.durableUrlInventory,
           intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence has been integrated into the Boss-generated historical memory above; use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative, and omitted details are not negative evidence."
+            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or labelled deterministic projection). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative; omitted details are unknown, not negative evidence."
             : renderIntelligenceContext(intelligenceState),
           mode: input.mode,
           actionAllowlist: actionAllowlistForTurn,
@@ -5391,7 +5391,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         });
       } catch (promptCompositionError) {
         const diagnostic = safeAgenticError(promptCompositionError);
-        const message = `Rich Investigator context rendering failed (${diagnostic}). No action was sent with a deterministically excerpted observation or history.`;
+        const message = `Rich Investigator context rendering failed (${diagnostic}). No action was sent because the required prompt context could not be composed safely.`;
         emit("prompt_context_recovery", { status: "error", summary: message });
         return resultBase("error", i, "UNEXPECTED_ERROR", message);
       }
@@ -5450,7 +5450,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
                 durableUrlInventory: input.durableUrlInventory,
                 intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence has been integrated into the Boss-generated historical memory above; use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative, and omitted details are not negative evidence."
+            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or labelled deterministic projection). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative; omitted details are unknown, not negative evidence."
             : renderIntelligenceContext(intelligenceState),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
@@ -5463,7 +5463,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);
         }
         if (!prompt.includes(aiCompactedHistoricalContext)) {
-          const message = "AI historical memory still did not fit in the full Investigator prompt after model compaction. No action was sent with memory silently omitted.";
+          const message = "Compacted historical context still did not fit in the full Investigator prompt after bounded projection. No action was sent with required history silently omitted.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
