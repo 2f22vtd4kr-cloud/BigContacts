@@ -27,7 +27,7 @@ describe("Investigator target and source grounding guardrails", () => {
     });
 
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied.");
-    expect(prompt).toContain("Target-specific names come from the human brief or same-case observations");
+    expect(prompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
     expect(prompt).toContain("never model memory");
     expect(prompt).not.toContain("The full objective is represented in Boss-generated memory");
   });
