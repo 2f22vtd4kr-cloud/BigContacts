@@ -189,6 +189,8 @@ export type DiscoveryLeadUtilizationState = {
   blockedLeadUrlCount: number;
   /** Case-wide, deduplicated URLs that have not had a fetch action or a preflight block yet. */
   unfetchedLeadUrls: string[];
+  /** Bounded raw search-result context for unvisited leads; untrusted lead text, never fetched evidence. */
+  unfetchedLeadObservations: Array<{ turn: number; action: string; leadUrlCount: number; observation: string }>;
   /** Fetch attempts that ended without a complete successful observation, including partial fetches. */
   failedLeadUrls: Array<{
     url: string;
@@ -274,6 +276,29 @@ export function buildDiscoveryLeadUtilizationState(
 
   const newestFirst = [...leads.entries()].sort((a, b) => b[1].turn - a[1].turn);
   const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key) && !blocked.has(key));
+  const unfetchedKeys = new Set(unfetched.map(([key]) => key));
+  const unfetchedLeadObservations = [...records]
+    .filter((record) => record.execution === "success" && searchActions.has(record.action))
+    .reverse()
+    .flatMap((record) => {
+      const urls = (record.leadUrls ?? []).filter((rawUrl) => {
+        const candidate = normalize(rawUrl);
+        return candidate !== null && unfetchedKeys.has(candidate.key);
+      });
+      if (!urls.length) return [];
+      const observation = typeof record.observation === "string" ? record.observation.trim() : "";
+      return [{
+        turn: record.turn,
+        action: record.action,
+        leadUrlCount: urls.length,
+        observation: compactPromptSectionPreservingUrlTokens(
+          observation,
+          1_200,
+          "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
+        ),
+      }];
+    })
+    .slice(0, 2);
   const failed = newestFirst.flatMap(([key, lead]) => {
     const attempt = attempts.get(key);
     if (!attempt || fetched.has(key)) return [];
@@ -303,6 +328,7 @@ export function buildDiscoveryLeadUtilizationState(
     failedLeadUrlCount: failed.length,
     blockedLeadUrlCount: blockedLeads.length,
     unfetchedLeadUrls: unfetched.slice(0, Math.max(0, Math.min(40, Math.trunc(maxUnfetchedUrls)))).map(([, lead]) => lead.url),
+    unfetchedLeadObservations,
     failedLeadUrls: failed.slice(0, Math.max(0, Math.min(20, Math.trunc(maxFailedUrls)))),
     blockedLeadUrls: blockedLeads.slice(0, Math.max(0, Math.min(20, Math.trunc(maxBlockedUrls)))),
   };
