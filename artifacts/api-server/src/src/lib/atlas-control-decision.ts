@@ -421,7 +421,7 @@ export function buildAtlasPinnedControlState(input: {
       blockedLeadUrlCount: state.blockedLeadUrlCount,
     }),
     "UNFETCHED (unfetchedLeadUrls; not fetched/not blocked; positive count means leads remain): " + unfetchedSample.join(" | ") + (Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) ? " [" + Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) + " URL(s) omitted whole from this prompt sample; complete routes remain in durable case state]" : ""),
-    "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): " + (state.unfetchedLeadObservations ?? []).slice(0, 2).map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\\s+/g, " ").trim().slice(0, 520)).join(" || ").slice(0, 900),
+    "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): " + (state.unfetchedLeadObservations ?? []).slice(0, 2).map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\\s+/g, " ").trim().slice(0, 720)).join(" || ").slice(0, 1_500),
     "SOURCE-BACKED FINDINGS INCLUDING PARTIAL FINDINGS (not HNWI/contact conclusions): " + input.findings.slice(0, 4).map((finding) => (finding.personName ? finding.personName + (finding.role ? " / " + finding.role : "") : finding.value).slice(0, 90) + " [scope=" + finding.scope + "; admission=" + (finding.promotionDecision ?? "review-only") + "; sources=" + finding.sourceUrls.length + "; " + finding.note.slice(0, 50) + "]").join(" | "),
     "FAILED ROUTES (not negative evidence): " + failedSample.map((item) => item.url + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.failedLeadUrlCount - failedSample.length) ? " [" + Math.max(0, state.failedLeadUrlCount - failedSample.length) + " failed route(s) omitted whole from this prompt sample]" : ""),
     "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + blockedSample.map((item) => item.url + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.blockedLeadUrlCount - blockedSample.length) ? " [" + Math.max(0, state.blockedLeadUrlCount - blockedSample.length) + " blocked route(s) omitted whole from this prompt sample]" : ""),
@@ -483,8 +483,9 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         // atomic suffix so head/tail compaction cannot cut it out or select a failed
         // route in place of an actually unfetched lead.
         const authoritativeCountsLine = lines.find((line) => line.startsWith("AUTHORITATIVE DURABLE LEAD COUNTS")) ?? "";
+        const searchResultContextLine = lines.find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT")) ?? "";
         const scopeAndGuard = [lines[0] ?? "", lines[2] ?? "", lines.slice(-1)[0] ?? ""].filter(Boolean).join("\n");
-        const reservedPinnedLines = [authoritativeCountsLine, pinnedUrlLine].filter(Boolean);
+        const reservedPinnedLines = [authoritativeCountsLine, pinnedUrlLine, searchResultContextLine].filter(Boolean);
         const reservedPinnedLength = reservedPinnedLines.reduce((total, line) => total + line.length, 0) + Math.max(0, reservedPinnedLines.length - 1);
         if (reservedPinnedLength > pinnedBudget) {
           throw new Error("Atlas Right-hand prompt cannot preserve authoritative lead counts and an exact unfetched URL within its pinned-state budget.");
