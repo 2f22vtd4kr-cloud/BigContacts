@@ -1483,7 +1483,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           .limit(1);
         const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
         await tx.update(researchCasesTable)
-          .set({ currentAction: "canonical-investigator-token-capacity-reassignment-unavailable", updatedAt: new Date() })
+          .set({ iteration: nextIteration, currentAction: "canonical-investigator-token-capacity-reassignment-unavailable", updatedAt: new Date() })
           .where(and(
             eq(researchCasesTable.id, discoveryCaseId),
             eq(researchCasesTable.status, "active"),
@@ -1868,6 +1868,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         .orderBy(desc(researchCaseEventsTable.id))
         .limit(1);
       const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
+      await tx.update(researchCasesTable)
+        .set({ iteration: nextIteration, updatedAt: new Date() })
+        .where(eq(researchCasesTable.id, discoveryCaseId));
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
         iteration: nextIteration,
@@ -2019,6 +2022,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         .orderBy(desc(researchCaseEventsTable.id))
         .limit(1);
       const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
+      await tx.update(researchCasesTable)
+        .set({ iteration: nextIteration, updatedAt: new Date() })
+        .where(eq(researchCasesTable.id, discoveryCaseId));
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
         iteration: nextIteration,
