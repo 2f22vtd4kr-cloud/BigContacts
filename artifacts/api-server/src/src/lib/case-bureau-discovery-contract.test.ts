@@ -37,6 +37,10 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain(objective);
     expect(prompt).toContain(motivation);
     expect(prompt).toContain("The human mission in CASE STATE is authoritative");
+        expect(prompt).toContain("For generic person-prospect discovery, globally famous/household-name people are presumptively poor-access prospects");
+    expect(prompt).toContain("Require a documented person-specific professional route or an explicit human request");
+    expect(prompt).toContain("General company, press, or investor-relations channels do not establish individual access");
+    expect(prompt).toContain("An explicitly named target or specifically requested prominent figure remains in scope");
     expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
     expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
