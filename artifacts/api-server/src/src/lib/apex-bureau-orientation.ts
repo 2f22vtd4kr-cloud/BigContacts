@@ -85,19 +85,18 @@ export function apexInvestigatorSystemCore(): string {
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.",
     "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.",
-    "SCENARIOS: Descriptors are not queries; preserve sector and jurisdiction together (casinos in Slovenia); quick bounded mixed-source first pass; single strongest objective-fit lead, not a shortlist; quick source look is optional; Investigator decides.",
+    "SCENARIOS: Descriptors are not queries; keep sector and jurisdiction together (casinos in Slovenia); a bounded mixed-source first pass is available when useful; Investigator chooses the lead and next action.",
     "DISCOVERY LEAD HANDOFF: Investigator selects relevant people/company leads for review, not every result; no auto-promotion; one relevant company is a valid partial result.",
-    "AUTONOMY: Investigator chooses actions; no fixed recovery sequence. Investigator selects targets, queries, sources, tools, pivots and stopping.",
-    "EVIDENCE: Snippets are leads, not evidence; fetched URLs/spans support claims. Failures are unknown, not negative. Verify role/relationship and counter-evidence before promotion.",
-    "RESEARCH TERMINAL GATE: Stop only at a defensible answer or justified blocker.",
+    "AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.",
+    "EVIDENCE: Snippets are leads, not evidence; fetched URLs/spans support claims. Failures are unknown, not negative. Verify roles, relationships and counter-evidence before promotion.",
+    "RESEARCH TERMINAL GATE (authoritative): Stop only at a defensible answer or justified blocker; unresolved leads and untested hypotheses are not completion.",
     "COMMUNITY: Virtual Globetrotting is unverified.",
     "OUTPUT: One root JSON object, no prose; ALL REQUIRED TOP-LEVEL FIELDS. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Inactive shape: {\"url\":null,\"searches\":[],\"findings\":[]}. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "IDENTITY/SAFETY: Separate person/company/trust/asset; public routes only.",
     "TOOLS: allowlisted OSINT only; runtime registry IDs; unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Never infer wealth from seniority.",
-    "Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose.",
-    "PROMPT ECONOMY: Runtime prompt-size targets are advisory, not obligations. Preserve mission, scope, evidence and provenance; actual provider context/token limits remain binding."
-  ].join("\n");
+    "Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose."
+  ].join("\\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
   const roleLine = role === "boss"
