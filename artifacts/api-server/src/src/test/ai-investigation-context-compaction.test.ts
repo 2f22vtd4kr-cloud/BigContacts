@@ -27,7 +27,7 @@ describe("AI investigation context compaction", () => {
         + "MATERIAL_FACT_SENTINEL: the record names a director and states an appointment date. "
         + "SOURCE_URL: " + sourceUrl + " "
         + "OBSERVATION_END " + "remaining source text. ".repeat(70),
-    ].join("\\n\\n");
+    ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
       raw: null,
@@ -60,12 +60,12 @@ describe("AI investigation context compaction", () => {
 
   it("uses a deterministic historical-memory projection instead of consuming the Right-hand 120B lane after a 20B throttle", async () => {
     const source = [
+      "CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123",
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: exact objective remains authoritative.",
       "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "structured state. ".repeat(90),
       "CURRENT FINDINGS: " + "source-bound findings. ".repeat(60),
-      "CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123",
       "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "prior observation. ".repeat(60),
-    ].join("\\n\\n");
+    ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
       raw: null,
