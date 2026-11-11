@@ -336,7 +336,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules govern.");
-    expect(canonicalDiscoverySource).toContain("Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.");
+    expect(canonicalDiscoverySource).toContain("Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction.");
+    expect(canonicalDiscoverySource).toContain("The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point.");
     expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
