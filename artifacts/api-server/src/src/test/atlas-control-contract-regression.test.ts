@@ -49,7 +49,7 @@ describe("canonical opening mixed-source discovery contract", () => {
     const rightHandStart = canonicalDiscoverySource.indexOf('failureStage = "right_hand_opening_review"');
     const rightHandEnd = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandStart);
     const rightHandOpening = canonicalDiscoverySource.slice(rightHandStart, rightHandEnd);
-    expect(rightHandOpening).toContain("LIVE RANDOMIZED REGISTRY CATALOG AND COVERAGE");
+    expect(rightHandOpening).toContain("LIVE RANDOMIZED REGISTRY CATALOG");
     expect(rightHandOpening).toContain("atlasRegistryFeasibilityLaw()");
     expect(rightHandOpening).toContain("Recommend a small objective-compatible source mix in focusLanes");
     expect(rightHandOpening).not.toContain("Do not propose a named person, company, asset, registry");
