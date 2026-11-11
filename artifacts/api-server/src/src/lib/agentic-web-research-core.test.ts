@@ -794,7 +794,11 @@ describe("discovery lead inventory", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
     const search = {
       turn: 1, model: "test-model", action: "parallel_web_search", args: {}, execution: "success",
-      observation: "Search results include CKX Lands and a reported $1 billion investment transaction. These are unverified result leads, not fetched evidence.", observedUrls: [], leadUrls: urls, findings: [],
+      observation: [
+        ...Array.from({ length: 8 }, (_, index) => `General company result ${index + 1}\\nURL: ${urls[index + 3]}\\nBackground information about private companies.`),
+        `Brad Jacobs to Lead $1 Billion Equity Investment in CKX Lands\\nURL: ${urls[16]}\\nCKX Lands, Inc. and Jacobs Private Equity announced a $1 billion investment; unverified result leads, not fetched evidence.`,
+      ].join("\\n"),
+      observedUrls: [], leadUrls: urls, findings: [],
     } as AgenticTrajectoryRecord;
     const failedFetch = {
       turn: 2, model: "test-model", action: "browser_fetch", args: { url: urls[0] }, execution: "error",
