@@ -15,7 +15,7 @@ import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, 
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
-import { summarizeInvestigatorContextWithAiCompactor } from "./ai-investigation-context-compaction";
+import { compactRecentObservationWithFallback, summarizeInvestigatorContextWithAiCompactor } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -5295,16 +5295,23 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         const cacheKey = String(promptRecord.turn) + ":" + createHash("sha256").update(sourceToSummarize).digest("hex");
         let compactedObservation = aiCompactedObservationBySource.get(cacheKey);
         if (!compactedObservation) {
-          compactedObservation = await summarizeInvestigatorContextWithAiCompactor({
+          const compacted = await compactRecentObservationWithFallback({
             rawContext: sourceToSummarize,
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
-          }) ?? "";
+          });
+          compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
-            const message = "AI compaction of an oversized recent observation was unavailable or failed size/provenance checks. No action was sent with a deterministically truncated substitute observation.";
+            const message = "Recent observation could not be safely projected into the bounded Investigator context; the full observation remains durable.";
             emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
             return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+          }
+          if (compacted?.method === "deterministic_projection") {
+            emit("deterministic_observation_compaction_fallback", {
+              status: "partial",
+              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+            });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
@@ -5325,16 +5332,23 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         const cacheKey = "observation-only:" + createHash("sha256").update(sourceToSummarize).digest("hex");
         let compactedObservation = aiCompactedObservationBySource.get(cacheKey);
         if (!compactedObservation) {
-          compactedObservation = await summarizeInvestigatorContextWithAiCompactor({
+          const compacted = await compactRecentObservationWithFallback({
             rawContext: sourceToSummarize,
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
-          }) ?? "";
+          });
+          compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
-            const message = "AI compaction of an oversized observation without a trajectory record was unavailable or failed size/provenance checks.";
+            const message = "Current observation could not be safely projected into the bounded Investigator context; the full observation remains durable.";
             emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
             return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+          }
+          if (compacted?.method === "deterministic_projection") {
+            emit("deterministic_observation_compaction_fallback", {
+              status: "partial",
+              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+            });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
