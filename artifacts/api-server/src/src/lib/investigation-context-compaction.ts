@@ -217,25 +217,36 @@ export function compactPromptSectionPreservingUrlTokens(
 
 
 /**
- * Non-semantic fallback for an oversized recent observation when the AI
- * compactor is unavailable. The complete observation remains in the immutable
- * case-event ledger; this projection only bounds the model-facing copy.
- * URLs are kept whole or omitted whole, and omissions are explicitly unknown.
+ * Non-semantic bounded projection used only when an AI compaction request is
+ * unavailable. The authoritative objective, evidence, and complete trajectory
+ * remain in the durable case state/event ledger; this is only a model-facing
+ * working-context projection. URLs are kept whole or omitted whole, and
+ * omissions are explicitly unknown rather than negative evidence.
  */
-export function buildDeterministicObservationFallback(value: string, maxChars: number): string {
+export function buildDeterministicContextProjection(
+  value: string,
+  maxChars: number,
+  kind: "observation" | "historical_memory" = "historical_memory",
+): string {
   const source = typeof value === "string" ? value.trim() : "";
   const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
   const limit = Math.max(0, requested);
   if (!source || limit === 0) return "";
   if (source.length <= limit) return source;
 
-  const fullMarker = "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic excerpt; full observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]";
-  const shortMarker = "[DETERMINISTIC EXCERPT; full observation remains durable; omitted content is unknown]";
+  const label = kind === "observation" ? "OBSERVATION" : "HISTORICAL MEMORY";
+  const fullMarker = `[DETERMINISTIC ${label} PROJECTION: non-semantic excerpt; full context remains in immutable case events and durable case state; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]`;
+  const shortMarker = `[DETERMINISTIC ${label} EXCERPT; full context remains durable; omitted content is unknown]`;
   return compactPromptSectionPreservingUrlTokens(
     source,
     limit,
     limit >= fullMarker.length + 2 ? fullMarker : shortMarker,
   );
+}
+
+/** Observation-specific alias used by the recent-observation recovery path. */
+export function buildDeterministicObservationFallback(value: string, maxChars: number): string {
+  return buildDeterministicContextProjection(value, maxChars, "observation");
 }
 
 function trim(value: unknown, max: number): string {
