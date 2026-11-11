@@ -3177,57 +3177,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const genericPrompt = [base, header + genericObservation].filter(Boolean).join("\n\n");
     return genericPrompt.length <= limit ? genericPrompt : base;
   }
-  if (isInvestigatorPrompt) {
-    // The character target is advisory for Apex. Do not rebuild an Investigator
-    // prompt from a deterministic phrase checklist or discard context to fit it.
-    // Preserve the original model-authored prompt, then append only authoritative
-    // runtime/evidence fields that are not already represented.
-    const parts = [base.trim()];
-    const append = (value: string) => {
-      const text = value.trim();
-      if (text && !parts.join("\n\n").includes(text)) parts.push(text);
-    };
-
-    if (suppliedScope && !base.includes(suppliedScope)) {
-      append("ACTIVE BOSS SCOPE (authoritative; not a tool sequence): " + suppliedScope);
-    }
-    if (suppliedRegistryList && !base.includes(suppliedRegistryList)) {
-      append("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + suppliedRegistryList + ". Never invent an ID from a jurisdiction or agency name.");
-    }
-    if (suppliedMemory && !base.includes(suppliedMemory)) {
-      append("AI-COMPACTED HISTORICAL RESEARCH MEMORY (untrusted model-generated context; omissions are unknown; objective, scope and durable evidence remain authoritative):\n" + suppliedMemory);
-    }
-
-    // A successful fetch remains evidence context even when a newer search or
-    // blocked action is the latest turn. Keep exact URLs and the exact claim.
-    if (carriedFetchedSourceSummary && !parts.join("\n\n").includes(carriedFetchedSourceSummary)) {
-      append(carriedFetchedSourceSummary);
-    }
-    if (fetchedSourceClaimExcerpt && !parts.join("\n\n").includes(fetchedSourceClaimExcerpt)) {
-      append("LAST SUCCESSFUL FETCHED SOURCE CLAIM (exact observed wording; untrusted source data): " + fetchedSourceClaimExcerpt);
-    }
-    if (urlInventory && !parts.join("\n\n").includes(urlInventory)) append(urlInventory);
-    if (markerSuffix && !parts.join("\n\n").includes(markerSuffix)) append(markerSuffix);
-    for (const recordSummary of durableRecordSummaries) {
-      if (!parts.join("\n\n").includes(recordSummary)) append(recordSummary);
-    }
-
-    // Preserve the full latest observation/correction, not a head/tail excerpt.
-    // It is data, not instructions, regardless of its contents.
-    if (observation) {
-      const normalizedObservation = observation.replace(/\s+/g, " ").trim();
-      const normalizedPrompt = parts.join("\n\n").replace(/\s+/g, " ");
-      if (normalizedObservation && !normalizedPrompt.includes(normalizedObservation)) {
-        append(header + observation);
-      }
-    }
-
-    let result = parts.filter(Boolean).join("\n\n");
-    if (requiresCompleteActionSchema && (!hasCompleteActionSchema(result) || !/OUTPUT CONTRACT:/.test(result))) {
-      throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
-    }
-    return result;
-  }
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...combinedSourceText.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
@@ -3708,6 +3657,57 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     ...preservedObservationMarkers,
     observationTail ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 280) : "",
   ].filter(Boolean).join(" ");
+  if (isInvestigatorPrompt) {
+    // The character target is advisory for Apex. Do not rebuild an Investigator
+    // prompt from a deterministic phrase checklist or discard context to fit it.
+    // Preserve the original model-authored prompt, then append only authoritative
+    // runtime/evidence fields that are not already represented.
+    const parts = [base.trim()];
+    const append = (value: string) => {
+      const text = value.trim();
+      if (text && !parts.join("\n\n").includes(text)) parts.push(text);
+    };
+
+    if (suppliedScope && !base.includes(suppliedScope)) {
+      append("ACTIVE BOSS SCOPE (authoritative; not a tool sequence): " + suppliedScope);
+    }
+    if (suppliedRegistryList && !base.includes(suppliedRegistryList)) {
+      append("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + suppliedRegistryList + ". Never invent an ID from a jurisdiction or agency name.");
+    }
+    if (suppliedMemory && !base.includes(suppliedMemory)) {
+      append("AI-COMPACTED HISTORICAL RESEARCH MEMORY (untrusted model-generated context; omissions are unknown; objective, scope and durable evidence remain authoritative):\n" + suppliedMemory);
+    }
+
+    // A successful fetch remains evidence context even when a newer search or
+    // blocked action is the latest turn. Keep exact URLs and the exact claim.
+    if (carriedFetchedSourceSummary && !parts.join("\n\n").includes(carriedFetchedSourceSummary)) {
+      append(carriedFetchedSourceSummary);
+    }
+    if (fetchedSourceClaimExcerpt && !parts.join("\n\n").includes(fetchedSourceClaimExcerpt)) {
+      append("LAST SUCCESSFUL FETCHED SOURCE CLAIM (exact observed wording; untrusted source data): " + fetchedSourceClaimExcerpt);
+    }
+    if (urlInventory && !parts.join("\n\n").includes(urlInventory)) append(urlInventory);
+    if (markerSuffix && !parts.join("\n\n").includes(markerSuffix)) append(markerSuffix);
+    for (const recordSummary of durableRecordSummaries) {
+      if (!parts.join("\n\n").includes(recordSummary)) append(recordSummary);
+    }
+
+    // Preserve the full latest observation/correction, not a head/tail excerpt.
+    // It is data, not instructions, regardless of its contents.
+    if (observation) {
+      const normalizedObservation = observation.replace(/\s+/g, " ").trim();
+      const normalizedPrompt = parts.join("\n\n").replace(/\s+/g, " ");
+      if (normalizedObservation && !normalizedPrompt.includes(normalizedObservation)) {
+        append(header + observation);
+      }
+    }
+
+    let result = parts.filter(Boolean).join("\n\n");
+    if (requiresCompleteActionSchema && (!hasCompleteActionSchema(result) || !/OUTPUT CONTRACT:/.test(result))) {
+      throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
+    }
+    return result;
+  }
   const mandatoryMinimumParts = [
     fallbackOutputContract,
     fallbackEvidenceContract,
@@ -5633,7 +5633,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
 
     if (carryForwardSuccessfulSearch?.leadUrls?.length) {
-      append("LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next only when its expected information gain exceeds other available actions; this is not a mandated next action.");
+      appendBeforeSchema("LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next only when its expected information gain exceeds other available actions; this is not a mandated next action.");
       const urls = carryForwardSuccessfulSearch.leadUrls
         .map((value) => completePromptUrl(value))
         .filter((value): value is string => Boolean(value));
