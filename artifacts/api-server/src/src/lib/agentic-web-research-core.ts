@@ -3206,9 +3206,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     if (fetchedSourceClaimExcerpt && !parts.join("\n\n").includes(fetchedSourceClaimExcerpt)) {
       append("LAST SUCCESSFUL FETCHED SOURCE CLAIM (exact observed wording; untrusted source data): " + fetchedSourceClaimExcerpt);
     }
-    if (carriedLeadUrlInventory && !parts.join("\n\n").includes(carriedLeadUrlInventory)) {
-      append(carriedLeadUrlInventory);
-    }
     if (urlInventory && !parts.join("\n\n").includes(urlInventory)) append(urlInventory);
     if (markerSuffix && !parts.join("\n\n").includes(markerSuffix)) append(markerSuffix);
     for (const recordSummary of durableRecordSummaries) {
