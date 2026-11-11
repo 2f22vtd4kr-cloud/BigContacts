@@ -3074,7 +3074,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/Never invent adapter IDs/i);
-    expect(prompt).toMatch(/Do not assume records expose owners, shareholders, members, or managers|Never assume registry fields disclose beneficial owners|registry fields may not disclose beneficial owners|verify data fields rather than assuming ownership disclosure/i);
+    expect(prompt).toContain("Never assume records expose owners, shareholders, members or managers without observed documentation");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
@@ -3965,6 +3965,7 @@ describe("AI-generated historical Investigator memory", () => {
     expect(prompt).toContain("BOSS_MEMORY_SENTINEL");
     expect(prompt).toContain("ACTIVE_SCOPE_SENTINEL");
     expect(prompt).toContain(url);
+    expect(prompt).toContain("https://registry.example.test/filings/old");
     expect(prompt).toContain("LATEST_FETCH_EVIDENCE_SENTINEL");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("AVAILABLE ACTIONS: web_search | visit | done.");
