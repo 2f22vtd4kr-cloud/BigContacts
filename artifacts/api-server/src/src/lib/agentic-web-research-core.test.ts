@@ -16,6 +16,19 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
 ].join("\\n\\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+describe("recent observation compaction recovery", () => {
+  it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
+    expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
+    expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
+    expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
+    expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
+    expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
+    expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
+    expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
+    expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
+  });
+});
+
 describe("Investigator provider envelope budget", () => {
   it("uses a single system-aware user-message budget", () => {
     expect(investigatorUserPromptBudget(1_600)).toBe(6_800);
@@ -100,6 +113,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
     expect(discoveryPrompt).toContain("One bounded mixed-source web/registry batch");
+    expect(discoveryPrompt).toContain("normal starting portfolio");
+    expect(discoveryPrompt).toContain("randomized runtime-available catalog supplied to Boss and Right-hand");
+    expect(discoveryPrompt).toContain("source-diversity expectation");
     expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
     expect(discoveryPrompt).toContain("no registry is preferred; one lead starts target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
@@ -3737,7 +3753,7 @@ describe("prompt composition recovery integrity", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);
-    expect(recovery).toContain("No action was sent with a deterministically excerpted observation or history.");
+    expect(recovery).toContain("No action was sent because the required prompt context could not be composed safely.");
     expect(recovery).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
     expect(recovery).not.toContain("boundInvestigatorPromptSection");
     expect(recovery).not.toContain("history.slice(-3)");

@@ -1,11 +1,14 @@
 import { GROQ_RIGHT_HAND_MAX_PROMPT_CHARS, runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { logger } from "./logger";
+import { buildDeterministicContextProjection } from "./investigation-context-compaction";
 
 export type AiInvestigationContextCompactionInput = {
   rawContext: string;
   maxChars?: number;
   jobId?: string | null;
   caseId?: number | null;
+  /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
+  allowRecoveryModel?: boolean;
 };
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
@@ -396,6 +399,7 @@ async function requestSummary(
     // that model's short token window is exhausted. Recover once on the
     // already-configured Right-hand 120B model, retaining the same task/role.
     if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
+      if (input.allowRecoveryModel === false) return null;
       const fallbackPrompt = buildSummaryPrompt(
         "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
         maxChars,
@@ -427,6 +431,7 @@ async function requestSummary(
     const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
     if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
 
+    if (input.allowRecoveryModel === false) return null;
     const fallbackReason = repairWasModelThrottled
       ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
       : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
@@ -557,6 +562,51 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     summaries = reduced;
   }
   return null;
+}
+
+
+export type InvestigationContextCompactionMethod = "unchanged" | "ai_semantic" | "deterministic_projection";
+export type InvestigationContextCompactionResult = {
+  text: string;
+  method: InvestigationContextCompactionMethod;
+};
+export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
+
+/**
+ * A non-authoritative context transformation may try one 20B semantic
+ * compaction. It must never consume the 120B Right-hand advisory lane. If the
+ * semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
+ * projection instead; the complete source remains durable and omissions are
+ * explicitly unknown. This does not replace or simulate any oversight decision.
+ */
+export async function compactInvestigationContextWithFallback(
+  input: AiInvestigationContextCompactionInput,
+  kind: "observation" | "historical_memory" = "historical_memory",
+): Promise<InvestigationContextCompactionResult | null> {
+  const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
+  if (!source) return { text: "", method: "unchanged" };
+  const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
+  const maxChars = Math.max(1, Math.min(MAX_SUMMARY_CHARS, requested));
+  if (source.length <= maxChars) return { text: source, method: "unchanged" };
+
+  const semantic = await summarizeInvestigatorContextWithAiCompactor({
+    ...input,
+    maxChars,
+    allowRecoveryModel: false,
+  });
+  if (semantic) return { text: semantic, method: "ai_semantic" };
+
+  const deterministic = buildDeterministicContextProjection(source, maxChars, kind);
+  return deterministic
+    ? { text: deterministic, method: "deterministic_projection" }
+    : null;
+}
+
+/** Recent observations use the same safe projection, labelled distinctly. */
+export async function compactRecentObservationWithFallback(
+  input: AiInvestigationContextCompactionInput,
+): Promise<RecentObservationCompactionResult | null> {
+  return compactInvestigationContextWithFallback(input, "observation");
 }
 
 /** Backward-compatible name for older call sites; this is not a Boss decision. */

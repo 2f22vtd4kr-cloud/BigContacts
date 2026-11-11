@@ -215,6 +215,53 @@ export function compactPromptSectionPreservingUrlTokens(
     + (tailStart < source.length ? source.slice(tailStart).trimStart() : "");
 }
 
+
+/**
+ * Non-semantic bounded projection used only when an AI compaction request is
+ * unavailable. The authoritative objective, evidence, and complete trajectory
+ * remain in the durable case state/event ledger; this is only a model-facing
+ * working-context projection. URLs are kept whole or omitted whole, and
+ * omissions are explicitly unknown rather than negative evidence.
+ */
+export function buildDeterministicContextProjection(
+  value: string,
+  maxChars: number,
+  kind: "observation" | "historical_memory" = "historical_memory",
+): string {
+  const source = typeof value === "string" ? value.trim() : "";
+  const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
+  const limit = Math.max(0, requested);
+  if (!source || limit === 0) return "";
+  if (source.length <= limit) return source;
+
+  const fullMarker = kind === "observation"
+    ? "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic excerpt; complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]"
+    : "[DETERMINISTIC HISTORICAL MEMORY PROJECTION: non-semantic excerpt; source observations, evidence and control decisions remain in durable case events/state; omitted context is unknown, not negative evidence; exact URLs are preserved separately]";
+  const shortMarker = kind === "observation"
+    ? "[DETERMINISTIC OBSERVATION EXCERPT; full observation remains durable; omitted content is unknown]"
+    : "[DETERMINISTIC HISTORICAL MEMORY EXCERPT; evidence and decisions remain durable; omitted context is unknown]";
+  const requiredObservationMarkers = kind === "observation"
+    ? ["OBSERVATION_START", "OBSERVATION_END"].filter((marker) => source.includes(marker))
+    : [];
+  // Structural observation delimiters are provenance boundaries, not expendable
+  // prose. Reserve room for any delimiter omitted by the head/tail excerpt.
+  const markerReserve = requiredObservationMarkers.reduce((total, marker) => total + marker.length + 1, 0);
+  const projectionBudget = Math.max(0, limit - markerReserve);
+  const projection = compactPromptSectionPreservingUrlTokens(
+    source,
+    projectionBudget,
+    projectionBudget >= fullMarker.length + 2 ? fullMarker : shortMarker,
+  );
+  const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !projection.includes(marker));
+  const markerSuffix = missingObservationMarkers.join(" ");
+  return markerSuffix ? [projection, markerSuffix].filter(Boolean).join(" ") : projection;
+}
+
+/** Observation-specific alias used by the recent-observation recovery path. */
+export function buildDeterministicObservationFallback(value: string, maxChars: number): string {
+  return buildDeterministicContextProjection(value, maxChars, "observation");
+}
+
 function trim(value: unknown, max: number): string {
   return typeof value === "string"
     ? sanitizeUrlsInText(compactPromptSectionPreservingUrlTokens(value.trim(), max, "[TEXT EXCERPT COMPACTED: URL tokens intersecting the excerpt boundary were omitted whole; full source remains durable]"))

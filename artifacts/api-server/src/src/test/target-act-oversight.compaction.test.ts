@@ -20,6 +20,29 @@ describe("target-act oversight prompt compaction", () => {
     expect(compact.observedUrls).toContain("https://example.com/page");
   });
 
+  it("keeps source URLs whole or omits them whole in deterministic oversight projections", () => {
+    const url = "https://registry.example.test/record/" + "x".repeat(140);
+    const act = compactOversightAct({
+      turn: 8,
+      model: "groq-investigator-1",
+      action: "visit",
+      args: { url },
+      execution: "success",
+      observationCompactionMethod: "deterministic_projection",
+      observation: "OBSERVATION_START " + "A".repeat(1_200) + " " + url + " " + "B".repeat(1_200) + " OBSERVATION_END",
+      observedUrls: [url],
+      findings: [],
+    });
+    const actObservation = String(act.observation ?? "");
+    expect(act.observedUrls).toContain(url);
+    expect(act.observationCompactionMethod).toBe("deterministic_projection");
+    expect(actObservation.includes(url.slice(0, 50))).toBe(actObservation.includes(url));
+
+    const context = compactOversightContext("CASE_START " + "C".repeat(2_900) + " " + url + " " + "D".repeat(3_000) + " CASE_END");
+    expect(context.length).toBeLessThanOrEqual(6_000);
+    expect(context.includes(url.slice(0, 50))).toBe(context.includes(url));
+  });
+
   it("bounds the exact Right-hand request after composing shared state, act and recent history", () => {
     const prompt = buildTargetActRightHandPrompt({
       targetName: "T".repeat(2_000),

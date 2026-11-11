@@ -357,12 +357,16 @@ export const ATLAS_BOSS_CONTROL_PROMPT_BUDGET = ATLAS_BOSS_CONTROL_PROMPT_MAX_CH
 
 /** Runtime-grounded feasibility law shared by both supervisors and opening review. */
 export function atlasRegistryFeasibilityLaw(): string {
+  // Keep supervisory context compact; the Investigator receives detailed
+  // per-adapter field/ownership coverage in its own runtime schema.
   const available = getAvailableRegistryIdsForPrompt();
   const ids = available.length ? available.join(", ") : "(none currently available)";
-  return `RUNTIME-CALLABLE REGISTRY IDS: ${ids}. Any ID absent from this list is not an integrated/callable registry adapter in this runtime. Generic public agency websites can still be investigated via ordinary web search and observed page visits, but must not be described as native registry adapters. A generic agency landing page does not prove that a dedicated register exists, that its records are public/searchable, or that records expose owner/shareholder/member/manager fields. Distinguish access to a public search surface from evidence about the fields returned. Until observed official documentation or a fetched record establishes the relevant field, frame it as a testable hypothesis ("verify whether filings disclose members") rather than an established fact. Never infer wealth or contactability from seniority alone.`;
-}
-
-/** Keep supervisors focused on converting search leads into observed evidence. */
+  return [
+    `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are callable native registry/asset-register adapters in this process.`,
+    "SOURCE-MIX CONTRACT: Discovery is a randomized mixed-source process, not a web-only funnel. When relevant routes exist, the opening portfolio should include at least one callable registry/asset-register route and independent public-web discovery; explain any omission. Boss/Right-hand advise source lanes; Investigator chooses exact target, registry IDs, queries, providers, tools, order and stopping point. No fixed itinerary or target-class/geography preference.",
+    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. Generic agency pages are web sources, not native registry adapters. A generic agency landing page does not prove that a dedicated register exists or is searchable. Never infer wealth/contactability from seniority alone.",
+  ].join("\n");
+}/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
   return "LEAD-UTILIZATION JUDGMENT: when same-scope unfetchedLeadUrls remain, compare the best available lead against another broad search before recommending a pivot. Do not treat lack of findings from snippets or the absence of an admitted candidate as evidence against an unvisited lead. Pivot/stop only when available leads are irrelevant, low-value, contradicted, or have failed an observed access attempt; state the reason. The authoritative unfetchedLeadUrlCount is the full deduplicated count even when only a sample of URLs is displayed; never claim that no unfetched leads remain when the count is positive. A positive count does not force the Investigator to fetch every URL: if stopping, explain why the remaining leads are low-value, irrelevant, or infeasible using the actual case evidence. This is a judgment preference based on expected information gain, not a fixed action sequence—the Investigator still chooses the exact action.";
 }

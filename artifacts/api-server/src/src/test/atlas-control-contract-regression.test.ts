@@ -44,6 +44,28 @@ describe("objective-aligned Right-hand control guidance", () => {
   });
 });
 
+describe("canonical opening mixed-source discovery contract", () => {
+  it("gives Right-hand the live shuffled registry catalog and carries its advisory lanes into Investigator discovery", () => {
+    const rightHandStart = canonicalDiscoverySource.indexOf('failureStage = "right_hand_opening_review"');
+    const rightHandEnd = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandStart);
+    const rightHandOpening = canonicalDiscoverySource.slice(rightHandStart, rightHandEnd);
+    expect(rightHandOpening).toContain("LIVE RANDOMIZED REGISTRY CATALOG");
+    expect(rightHandOpening).toContain("atlasRegistryFeasibilityLaw()");
+    expect(rightHandOpening).toContain("Recommend a small objective-compatible source mix in focusLanes");
+    expect(rightHandOpening).not.toContain("Do not propose a named person, company, asset, registry");
+
+    const openingObjectiveStart = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
+    const openingObjectiveEnd = canonicalDiscoverySource.indexOf('failureStage = "job_state_or_lease";', openingObjectiveStart);
+    const openingObjective = canonicalDiscoverySource.slice(openingObjectiveStart, openingObjectiveEnd);
+    expect(openingObjective).toContain("openingBossDecision.reason");
+    expect(openingObjective).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
+    expect(openingObjective).toContain("OPENING SOURCE PORTFOLIO");
+    expect(openingObjective).toContain("at least one materially relevant callable registry route and one independent public-web route");
+    expect(openingObjective).toContain("No fixed order, provider, query, target class, sector, or geography");
+    expect(canonicalDiscoverySource).toContain("Advisory source-mix lanes:");
+  });
+});
+
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
@@ -106,9 +128,11 @@ describe("Atlas control-plane contract regression", () => {
       geography: "No geography supplied; do not invent or broaden one.",
     }, []);
     expect(discoveryPrompt).toContain(genericObjective);
-    expect(discoveryPrompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
+    expect(discoveryPrompt).toContain("The Investigator will begin the canonical mixed-source discovery phase under the exact human objective");
+    expect(discoveryPrompt).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(discoveryPrompt).toContain("Do not compare sectors, geographies, or strategies.");
-    expect(discoveryPrompt).toContain("Do not add geographic scope or a source preference.");
+    expect(discoveryPrompt).toContain("Do not add geographic scope or a target preference.");
+    expect(discoveryPrompt).not.toContain("target-first discovery");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
     expect(discoveryPrompt).not.toContain("Choose one concrete, testable company/person/asset lead");
 
@@ -307,12 +331,13 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
-    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and the opening control state.");
+    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and opening control state.");
     expect(canonicalDiscoverySource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
     expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules govern.");
-    expect(canonicalDiscoverySource).toContain("Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.");
+    expect(canonicalDiscoverySource).toContain("Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction.");
+    expect(canonicalDiscoverySource).toContain("The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point.");
     expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
@@ -642,9 +667,9 @@ describe("Atlas control-plane contract regression", () => {
 
   it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
     const valid = {
-      decision: "Start one immediate source-neutral target-first discovery action.",
+      decision: "Start the normal mixed-source discovery phase.",
       reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["begin target-first discovery", "verify one observed candidate"],
+      focusLanes: ["registry:sec-edgar", "public_web"],
       confidence: 0.86,
     };
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
@@ -983,7 +1008,7 @@ describe("Boss-adjudicated opening direction", () => {
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
     expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
   });
@@ -993,7 +1018,7 @@ describe("Boss-adjudicated opening direction", () => {
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
     expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
     expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
@@ -1031,7 +1056,7 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });

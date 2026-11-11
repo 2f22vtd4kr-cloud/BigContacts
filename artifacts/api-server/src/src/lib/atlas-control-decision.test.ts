@@ -290,10 +290,13 @@ describe("Atlas control-plane lead continuity", () => {
   it("grounds both supervisors in runtime registry capabilities and evidence-backed field assumptions", () => {
     const law = atlasRegistryFeasibilityLaw();
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
+    expect(law).toContain("SOURCE-MIX CONTRACT");
+    expect(law).toContain("public-web discovery");
     expect(law).toContain("sec-edgar");
     expect(law).not.toContain("inbiz");
-    expect(law).toContain("A generic agency landing page does not prove that a dedicated register exists");
-    expect(law).toContain("frame it as a testable hypothesis");
+    expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
+    expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
     expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
 
@@ -312,6 +315,8 @@ describe("Atlas control-plane lead continuity", () => {
     };
     expect(buildAtlasRightHandControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
     expect(buildAtlasBossControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
+    expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");

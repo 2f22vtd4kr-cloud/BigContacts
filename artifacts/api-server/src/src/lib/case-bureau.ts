@@ -473,7 +473,7 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
-The Investigator will begin target-first discovery under the exact human objective after this assignment. Any enabled registry/asset register and public-web search are equal, neutral discovery options; the Investigator chooses the source and target from actual returned observations. Do not add geographic scope or a source preference.
+The Investigator will begin the canonical mixed-source discovery phase under the exact human objective after this assignment. Discovery combines a randomized, runtime-callable registry/asset-register catalog with independent public-web routes when relevant adapters exist; no target, query, provider, or source itinerary is predetermined. This call selects only the execution capability; the opening control pass evaluates the live source catalog and the Investigator chooses the exact hypotheses, target class, sources, queries, tools, pivots, and stopping point from actual returned observations. Do not add geographic scope or a target preference.
 
 Human objective (context only; do not reinterpret or expand it): ${input.objective.trim()}
 Human motivation (context only): ${input.motivation.trim()}
