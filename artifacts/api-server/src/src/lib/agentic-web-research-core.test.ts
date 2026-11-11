@@ -2560,7 +2560,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
-    expect(prompt).toContain("casinos in Slovenia");
+    expect(prompt).toContain("licensed casino operators in Slovenia");
     expect(prompt).toContain("Other objectives use their own evidence criteria");
   });
 
