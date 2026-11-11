@@ -663,15 +663,17 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
   });
 
-  it("enforces immediate target handoff before any further discovery or pivot", () => {
-    expect(atlasControlDecisionSource).toContain("MANDATORY EARLY HANDOFF");
-    expect(atlasControlDecisionSource).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
-    const handoffGate = canonicalDiscoverySource.indexOf("atlasEarlyTargetHandoffViolation(decision.action, admittedCandidateSources)");
-    const nextDiscoveryBranch = canonicalDiscoverySource.indexOf('if (decision.action === "continue_discovery" || decision.action === "pivot_discovery")');
-    expect(handoffGate).toBeGreaterThan(-1);
-    expect(nextDiscoveryBranch).toBeGreaterThan(handoffGate);
-    expect(canonicalDiscoverySource).toContain('kind: "target_handoff"');
-    expect(canonicalDiscoverySource).toContain("Boss repeated the invalid discovery continuation twice");
+  it("keeps discovery-to-target handoff under Boss judgment while preserving execution budgets", () => {
+    expect(atlasControlDecisionSource).toContain("TARGET-HANDOFF CONSIDERATION (Boss judgment, not an execution gate)");
+    expect(atlasControlDecisionSource).toContain("continue_discovery or pivot_discovery remains valid");
+    expect(atlasControlDecisionSource).not.toContain("MANDATORY EARLY HANDOFF");
+    expect(atlasControlDecisionSource).not.toContain("continue_discovery and pivot_discovery are invalid");
+    expect(canonicalDiscoverySource).not.toContain("atlasEarlyTargetHandoffViolation");
+    expect(canonicalDiscoverySource).not.toContain('kind: "target_handoff"');
+    expect(canonicalDiscoverySource).not.toContain("Boss repeated the invalid discovery continuation twice");
+    expect(canonicalDiscoverySource).toContain("finalControlAction = decision.action;");
+    expect(canonicalDiscoverySource).toContain("resolveRemainingDiscoveryIterations");
+    expect(canonicalDiscoverySource).toContain("targetResearchReserveIterations");
   });
 
   it("does not blacklist public figures or targets by deterministic name heuristics", () => {
