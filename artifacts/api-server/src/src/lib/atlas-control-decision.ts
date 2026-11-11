@@ -357,17 +357,16 @@ export const ATLAS_BOSS_CONTROL_PROMPT_BUDGET = ATLAS_BOSS_CONTROL_PROMPT_MAX_CH
 
 /** Runtime-grounded feasibility law shared by both supervisors and opening review. */
 export function atlasRegistryFeasibilityLaw(): string {
-  // The supervisory models need the live adapter names and a source-diversity
-  // rule, not a large duplicate of the Investigator's detailed field schema.
+  // Keep supervisory context compact; the Investigator receives detailed
+  // per-adapter field/ownership coverage in its own runtime schema.
   const available = getAvailableRegistryIdsForPrompt();
   const ids = available.length ? available.join(", ") : "(none currently available)";
   return [
-    `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are native registry/asset-register adapters callable in this process; absent IDs are not callable.`,
-    "MIXED-SOURCE DISCOVERY CONTRACT: Apex discovery is a randomized mixed-source process, not a web-search-only funnel. Boss and Right-hand must make the live registry/asset-register catalog visible to the Investigator alongside independent public-web routes. When at least one callable registry/asset-register is materially relevant and public-web discovery is available, the opening portfolio should include both source families within the bounded search budget. Boss/Right-hand may recommend compatible lanes; the Investigator chooses the exact target, registry subset, queries, providers, tools, pivots, order and stopping point. This is a source-diversity expectation, not a fixed itinerary or target-class/geography preference. If a source family is unavailable or unsuitable, record the concrete reason.",
-    "Do not infer jurisdiction, searchable fields, people/role coverage, ownership or beneficial-owner disclosure from an adapter ID alone; the Investigator receives the detailed per-adapter coverage/schema. Generic public agency websites may be researched via web search but are not native adapters. Never infer wealth or contactability from seniority alone.",
+    `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are callable native registry/asset-register adapters in this process.`,
+    "SOURCE-MIX CONTRACT: Discovery is a randomized mixed-source process, not a web-only funnel. When relevant routes exist, the opening portfolio should include at least one callable registry/asset-register route and independent public-web discovery; explain any omission. Boss/Right-hand advise source lanes; Investigator chooses exact target, registry IDs, queries, providers, tools, order and stopping point. No fixed itinerary or target-class/geography preference.",
+    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. Generic agency pages are web sources, not native registry adapters. Never infer wealth/contactability from seniority alone.",
   ].join("\n");
-}
-/** Keep supervisors focused on converting search leads into observed evidence. */
+}/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
   return "LEAD-UTILIZATION JUDGMENT: when same-scope unfetchedLeadUrls remain, compare the best available lead against another broad search before recommending a pivot. Do not treat lack of findings from snippets or the absence of an admitted candidate as evidence against an unvisited lead. Pivot/stop only when available leads are irrelevant, low-value, contradicted, or have failed an observed access attempt; state the reason. The authoritative unfetchedLeadUrlCount is the full deduplicated count even when only a sample of URLs is displayed; never claim that no unfetched leads remain when the count is positive. A positive count does not force the Investigator to fetch every URL: if stopping, explain why the remaining leads are low-value, irrelevant, or infeasible using the actual case evidence. This is a judgment preference based on expected information gain, not a fixed action sequence—the Investigator still chooses the exact action.";
 }
