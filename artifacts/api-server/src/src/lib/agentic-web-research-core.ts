@@ -6256,7 +6256,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + "; domain_lookup=rdap|whoisjson.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
         + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.";
-      const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if exact action is in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.";
+      const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.";
       const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain [0,1], never null; only done may null. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
         "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; exact-name people/company only, not every result; never auto-promote.",
@@ -6374,7 +6374,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (candidate.length > maxUserPromptChars) {
         const emergencyPartialEvidence = [
           "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected exact-name people/company source-backed leads as review-only, not every result; never auto-promote.",
-          "Search snippets are leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
+          "Search snippets remain leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
           requiredQualification,
           "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
           requiredTargetStageContract
