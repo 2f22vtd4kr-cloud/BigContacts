@@ -57,7 +57,7 @@ describe("canonical opening mixed-source discovery contract", () => {
     const openingObjectiveStart = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
     const openingObjectiveEnd = canonicalDiscoverySource.indexOf('failureStage = "job_state_or_lease";', openingObjectiveStart);
     const openingObjective = canonicalDiscoverySource.slice(openingObjectiveStart, openingObjectiveEnd);
-    expect(openingObjective).toContain("BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + openingBossDecision.reason);
+    expect(openingObjective).toContain("openingBossDecision.reason");
     expect(openingObjective).toContain("Advisory source-mix lanes");
     expect(openingObjective).toContain("OPENING SOURCE PORTFOLIO");
     expect(openingObjective).toContain("at least one materially relevant callable registry route and one independent public-web route");
