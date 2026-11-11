@@ -49,27 +49,31 @@ describe("objective-led institutional orientation", () => {
     expect(digAgent).toMatch(/do not impose person-first discovery when the objective is company- or asset-led/i);
   });
 
-  it("keeps target relevance and reachability neutral to fame across every AI role", () => {
+  it("filters unrealistic household-name prospects unless explicitly requested or individually reachable", () => {
     const mission = APEX_WHAT_IS_ATLAS;
-    expect(mission).toContain("The exact human objective, motivation, and exclusions determine target class");
-    expect(mission).toContain("neither qualify nor disqualify a candidate by themselves");
-    expect(mission).toContain("Apply less-public, private-company, non-celebrity, or individual-reachability constraints only when the human explicitly requests them");
+    expect(mission).toContain("globally famous/household-name public figures");
+    expect(mission).toContain("do not select or surface them as prospect cards");
+    expect(mission).toContain("the human explicitly names them or explicitly requests them as prominent public figures");
+    expect(mission).toContain("an actionable person-specific professional route");
+    expect(mission).toContain("A general company switchboard, corporate inbox, investor-relations/press contact");
+    expect(mission).toContain("not a name list or permanent exclusion");
     expect(mission).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(mission).toContain("For potential-investor firms, require independent evidence of capital capacity or actual investment activity");
     expect(mission).toContain("do not prefer private or mid-market status unless the human objective asks for it");
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toMatch(/fame, celebrity, household-name status/i);
-      expect(prompt).toContain("neither qualify nor disqualify");
-      expect(prompt).toContain("Apply less-public");
-      expect(prompt).toContain("explicitly request");
+      expect(prompt).toContain("globally famous/household-name");
+      expect(prompt).toContain("person-specific professional route");
+      expect(prompt).toContain("general company/press/IR channels do not qualify");
+      expect(prompt).toContain("explicitly requests them");
       expect(prompt).toContain("COMPANY REALISM");
       expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).toContain("capital capacity or actual investment activity");
-      expect(prompt).not.toContain("ignore incidental famous");
-      expect(prompt).not.toContain("Prefer less-public");
+      expect(prompt).not.toContain("neither qualify nor disqualify");
+      expect(prompt).not.toContain("Apply less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
+    expect(apexInvestigatorSystemCore()).toContain("Generic prospect discovery must not select globally famous/household-name people");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
