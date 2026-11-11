@@ -6373,17 +6373,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 
       if (candidate.length > maxUserPromptChars) {
         const emergencyPartialEvidence = [
-          "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected source-backed leads as review-only; exact-name people/company only, not every result; never auto-promote.",
-          "Search snippets remain leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
+          "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected exact-name people/company source-backed leads as review-only, not every result; never auto-promote.",
+          "Search snippets are leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
           requiredQualification,
           "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
           requiredTargetStageContract
         ].join(" ");
         const emergencyDiscovery = [
-          "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective/Boss scope govern; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping.",
-          "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
-          "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; bounded mixed-source web/registry batch allowed, not mandatory. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research.",
-          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. People/company/assets differ; investor firms need evidence of capital capacity/activity and mandate fit; company growth is not owner wealth.",
+          "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/Boss scope govern; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping.",
+          "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+          "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch allowed, not mandatory. FAST HANDOFF: strongest objective-fit lead, not shortlist; one quick source look is enough to hand it to target research.",
+          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. People/company/assets differ; investor firms need capital/activity and mandate fit; company growth is not owner wealth.",
           "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence.",
           "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads for review only, not every result; preserve observed name, role/null and public URL; no auto-promotion."
         ].join(" ");
