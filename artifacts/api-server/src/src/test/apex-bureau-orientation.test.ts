@@ -94,9 +94,9 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("quick bounded mixed-source first pass");
+    expect(core).toContain("a bounded mixed-source first pass is available when useful");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
-    expect(core).toContain("Investigator chooses actions; no fixed recovery sequence.");
+    expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(core).toContain("selects targets, queries, sources, tools, pivots and stopping.");
   });
 });
