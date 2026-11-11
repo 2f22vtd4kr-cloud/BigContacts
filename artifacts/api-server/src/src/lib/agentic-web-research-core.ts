@@ -2172,9 +2172,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number, promp
     addMatches(/LEAD FOLLOW-UP GUIDANCE/i, 160, "lead follow-up guidance", true);
     addMatches(/^AI-COMPACTED HISTORICAL RESEARCH MEMORY|^AI HISTORICAL MEMORY/i, 300, "AI historical memory", true);
     boundedPrefix = selected.join(separator);
-    if (boundedPrefix.length > prefixBudget) {
-      throw new Error("Cannot compose a contract-preserving Investigator context within maxPromptChars=" + limit + ".");
-    }
+    if (boundedPrefix.length > prefixBudget) return normalized;
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
   if (!result.includes("ALL REQUIRED TOP-LEVEL FIELDS:")) {
