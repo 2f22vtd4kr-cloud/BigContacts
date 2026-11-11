@@ -5188,6 +5188,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // the complete durable prior trajectory before any MAX_TRAJECTORY_RECORDS cut.
       const completePromptRecords = [...completePriorTrajectoryRecords, ...records];
       const historicalRecords = completePromptRecords.slice(0, Math.max(0, completePromptRecords.length - 3));
+      const previouslySemanticallyCompactedThroughTurn = aiCompactedHistoricalThroughTurn;
       const pendingHistoricalRecords = historicalRecords.filter((record) => record.turn > aiCompactedHistoricalThroughTurn);
       const renderMemoryRecord = (record: AgenticTrajectoryRecord) => ({
         turn: record.turn,
@@ -5257,8 +5258,15 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           });
         }
         aiCompactedHistoricalContext = compactedMemory.text;
-        const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
-        aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
+        if (compactedMemory.method === "ai_semantic") {
+          const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
+          aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
+        } else {
+          // A deterministic excerpt is not proof that every historical record
+          // was semantically summarized. Keep unvisited leads eligible to carry
+          // forward until a genuine semantic summary covers their turns.
+          aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
+        }
       }
       // The newest action is the most important working observation. If it is
       // unusually large, try non-authoritative semantic compaction, then a deterministic projection rather than clipping
@@ -5408,6 +5416,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             status: "partial",
             summary: "AI semantic memory compaction was unavailable; a shorter URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
           });
+          // Shortening an AI summary deterministically can omit facts from that
+          // summary too, so do not advance the semantic-through marker.
+          aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
         }
         aiCompactedHistoricalContext = shorterMemory.text;
         try {
