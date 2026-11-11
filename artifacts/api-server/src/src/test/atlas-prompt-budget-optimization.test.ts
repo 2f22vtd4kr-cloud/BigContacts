@@ -7,7 +7,7 @@ import {
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, discoveryPivotScopeKey } from "../lib/agentic-web-research-core";
 import { apexInvestigatorSystemCore } from "../lib/apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt, getApexAtlasBossPlanPromptMaxChars } from "../lib/case-bureau-prompt";
 
@@ -56,6 +56,7 @@ describe("Apex Atlas prompt budget optimization", () => {
         turn: 8,
         model: "groq:test",
         action: "web_search",
+        pivotScopeKey: discoveryPivotScopeKey("Identify real operating companies and their current business decision-makers from public professional evidence.") ?? undefined,
         args: { query: "Joe Aguilar LinkedIn" },
         execution: "success" as const,
         observedUrls: ["https://source.example/search-result"],
@@ -95,7 +96,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     }
   });
 
-  it("enforces the message envelope again at the provider request-body boundary", () => {
+  it("keeps the full prompt when it exceeds the preferred provider request target", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
       prompt: "OVERSIZED DYNAMIC STATE ".repeat(2_000)
@@ -104,11 +105,14 @@ describe("Apex Atlas prompt budget optimization", () => {
     });
     const messages = body.messages as Array<{ role: string; content: string }>;
     const total = messages.reduce((sum, message) => sum + message.content.length, 0);
-    expect(total).toBeLessThanOrEqual(8_400);
-    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThanOrEqual(6_800);
+    const userMessage = messages.find((message) => message.role === "user")?.content ?? "";
+    expect(total).toBeGreaterThan(8_400);
+    expect(userMessage.length).toBeGreaterThan(6_800);
+    expect(userMessage).toContain("OVERSIZED DYNAMIC STATE ".repeat(2_000));
+    expect(userMessage).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
   });
 
-  it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
+  it("preserves the complete latest Investigator record above the preferred message target", () => {
     const prompt = buildStepPrompt({
       targetName: "Named Person",
       objective: "Resolve identity and public contact routes.",
@@ -127,8 +131,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       mode: "target",
     });
     const systemInstruction = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(8_400);
-    expect(prompt.length).toBeLessThanOrEqual(8_400 - systemInstruction.length);
+    expect(prompt.length + systemInstruction.length).toBeGreaterThan(8_400);
+    expect(prompt.length).toBeGreaterThan(8_400 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS:");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
@@ -220,7 +224,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       file,
     });
     expect(prompt.length).toBeLessThanOrEqual(getApexAtlasBossPlanPromptMaxChars());
-    expect(prompt).toContain("You are the Apex Atlas Boss.");
+    expect(prompt).toContain("You are Boss / Head Investigator of Apex Atlas (Groq).");
     expect(prompt).toContain("[APEX BOSS PLAN PROMPT BOUND:");
     expect(prompt).toContain("RETURN ONE JSON OBJECT ONLY");
     expect(prompt).toContain("Iteration: 42");

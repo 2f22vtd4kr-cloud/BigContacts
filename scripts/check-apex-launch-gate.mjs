@@ -29,6 +29,8 @@ const canonicalLaunch = read("artifacts/api-server/src/src/routes/research/canon
 const packageJson = read("artifacts/api-server/package.json");
 const canonicalRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
 const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
+const replitBoot = read("scripts/replit-boot.sh");
+const replitPreflight = read("scripts/replit-preflight.mjs");
 
 const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
 const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
@@ -41,11 +43,12 @@ const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + av
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
+pass("Replit boot checks core credentials before building without requiring optional integrations", replitBoot.includes("node scripts/replit-preflight.mjs") && replitBoot.indexOf("node scripts/replit-preflight.mjs") < replitBoot.indexOf("pnpm --dir artifacts/api-server run build") && ["GROQ_BOSS_API_KEY", "GROQ_RIGHT_HAND_API_KEY", "GROQ_INVESTIGATOR_API_KEY"].every((name) => replitPreflight.includes(name)) && ["SERPER_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY"].every((name) => replitPreflight.includes(name)) && replitPreflight.includes("REDIS_URL_1 (canonical durable store)") && replitPreflight.includes("OPTIONAL_NAMES") && replitPreflight.includes("No secrets were modified."));
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
 pass("Boss-selected Investigator capability reaches llmStep", /investigatorLlm\?: InvestigatorCapability/.test(agentic) && /investigatorCapabilityKeyName/.test(agentic) && /selectedInvestigatorLlm/.test(agentic) && /llmStep/.test(agentic));
 pass("selected Investigator is first-class, not a fixed research stage", /selectedInvestigatorLlm/.test(agentic) && !/const orderedProviders\s*=/.test(agentic) && !/selectedInvestigatorLlm\s*,\s*\.\.\./.test(agentic));
-pass("discovery excludes parallel web/registry actions while target research retains them", agentic.includes("discoveryActionAllowlist") && agentic.includes('action !== "parallel_web_search"') && agentic.includes('action !== "parallel_registry_search"') && agentic.includes("actionAllowlistForTurn = discoveryActionAllowlist("));
+pass("discovery preserves all runtime-attested tools for model selection and bounds only search count", /export function discoveryActionAllowlist\(_mode: string \| undefined, actions: readonly string\[\]\): string\[\] \{\s*return \[\.\.\.actions\];/s.test(agentic) && agentic.includes("refreshPythonOsintToolAvailability(runController.signal)") && agentic.includes("actionAllowlistForTurn = discoveryActionAllowlist(") && agentic.includes("MAX_DISCOVERY_SEARCH_ACTIONS"));
 pass("no forced search-provider order", !/Prefer Serper.*Tavily.*Exa/i.test(agentic) && !/Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i.test(agentic));
 pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(agentic));
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));

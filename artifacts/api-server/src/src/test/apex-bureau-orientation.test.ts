@@ -79,8 +79,10 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("sector and jurisdiction");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
     expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("At most two discovery search actions");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("no parallel/provider/job-title fan-out");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("at most two outbound search actions");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("one bounded mixed-source batch");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("single strongest objective-fit lead, not a shortlist");
+    expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
     expect(core).not.toContain("\\n");
     expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
@@ -92,8 +94,9 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("One focused discovery query");
-    expect(core).toContain("Investigator chooses actions; no fixed recovery sequence.");
-    expect(core).toContain("selects targets, queries, sources, tools, pivots and stopping.");
+    expect(core).toContain("a bounded mixed-source first pass is available when useful");
+    expect(core).toContain("single strongest objective-fit lead, not a shortlist");
+    expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
+    expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");
   });
 });

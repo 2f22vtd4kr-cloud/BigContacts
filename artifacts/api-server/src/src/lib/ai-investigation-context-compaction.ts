@@ -384,7 +384,10 @@ async function requestSummary(
     // Memory compaction is a non-decision transformation. Use the separate
     // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
     // Boss strategic-control quota or Right-hand 120B advisory capacity.
-    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b");
+    // Compaction must not sit through TPM reset waits or spend a retry on a
+    // throttled 20B model. One attempt yields a structured diagnostic; the
+    // bounded same-role 120B recovery below is the only fallback attempt.
+    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);

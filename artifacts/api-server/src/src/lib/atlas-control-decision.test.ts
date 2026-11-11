@@ -5,7 +5,6 @@ import {
   ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
-  atlasEarlyTargetHandoffViolation,
   atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
@@ -400,24 +399,8 @@ describe("Atlas control-plane lead continuity", () => {
 });
 
 
-describe("Atlas mandatory early target handoff", () => {
-  const candidate = {
-    name: "Northstar Manufacturing",
-    role: null,
-    sourceUrls: ["https://northstar.example/about"],
-    targetType: "organization" as const,
-  };
-
-  it("rejects another discovery/pivot turn when a source-attributed target is admitted", () => {
-    expect(atlasEarlyTargetHandoffViolation("continue_discovery", [candidate])).toContain(
-      "The main target-scoped research phase must begin as soon as one worthwhile target is available",
-    );
-    expect(atlasEarlyTargetHandoffViolation("pivot_discovery", [candidate])).toContain("choose research_candidate");
-    expect(atlasEarlyTargetHandoffViolation("research_candidate", [candidate])).toBeNull();
-    expect(atlasEarlyTargetHandoffViolation("continue_discovery", [])).toBeNull();
-  });
-
-  it("tells Boss to hand off the first worthwhile admitted target immediately", () => {
+describe("Boss-owned target handoff judgment", () => {
+  it("keeps target handoff as a model decision when source-attributed review targets exist", () => {
     const prompt = buildAtlasBossControlPrompt({
       investigatorReport: "One relevant source-attributed company has been admitted.",
       compactState: "One source-attributed admitted review target is available.",
@@ -432,10 +415,11 @@ describe("Atlas mandatory early target handoff", () => {
         error: null,
       },
     });
-    expect(prompt).toContain("MANDATORY EARLY HANDOFF");
-    expect(prompt).toContain("choose research_candidate for the most objective-relevant one now");
-    expect(prompt).toContain("The main target-scoped research phase must begin as soon as one worthwhile target is available");
-    expect(prompt).toContain("do not wait for a larger candidate pool");
+    expect(prompt).toContain("TARGET-HANDOFF CONSIDERATION (Boss judgment, not an execution gate)");
+    expect(prompt).toContain("continue_discovery or pivot_discovery remains valid");
+    expect(prompt).toContain("A review target is a lead, not proof or promotion");
+    expect(prompt).not.toContain("MANDATORY EARLY HANDOFF");
+    expect(prompt).not.toContain("continue_discovery and pivot_discovery are invalid");
   });
 });
 

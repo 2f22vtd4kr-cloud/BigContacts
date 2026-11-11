@@ -25,6 +25,14 @@ describe("research case event iteration high-water", () => {
     expect(nextResearchCaseEventIteration(12, 8)).toBe(13);
   });
 
+  it("strictly orders historical source observations before the current act and control decision", () => {
+    const sourceOne = nextResearchCaseEventIteration(1, 9);
+    const sourceTwo = nextResearchCaseEventIteration(2, sourceOne);
+    const currentAct = nextResearchCaseEventIteration(3, sourceTwo);
+    const controlDecision = nextResearchCaseEventIteration(3, currentAct);
+    expect([sourceOne, sourceTwo, currentAct, controlDecision]).toEqual([10, 11, 12, 13]);
+  });
+
   it("starts at one for missing or invalid prior counters", () => {
     expect(nextResearchCaseEventIteration(null, undefined)).toBe(1);
     expect(nextResearchCaseEventIteration(Number.NaN, -2)).toBe(1);
