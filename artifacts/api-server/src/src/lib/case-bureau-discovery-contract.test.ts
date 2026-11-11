@@ -40,15 +40,18 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
     expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
-    expect(prompt).toContain("Apply less-public or private-company constraints only when explicitly requested");
+    expect(prompt).toContain("For companies, preserve objective relevance regardless of brand fame; apply company realism separately");
     expect(prompt).not.toContain("Operating firms need evidence of current private/mid-market operations");
   });
 });
 
 describe("default discovery exclusions", () => {
-  it("assesses reachability from evidence rather than penalizing fame alone", () => {
-    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("do not favor or penalize a candidate solely because they are famous");
-    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).not.toContain("Do not prioritize celebrity billionaires");
+  it("filters famous low-reachability people in generic prospecting but preserves explicit targets", () => {
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("For generic prospect discovery, do not surface globally famous/household-name people based on fame or wealth alone");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("require a documented person-specific professional route or explicit human request");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("General company/press/IR channels are not individual access");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).toContain("Preserve explicitly named targets and objective-relevant companies regardless of fame");
+    expect(DEFAULT_DISCOVERY_EXCLUSIONS.join("\\n")).not.toContain("do not favor or penalize a candidate solely because they are famous");
   });
 });
 
