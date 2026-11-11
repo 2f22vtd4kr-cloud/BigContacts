@@ -5231,7 +5231,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
               "EXISTING COMPACTED HISTORICAL RESEARCH CONTEXT (possibly older; omissions unknown):\n" + aiCompactedHistoricalContext,
               "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):\n" + objective,
               "CURRENT BOSS/RIGHT-HAND CONTEXT (latest control direction, not raw evidence):\n" + (input.priorContext ?? ""),
-              "COMPLETE STRUCTURED INTELLIGENCE STATE (for Boss semantic compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
+              "COMPLETE STRUCTURED INTELLIGENCE STATE (for bounded semantic/deterministic context compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
               "CURRENT FINDINGS:\n" + JSON.stringify(sanitizeObservableValue(findings)),
               "CURRENT DURABLE URL INVENTORY (exact URLs and source-stage context):\n" + (input.durableUrlInventory ?? ""),
               "PREVIOUSLY ATTEMPTED SEARCH QUERIES:\n" + JSON.stringify(input.priorSearchQueries ?? []),
