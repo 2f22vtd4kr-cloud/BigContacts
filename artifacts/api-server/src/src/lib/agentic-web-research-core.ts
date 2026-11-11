@@ -5217,6 +5217,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
   const compactWorkerCapabilityGuidance = emergencyWorkerCapabilityGuidance;
+  const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
+    ? "Conditional specialist OSINT actions are available only when the exact action is in this turn's AVAILABLE ACTIONS after fresh worker attestation. They are optional; the Investigator chooses whether their expected information gain justifies use."
+    : "";
   const compactCriticalRetrievalGuidance = "PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action. Search snippets remain leads, not evidence.";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
@@ -5246,6 +5249,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     actionLiveness,
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
+    conditionalSpecialistCapabilityGuidance,
     registryGuidance,
     registryCoveragePromptGuidance,
     providerGuidance,
@@ -5629,6 +5633,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
 
     if (carryForwardSuccessfulSearch?.leadUrls?.length) {
+      append("LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next only when its expected information gain exceeds other available actions; this is not a mandated next action.");
       const urls = carryForwardSuccessfulSearch.leadUrls
         .map((value) => completePromptUrl(value))
         .filter((value): value is string => Boolean(value));
