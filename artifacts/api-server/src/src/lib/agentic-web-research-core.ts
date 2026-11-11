@@ -3280,6 +3280,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const observationMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"].filter((marker) => observation.includes(marker));
     const common = hasCompleteActionSchema(prompt)
       && /OUTPUT CONTRACT:/.test(prompt)
+      && prompt.includes("one root JSON object")
       && /AVAILABLE ACTIONS:/.test(prompt)
       && /VALID PROVIDERS:/.test(prompt)
       && /RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/.test(prompt)
@@ -3304,6 +3305,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       && prompt.includes("generic publisher homepage")
       && prompt.includes("Other objectives use their own evidence criteria")
       && prompt.includes("source class may vary by query")
+      && prompt.includes("one quick source look is enough to hand it to target research")
+      && prompt.includes("Inc. 5000/fast-growth/unicorn rankings")
+      && prompt.includes("ranking-only mentions are leads, not qualified targets")
+      && prompt.includes("Investor firms need evidence of capital capacity or actual investment activity and mandate fit")
+      && prompt.includes("Do not assume records expose owners, shareholders, members, or managers without observed documentation")
       && (!hasSearchLeadContextAtEntry || prompt.includes("consider inspecting a promising in-scope lead URL next"));
   };
   const baseHasRequiredRecoveryContext =
@@ -6372,7 +6378,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         candidate = compactCandidate(requiredParts.map((part) => part === latestRecordLine ? minimalRecordLine : part));
       }
       if (candidate.length > maxUserPromptChars && compactLeadGuidance) {
-        candidate = compactCandidate(requiredParts.filter((part) => part !== compactLeadGuidance));
+        const minimalLeadGuidance = "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; it remains a lead until fetched.";
+        candidate = compactCandidate(requiredParts.map((part) => part === compactLeadGuidance ? minimalLeadGuidance : part));
       }
       if (candidate.length > maxUserPromptChars && latestQueryLine && latestRecordLine) {
         candidate = compactCandidate(requiredParts.filter((part) => part !== latestQueryLine));
