@@ -1738,9 +1738,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       ) {
         throw new Error("Canonical Atlas discovery case is no longer active; refusing assignment event after cancellation.");
       }
+      const [latestOpeningEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+        .from(researchCaseEventsTable)
+        .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+        .orderBy(desc(researchCaseEventsTable.id))
+        .limit(1);
+      const bossOpeningIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestOpeningEvent?.iteration);
+      await tx.update(researchCasesTable)
+        .set({ iteration: bossOpeningIteration, updatedAt: new Date() })
+        .where(eq(researchCasesTable.id, discoveryCaseId));
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
-        iteration: Number(lockedCase.iteration ?? 0),
+        iteration: bossOpeningIteration,
         actorRole: "groq_boss",
         eventType: "assignment",
         status: "recorded",
