@@ -196,7 +196,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     ]);
   });
 
-  it("fails closed on HTTP 413 instead of retrying with lossy prompt compaction", async () => {
+  it("fails closed on HTTP 413 without a lossy retry or preferred-size clipping", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-413-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     const submitted: Array<{ model: string; userPrompt: string; authorization: string }> = [];
@@ -227,7 +227,9 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(result.status).toBe("unavailable");
     expect(submitted).toHaveLength(1);
     expect(submitted[0]?.userPrompt).toContain("OUTPUT CONTRACT:");
-    expect(submitted[0]?.userPrompt.length).toBeLessThanOrEqual(6_800);
+    expect(submitted[0]?.userPrompt).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    expect(submitted[0]?.userPrompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(submitted[0]?.userPrompt.length).toBeGreaterThan(0);
     expect(submitted[0]?.authorization).toBe("Bearer test-groq-investigator-413-key");
   });
 
