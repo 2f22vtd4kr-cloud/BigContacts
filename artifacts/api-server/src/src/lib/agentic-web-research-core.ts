@@ -15,7 +15,7 @@ import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, 
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
-import { compactRecentObservationWithFallback, summarizeInvestigatorContextWithAiCompactor } from "./ai-investigation-context-compaction";
+import { compactInvestigationContextWithFallback, compactRecentObservationWithFallback } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -5239,18 +5239,24 @@ export async function runAgenticWebResearch(input: { targetName: string; company
               "NEWLY AGED DURABLE TRAJECTORY RECORDS (chronological; merge these into the memory without dropping material facts):\n"
                 + pendingHistoricalRecords.map((record) => JSON.stringify(renderMemoryRecord(record))).join("\n"),
             ].join("\n\n");
-        const compactedMemory = await summarizeInvestigatorContextWithAiCompactor({
+        const compactedMemory = await compactInvestigationContextWithFallback({
           rawContext: memorySource,
           maxChars: 1_800,
           jobId: input.jobId,
           caseId: input.caseId,
-        });
-        if (!compactedMemory) {
-          const message = "AI research-memory compaction was unavailable or failed its size/provenance checks. No action was sent with a code-trimmed substitute context.";
+        }, "historical_memory");
+        if (!compactedMemory?.text) {
+          const message = "Historical research context could not be safely projected into the bounded Investigator prompt; the full case history remains durable.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
-        aiCompactedHistoricalContext = compactedMemory;
+        if (compactedMemory.method === "deterministic_projection") {
+          emit("deterministic_historical_memory_projection", {
+            status: "partial",
+            summary: "AI semantic memory compaction was unavailable; a URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
+          });
+        }
+        aiCompactedHistoricalContext = compactedMemory.text;
         const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
         aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
       }
@@ -5386,18 +5392,24 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // rebuild once. If it still cannot fit alongside the action/schema contracts,
       // stop this turn rather than silently lose prior research.
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
-        const shorterMemory = await summarizeInvestigatorContextWithAiCompactor({
+        const shorterMemory = await compactInvestigationContextWithFallback({
           rawContext: aiCompactedHistoricalContext,
-          maxChars: 1_200,
+          maxChars: 900,
           jobId: input.jobId,
           caseId: input.caseId,
-        });
-        if (!shorterMemory || shorterMemory === aiCompactedHistoricalContext) {
-          const message = "AI historical research memory could not fit in the complete Investigator prompt without removing required schema/action contracts. No action was sent with that memory omitted.";
+        }, "historical_memory");
+        if (!shorterMemory?.text || shorterMemory.text === aiCompactedHistoricalContext) {
+          const message = "Historical research context could not be shortened enough to fit the complete Investigator prompt without removing required schema/action contracts.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
-        aiCompactedHistoricalContext = shorterMemory;
+        if (shorterMemory.method === "deterministic_projection") {
+          emit("deterministic_historical_memory_projection", {
+            status: "partial",
+            summary: "AI semantic memory compaction was unavailable; a shorter URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
+          });
+        }
+        aiCompactedHistoricalContext = shorterMemory.text;
         try {
           prompt = usedPromptRecoveryFallback
             ? buildStepPrompt({
