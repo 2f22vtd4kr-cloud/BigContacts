@@ -127,9 +127,11 @@ describe("Atlas control-plane contract regression", () => {
       geography: "No geography supplied; do not invent or broaden one.",
     }, []);
     expect(discoveryPrompt).toContain(genericObjective);
-    expect(discoveryPrompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
+    expect(discoveryPrompt).toContain("The Investigator will begin the canonical mixed-source discovery phase under the exact human objective");
+    expect(discoveryPrompt).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(discoveryPrompt).toContain("Do not compare sectors, geographies, or strategies.");
-    expect(discoveryPrompt).toContain("Do not add geographic scope or a source preference.");
+    expect(discoveryPrompt).toContain("Do not add geographic scope or a target preference.");
+    expect(discoveryPrompt).not.toContain("target-first discovery");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
     expect(discoveryPrompt).not.toContain("Choose one concrete, testable company/person/asset lead");
 
