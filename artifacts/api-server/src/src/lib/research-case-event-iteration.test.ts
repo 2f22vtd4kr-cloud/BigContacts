@@ -13,19 +13,19 @@ describe("research case event iteration high-water", () => {
     await expect(lockResearchCaseEventAppendStream({ execute: () => { calls += 1; } }, 0)).rejects.toThrow("positive case ID");
     expect(calls).toBe(1);
   });
-  it("advances an Investigator turn beyond intervening Boss/control events", () => {
-    expect(resolveMonotonicResearchCaseIteration(4, 9)).toBe(10);
+  it("clamps an Investigator turn to the durable event high-water mark", () => {
+    expect(resolveMonotonicResearchCaseIteration(4, 9)).toBe(9);
   });
 
   it("preserves a turn number that is already ahead of the event high-water mark", () => {
     expect(resolveMonotonicResearchCaseIteration(12, 8)).toBe(12);
   });
 
-  it("strictly advances repeated same-turn claim and promotion events", () => {
+  it("allows observation, claim and promotion events to share one Investigator turn", () => {
     const observation = resolveMonotonicResearchCaseIteration(4, 9);
     const claim = resolveMonotonicResearchCaseIteration(4, observation);
     const promotion = resolveMonotonicResearchCaseIteration(4, claim);
-    expect([observation, claim, promotion]).toEqual([10, 11, 12]);
+    expect([observation, claim, promotion]).toEqual([9, 9, 9]);
   });
 
   it("advances beyond the durable event ledger when case iteration lags", () => {
