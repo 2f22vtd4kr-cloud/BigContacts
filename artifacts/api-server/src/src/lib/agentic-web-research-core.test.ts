@@ -1246,6 +1246,66 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
+  it("preserves complete fetched PDF evidence, the latest action, and every durable URL above the preferred prompt target", () => {
+    const objective = "Discover public-source ownership and transaction evidence relevant to the active human objective.";
+    const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
+    const fetchedUrl = "https://registry.example.test/filings/" + "f".repeat(120) + ".pdf";
+    const latestLeadUrls = [
+      "https://registry.example.test/search/company/alpha",
+      "https://registry.example.test/search/company/beta",
+      "https://registry.example.test/search/company/gamma",
+      "https://registry.example.test/search/company/delta",
+    ];
+    const durableUrls = [
+      "https://registry.example.test/durable/one",
+      "https://registry.example.test/durable/two",
+      "https://registry.example.test/durable/three",
+      "https://registry.example.test/durable/four",
+    ];
+    const fetchedObservation = "PDF_OBSERVATION_BEGIN " + "issuer document context ".repeat(420)
+      + "PDF_OWNERSHIP_CLAIM_SENTINEL: the filing names Example Manufacturing Ltd as the party acquiring a majority stake. "
+      + "PDF_OBSERVATION_END";
+    const latestObservation = "LATEST_SEARCH_OBSERVATION_BEGIN " + "search action context ".repeat(420)
+      + "LATEST_SEARCH_OBSERVATION_SENTINEL: the current search found additional independent filing routes. "
+      + "LATEST_SEARCH_OBSERVATION_END";
+    const durableUrlInventory = [
+      "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):",
+      ...durableUrls.map((url) => "- " + url),
+    ].join("\n");
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          pivotScopeKey, args: { url: fetchedUrl }, observedUrls: [fetchedUrl],
+          observation: fetchedObservation, findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-120b", action: "web_search", execution: "success",
+          pivotScopeKey, args: { query: "Example Manufacturing Ltd majority stake filing", provider: "serper" },
+          leadUrls: latestLeadUrls, observedUrls: [], observation: latestObservation, findings: [],
+        },
+      ],
+      lastObservation: latestObservation,
+      durableUrlInventory,
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt).toContain(fetchedObservation);
+    expect(prompt).toContain(latestObservation);
+    expect(prompt).toContain("PDF_OWNERSHIP_CLAIM_SENTINEL");
+    expect(prompt).toContain(fetchedUrl);
+    for (const url of latestLeadUrls) expect(prompt).toContain(url);
+    for (const url of durableUrls) expect(prompt).toContain(url);
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 2");
+    expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE");
+  });
+
   it("preserves the scope-guard recovery contract in the next Investigator prompt", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
