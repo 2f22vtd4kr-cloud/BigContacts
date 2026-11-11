@@ -827,7 +827,7 @@ describe("discovery lead inventory", () => {
     expect(state.unfetchedLeadObservations).toHaveLength(1);
     expect(state.unfetchedLeadObservations[0]).toMatchObject({ turn: 1, action: "parallel_web_search", leadUrlCount: 14 });
     expect(state.unfetchedLeadObservations[0]?.observation).toContain("CKX Lands");
-    expect(state.unfetchedLeadObservations[0]?.observation).toContain("unverified result leads");
+    expect(state.unfetchedLeadObservations[0]?.observation).toContain("not fetched evidence");
     expect(state.unfetchedLeadUrls).not.toContain(urls[2]);
     expect(state.failedLeadUrls.some((item) => item.url === urls[2])).toBe(false);
     expect(state.blockedLeadUrlCount).toBe(1);
