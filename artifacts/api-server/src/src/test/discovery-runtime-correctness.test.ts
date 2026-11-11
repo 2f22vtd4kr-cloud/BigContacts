@@ -45,7 +45,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.");
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: the normal mixed-source discovery phase is authorized under the exact human objective; no candidate, target, query, or fixed source sequence was selected.");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
@@ -53,11 +53,11 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
     expect(researchCoreSource).toContain("explain any material deviation");
   });
-  it("selects one source-backed target without geography-first exploration or source preference", () => {
+  it("selects targets autonomously while beginning with a mixed-source discovery portfolio", () => {
     expect(bossDiscoverySource).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
-    expect(bossDiscoverySource).toContain("Any enabled registry/asset register and public-web search are equal, neutral discovery options");
+    expect(bossDiscoverySource).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(bossDiscoverySource).toContain("Do not compare sectors, geographies, or strategies.");
-    expect(bossDiscoverySource).toContain("Do not add geographic scope or a source preference.");
+    expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
     expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
     expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
     expect(researchCoreSource).toContain("do not broaden geography");
