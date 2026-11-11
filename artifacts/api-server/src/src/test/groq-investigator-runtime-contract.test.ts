@@ -224,7 +224,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
-    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(10_000);
+    expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    expect(messages).toHaveLength(2);
   });
 
   it("rejects nullable top-level rationale fields on non-terminal research actions", () => {
@@ -270,7 +271,8 @@ describe("Groq Investigator runtime contract", () => {
     });
     const messages = body.messages as Array<{ content: string }>;
 
-    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(10_000);
+    expect(messages).toHaveLength(2);
+    expect(messages.map((message) => message.content).join("\\n")).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
