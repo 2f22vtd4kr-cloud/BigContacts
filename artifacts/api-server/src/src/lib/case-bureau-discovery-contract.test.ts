@@ -40,7 +40,7 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain("well-known or publicly traded companies and their relevant decision-makers remain eligible");
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
     expect(prompt).not.toContain("Ignore incidental famous/celebrity/household-name ultra-wealthy people");
-    expect(prompt).toContain("For companies, preserve objective relevance regardless of brand fame; apply company realism separately");
+    expect(prompt).toContain("In generic prospect discovery, globally famous/household-name people are presumptively poor-access prospects");
     expect(prompt).not.toContain("Operating firms need evidence of current private/mid-market operations");
   });
 });
