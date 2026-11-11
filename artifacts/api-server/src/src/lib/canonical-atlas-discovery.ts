@@ -1967,6 +1967,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
       "BOSS FINAL OPENING DECISION: the normal mixed-source discovery phase is authorized under the exact human objective; no candidate, target, query, or fixed source sequence was selected.",
+      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + openingBossDecision.reason,
       "RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence): " + (rightHand.focusLanes.length ? rightHand.focusLanes.join(", ") : rightHand.reason ?? "No specific source lanes proposed.") + ". Verify every adapter against the live runtime catalog and objective fit.",
       "OPENING SOURCE PORTFOLIO: choose a shuffled, objective-compatible mix from the live runtime registry/asset-register catalog and independent public-web routes. Include at least one materially relevant callable registry route and one independent public-web route when both are available; record a concrete reason if either source family is omitted. No fixed order, provider, query, target class, sector, or geography.",
       "No source observations or admitted candidates exist yet. Select one useful person, company, or asset target from the mixed-source results; one observed target is enough to begin target-scoped research.",
