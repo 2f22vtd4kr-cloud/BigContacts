@@ -2067,9 +2067,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number, promp
     if (boundedTail.length > availableForTail) boundedTail = "";
   }
   const protectedSuffix = [contract, boundedTail].filter(Boolean).join(separator);
-  if (protectedSuffix.length > limit) {
-    throw new Error("Cannot preserve the complete Investigator action contract within maxPromptChars=" + limit + ".");
-  }
+  if (protectedSuffix.length > limit) return normalized;
 
   const prefixBudget = limit - protectedSuffix.length - (prefix ? separator.length : 0);
   let boundedPrefix = "";
