@@ -7,11 +7,16 @@ export async function lockResearchCaseEventAppendStream(tx: ResearchCaseEventLoc
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('apex:research_case_events:case:' || ${caseId}::text))`);
 }
 
-/** Resolve an Investigator turn against the durable case-event iteration high-water mark. */
+/** Resolve an Investigator turn to a strictly new durable event iteration.
+ * Investigator turn numbers and case-event iterations are different clocks:
+ * Boss/Right-hand/control events can advance the event ledger between Investigator
+ * turns. Preserve the turn number when it is ahead; otherwise advance beyond the
+ * event high-water mark so append order never reuses an earlier iteration.
+ */
 export function resolveMonotonicResearchCaseIteration(recordTurn: number, latestPersistedIteration: number): number {
   const normalize = (value: number): number =>
     Number.isSafeInteger(value) && value >= 0 ? value : 0;
-  return Math.max(normalize(recordTurn), normalize(latestPersistedIteration));
+  return Math.max(normalize(recordTurn), normalize(latestPersistedIteration) + 1);
 }
 
 /**
