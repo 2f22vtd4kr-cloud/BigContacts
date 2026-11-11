@@ -83,7 +83,7 @@ describe("AI investigation context compaction", () => {
     expect(result?.method).toBe("deterministic_projection");
     expect(result?.text.length).toBeLessThanOrEqual(1_800);
     expect(result?.text).toContain("DETERMINISTIC HISTORICAL MEMORY PROJECTION");
-    expect(result?.text).toContain("full context remains in immutable case events");
+    expect(result?.text).toContain("source observations, evidence and control decisions remain in durable case events/state");
     expect(result?.text).toContain("omitted content is unknown");
     expect(extractAiContextUrls(result?.text ?? "")).toContain("https://registry.example.test/company/123");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
