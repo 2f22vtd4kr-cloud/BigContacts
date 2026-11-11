@@ -15,11 +15,15 @@ const stepPromptBuilder = stepPromptStart >= 0 && stepPromptEnd > stepPromptStar
   ? core.slice(stepPromptStart, stepPromptEnd)
   : "";
 const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)")
-  && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)")
+  && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardRecord)")
   && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)")
   && stepPromptBuilder.includes("observation: record.observation ?? \"\"")
   && !stepPromptBuilder.includes("compactEmergencyTrajectoryObservation(record.observation")
   && !stepPromptBuilder.includes("record.observation.slice(");
+const preservesHistoricalSearchLeadWithoutReplayingCompactedObservation =
+  stepPromptBuilder.includes("const searchRecordAlreadyCompacted = Boolean(aiHistoricalMemory)")
+  && stepPromptBuilder.includes("carryForwardSuccessfulSearch.turn <= (input.aiCompactedHistoricalThroughTurn ?? 0)")
+  && stepPromptBuilder.includes('{ ...carryForwardSuccessfulSearch, observation: "" }');
 const appendsLatestEvidenceAfterComposedPrompt = stepPromptBuilder.includes("const composedPrompt = [")
   && stepPromptBuilder.includes("const latestRecordTail = [")
   && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")");
@@ -52,7 +56,8 @@ const checks = [
   ["emergency latest-record projection carries complete latest and prior fetched observations as untrusted data", stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)") && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)") && stepPromptBuilder.includes("observation: record.observation ?? \"\"")],
   ["no smallest emergency tier replaces or slices the full latest trajectory record", stepPromptBuilder.includes("const latestRecordTail = [") && stepPromptBuilder.includes("buildLatestRecordTail()") && !stepPromptBuilder.includes("buildShortestEmergencyRecordTail") && !stepPromptBuilder.includes("compactRecordEnvelope(latestRecord")],
   ["full Investigator prompt carries the complete latest action and fetched observations without size-selected emergency tiers", core.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
-  ["latest durable record, complete fetch evidence and all latest-action URLs are appended to the live Investigator prompt", stepPromptBuilder.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && stepPromptBuilder.includes("buildLatestRecordTail()") && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)") && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)") && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")")],
+  ["historical unvisited search leads survive AI compaction without replaying their already-summarized observation", preservesHistoricalSearchLeadWithoutReplayingCompactedObservation],
+  ["latest durable record, complete fetch evidence and all latest-action URLs are appended to the live Investigator prompt", stepPromptBuilder.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && stepPromptBuilder.includes("buildLatestRecordTail()") && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardRecord)") && preservesHistoricalSearchLeadWithoutReplayingCompactedObservation && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)") && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")")],
   ["Investigator prompt qualification follows the active objective and preserves conditional wealth evidence rules", ["people are the ultimate mission", "People—not companies or executive prestige", "CASE OBJECTIVE: source-backed real-person research", "CASE OBJECTIVE: find real people with credible ownership evidence", "Seek source-backed ownership/equity/control/investment clues during target research", "owner/operator, ownership/investment or transaction signal"].every((forbidden) => !core.includes(forbidden)) && core.includes("const compactDiscoveryAdmissionContract = input.mode === \"discovery\"") && core.includes("Follow the active case objective and Boss-approved scope") && core.includes("B2B decision-makers need a fetched source binding a current role") && core.includes("wealth/investor targets also need source-backed ownership/control/equity/investment") && core.includes("Target-stage research tests the role, relationship, company relevance, materiality and public/professional route required by the active objective") && core.includes("Target-scoped research independently corroborates or falsifies the claims required by the active objective")],
   ["canonical launch defaults preserve the same caller-owned objective across UI and API", (() => {
     const objectiveLiteral = (text) => text.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1] ?? null;
