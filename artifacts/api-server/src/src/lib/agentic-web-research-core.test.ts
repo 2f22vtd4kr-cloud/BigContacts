@@ -31,7 +31,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.");
+    expect(systemCore).toContain("REALISM: Generic prospect discovery must not select globally famous/household-name people");
     expect(systemCore).toContain("TARGET: Apply only requested criteria.");
     expect(systemCore).toContain("B2B needs fetched role/company evidence");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
