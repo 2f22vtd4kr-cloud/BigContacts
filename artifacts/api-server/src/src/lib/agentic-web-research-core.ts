@@ -299,7 +299,7 @@ export function buildDiscoveryLeadUtilizationState(
         const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines = observationLines.slice(index + 1, index + 4)
           .filter((line) => !/^(?:URL:|https?:\/\/)/i.test(line));
-        const excerpt = [title, "URL: " + urlMatch[1], ...snippetLines]
+        const excerpt = [title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
           .slice(0, 100);
@@ -309,7 +309,7 @@ export function buildDiscoveryLeadUtilizationState(
         ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-3)]
         : resultExcerpts;
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT TITLES/SNIPPETS; URLs are listed separately; not fetched evidence]\\n" + selectedExcerpts.join(" | ").slice(0, 520)
+        ? "[UNVERIFIED SEARCH RESULT TITLES/SNIPPETS; URLs are listed separately; not fetched evidence]\n" + selectedExcerpts.join(" | ").slice(0, 520)
         : compactPromptSectionPreservingUrlTokens(
           observation,
           1_600,
