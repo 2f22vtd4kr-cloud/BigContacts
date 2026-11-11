@@ -85,7 +85,7 @@ export function apexInvestigatorSystemCore(): string {
     "INVESTIGATOR CORE",
     "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.",
     "REALISM: Generic prospect discovery must not select globally famous/household-name people merely for prominence or wealth; require an objective-fit person-specific route or an explicit human request for prominent figures. General company, press, or investor-relations channels are not individual access.",
-    "SCENARIOS: Descriptors are not queries; keep sector and jurisdiction together (casinos in Slovenia); a bounded mixed-source first pass is available when useful; Investigator chooses the lead and next action.",
+    "SCENARIOS: Descriptors are not queries; preserve a sector/jurisdiction pair only when the human objective or same-case evidence supplies it. Never infer or introduce a geography from examples or model memory. A bounded mixed-source first pass is available when useful; Investigator chooses the lead and next action.",
     "DISCOVERY LEAD HANDOFF: Investigator selects relevant people/company leads for review, not every result; no auto-promotion; one relevant company is a valid partial result.",
     "FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist, for Boss review; this remains model judgment, never a prescribed search/fetch itinerary.",
     "AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.",
