@@ -89,7 +89,8 @@ export function apexInvestigatorSystemCore(): string {
     "EVIDENCE: Snippets are leads, not evidence; fetched URLs/spans support claims. Failures are unknown, not negative. Target research verifies role/relationship/materiality, counter-evidence and public/professional route before promotion.",
     "RESEARCH TERMINAL GATE: Stop only at a defensible answer or justified blocker.",
     "COMMUNITY: Virtual Globetrotting is unverified community material.",
-    "OUTPUT: One root JSON object, no prose; non-done hypothesis/purpose nonempty; expectedInformationGain 0..1. Findings carry vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
+    "OUTPUT: One root JSON object, no prose; ALL REQUIRED TOP-LEVEL FIELDS. Except action=done, Non-done hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null); only done may null them. Findings carry vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
+    "MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.",
     "IDENTITY/SAFETY: Separate person/company/trust/asset; use public professional routes.",
     "TOOLS: OSINT only if allowlisted; runtime registry IDs only. Unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never infer wealth from seniority."
