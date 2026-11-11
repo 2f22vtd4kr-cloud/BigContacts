@@ -1,6 +1,6 @@
 import { GROQ_RIGHT_HAND_MAX_PROMPT_CHARS, runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { logger } from "./logger";
-import { buildDeterministicObservationFallback } from "./investigation-context-compaction";
+import { buildDeterministicContextProjection } from "./investigation-context-compaction";
 
 export type AiInvestigationContextCompactionInput = {
   rawContext: string;
@@ -565,22 +565,24 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 }
 
 
-export type RecentObservationCompactionMethod = "unchanged" | "ai_semantic" | "deterministic_projection";
-export type RecentObservationCompactionResult = {
+export type InvestigationContextCompactionMethod = "unchanged" | "ai_semantic" | "deterministic_projection";
+export type InvestigationContextCompactionResult = {
   text: string;
-  method: RecentObservationCompactionMethod;
+  method: InvestigationContextCompactionMethod;
 };
+export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * Compact only a recent model-facing observation. A single 20B semantic
- * compaction attempt may improve the excerpt, but it must never fall back to
- * the 120B Right-hand advisory model. If semantic compaction is unavailable,
- * use a clearly labelled, URL-safe deterministic projection; the full source
- * remains immutable in the case-event ledger and omissions remain unknown.
+ * A non-authoritative context transformation may try one 20B semantic
+ * compaction. It must never consume the 120B Right-hand advisory lane. If the
+ * semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
+ * projection instead; the complete source remains durable and omissions are
+ * explicitly unknown. This does not replace or simulate any oversight decision.
  */
-export async function compactRecentObservationWithFallback(
+export async function compactInvestigationContextWithFallback(
   input: AiInvestigationContextCompactionInput,
-): Promise<RecentObservationCompactionResult | null> {
+  kind: "observation" | "historical_memory" = "historical_memory",
+): Promise<InvestigationContextCompactionResult | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return { text: "", method: "unchanged" };
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
@@ -594,10 +596,17 @@ export async function compactRecentObservationWithFallback(
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
-  const deterministic = buildDeterministicObservationFallback(source, maxChars);
+  const deterministic = buildDeterministicContextProjection(source, maxChars, kind);
   return deterministic
     ? { text: deterministic, method: "deterministic_projection" }
     : null;
+}
+
+/** Recent observations use the same safe projection, labelled distinctly. */
+export async function compactRecentObservationWithFallback(
+  input: AiInvestigationContextCompactionInput,
+): Promise<RecentObservationCompactionResult | null> {
+  return compactInvestigationContextWithFallback(input, "observation");
 }
 
 /** Backward-compatible name for older call sites; this is not a Boss decision. */
