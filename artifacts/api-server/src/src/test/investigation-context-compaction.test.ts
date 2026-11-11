@@ -40,7 +40,7 @@ describe("investigator context compaction", () => {
 
     expect(projected.length).toBeLessThanOrEqual(1_200);
     expect(projected).toContain("DETERMINISTIC OBSERVATION PROJECTION");
-    expect(projected).toContain("full observation remains in immutable case events");
+    expect(projected).toContain("complete raw observation remains in immutable case events");
     expect(projected).toContain("omitted content is unknown");
     expect(projected).toContain("OBSERVATION_START");
     expect(projected).toContain("OBSERVATION_END");
