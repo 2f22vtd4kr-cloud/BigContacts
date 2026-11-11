@@ -121,8 +121,9 @@ describe("discovery runtime architecture", () => {
     expect(openingObjective).toContain("Only actual same-run Investigator tool observations may establish candidate names");
     expect(openingObjective).not.toContain("boss.report");
     expect(openingObjective).not.toContain("boss.nextDirections");
-    expect(openingObjective).not.toContain("rightHand.reason");
-    expect(openingObjective).not.toContain("rightHand.focusLanes");
+    expect(openingObjective).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence)");
+    expect(openingObjective).toContain("rightHand.focusLanes");
+    expect(openingObjective).toContain("BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope)");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
     const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
