@@ -287,15 +287,39 @@ export function buildDiscoveryLeadUtilizationState(
       });
       if (!urls.length) return [];
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
+      const observationLines = observation.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+      const resultExcerpts: string[] = [];
+      for (let index = 0; index < observationLines.length; index += 1) {
+        const urlMatch = observationLines[index]?.match(/\\bURL:\\s*(https?:\\/\\/\\S+)/i)
+          ?? observationLines[index]?.match(/^(https?:\\/\\/\\S+)$/i);
+        if (!urlMatch?.[1]) continue;
+        const candidate = normalize(urlMatch[1]);
+        if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
+        const previousLine = observationLines[index - 1] ?? "";
+        const title = /^(?:URL:|https?:\\/\\/)/i.test(previousLine) ? "" : previousLine;
+        const snippetLines = observationLines.slice(index + 1, index + 4)
+          .filter((line) => !/^(?:URL:|https?:\\/\\/)/i.test(line));
+        const excerpt = [title, "URL: " + urlMatch[1], ...snippetLines]
+          .filter(Boolean)
+          .join(" — ")
+          .slice(0, 320);
+        if (excerpt && !resultExcerpts.includes(excerpt)) resultExcerpts.push(excerpt);
+      }
+      const selectedExcerpts = resultExcerpts.length > 8
+        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-6)]
+        : resultExcerpts;
+      const boundedResultContext = selectedExcerpts.length
+        ? "[UNVERIFIED SEARCH RESULT EXCERPTS; sampled from still-unvisited URLs, not fetched evidence]\\n" + selectedExcerpts.join("\\n")
+        : compactPromptSectionPreservingUrlTokens(
+          observation,
+          1_600,
+          "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
+        );
       return [{
         turn: record.turn,
         action: record.action,
         leadUrlCount: urls.length,
-        observation: compactPromptSectionPreservingUrlTokens(
-          observation,
-          1_200,
-          "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
-        ),
+        observation: boundedResultContext,
       }];
     })
     .slice(0, 2);
