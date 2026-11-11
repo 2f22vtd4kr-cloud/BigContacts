@@ -3136,7 +3136,7 @@ export function appendEmergencyObservationContext(
     if (value && !parts.join("\n\n").includes(value)) parts.push(value);
   };
 
-  if (mode === "discovery") {
+  if (mode === "discovery" && !/DECISION OWNERSHIP|DISCOVERY MODEL POLICY|DISCOVERY MODE:/i.test(base)) {
     append("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography. No fixed action sequence; the Investigator chooses hypotheses, targets, queries, sources, tools, pivots, corroboration/falsification and stopping by expected information gain. A bounded mixed-source web/registry batch is available when useful, not required. No registry is preferred; choose by evidence. FAST HANDOFF: select the single strongest objective-fit lead; a quick source look is optional. ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact. Do not require private/mid-market status unless requested.");
   } else if (mode === "target") {
     append("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
