@@ -19,7 +19,9 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
+    expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
     expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
+    expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
     expect(agenticCoreSource).toContain("full source remains durable; omitted content is unknown");
     expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
   });
