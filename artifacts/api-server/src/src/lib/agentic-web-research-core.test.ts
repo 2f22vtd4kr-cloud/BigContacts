@@ -3753,7 +3753,7 @@ describe("prompt composition recovery integrity", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);
-    expect(recovery).toContain("No action was sent with a deterministically excerpted observation or history.");
+    expect(recovery).toContain("No action was sent because the required prompt context could not be composed safely.");
     expect(recovery).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
     expect(recovery).not.toContain("boundInvestigatorPromptSection");
     expect(recovery).not.toContain("history.slice(-3)");
