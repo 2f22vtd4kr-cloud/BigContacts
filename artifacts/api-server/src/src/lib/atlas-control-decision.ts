@@ -365,7 +365,7 @@ export function atlasRegistryFeasibilityLaw(): string {
     `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are native registry/asset-register adapters callable in this process; absent IDs are not callable.`,
     "MIXED-SOURCE DISCOVERY CONTRACT: Apex discovery is a randomized mixed-source process, not a web-search-only funnel. Boss and Right-hand must make the live registry/asset-register catalog visible to the Investigator alongside independent public-web routes. When at least one callable registry/asset-register is materially relevant and public-web discovery is available, the opening portfolio should include both source families within the bounded search budget. Boss/Right-hand may recommend compatible lanes; the Investigator chooses the exact target, registry subset, queries, providers, tools, pivots, order and stopping point. This is a source-diversity expectation, not a fixed itinerary or target-class/geography preference. If a source family is unavailable or unsuitable, record the concrete reason.",
     "Do not infer jurisdiction, searchable fields, people/role coverage, ownership or beneficial-owner disclosure from an adapter ID alone; the Investigator receives the detailed per-adapter coverage/schema. Generic public agency websites may be researched via web search but are not native adapters. Never infer wealth or contactability from seniority alone.",
-  ].join("\\n");
+  ].join("\n");
 }
 /** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
