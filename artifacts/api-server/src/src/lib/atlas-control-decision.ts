@@ -364,7 +364,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   return [
     `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are callable native registry/asset-register adapters in this process.`,
     "SOURCE-MIX CONTRACT: Discovery is a randomized mixed-source process, not a web-only funnel. When relevant routes exist, the opening portfolio should include at least one callable registry/asset-register route and independent public-web discovery; explain any omission. Boss/Right-hand advise source lanes; Investigator chooses exact target, registry IDs, queries, providers, tools, order and stopping point. No fixed itinerary or target-class/geography preference.",
-    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. Generic agency pages are web sources, not native registry adapters. Never infer wealth/contactability from seniority alone.",
+    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. Generic agency pages are web sources, not native registry adapters. A generic agency landing page does not prove that a dedicated register exists or is searchable. Never infer wealth/contactability from seniority alone.",
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
