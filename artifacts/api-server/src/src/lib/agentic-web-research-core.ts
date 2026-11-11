@@ -302,14 +302,14 @@ export function buildDiscoveryLeadUtilizationState(
         const excerpt = [title, "URL: " + urlMatch[1], ...snippetLines]
           .filter(Boolean)
           .join(" — ")
-          .slice(0, 320);
+          .slice(0, 100);
         if (excerpt && !resultExcerpts.includes(excerpt)) resultExcerpts.push(excerpt);
       }
-      const selectedExcerpts = resultExcerpts.length > 8
-        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-6)]
+      const selectedExcerpts = resultExcerpts.length > 5
+        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-3)]
         : resultExcerpts;
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT EXCERPTS; sampled from still-unvisited URLs, not fetched evidence]\n" + selectedExcerpts.join("\n")
+        ? "[UNVERIFIED SEARCH RESULT TITLES/SNIPPETS; URLs are listed separately; not fetched evidence]\\n" + selectedExcerpts.join(" | ").slice(0, 520)
         : compactPromptSectionPreservingUrlTokens(
           observation,
           1_600,
