@@ -44,6 +44,27 @@ describe("objective-aligned Right-hand control guidance", () => {
   });
 });
 
+describe("canonical opening mixed-source discovery contract", () => {
+  it("gives Right-hand the live shuffled registry catalog and carries its advisory lanes into Investigator discovery", () => {
+    const rightHandStart = canonicalDiscoverySource.indexOf('failureStage = "right_hand_opening_review"');
+    const rightHandEnd = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandStart);
+    const rightHandOpening = canonicalDiscoverySource.slice(rightHandStart, rightHandEnd);
+    expect(rightHandOpening).toContain("LIVE RANDOMIZED REGISTRY CATALOG AND COVERAGE");
+    expect(rightHandOpening).toContain("atlasRegistryFeasibilityLaw()");
+    expect(rightHandOpening).toContain("Recommend a small objective-compatible source mix in focusLanes");
+    expect(rightHandOpening).not.toContain("Do not propose a named person, company, asset, registry");
+
+    const openingObjectiveStart = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
+    const openingObjectiveEnd = canonicalDiscoverySource.indexOf('failureStage = "job_state_or_lease";', openingObjectiveStart);
+    const openingObjective = canonicalDiscoverySource.slice(openingObjectiveStart, openingObjectiveEnd);
+    expect(openingObjective).toContain("Advisory source-mix lanes");
+    expect(openingObjective).toContain("OPENING SOURCE PORTFOLIO");
+    expect(openingObjective).toContain("at least one materially relevant callable registry route and one independent public-web route");
+    expect(openingObjective).toContain("No fixed order, provider, query, target class, sector, or geography");
+    expect(canonicalDiscoverySource).toContain("Advisory source-mix lanes:");
+  });
+});
+
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
