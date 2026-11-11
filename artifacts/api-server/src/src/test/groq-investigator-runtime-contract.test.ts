@@ -5,6 +5,10 @@ import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/resear
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
+const completeInvestigatorProviderPrompt = [
+  "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
   it("downgrades a safe browser fetch with a stale provider label to visit", () => {
@@ -216,7 +220,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
-    expect(submitted).toContain("Investigator chooses actions; no fixed recovery sequence.");
+    expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
@@ -283,7 +287,7 @@ describe("Groq Investigator runtime contract", () => {
   it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
-      prompt: "choose the next research action",
+      prompt: completeInvestigatorProviderPrompt + "\\n\\nchoose the next research action",
       cognitiveTask: "identity_resolution",
     });
     expect(body).toMatchObject({
@@ -297,7 +301,7 @@ describe("Groq Investigator runtime contract", () => {
   it("preserves medium reasoning and a full action budget for contact research", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
-      prompt: "investigate and attribute a realistic public contact route",
+      prompt: completeInvestigatorProviderPrompt + "\\n\\ninvestigate and attribute a realistic public contact route",
       cognitiveTask: "contact_extraction",
     });
     expect(body).toMatchObject({
@@ -310,7 +314,7 @@ describe("Groq Investigator runtime contract", () => {
 
   it("does not send an unsupported reasoning field to GPT-OSS fallback models", () => {
     for (const model of ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
-      const body = buildGroqInvestigatorRequestBody({ model, prompt: "x", cognitiveTask: "discovery" });
+      const body = buildGroqInvestigatorRequestBody({ model, prompt: completeInvestigatorProviderPrompt, cognitiveTask: "discovery" });
       expect(body).not.toHaveProperty("reasoning_format");
       expect(body).toHaveProperty("include_reasoning", false);
     }
@@ -319,7 +323,7 @@ describe("Groq Investigator runtime contract", () => {
   it("limits the strict model schema to executable actions while retaining the complete envelope", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "qwen/qwen3.8-27b",
-      prompt: "x",
+      prompt: completeInvestigatorProviderPrompt,
       cognitiveTask: "discovery",
     });
     const schema = (body.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown>; required?: string[] } } }).json_schema?.schema;
@@ -382,7 +386,7 @@ describe("Groq Investigator runtime contract", () => {
 
   it("keeps the local action contract while applying model-specific provider-format compatibility", () => {
     for (const model of ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
-      const body = buildGroqInvestigatorRequestBody({ model, prompt: "choose the next research action", cognitiveTask: "identity_resolution" });
+      const body = buildGroqInvestigatorRequestBody({ model, prompt: completeInvestigatorProviderPrompt + "\\n\\nchoose the next research action", cognitiveTask: "identity_resolution" });
       expect(body.model).toBe(model);
       if (model === "openai/gpt-oss-20b") {
         expect(body).not.toHaveProperty("response_format");
