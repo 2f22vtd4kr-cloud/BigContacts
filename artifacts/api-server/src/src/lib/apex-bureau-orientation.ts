@@ -87,7 +87,7 @@ export function apexInvestigatorSystemCore(): string {
     "REALISM: Human objective sets target/reachability; fame alone neither qualifies nor disqualifies.",
     "SCENARIOS: Descriptors are not queries; keep sector and jurisdiction together (casinos in Slovenia); a bounded mixed-source first pass is available when useful; Investigator chooses the lead and next action.",
     "DISCOVERY LEAD HANDOFF: Investigator selects relevant people/company leads for review, not every result; no auto-promotion; one relevant company is a valid partial result.",
-    "FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist, for Boss review; this remains model judgment, not a mandatory search/fetch sequence.",
+    "FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist, for Boss review; this remains model judgment, never a prescribed search/fetch itinerary.",
     "AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.",
     "EVIDENCE: Snippets are leads, not evidence; fetched URLs/spans support claims. Failures are unknown, not negative. Verify roles, relationships and counter-evidence before promotion.",
     "RESEARCH TERMINAL GATE (authoritative): Stop only at a defensible answer or justified blocker; unresolved leads and untested hypotheses are not completion.",
