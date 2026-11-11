@@ -100,8 +100,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
     expect(discoveryPrompt).toContain("One bounded mixed-source web/registry batch");
-    expect(discoveryPrompt).toContain("quick source look is optional");
-    expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
+    expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
+    expect(discoveryPrompt).toContain("no registry is preferred; one lead starts target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(discoveryPrompt).toContain("ranking-only mentions are leads, not qualified targets");
@@ -2557,7 +2557,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("at most two outbound search actions");
     expect(prompt).toContain("mixed-source web/registry batch");
-    expect(prompt).toContain("FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist");
+    expect(prompt).toContain("FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).toContain("casinos in Slovenia");
