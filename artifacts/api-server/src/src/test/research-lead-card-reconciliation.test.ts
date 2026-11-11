@@ -99,14 +99,15 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
-    expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
+    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
+    expect(agenticCore).toContain("Do not wait for a fetch, ownership clue, wealth proof or HNWI qualification");
+    expect(agenticCore).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
     expect(agenticCore).toContain("Search snippets remain leads, not evidence");
     expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
     expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
+    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
   });
 
   it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
