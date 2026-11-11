@@ -3581,7 +3581,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
     : "";
   const fallbackDiscoveryPolicy = isDiscoveryPrompt
-    ? "DISCOVERY MODE: no person or entity target is implied; human objective/Boss scope govern target class/geography. No preset targets or fixed action sequence; Investigator chooses. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source web/registry batch allowed, not an itinerary. FAST HANDOFF: strongest objective-fit lead, not a shortlist; quick source look is optional; Investigator decides. DISCOVERY LEAD HANDOFF CONTRACT: selected exact-name people/company leads are review-only, not every result; no auto-promotion. ORG LEAD: fetched/registry leads may be promoted for target research only, never final CRM/contact. MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence. Popularity is not a filter; direct objective relevance. No registry is preferred; choose by evidence. Target-specific names come from human brief or same-case observations, never model memory. SEARCH: market only if country in objective/scope; locale=language. Search snippets are leads, not evidence."
+    ? "DISCOVERY MODE: no person or entity target is implied; human objective and Boss scope govern target class/geography. No silent pivot or fixed action sequence; Investigator chooses hypotheses, targets, queries, sources, tools, pivots and stopping. MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria. DISCOVERY SEARCH ECONOMY: at most two outbound search actions; a bounded mixed-source batch is available when useful, not an itinerary. FAST HANDOFF: choose the strongest objective-fit lead, not a shortlist; quick source look is optional; Investigator decides. DISCOVERY LEAD HANDOFF CONTRACT: preserve selected exact-name people/company source-backed leads as review-only, not every result; no auto-promotion. MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality. Popularity is not a filter: require direct relevance. Preserve sector and jurisdiction together, e.g. casinos in Slovenia. No registry is preferred; choose by evidence. Target-specific names come from the human brief or same-case observations, never model memory. Search snippets are leads, not evidence."
     : "";
   const fallbackOutputContract = isInvestigatorPrompt
     ? [
@@ -3659,7 +3659,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   });
 
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "PARTIAL FINDINGS (not terminal-only): retain Investigator-selected exact-name people/company leads as review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. " + requiredQualificationRule + " Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, YOU decide whether a fetched organization merits a provisional review card; preserve only its observed source URL."
+    ? "PARTIAL FINDINGS (not terminal-only): retain Investigator-selected exact-name people/company source-backed leads as review-only, not every result. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Search snippets are leads, not evidence; failed fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched span. " + requiredQualificationRule + " Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. After visit/browser_fetch, YOU decide whether a fetched organization merits a provisional review card; preserve only its observed source URL."
     : "";
 
   const compactFallbackDiscoveryRule = isDiscoveryPrompt
@@ -3713,7 +3713,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     fallbackEvidenceContract,
     compactCaseObjective,
     minimumOrganizationTargetabilityMarker,
-    ...(isDiscoveryPrompt ? [minimumTargetabilityMarker, minimumRelevanceMarker, compactDiscoveryEmergencyContract] : [minimumRelevanceMarker]),
+    ...(isDiscoveryPrompt ? [minimumTargetabilityMarker, minimumRelevanceMarker, minimumDiscoveryContract] : [minimumRelevanceMarker]),
     minimumBinaryUrlRule,
     minimumRegistryEvidenceRule,
     scopeRecoveryRule,
@@ -3725,6 +3725,8 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
     minimumObservationTail,
     minimumScopeContext,
     minimumAvailableActionsSection,
+    conditionalCapabilityRule,
+    minimumProviderRule,
     ...(hasSearchLeadContext ? [leadGuidance] : []),
     fetchedSourceLabel,
     minimumFetchedSourceExcerpt,
@@ -3769,7 +3771,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
       minimumRelevanceMarker,
       minimumBinaryUrlRule,
       minimumRegistryEvidenceRule,
-      ...(isDiscoveryPrompt ? [compactDiscoveryEmergencyContract] : []),
+      ...(isDiscoveryPrompt ? [minimumDiscoveryContract] : []),
       scopeRecoveryRule,
       urlInventory,
       compactScope,
@@ -3816,7 +3818,7 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
         minimumObservationTail,
         fallbackEvidenceContract,
         compactCaseObjective,
-        ...(isDiscoveryPrompt ? [minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker, minimumRelevanceMarker, compactDiscoveryEmergencyContract] : [minimumRelevanceMarker]),
+        ...(isDiscoveryPrompt ? [minimumTargetabilityMarker, minimumOrganizationTargetabilityMarker, minimumRelevanceMarker, minimumDiscoveryContract] : [minimumRelevanceMarker]),
         minimumBinaryUrlRule,
         minimumRegistryEvidenceRule,
         scopeRecoveryRule,
@@ -3824,6 +3826,8 @@ const minimumDiscoveryContract = isDiscoveryPrompt ? fallbackDiscoveryPolicy : "
         // The action allowlist is an exact runtime capability boundary, not
         // optional narration; never truncate it in the final emergency tier.
         minimumAvailableActionsSection,
+        conditionalCapabilityRule,
+        minimumProviderRule,
         // Keep the latest fetched source label and claim ahead of memory or
         // summaries so source-backed partial findings remain possible.
         fetchedSourceLabel,
@@ -5296,16 +5300,35 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     && record.execution === "success"
     && (belongsToActiveScope(record) || (Boolean(activePivotScopeKey) && !record.pivotScopeKey)),
   );
-  const hasSuccessfulFetchAfterSearch = Boolean(latestSuccessfulSearchRecord && orderedTrajectoryRecords.some((record) =>
-    record.turn > latestSuccessfulSearchRecord.turn
-    && record.execution === "success"
-    && (record.action === "visit" || record.action === "browser_fetch")
-    && (record.observedUrls ?? []).length > 0
-    && (!latestSuccessfulSearchRecord.pivotScopeKey || record.pivotScopeKey === latestSuccessfulSearchRecord.pivotScopeKey),
-  ));
-  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord
-    && !hasSuccessfulFetchAfterSearch
-    ? latestSuccessfulSearchRecord
+  // Carry only leads that have not themselves been successfully fetched.
+  // Visiting one result must not erase the other URLs returned by the same search.
+  const fetchedUrlsAfterLatestSearch = new Set(
+    latestSuccessfulSearchRecord
+      ? orderedTrajectoryRecords
+          .filter((record) =>
+            record.turn > latestSuccessfulSearchRecord.turn
+            && record.execution === "success"
+            && (record.action === "visit" || record.action === "browser_fetch")
+            && (!latestSuccessfulSearchRecord.pivotScopeKey || record.pivotScopeKey === latestSuccessfulSearchRecord.pivotScopeKey),
+          )
+          .flatMap((record) => [
+            ...(record.observedUrls ?? []),
+            typeof record.args?.url === "string" ? record.args.url : "",
+          ])
+          .map((url) => normalizedActionResourceUrl(url))
+          .filter((url): url is string => Boolean(url))
+      : [],
+  );
+  const unvisitedSearchLeadUrls = (latestSuccessfulSearchRecord?.leadUrls ?? []).filter((url) => {
+    const normalized = normalizedActionResourceUrl(url);
+    return !normalized || !fetchedUrlsAfterLatestSearch.has(normalized);
+  });
+  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord && unvisitedSearchLeadUrls.length > 0
+    ? {
+        ...latestSuccessfulSearchRecord,
+        leadUrls: unvisitedSearchLeadUrls,
+        leadUrlCount: unvisitedSearchLeadUrls.length,
+      }
     : null;
   const compactLatestArgs = (args: Record<string, unknown>): Record<string, unknown> => {
     const orderedKeys = [
