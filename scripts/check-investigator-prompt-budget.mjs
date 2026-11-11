@@ -31,7 +31,16 @@ const stepEnd = core.indexOf("export function discoveryTerminalGate", stepStart)
 const stepPrompt = stepStart >= 0 && stepEnd > stepStart ? core.slice(stepStart, stepEnd) : "";
 assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional orientation must not be duplicated inside the dynamic user prompt");
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
-assert(/DISCOVERY (?:QUALITY|TARGETABILITY) GATE:/.test(stepPrompt), "discovery targetability/anchor quality gate must remain explicit");
+assert(
+  /DISCOVERY TARGETABILITY \/ REALISM:/.test(stepPrompt)
+    && /objective\/Boss scope sets target class\/geography/.test(stepPrompt)
+    && /require direct relevance to the active objective/.test(stepPrompt)
+    && /No name blacklist, preset targets or invented geography/.test(stepPrompt)
+    && /Web\/registry sources have neutral standing; no registry-first\/fixed order/.test(stepPrompt)
+    && /at most two outbound search actions is a per-episode cost ceiling, not a prescribed sequence/.test(stepPrompt)
+    && /Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(stepPrompt),
+  "discovery targetability and source-choice guidance must remain explicit while preserving model-owned investigative decisions",
+);
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
 assert(/waitForKnownGroqTokenWindow/.test(core) && /token_window_wait_exceeded/.test(core), "known token-window exhaustion must be classified as a bounded temporary wait, not hard quota");
