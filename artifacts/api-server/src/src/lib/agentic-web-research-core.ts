@@ -6269,10 +6269,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactDiscoveryPolicy = input.mode === "discovery"
         ? [
             "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: human objective/Boss scope govern; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping.",
-            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable evidence hypothesis. Other objectives use their own criteria; source class may vary by query.",
+            "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
             "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch; also call this a mixed-source batch, not an itinerary. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; one quick source look is enough to hand it to target research.",
-            "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct relevance to the active objective; fame neither qualifies nor excludes. People/company/assets differ. Investor firms need evidence of capital capacity/activity and mandate fit; company growth/materiality differs from owner's wealth.",
-            "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity/role/relationship/materiality; generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Example: casinos in Slovenia.",
+            "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct relevance; fame neither qualifies nor excludes. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
+            "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to objective-required entity/role/relationship/materiality; generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Example: casinos in Slovenia.",
             "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads as review-only, not every result; preserve observed name, role/null and public URL; no auto-promotion; names only from brief/same-case observations."
           ].join(" ")
         : "";
@@ -6285,6 +6285,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             action: latestRecord.action,
             execution: latestRecord.execution ?? "unknown",
             args: compactLatestArgs(latestRecord.args ?? {}),
+            observedUrls: latestRecordEnvelope.observedUrls,
             leadUrls: latestRecordEnvelope.leadUrls,
             leadUrlCount: latestRecordEnvelope.leadUrlCount,
             leadUrlsOmittedFromPromptCount: latestRecordEnvelope.leadUrlsOmittedFromPromptCount
