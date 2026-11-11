@@ -298,7 +298,7 @@ export function buildDiscoveryLeadUtilizationState(
         const previousLine = observationLines[index - 1] ?? "";
         const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines = observationLines.slice(index + 1, index + 4)
-          .filter((line) => !/^(?:URL:|https?:\\/\\/)/i.test(line));
+          .filter((line) => !/^(?:URL:|https?:\/\/)/i.test(line));
         const excerpt = [title, "URL: " + urlMatch[1], ...snippetLines]
           .filter(Boolean)
           .join(" — ")
