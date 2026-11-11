@@ -388,6 +388,7 @@ export type AtlasControlLeadInventory = {
   failedLeadUrlCount: number;
   blockedLeadUrlCount: number;
   unfetchedLeadUrls: string[];
+  unfetchedLeadObservations: Array<{ turn: number; action: string; leadUrlCount: number; observation: string }>;
   failedLeadUrls: Array<{ url: string; action: string; execution: string; failureDomain?: string; failureKind?: string }>;
   blockedLeadUrls: Array<{ url: string; action: string; failureDomain?: string; failureKind?: string }>;
 };
@@ -420,6 +421,7 @@ export function buildAtlasPinnedControlState(input: {
       blockedLeadUrlCount: state.blockedLeadUrlCount,
     }),
     "UNFETCHED (not fetched/not blocked; positive count means leads remain): " + unfetchedSample.join(" | ") + (Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) ? " [" + Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) + " URL(s) omitted whole from this prompt sample; complete routes remain in durable case state]" : ""),
+    "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted snippets/results, not fetched evidence; use this text before judging lead relevance): " + state.unfetchedLeadObservations.slice(0, 2).map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation).join(" || "),
     "SOURCE-BACKED FINDINGS INCLUDING PARTIAL FINDINGS (not HNWI/contact conclusions): " + input.findings.slice(0, 4).map((finding) => (finding.personName ? finding.personName + (finding.role ? " / " + finding.role : "") : finding.value).slice(0, 90) + " [scope=" + finding.scope + "; admission=" + (finding.promotionDecision ?? "review-only") + "; sources=" + finding.sourceUrls.length + "; " + finding.note.slice(0, 50) + "]").join(" | "),
     "FAILED ROUTES (not negative evidence): " + failedSample.map((item) => item.url + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.failedLeadUrlCount - failedSample.length) ? " [" + Math.max(0, state.failedLeadUrlCount - failedSample.length) + " failed route(s) omitted whole from this prompt sample]" : ""),
     "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + blockedSample.map((item) => item.url + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.blockedLeadUrlCount - blockedSample.length) ? " [" + Math.max(0, state.blockedLeadUrlCount - blockedSample.length) + " blocked route(s) omitted whole from this prompt sample]" : ""),
