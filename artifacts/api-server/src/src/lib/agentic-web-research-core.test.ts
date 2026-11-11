@@ -1081,8 +1081,9 @@ describe("decision-scoped action allowlists", () => {
       prompt,
       cognitiveTask: "identity_resolution",
       actionAllowlist,
-    }) as { response_format: typeof responseFormat };
+    }) as { response_format: typeof responseFormat; messages: Array<{ role: string; content: string }> };
     expect(requestBody.response_format.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
+    expect(requestBody.messages.find((message) => message.role === "user")?.content).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
   });
 });
 
@@ -3717,17 +3718,38 @@ describe("small emergency observation budgets", () => {
     expect(tinyResult.length).toBeLessThanOrEqual(tinyLimit);
   });
 
-  it("fails explicitly rather than slicing away the action contract when no valid prompt can fit", () => {
+  it("treats the character target as advisory while preserving the executable action schema", () => {
     const basePrompt = [
       "APEX INVESTIGATOR",
-      "OUTPUT CONTRACT: Return one root JSON object; required fields action, query, provider, url, searches, findings.",
-      "EVIDENCE: URLs are leads, not evidence.",
+      "CASE OBJECTIVE: preserve this human objective sentinel.",
+      "AVAILABLE ACTIONS: web_search | visit | done.",
+      "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "POLICY (paraphrased): the Investigator owns source choice, target relevance, pivots and stopping; search snippets are leads until fetched.",
     ].join("\n\n");
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
-    expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
-      /(?:Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24/,
-    );
+    const prompt = appendEmergencyObservationContext(basePrompt, observation, 24, "discovery", "Boss-approved scope sentinel", "runtime-registry-a");
+    expect(prompt.length).toBeGreaterThan(24);
+    expect(prompt).toContain("human objective sentinel");
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | visit | done.");
+  });
+
+  it("does not require literal English policy markers when equivalent model guidance is present", () => {
+    const basePrompt = [
+      "APEX INVESTIGATOR",
+      "CASE OBJECTIVE: investigate the supplied target class and geography.",
+      "AVAILABLE ACTIONS: web_search | visit | done.",
+      "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "DECISION OWNERSHIP: the Investigator chooses the hypothesis, evidence route, tools, follow-up and stopping point. Treat snippets as provisional leads and distinguish failed retrieval from a no-hit.",
+    ].join("\n\n");
+
+    const prompt = appendEmergencyObservationContext(basePrompt, "LATEST OBSERVATION: a search returned two unverified URLs.", 5_600, "discovery");
+    expect(prompt).toContain("DECISION OWNERSHIP");
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(prompt).not.toContain("No fixed action sequence.");
   });
 
   it("bounds oversized ordinary observations and retains both ends when budget permits", () => {
