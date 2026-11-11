@@ -16,6 +16,15 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
 ].join("\\n\\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+describe("recent observation compaction recovery", () => {
+  it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
+    expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
+    expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
+    expect(agenticCoreSource).toContain("full source remains durable; omitted content is unknown");
+    expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
+  });
+});
+
 describe("Investigator provider envelope budget", () => {
   it("uses a single system-aware user-message budget", () => {
     expect(investigatorUserPromptBudget(1_600)).toBe(6_800);
