@@ -24,7 +24,7 @@ APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"
 [services.production]
 
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+args = ["sh", "-c", "pnpm --filter apex-finder-local run build && pnpm --filter @workspace/api-server run build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
