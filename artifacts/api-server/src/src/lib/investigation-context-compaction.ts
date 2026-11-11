@@ -245,14 +245,15 @@ export function buildDeterministicContextProjection(
     : [];
   // Structural observation delimiters are provenance boundaries, not expendable
   // prose. Reserve room for any delimiter omitted by the head/tail excerpt.
-  const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !source.slice(0, limit).includes(marker));
-  const markerSuffix = missingObservationMarkers.join(" ");
-  const projectionBudget = Math.max(0, limit - (markerSuffix ? markerSuffix.length + 1 : 0));
+  const markerReserve = requiredObservationMarkers.reduce((total, marker) => total + marker.length + 1, 0);
+  const projectionBudget = Math.max(0, limit - markerReserve);
   const projection = compactPromptSectionPreservingUrlTokens(
     source,
     projectionBudget,
     projectionBudget >= fullMarker.length + 2 ? fullMarker : shortMarker,
   );
+  const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !projection.includes(marker));
+  const markerSuffix = missingObservationMarkers.join(" ");
   return markerSuffix ? [projection, markerSuffix].filter(Boolean).join(" ") : projection;
 }
 
