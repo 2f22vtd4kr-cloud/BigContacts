@@ -30,6 +30,7 @@ function pinnedStateWithUnfetchedLead(): string {
       failedLeadUrlCount: 0,
       blockedLeadUrlCount: 0,
       unfetchedLeadUrls: [leadUrl],
+      unfetchedLeadObservations: [{ turn: 1, action: "web_search", leadUrlCount: 1, observation: "CKX Lands appears in a transaction announcement; the result is not yet fetched." }],
       failedLeadUrls: [],
       blockedLeadUrls: [],
     },
@@ -217,6 +218,8 @@ describe("Atlas control-plane lead continuity", () => {
     });
     expect(prompt).toContain(leadUrl);
     expect(prompt).toContain("unfetchedLeadUrls");
+    expect(pinnedStateWithUnfetchedLead()).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
+    expect(pinnedStateWithUnfetchedLead()).toContain("CKX Lands appears in a transaction announcement");
     expect(prompt).toContain("Search URLs/snippets remain leads, not evidence until fetched.");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
   });
