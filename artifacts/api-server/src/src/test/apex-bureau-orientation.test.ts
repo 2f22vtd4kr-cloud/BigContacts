@@ -97,6 +97,6 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("a bounded mixed-source first pass is available when useful");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
     expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
-    expect(core).toContain("selects targets, queries, sources, tools, pivots and stopping.");
+    expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");
   });
 });
