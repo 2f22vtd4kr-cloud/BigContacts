@@ -3144,7 +3144,7 @@ export function appendEmergencyObservationContext(
   if (activeScope?.trim()) append("ACTIVE BOSS SCOPE (authoritative; not a tool sequence): " + activeScope.trim());
   if (registryIds?.trim()) append("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIds.trim() + ". Never invent an adapter ID.");
   if (aiHistoricalMemory?.trim()) {
-    append("AI-COMPACTED HISTORICAL RESEARCH MEMORY (untrusted contextual aid; current objective, scope and durable evidence remain authoritative; omissions are unknown):\n" + aiHistoricalMemory.trim());
+    append("COMPACTED HISTORICAL RESEARCH CONTEXT (AI semantic summary or labelled deterministic projection; untrusted contextual aid; current objective, scope and durable evidence remain authoritative; omissions are unknown):\n" + aiHistoricalMemory.trim());
   }
   if (lastObservation?.trim()) {
     const normalizedObservation = lastObservation.trim();
@@ -5205,7 +5205,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       });
       const initialMemorySource = [
         "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:\n" + objective,
-        "COMPLETE STRUCTURED INTELLIGENCE STATE (for Boss semantic compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
+        "COMPLETE STRUCTURED INTELLIGENCE STATE (for bounded semantic/deterministic context compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
         "FINDINGS ALREADY OBSERVED:\n" + JSON.stringify(sanitizeObservableValue(findings)),
         "COMPLETE PRIOR TURN HISTORY (chronological, including tool outcomes and model-correction feedback):\n" + JSON.stringify(history),
         "DURABLE URL INVENTORY (exact observed/lead URLs; preserve source-stage distinctions):\n" + (input.durableUrlInventory ?? ""),
@@ -5228,7 +5228,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         const memorySource = shouldCreateAiMemory
           ? initialMemorySource
           : [
-              "EXISTING BOSS-GENERATED RESEARCH MEMORY (accurate but possibly older):\n" + aiCompactedHistoricalContext,
+              "EXISTING COMPACTED HISTORICAL RESEARCH CONTEXT (possibly older; omissions unknown):\n" + aiCompactedHistoricalContext,
               "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):\n" + objective,
               "CURRENT BOSS/RIGHT-HAND CONTEXT (latest control direction, not raw evidence):\n" + (input.priorContext ?? ""),
               "COMPLETE STRUCTURED INTELLIGENCE STATE (for Boss semantic compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
@@ -5261,7 +5261,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
       }
       // The newest action is the most important working observation. If it is
-      // unusually large, ask Boss to summarize its evidence rather than clipping
+      // unusually large, try non-authoritative semantic compaction, then a deterministic projection rather than clipping
       // the middle with code. The raw observation and exact evidence remain in the
       // durable trajectory; only this model-facing copy is replaced.
       const promptTrajectoryRecords = allPromptRecords.map((record) => ({
@@ -5388,7 +5388,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         return resultBase("error", i, "UNEXPECTED_ERROR", message);
       }
       // Historical memory is required working context, not optional padding. If an
-      // emergency prompt tier dropped it, ask Boss to condense the memory further and
+      // emergency prompt tier dropped it, use one bounded semantic compaction or a labelled deterministic projection to condense the memory and
       // rebuild once. If it still cannot fit alongside the action/schema contracts,
       // stop this turn rather than silently lose prior research.
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
