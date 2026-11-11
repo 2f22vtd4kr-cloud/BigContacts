@@ -5648,9 +5648,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         );
       }
     }
-    const pinnedInventory = extractPinnedDurableUrlInventory(
-      [input.durableUrlInventory, repaired].filter(Boolean).join("\n")
-    );
+    // Only the separately supplied inventory is backed by immutable case-event
+    // provenance. Never reinterpret the already-composed prompt (which includes
+    // untrusted case text and source observations) as a trusted URL inventory.
+    const pinnedInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedInventory && !repaired.includes(pinnedInventory)) appendBeforeSchema(pinnedInventory);
 
     const suppliedObservation = String(input.lastObservation ?? "").trim();
@@ -5673,7 +5674,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Prompt-size guidance is advisory. Preserve the complete model-authored
   // mission and evidence context; actual provider context/token limits remain
   // the only hard size boundary.
-  return preserveFetchedClaimAtProviderBoundary(composedPrompt);
+  // Attach the bounded, scope-aware durable latest-act envelope. It carries
+  // complete URL tokens and explicit omission counts; without this tail the
+  // provider-boundary repair had been reattaching raw trajectory URL arrays.
+  return preserveFetchedClaimAtProviderBoundary(
+    [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
+  );
 }
 
 /**
