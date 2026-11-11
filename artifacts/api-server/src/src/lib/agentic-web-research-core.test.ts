@@ -48,7 +48,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("TARGET: Apply only requested criteria.");
     expect(systemCore).toContain("B2B needs fetched role/company evidence");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
-    expect(systemCore).toContain("casinos in Slovenia");
+    expect(systemCore).not.toContain("casinos in Slovenia");
+    expect(systemCore).toContain("Never infer or introduce a geography from examples or model memory");
     expect(systemCore).not.toContain("before another search");
     expect(systemCore).not.toContain("no provider fan-out");
     expect(systemCore).toContain("mixed-source");
