@@ -100,6 +100,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
     expect(discoveryPrompt).toContain("One bounded mixed-source web/registry batch");
+    expect(discoveryPrompt).toContain("normal starting portfolio");
+    expect(discoveryPrompt).toContain("randomized runtime-available catalog supplied to Boss and Right-hand");
+    expect(discoveryPrompt).toContain("source-diversity expectation");
     expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
     expect(discoveryPrompt).toContain("no registry is preferred; one lead starts target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
