@@ -2032,17 +2032,26 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number, promp
   const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
   if (normalized.length <= limit) return normalized;
 
-  // Use the explicit schema-bearing marker, never an incidental OUTPUT CONTRACT
-  // phrase inside observation text. The structured prompt builder and emergency
-  // fallback both emit one of these full markers.
-  const contractMarkers = [
-    "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS:",
-    "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS:",
+  // Find the final executable schema contract, not incidental policy prose or
+  // an OUTPUT CONTRACT string embedded in an untrusted observation.
+  const requiredSchemaFields = [
+    "action", "query", "provider", "url", "email", "username", "domain", "registry",
+    "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+    "target", "targetType", "profile", "searches", "findings",
   ];
   let outputStart = -1;
-  for (const marker of contractMarkers) outputStart = Math.max(outputStart, normalized.lastIndexOf(marker));
+  const outputContractMatches = [...normalized.matchAll(/OUTPUT CONTRACT:/g)];
+  for (const match of outputContractMatches) {
+    const start = match.index ?? -1;
+    if (start < 0) continue;
+    const contractWindow = normalized.slice(start, start + 2_400);
+    const fieldMarker = contractWindow.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
+    if (fieldMarker < 0) continue;
+    const fieldSection = contractWindow.slice(fieldMarker, fieldMarker + 2_000);
+    if (requiredSchemaFields.every((field) => fieldSection.includes(field))) outputStart = start;
+  }
   if (outputStart < 0) {
-    throw new Error("Cannot compact an oversized Investigator prompt without its protected top-level action schema (maxPromptChars=" + limit + ").");
+    throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
   }
 
   const prefix = normalized.slice(0, outputStart).trim();
