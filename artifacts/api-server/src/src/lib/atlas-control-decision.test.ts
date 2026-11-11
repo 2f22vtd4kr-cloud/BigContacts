@@ -290,6 +290,9 @@ describe("Atlas control-plane lead continuity", () => {
   it("grounds both supervisors in runtime registry capabilities and evidence-backed field assumptions", () => {
     const law = atlasRegistryFeasibilityLaw();
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(law).toContain("RANDOMIZED LIVE REGISTRY COVERAGE");
+    expect(law).toContain("SOURCE-MIX CONTRACT");
+    expect(law).toContain("public-web discovery");
     expect(law).toContain("sec-edgar");
     expect(law).not.toContain("inbiz");
     expect(law).toContain("A generic agency landing page does not prove that a dedicated register exists");
@@ -312,6 +315,8 @@ describe("Atlas control-plane lead continuity", () => {
     };
     expect(buildAtlasRightHandControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
     expect(buildAtlasBossControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
+    expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
