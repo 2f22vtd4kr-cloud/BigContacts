@@ -3648,7 +3648,8 @@ describe("combined-main emergency discovery contract", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("mixed-source");
-    expect(prompt).toContain("quick source look is optional; Investigator decides");
+    expect(prompt).toContain("No fixed action sequence");
+    expect(prompt).not.toContain("mandatory lead-inspection itinerary");
     expect(prompt).toContain("ORG LEAD: exact-name fetched/registry leads may be promoted for target research only, never final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
