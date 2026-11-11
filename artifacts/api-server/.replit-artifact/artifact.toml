@@ -30,7 +30,7 @@ args = ["sh", "-c", "pnpm --filter apex-finder-local run build && pnpm --filter 
 NODE_ENV = "production"
 
 [services.production.run]
-args = ["sh", "-c", "cd ../.. && node --enable-source-maps artifacts/api-server/dist/index.mjs"]
+args = ["sh", "-c", "cd ../.. && bash scripts/replit-boot.sh"]
 
 [services.production.run.env]
 PORT = "8080"
