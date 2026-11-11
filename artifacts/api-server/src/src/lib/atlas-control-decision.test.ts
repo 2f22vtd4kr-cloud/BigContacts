@@ -290,7 +290,7 @@ describe("Atlas control-plane lead continuity", () => {
   it("grounds both supervisors in runtime registry capabilities and evidence-backed field assumptions", () => {
     const law = atlasRegistryFeasibilityLaw();
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");
-    expect(law).toContain("RANDOMIZED LIVE REGISTRY COVERAGE");
+    expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
     expect(law).toContain("SOURCE-MIX CONTRACT");
     expect(law).toContain("public-web discovery");
     expect(law).toContain("sec-edgar");
