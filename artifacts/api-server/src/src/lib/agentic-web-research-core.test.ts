@@ -99,7 +99,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
-    expect(discoveryPrompt).toContain("one bounded mixed-source web/registry batch");
+    expect(discoveryPrompt).toContain("One bounded mixed-source web/registry batch");
     expect(discoveryPrompt).toContain("quick source look is optional");
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
