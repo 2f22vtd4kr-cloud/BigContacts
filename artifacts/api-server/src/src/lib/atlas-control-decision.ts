@@ -363,13 +363,13 @@ export function atlasRegistryFeasibilityLaw(): string {
   const available = getAvailableRegistryIdsForPrompt();
   const ids = available.length ? available.join(", ") : "(none currently available)";
   const coverage = renderRegistryCoverageGuidance(available)
-    .split("\\n")
+    .split("\n")
     .filter(Boolean)
     .map((line) => {
       const fields = line.split(";").map((part) => part.trim());
       return [fields[0], fields[2], fields[3]].filter(Boolean).join("; ");
     })
-    .join("\\n");
+    .join("\n");
   const compactCoverage = coverage.length > 1_600
     ? compactPromptSectionPreservingUrlTokens(
         coverage,
@@ -378,14 +378,14 @@ export function atlasRegistryFeasibilityLaw(): string {
       )
     : coverage;
   const catalog = compactCoverage
-    ? "RANDOMIZED LIVE REGISTRY COVERAGE (labels, jurisdictions, people/role coverage and ownership limits):\\n" + compactCoverage
+    ? "RANDOMIZED LIVE REGISTRY COVERAGE (labels, jurisdictions, people/role coverage and ownership limits):\n" + compactCoverage
     : "No callable registry adapters are available in this runtime; public-web research remains available.";
   return [
     `RUNTIME-CALLABLE REGISTRY IDS: ${ids}. Any ID absent from this list is not an integrated/callable registry adapter in this runtime.`,
     catalog,
     "SOURCE-MIX CONTRACT: Apex discovery is a randomized mixed-source process, not a web-search-only funnel. Boss and Right-hand must assess this live catalog and make its available registry/asset-register routes visible to the Investigator alongside independent public-web routes. When at least one callable registry/asset-register is materially relevant to the objective and scope, the opening discovery portfolio should include a suitable registry route as well as public-web discovery within the bounded search budget. The AI selects the compatible subset and rationale; this is a source-diversity expectation, not a fixed registry order, query, target class, geography, provider, or tool sequence. If no registry is suitable or callable, state the concrete reason and use public-web sources. Randomized order is a tie-breaker only, never evidence of priority.",
     "Generic public agency websites can still be investigated via ordinary web search and observed page visits, but must not be described as native registry adapters. A generic agency landing page does not prove that a dedicated register exists, that its records are public/searchable, or that records expose owner/shareholder/member/manager fields. Distinguish access to a public search surface from evidence about the fields returned. Until observed official documentation or a fetched record establishes the relevant field, frame it as a testable hypothesis (for example, verify whether filings disclose members) rather than an established fact. Never infer wealth or contactability from seniority alone.",
-  ].join("\\n\\n");
+  ].join("\n\n");
 }
 
 /** Keep supervisors focused on converting search leads into observed evidence. */
