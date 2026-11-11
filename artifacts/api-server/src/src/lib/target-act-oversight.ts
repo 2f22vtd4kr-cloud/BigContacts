@@ -275,7 +275,7 @@ if (shouldSummarizeCurrentAct) {
   actForPrompt = {
     ...input.act,
     observation: actSummary.text,
-    observationCompactionMethod: actSummary.method === "deterministic_projection" ? "deterministic_projection" : "ai_semantic",
+    ...(actSummary.method === "deterministic_projection" ? { observationCompactionMethod: "deterministic_projection" as const } : actSummary.method === "ai_semantic" ? { observationCompactionMethod: "ai_semantic" as const } : {}),
     ...(rawActFindings.length > 6 ? { findings: compactOversightFindings(rawActFindings) } : {}),
   };
 }
