@@ -9,13 +9,13 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/MAX_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "final Investigator provider prompt ceiling must be 10,000 characters");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
 assert(/maxChars: 3_000/.test(core), "working Investigator context must preserve room for the complete objective, schema and live evidence");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /900,\n  \);/.test(core), "intelligence state must remain bounded to 900 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
-assert(/MAX_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "the absolute provider safety ceiling remains 10,000 characters");
-assert(/MAX_INVESTIGATOR_REQUEST_CHARS = 8_400/.test(core) && /MAX_INVESTIGATOR_USER_PROMPT_CHARS = 6_800/.test(core), "the combined request envelope stays at 8,400/6,800 characters");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
+assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 8_400/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 6_800/.test(core), "the preferred 8,400/6,800 character targets remain explicit");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core), "one shared helper derives the provider-safe user-message budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
@@ -23,8 +23,8 @@ assert(/const maxUserPromptChars = investigatorUserPromptBudget\(INVESTIGATOR_SY
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/const allPromptRecords = sanitizeObservableValue\(\[\.\.\.priorTrajectoryRecords, \.\.\.records\]\.slice\(-MAX_TRAJECTORY_RECORDS\)\)/.test(core) && /const promptTrajectoryRecords = allPromptRecords\.map\(/.test(core) && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection");
 assert(/investigatorUserPromptBudget\(INVESTIGATOR_SYSTEM_PROMPT\(\)\.length\)/.test(core), "prompt assembly reserves the system prompt using the shared helper");
-assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorProviderPrompt\(prompt, maxUserPromptChars, inferredMode\)/.test(core), "provider request-body boundary must use the contract-preserving, stage-aware budget reducer");
-assert(/if \(prompt\.length > maxUserPromptChars\)[\s\S]*?boundInvestigatorProviderPrompt\(prompt, maxUserPromptChars, actionAllowlist/.test(core) && /contract-aware reducer/.test(core) && !/const boundedPrompt = boundInvestigatorPromptSection\(prompt, maxUserPromptChars\)/.test(core), "oversize prompts must use the contract-aware, stage-aware last-resort reducer, never generic head/tail clipping");
+assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorProviderPrompt\(prompt, maxUserPromptChars, inferredMode\)/.test(core), "provider request-body boundary must use the best-effort, stage-aware prompt optimizer");
+assert(/if \(contract\.length > limit\) return normalized/.test(core) && /if \(protectedSuffix\.length > limit\) return normalized/.test(core) && /if \(boundedPrefix\.length > prefixBudget\) return normalized/.test(core), "oversize prompts must retain the full original context when the preferred target cannot be met");
 assert(!/tightenInvestigatorPrompt\(\s*workingPrompt/.test(core) && /upstream_request_size_rejected/.test(core), "HTTP 413 must not trigger deterministic deletion of arbitrary prompt content");
 const stepStart = core.indexOf("export function buildStepPrompt");
 const stepEnd = core.indexOf("export function discoveryTerminalGate", stepStart);
@@ -40,7 +40,7 @@ assert(/resetMs > Math\.max\(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_
 assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /insufficient_quota/.test(core), "hard Investigator quota must require an explicit request-counter or provider hard-quota signal");
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
 assert(/waitForKnownGroqTokenWindow\([\s\S]*?workingPrompt\.length \+ INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "known token-window estimation must include the transmitted Investigator system prompt");
-assert(/Absolute last-resort recovery: do not abort a canonical discovery run/.test(core), "prompt-budget overflow must degrade to a schema-preserving emergency prompt instead of aborting the run");
+assert(/Absolute last-resort recovery: do not abort a canonical discovery run/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt-size overflow must not abort an otherwise valid discovery run");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
 assert(/const absoluteMinimumObjective = \[[\s\S]*?SCOPE RECOVERY: preserve Boss-approved subject\/geography; source class may vary; no silent pivot/.test(core), "the absolute-minimum prompt must preserve scope-recovery rules even under the tightest budget");
 assert(/genericDiscoveryCompanyLabel/.test(core) && /Generic case labels including Case Co are metadata/.test(core), "generic case labels must not become discovery entity anchors");
