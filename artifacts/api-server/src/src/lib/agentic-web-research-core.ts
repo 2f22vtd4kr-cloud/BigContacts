@@ -6259,8 +6259,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.";
       const schemaContract = "OUTPUT CONTRACT: root JSON only, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain [0,1], never null; only done may null. Finding fields: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
-        "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected exact-name people/company source-backed leads as review-only, not every result; never auto-promote.",
-        "Search snippets remain leads, not evidence; failed/unvisited URLs unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
+        "PARTIAL FINDINGS (not terminal-only): keep Investigator-selected exact-name people/company source-backed leads review-only; not every result; never auto-promote.",
+        "Search snippets remain leads, not evidence; failed/unvisited URLs unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; bind claims to exact spans.",
         requiredQualification,
         "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null. Never infer wealth from seniority.",
         requiredTargetStageContract
@@ -6280,7 +6280,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const latestQueryLine = query ? "LATEST TRAJECTORY QUERY (exact current action): " + query.slice(0, 120) : "";
       const latestRecordEnvelope = latestRecord ? compactRecordEnvelope(latestRecord, 0, 2) : null;
       const latestRecordLine = latestRecord && latestRecordEnvelope
-        ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + ": " + JSON.stringify(latestRecordEnvelope)
+        ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + ": " + JSON.stringify({
+            action: latestRecord.action,
+            execution: latestRecord.execution ?? "unknown",
+            args: compactLatestArgs(latestRecord.args ?? {}),
+            leadUrls: latestRecordEnvelope.leadUrls,
+            leadUrlCount: latestRecordEnvelope.leadUrlCount,
+            leadUrlsOmittedFromPromptCount: latestRecordEnvelope.leadUrlsOmittedFromPromptCount
+          })
         : "";
       const latestObservationText = [
         typeof latestRecord?.observation === "string" ? latestRecord.observation : "",
@@ -6379,7 +6386,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/Boss scope govern. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping; no fixed sequence.",
           "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch allowed, not mandatory. FAST HANDOFF: strongest objective-fit lead, not shortlist; one quick source look is enough to hand it to target research.",
-          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
+          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: direct objective fit; fame neither qualifies nor excludes. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
           "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
         ].join(" ");
         candidate = compactCandidate(requiredParts.map((part) =>
