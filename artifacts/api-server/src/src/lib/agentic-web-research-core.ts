@@ -309,7 +309,7 @@ export function buildDiscoveryLeadUtilizationState(
         ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-6)]
         : resultExcerpts;
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT EXCERPTS; sampled from still-unvisited URLs, not fetched evidence]\\n" + selectedExcerpts.join("\n")
+        ? "[UNVERIFIED SEARCH RESULT EXCERPTS; sampled from still-unvisited URLs, not fetched evidence]\n" + selectedExcerpts.join("\n")
         : compactPromptSectionPreservingUrlTokens(
           observation,
           1_600,
