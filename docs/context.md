@@ -187,29 +187,22 @@ The repository must not claim live provider success, production readiness, or re
 
 ## 10. Active provider secret contract
 
-The active preflight contract currently checks these 11 provider/integration names (presence only):
+The Replit preflight is presence-only; it never prints secret values and cannot establish provider validity, reachability, or quota.
 
-```
-COMPANIES_HOUSE_API_KEY
-EXA_API_KEY
-GROQ_BOSS_API_KEY
-GROQ_RIGHT_HAND_API_KEY
-GROQ_INVESTIGATOR_API_KEY
-GROQ_INVESTIGATOR_API_KEY_1
-REDIS_URL_1
-SCRAPFLY_API_KEY
-SERPER_API_KEY
-TAVILY_API_KEY
-ZENROWS_API_KEY
-```
+The canonical Replit development workflow requires:
+- `GROQ_BOSS_API_KEY`
+- `GROQ_RIGHT_HAND_API_KEY`
+- `GROQ_INVESTIGATOR_API_KEY`
+- `REDIS_URL_1` (canonical durable store)
+- At least one of `SERPER_API_KEY`, `TAVILY_API_KEY`, or `EXA_API_KEY`
 
-`HF_TOKEN` and `SERPAPI_KEY` are not active required capabilities and are not checked by the current preflight.
+Optional capability credentials include `COMPANIES_HOUSE_API_KEY`, `GROQ_INVESTIGATOR_API_KEY_1`, `SCRAPFLY_API_KEY`, and `ZENROWS_API_KEY`. Additional numbered Groq role slots may be configured independently. Missing optional credentials disable only their corresponding capabilities; the Investigator must not silently rotate away from a Boss-selected credential.
 
-Additional role-scoped Groq Boss, Right-hand, and Investigator suffix slots may be configured and are handled by their runtime registries. They are separate capabilities/credentials, not aliases for the base key.
+The Investigator registry maps `groq-investigator-1` to `GROQ_INVESTIGATOR_API_KEY`, `groq-investigator-2` to `GROQ_INVESTIGATOR_API_KEY_1`, continuing through `groq-investigator-8` to `GROQ_INVESTIGATOR_API_KEY_7`. The model-scoped `groq-investigator-20b` recovery capability uses the base Investigator credential; it is not an additional credential slot.
 
-OpenCorporates is optional and credential-gated. If neither `OPENCORPORATES_API_TOKEN` nor `OPENCORPORATES_API_KEY` is configured, it must not be advertised as an available Investigator registry. Its documented authentication uses the `api_token` query parameter; this optional secret is not part of mandatory Replit preflight.
+`HF_TOKEN` and `SERPAPI_KEY` are not active required capabilities. OpenCorporates is optional and credential-gated: expose it only when `OPENCORPORATES_API_TOKEN` or `OPENCORPORATES_API_KEY` is configured; its documented authentication uses `api_token`. Neither optional OpenCorporates key belongs in mandatory Replit preflight.
 
-Never request or print GitHub credentials, `DATABASE_URL`, retired Gemini/Mistral/DeepSeek control-plane credentials, WHOIS/WHOXY credentials, or secret values in chat.
+`DATABASE_URL` is supplied by Postgres/platform infrastructure and must not be requested from the operator. Never request or print GitHub credentials, retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or secret values in chat.
 
 ## 11. Research-quality program
 
@@ -244,15 +237,17 @@ The SSRF-safe fetch boundary checks parsed IP literals and DNS answers before pi
 Older provider-specific incidents and migration notes remain in repository history and archived documents. They are historical evidence only. They must not override this current section or reintroduce retired control-plane providers.
 
 
-## 15. Operator authentication — disabled for current Replit deployment
+## 15. Operator authentication — development bypass, production enforcement
 
-Effective 2026-10-10, app-level operator sign-in and bearer-token authentication are intentionally disabled at the user's direction so autonomous Replit launches can reach discovery without a separate login/session/token step.
+The active API route aggregator mounts `operatorAuthRouter` and `requireOperatorAuth`. The middleware bypasses app-level operator authentication only when the server-side `NODE_ENV` is exactly `development`.
 
-- The React desk mounts the product router directly.
-- The active API route aggregator does not mount operator-auth routes or `requireOperatorAuth` middleware.
-- Replit preflight checks active provider/integration secrets only; it does not require operator password, API bearer-token, or session-secret controls.
-- Older operator-auth implementation files may remain in the repository but are not mounted in the active route/UI path.
+The root `.replit` configuration sets `NODE_ENV=development` under `[userenv.development]`, so the normal Replit Project development workflow does not require operator-auth secrets. This bypass is limited to the development runtime; keep its endpoint private.
 
-This is an explicit deployment choice, not a claim that the API is protected: anyone who can reach the deployment URL can call operational endpoints. Do not expose this deployment to an untrusted public audience.
+For production or any non-development runtime, operator authentication is enabled and fails closed. The matching Replit preflight requires:
+- `APEX_OPERATOR_PASSWORD` — at least 16 characters;
+- `APEX_API_AUTH_TOKEN` — at least 32 characters;
+- `APEX_SESSION_SECRET` — at least 32 characters.
 
-This change does not relax the canonical research workflow, provider-role/quota behavior, active-job lock, identity, source provenance, evidence/admission, cancellation, or durable persistence guards.
+The middleware protects data and operational routes; if its configuration is missing, those routes return an auth-not-configured response. Do not describe operator authentication as globally disabled or remove the production preflight requirement.
+
+This mode-specific auth behavior does not alter the canonical research workflow, provider-role/quota behavior, active-job lock, identity, source provenance, evidence/admission, cancellation, or durable persistence guards.
