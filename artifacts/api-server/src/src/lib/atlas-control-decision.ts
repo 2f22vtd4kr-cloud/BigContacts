@@ -368,7 +368,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
-  return "LEAD-UTILIZATION: inspect same-case titles/snippets for unfetched leads; URL/domain alone cannot establish irrelevance. Missing item detail means relevance unknown, not disproven. Snippets/URLs are leads, not evidence. Positive unfetchedLeadUrlCount means leads remain, even if only a URL sample is shown; never say none remain. Fetching every URL is not required: Boss/Right-hand may recommend a stop only with a specific same-case reason (irrelevance, low value, contradiction or observed access failure). This is judgment, not a fixed sequence; Investigator chooses the action.";
+  return "LEAD-UTILIZATION: inspect same-case titles/snippets for unfetched leads; URL/domain alone cannot establish irrelevance. Missing item detail means relevance unknown, not disproven. Do not treat lack of findings from snippets as evidence against an unvisited lead. Snippets/URLs are leads, not evidence. Positive unfetchedLeadUrlCount means leads remain, even if only a URL sample is shown; never say none remain. There is no target-count threshold; Right-hand advises and does not select or authorize targets. Fetching every URL is not required: Boss/Right-hand may recommend a stop only with a specific same-case reason (irrelevance, low value, contradiction or observed access failure). This is judgment, not a fixed sequence; Investigator chooses the action.";
 }
 
 /** Prevent jurisdiction-only churn when the current source route has demonstrably failed. */
