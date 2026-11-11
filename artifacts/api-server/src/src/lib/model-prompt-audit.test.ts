@@ -50,13 +50,16 @@ describe("model prompt audit", () => {
     const productionConfig = artifactConfig.split("[services.production]")[1] ?? "";
 
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
+    expect(productionConfig).toContain("pnpm --filter apex-finder-local run build && pnpm --filter @workspace/api-server run build");
+    expect(productionConfig).toContain("cd ../.. && bash scripts/replit-boot.sh");
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
-    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_{jobId}.md"';
+    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "private-audits/APEX_ATLAS_MODEL_AUDIT_{jobId}.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
       expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
       expect(config).toContain(visibleRunAudit);
+      expect(config).not.toContain("2026-11-02");
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"');
