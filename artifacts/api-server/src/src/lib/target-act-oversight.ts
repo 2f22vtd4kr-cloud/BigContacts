@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
+import { compactPromptSectionPreservingUrlTokens } from "./investigation-context-compaction";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { isClaimGradeObservationAction, supportsCandidateContactOnSameObservation, type BureauContactLike } from "./bureau-contact-persist-strict";
 import type { IntelligenceContext } from "./research-intelligence-engine";
@@ -32,21 +33,16 @@ function headTail<T>(values: readonly T[], maxItems: number): T[] {
 function compactOversightText(value: string | undefined, max: number): string | null {
   if (typeof value !== "string") return null;
   const normalized = sanitizeUrlsInText(value.trim());
-  if (normalized.length <= max) return normalized;
-  const marker = "\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\n";
-  const available = Math.max(0, max - marker.length);
-  const head = Math.ceil(available * 0.55);
-  const tail = Math.max(0, available - head);
-  return normalized.slice(0, head).trimEnd() + marker + (tail > 0 ? normalized.slice(-tail).trimStart() : "");
+  return compactPromptSectionPreservingUrlTokens(
+    normalized,
+    max,
+    "\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\n",
+  );
 }
 
 function boundOversightPromptSection(value:string,max:number):string {
   const normalized=value.trim();
-  if(normalized.length<=max)return normalized;
-  const marker="\n[MIDDLE PROMPT DETAIL OMITTED]\n";
-  const available=Math.max(0,max-marker.length);
-  const head=Math.ceil(available*0.55);
-  return normalized.slice(0,head).trimEnd()+marker+normalized.slice(-(available-head)).trimStart();
+  return compactPromptSectionPreservingUrlTokens(normalized,max,"\n[MIDDLE PROMPT DETAIL OMITTED]\n");
 }
 function compactOversightFindings(findings: unknown[]): unknown[] {
   if (findings.length <= 6) return findings;
@@ -70,12 +66,11 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
 }
 export function compactOversightContext(value:string):string{
   const normalized=sanitizeUrlsInText(value.trim());
-  const max=6_000;
-  if(normalized.length<=max)return normalized;
-  const marker="\n[OVERSIGHT CONTEXT BOUND: durable case state remains authoritative]\n";
-  const available=max-marker.length;
-  const head=Math.ceil(available*0.55);
-  return normalized.slice(0,head).trimEnd()+marker+normalized.slice(-(available-head)).trimStart();
+  return compactPromptSectionPreservingUrlTokens(
+    normalized,
+    6_000,
+    "\n[OVERSIGHT CONTEXT BOUND: durable case state remains authoritative]\n",
+  );
 }
 
 export const TARGET_ACT_RIGHT_HAND_PROMPT_MAX_CHARS = 18_000;
