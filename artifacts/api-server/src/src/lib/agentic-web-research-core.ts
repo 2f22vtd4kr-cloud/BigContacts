@@ -6401,7 +6401,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch is optional, not an itinerary. FAST HANDOFF: strongest objective-fit lead; quick source look is optional; Investigator decides.",
           "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit.",
           "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence."
-        ]
         ].join(" ");
         candidate = compactCandidate(requiredParts.map((part) =>
           part === partialEvidencePolicy ? emergencyPartialEvidence
