@@ -5434,14 +5434,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean =>
     activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey : !record.pivotScopeKey;
   // Keep the most recent successfully fetched page visible after later searches or
-  // blocked actions. The latest-act slot is not a substitute for fetched claim text:
-  // without this bounded carry-forward, a prior page can collapse to a short header
-  // and the model cannot emit a source-backed partial finding on the next turn.
+  // blocked actions. A legacy record without pivotScopeKey is unscoped, not proven
+  // out-of-scope: carry it as unscoped observation for model relevance assessment.
+  // Records explicitly attached to another pivot remain excluded.
   const latestSuccessfulFetchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
     record.execution === "success"
     && (record.action === "visit" || record.action === "browser_fetch")
     && (record.observedUrls ?? []).length > 0
-    && belongsToActiveScope(record),
+    && (belongsToActiveScope(record) || (Boolean(activePivotScopeKey) && !record.pivotScopeKey)),
   );
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
@@ -6262,7 +6262,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "PARTIAL FINDINGS (not terminal-only): preserve source-backed leads selected by the Investigator as review-only; exact-name people/company only, not every result; never auto-promote.",
         "Search snippets remain leads, not evidence; failed/unvisited URLs are unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
         requiredQualification,
-        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null.",
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null. Never infer wealth from seniority.",
         requiredTargetStageContract
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
@@ -6275,7 +6275,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name people/company leads as review-only, not every result; preserve observed name, role/null and public URL; no auto-promotion; names only from brief/same-case observations."
           ].join(" ")
         : "";
-      const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned PDFs need unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
+      const compactBinaryRecovery = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const query = typeof latestRecord?.args?.query === "string" ? latestRecord.args.query.trim() : "";
       const latestQueryLine = query ? "LATEST TRAJECTORY QUERY (exact current action): " + query.slice(0, 120) : "";
       const latestRecordEnvelope = latestRecord ? compactRecordEnvelope(latestRecord, 0, 2) : null;
@@ -6381,10 +6381,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ].join(" ");
         const emergencyDiscovery = [
           "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/Boss scope govern; no silent pivot or fixed sequence. DISCOVERY MODEL POLICY: Investigator chooses hypotheses, targets, queries, sources/tools, pivots, corroboration and stopping.",
-          "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signals, not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
+          "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries; form a falsifiable hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch allowed, not mandatory. FAST HANDOFF: strongest objective-fit lead, not shortlist; one quick source look is enough to hand it to target research.",
-          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. People/company/assets differ; investor firms need capital/activity and mandate fit; company growth is not owner wealth.",
-          "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence.",
+          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit; fame neither qualifies nor excludes. People/company/assets differ. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
+          "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs a same-case evidence link. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
           "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects exact-name people/company leads for review only, not every result; preserve observed name, role/null and public URL; no auto-promotion."
         ].join(" ");
         candidate = compactCandidate(requiredParts.map((part) =>
