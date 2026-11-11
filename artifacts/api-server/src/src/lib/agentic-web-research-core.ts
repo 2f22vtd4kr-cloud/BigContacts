@@ -4430,7 +4430,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           targetName: input.targetName,
           companyName: genericDiscoveryCompanyLabel ? null : input.companyName,
           objective: "",
-          history: input.history.slice(-3),
+          // Boss-generated memory already includes the prior turn-history/model-correction
+          // context. Re-inserting raw history here can resurrect details the compactor
+          // deliberately omitted; current observations remain in the recent durable records.
+          history: [],
           trajectoryRecords: input.trajectoryRecords.filter((record) => record.turn > (input.aiCompactedHistoricalThroughTurn ?? 0)),
           lastObservation: input.lastObservation,
           // The Boss-generated memory already carries the full prior findings
@@ -4654,22 +4657,38 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           : "";
       })()
     : "";
-  const serializeDurablePromptRecord = (record: AgenticTrajectoryRecord): Record<string, unknown> => ({
-    turn: record.turn,
-    pivotScopeKey: record.pivotScopeKey,
-    action: record.action,
-    execution: record.execution ?? "unknown",
-    // Keep the complete selected action and observation. These are the most
-    // recent decision inputs, not optional narration to be sliced to a preferred
-    // character target. All observations remain explicitly untrusted data.
-    args: record.args ?? {},
-    observedUrls: record.observedUrls ?? [],
-    leadUrls: record.leadUrls ?? [],
-    observation: record.observation ?? "",
-    findings: record.findings ?? [],
-    failureDomain: record.failureDomain,
-    failureKind: record.failureKind,
-  });
+  const serializeDurablePromptRecord = (record: AgenticTrajectoryRecord): Record<string, unknown> => {
+    // Keep every complete public URL that fits the provider's atomic URL token
+    // allowance. Never slice a URL or impose an item-count ceiling; disclose any
+    // whole URL omitted from this model-facing sample while retaining it in the
+    // immutable case-event ledger for later turns.
+    const rawObservedUrls = record.observedUrls ?? [];
+    const rawLeadUrls = record.leadUrls ?? [];
+    const observedUrls = rawObservedUrls
+      .map((value) => completePromptUrl(value))
+      .filter((value): value is string => Boolean(value));
+    const leadUrls = rawLeadUrls
+      .map((value) => completePromptUrl(value))
+      .filter((value): value is string => Boolean(value));
+    return {
+      turn: record.turn,
+      pivotScopeKey: record.pivotScopeKey,
+      action: record.action,
+      execution: record.execution ?? "unknown",
+      // Keep the complete selected action and observation. These are the most
+      // recent decision inputs, not optional narration to be sliced to a preferred
+      // character target. All observations remain explicitly untrusted data.
+      args: record.args ?? {},
+      observedUrls,
+      observedUrlsOmittedFromPromptCount: Math.max(0, rawObservedUrls.length - observedUrls.length),
+      leadUrls,
+      leadUrlsOmittedFromPromptCount: Math.max(0, rawLeadUrls.length - leadUrls.length),
+      observation: record.observation ?? "",
+      findings: record.findings ?? [],
+      failureDomain: record.failureDomain,
+      failureKind: record.failureKind,
+    };
+  };
   const buildLatestRecordTail = (): string => {
     const parts: string[] = [];
     if (latestRecord) {
