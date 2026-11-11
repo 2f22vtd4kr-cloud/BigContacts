@@ -79,10 +79,13 @@ describe("objective-led institutional orientation", () => {
 
   it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("casinos in Slovenia");
+    expect(core).not.toContain("casinos in Slovenia");
+    expect(core).toContain("Never infer or introduce a geography from examples or model memory");
     expect(core).toContain("sector and jurisdiction");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("casinos in Slovenia");
+    expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("genuinely global register");
     expect(APEX_BUREAU_PLAYBOOK).toContain("at most two outbound search actions");
     expect(APEX_BUREAU_PLAYBOOK).toContain("one bounded mixed-source batch");
     expect(APEX_BUREAU_PLAYBOOK).toContain("single strongest objective-fit lead, not a shortlist");
