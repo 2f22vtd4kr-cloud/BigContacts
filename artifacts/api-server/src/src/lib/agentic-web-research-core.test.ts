@@ -24,7 +24,7 @@ describe("recent observation compaction recovery", () => {
     expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
-    expect(agenticCoreSource).toContain("full source remains durable; omitted content is unknown");
+    expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
     expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
   });
 });
