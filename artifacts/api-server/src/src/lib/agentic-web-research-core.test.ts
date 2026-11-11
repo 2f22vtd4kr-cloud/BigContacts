@@ -2558,8 +2558,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryLeadInspectionRequirement(agedHistory)).toBeNull();
   });
 
-  it("puts the search economy and Slovenia sector/jurisdiction example in the live discovery prompt", () => {
-    const objective = "Identify licensed casino operators in Slovenia and investigate one relevant operator.";
+  it("does not inject an example geography into an unscoped discovery prompt", () => {
+    const objective = "Identify objective-relevant operating companies and preserve source-backed company leads for review.";
     const prompt = buildStepPrompt({
       targetName: "",
       objective,
@@ -2576,8 +2576,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
-    expect(prompt).toContain("licensed casino operators in Slovenia");
+    expect(prompt).not.toContain("Slovenia");
+    expect(prompt).not.toContain("casinos in Slovenia");
     expect(prompt).toContain("Other objectives use their own evidence criteria");
+    expect(prompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
+    expect(prompt).toContain("scope=organization");
   });
 
   it("does not turn popularity into an unstated discovery exclusion", () => {
@@ -2976,7 +2979,7 @@ Choose each next action yourself from the available capabilities and observed ev
           "https://businesssearch.ohiosos.gov/",
           "https://bsd.sos.in.gov/PublicBusinessSearch",
         ],
-        observation: "Search returned official state business entity portals as retrieval leads.",
+        observation: "Search returned CKX Lands as a named company lead with a public announcement URL. " + "LONG_RESULT_SNIPPET ".repeat(2_000),
         observedUrls: [],
         findings: [],
         providerFallback: [],
@@ -3013,6 +3016,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
+    expect(prompt).toContain("CKX Lands");
+    expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
+    expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
