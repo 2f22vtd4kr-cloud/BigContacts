@@ -234,9 +234,12 @@ export function buildDeterministicContextProjection(
   if (!source || limit === 0) return "";
   if (source.length <= limit) return source;
 
-  const label = kind === "observation" ? "OBSERVATION" : "HISTORICAL MEMORY";
-  const fullMarker = `[DETERMINISTIC ${label} PROJECTION: non-semantic excerpt; full context remains in immutable case events and durable case state; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]`;
-  const shortMarker = `[DETERMINISTIC ${label} EXCERPT; full context remains durable; omitted content is unknown]`;
+  const fullMarker = kind === "observation"
+    ? "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic excerpt; complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]"
+    : "[DETERMINISTIC HISTORICAL MEMORY PROJECTION: non-semantic excerpt; source observations, evidence and control decisions remain in durable case events/state; omitted context is unknown, not negative evidence; exact URLs are preserved separately]";
+  const shortMarker = kind === "observation"
+    ? "[DETERMINISTIC OBSERVATION EXCERPT; full observation remains durable; omitted content is unknown]"
+    : "[DETERMINISTIC HISTORICAL MEMORY EXCERPT; evidence and decisions remain durable; omitted context is unknown]";
   return compactPromptSectionPreservingUrlTokens(
     source,
     limit,
