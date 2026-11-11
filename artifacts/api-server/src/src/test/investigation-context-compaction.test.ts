@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
-import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, buildDeterministicObservationFallback, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
   it("splits only for transport and retains every source character and repeated URL", () => {
@@ -29,6 +29,26 @@ describe("AI-driven investigation memory compaction transport", () => {
 });
 
 describe("investigator context compaction", () => {
+  it("uses a bounded non-semantic observation projection when model compaction is unavailable", () => {
+    const sourceUrl = "https://registry.example.test/records/" + "x".repeat(120);
+    const source = "OBSERVATION_START " + "ordinary page text. ".repeat(80)
+      + " MATERIAL_CLAIM_SENTINEL: the filing names a director and records an appointment date. "
+      + "SOURCE_URL: " + sourceUrl + " "
+      + "OBSERVATION_END " + "remaining page text. ".repeat(80);
+
+    const projected = buildDeterministicObservationFallback(source, 1_200);
+
+    expect(projected.length).toBeLessThanOrEqual(1_200);
+    expect(projected).toContain("DETERMINISTIC OBSERVATION PROJECTION");
+    expect(projected).toContain("full observation remains in immutable case events");
+    expect(projected).toContain("omitted content is unknown");
+    expect(projected).toContain("OBSERVATION_START");
+    expect(projected).toContain("OBSERVATION_END");
+    const projectedUrls = extractAiContextUrls(projected);
+    for (const url of projectedUrls) expect(source).toContain(url);
+    if (!projected.includes(sourceUrl)) expect(projected).not.toContain(sourceUrl.slice(0, 60));
+  });
+
   it("keeps the complete human objective intact when auxiliary prompt sections are bounded", () => {
     const primaryObjective = "Discover lesser-known people with credible wealth potential. "
       + "The objective's evidence requirements and public/professional contact constraints remain authoritative. ".repeat(18);
