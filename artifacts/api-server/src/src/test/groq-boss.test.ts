@@ -18,7 +18,7 @@ describe("Groq Boss discovery prompt grounding", () => {
   });
 
 
-  it("selects one immediate target without registry or geography bias", () => {
+  it("keeps assignment-only scope neutral while describing mixed-source discovery", () => {
     const prompt = buildGroqBossDiscoveryPrompt({
       objective: "Discover under-the-radar people with credible wealth potential and realistic public contact routes.",
       motivation: "Identify source-backed ownership, assets, and approach paths.",
@@ -26,7 +26,8 @@ describe("Groq Boss discovery prompt grounding", () => {
     expect(prompt).toContain("select an available Investigator execution capability");
     expect(prompt).toContain("canonical mixed-source discovery phase");
     expect(prompt).toContain("Do not compare sectors, geographies, or strategies.");
-    expect(prompt).toContain("Do not add geographic scope or a source preference.");
+    expect(prompt).toContain("Do not add geographic scope or a target preference.");
+    expect(prompt).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(prompt).toContain("Discover under-the-radar people with credible wealth potential and realistic public contact routes.");
     expect(prompt).not.toContain("Choose one concrete, testable company/person/asset lead");
     expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");
