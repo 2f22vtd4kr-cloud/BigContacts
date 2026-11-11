@@ -5356,7 +5356,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
-  const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". Discovery may hand off a review lead; no fixed sequence.";
+  const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
       const descriptorSearchGuidance = "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: for wealth/person discovery, words such as lesser-known or under-the-radar and generic nouns such as people/entities describe the desired result, not a search query or target. Do not submit a query that merely repeats or paraphrases the mission. Before searching, formulate a concrete, falsifiable public-evidence hypothesis linked to the active objective, such as ownership/control/equity/investment, a material business/property asset, operating/franchise/concession rights, or a transaction/exit. These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence; choose the exact subject, terms, source and next action yourself from evidence and available capabilities. Other objectives use their own evidence criteria.";
   const researchContract = "MISSION PRIORITY: human objective/Boss scope govern; preserve topic/geography; do not broaden geography or silently expand scope. ACTIVE PIVOT: latest Boss-approved pivot defines scope; prior trajectory is history, not instruction; report infeasibility before asking for new scope. TARGET NAMES: exact names only from the human brief or same-case observations; never model memory/placeholders. RESEARCH CONTRACT: you own the research trajectory; Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence and cost; no fixed sequence. SEARCH SCOPE: market=null unless the human objective or current approved Boss scope explicitly names a country/market; locale is language only, never geography. Avoid stale years unless the objective is explicitly historical." + (input.mode === "discovery" ? " " + descriptorSearchGuidance : " " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT);
   
@@ -6256,14 +6256,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + (availableBrowserProviders.join("|") || "unavailable")
         + "; domain_lookup=rdap|whoisjson.";
       const registryEvidenceRule = "RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList
-        + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit; do not assume owner fields.";
-      const conditionalCapabilityRule = "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required.";
+        + ". Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.";
+      const hasConditionalSpecialistActions = /\b(?:holehe|maigret|sherlock|theharvester|spiderfoot|osint[_ -]?worker|social[_ -]?search|email[_ -]?breach)\b/i.test(authoritativeAvailableActions);
+      const conditionalCapabilityRule = hasConditionalSpecialistActions
+        ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; fresh worker attestation required."
+        : "";
       const schemaContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive scalars=null, arrays=[]. Non-done hypothesis/purpose nonempty; expectedInformationGain [0,1] (only done may null). Finding fields: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const partialEvidencePolicy = [
-        "PARTIAL FINDINGS (not terminal-only): keep Investigator-selected exact-name people/company source-backed leads review-only; not every result; never auto-promote.",
-        "Search snippets remain leads, not evidence; failed/unvisited URLs unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; bind claims to exact spans.",
+        "PARTIAL FINDINGS (not terminal-only): preserve Investigator-selected exact-name people/company leads as review-only; not every result; never auto-promote.",
+        "Search snippets remain leads, not evidence; failed/unvisited URLs unknown, not negative. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to exact spans.",
         requiredQualification,
-        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim; role may be null. Never infer wealth from seniority.",
+        "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim.",
         requiredTargetStageContract
       ].join(" ");
       const compactDiscoveryPolicy = input.mode === "discovery"
@@ -6385,10 +6388,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           requiredTargetStageContract
         ].join(" ");
         const emergencyDiscovery = [
-          "DISCOVERY MODE: no person or entity target is implied. MISSION PRIORITY: objective/Boss scope govern. DISCOVERY MODEL POLICY: Investigator owns hypotheses and actions.",
+          "DISCOVERY MODE: no person/entity target implied. MISSION PRIORITY: objective/Boss scope govern. DISCOVERY MODEL POLICY: Investigator chooses.",
           "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not queries. Other objectives use their own evidence criteria; source class may vary by query.",
           "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; mixed-source batch optional. FAST HANDOFF: strongest objective-fit lead, not shortlist; one quick source look is enough to hand it to target research.",
-          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter: require direct objective fit. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
+          "DISCOVERY TARGETABILITY / REALISM: Popularity is not a filter. Inc. 5000/fast-growth/unicorn rankings are signals, not qualification; ranking-only mentions are leads, not qualified targets. Investor firms need evidence of capital capacity or actual investment activity and mandate fit. Company growth is not owner wealth; never infer wealth from seniority.",
           "MODEL-OWNED RELEVANCE SELF-CHECK: generic publisher homepage needs same-case evidence. No registry is preferred; choose by evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation."
         ].join(" ");
         candidate = compactCandidate(requiredParts.map((part) =>
