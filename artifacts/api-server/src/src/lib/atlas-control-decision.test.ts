@@ -295,8 +295,8 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).toContain("public-web discovery");
     expect(law).toContain("sec-edgar");
     expect(law).not.toContain("inbiz");
-    expect(law).toContain("A generic agency landing page does not prove that a dedicated register exists");
-    expect(law).toContain("frame it as a testable hypothesis");
+    expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
+    expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
     expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
 
