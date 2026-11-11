@@ -30,14 +30,14 @@ function headTail<T>(values: readonly T[], maxItems: number): T[] {
   return [...values.slice(0, head), ...values.slice(-(maxItems - head))];
 }
 
-function compactOversightText(value: string | undefined, max: number): string | null {
+function compactOversightText(
+  value: string | undefined,
+  max: number,
+  marker = "\n[MIDDLE PROMPT DETAIL OMITTED; DURABLE CASE STATE REMAINS AUTHORITATIVE]\n",
+): string | null {
   if (typeof value !== "string") return null;
   const normalized = sanitizeUrlsInText(value.trim());
-  return compactPromptSectionPreservingUrlTokens(
-    normalized,
-    max,
-    "\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\n",
-  );
+  return compactPromptSectionPreservingUrlTokens(normalized, max, marker);
 }
 
 function boundOversightPromptSection(value:string,max:number):string {
@@ -57,7 +57,7 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
     action: safeRecord.action,
     args: compactOversightArgs(safeRecord.args ?? {}),
     execution: safeRecord.execution,
-    observation: compactOversightText(safeRecord.observation, 2_200),
+    observation: compactOversightText(safeRecord.observation, 2_200, "\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\n"),
     observationCompactionMethod: safeRecord.observationCompactionMethod ?? null,
     observedUrls: headTail(safeRecord.observedUrls.map((url) => sanitizeUrlForEvidence(url)), 6),
     findings: sanitizeObservableValue(compactOversightFindings(safeRecord.findings)),
