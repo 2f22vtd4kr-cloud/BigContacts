@@ -9,7 +9,7 @@ vi.mock("../lib/groq-right-hand-reasoning", () => ({
   runGroqRightHandFreeJson: rightHandMocks.runGroqRightHandFreeJson,
 }));
 
-import { compactRecentObservationWithFallback, extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
+import { compactInvestigationContextWithFallback, compactRecentObservationWithFallback, extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
 
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
@@ -50,6 +50,42 @@ describe("AI investigation context compaction", () => {
     expect(result?.text).toContain("OBSERVATION_END");
     expect(result?.text).toContain(sourceUrl);
     expect(extractAiContextUrls(result?.text ?? "")).toEqual([sourceUrl]);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-20b",
+      allowModelFallback: false,
+      maxAttempts: 1,
+    });
+  });
+
+  it("uses a deterministic historical-memory projection instead of consuming the Right-hand 120B lane after a 20B throttle", async () => {
+    const source = [
+      "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: exact objective remains authoritative.",
+      "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "structured state. ".repeat(90),
+      "CURRENT FINDINGS: " + "source-bound findings. ".repeat(60),
+      "CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123",
+      "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "prior observation. ".repeat(60),
+    ].join("\\n\\n");
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: null,
+      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","body":{"errorType":"tokens","quotaSignals":[]}}',
+      attempts: [],
+    });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      maxChars: 1_800,
+      jobId: "job-memory-fallback",
+      caseId: 43,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text.length).toBeLessThanOrEqual(1_800);
+    expect(result?.text).toContain("DETERMINISTIC HISTORICAL MEMORY PROJECTION");
+    expect(result?.text).toContain("full context remains in immutable case events");
+    expect(result?.text).toContain("omitted content is unknown");
+    expect(extractAiContextUrls(result?.text ?? "")).toContain("https://registry.example.test/company/123");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-20b",
