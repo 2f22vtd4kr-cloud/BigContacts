@@ -1759,7 +1759,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Independently review the exact human objective and the opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. Assess only whether the selected Investigator should begin one immediate target-first discovery action or whether a concrete runtime constraint prevents it. Do not propose a named person, company, asset, registry, provider, country, or jurisdiction. All enabled registries/asset registers and public-web search are neutral options; the Investigator selects the actual target and source from returned observations. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start discovery or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
+        `Independently review the exact human objective and opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed. LIVE RANDOMIZED REGISTRY CATALOG AND COVERAGE: ${atlasRegistryFeasibilityLaw()}. Recommend a small objective-compatible source mix in focusLanes using only runtime-callable IDs/families from this catalog (for example registry:<id> and public_web). Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction. Assess whether a relevant registry/asset-register route should be combined with independent public-web discovery, and explain any concrete reason to omit either. Do not impose a fixed order or itinerary. The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point. You cannot browse and must not treat confidence as evidence. Do not select the Investigator or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start the normal mixed-source discovery phase or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
         "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
@@ -1893,21 +1893,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         bossInitialReport: null,
         bossInitialDirections: [],
         bossUncertainties: [],
-        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand advice and make the final Boss decision: start target-first discovery under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or directions to adopt yet.",
+        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand source-mix advice and make the final Boss decision: start the normal mixed-source discovery phase under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or target directions to adopt yet.",
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
         "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
-        "OPENING TARGET CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not compare alternatives, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator selects one useful target from any currently callable registry/asset register or public-web result; no source preference or jurisdiction assumption.",
+        "OPENING TARGET / SOURCE-MIX CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Evaluate the live randomized registry catalog and Right-hand source-mix advice; the opening discovery portfolio should combine a materially relevant callable registry/asset-register route with independent public-web discovery when both are available. This is a source-diversity expectation, not a fixed order or itinerary. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator chooses the target and exact source actions autonomously; do not assume a target class or jurisdiction.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules govern. Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.",
       ].join("\n"),
       rightHandOverride: {
         status: rightHand.status,
         decision: rightHand.decision,
-        reason: rightHand.reason,
+        reason: [rightHand.reason, rightHand.focusLanes.length ? "Advisory source-mix lanes: " + rightHand.focusLanes.join(", ") : null].filter(Boolean).join("\n"),
         direction: null,
         confidence: rightHand.confidence,
         model: rightHand.model,
@@ -1926,7 +1926,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // or smuggle an unverified hypothesis into the active research objective.
     if (openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop") {
       failureStage = "model_action_validation";
-      throw new Error("Opening Boss decision must start target-first discovery or stop; candidate selection and pivots require Investigator source observations.");
+      throw new Error("Opening Boss decision must start mixed-source discovery or stop; candidate selection and target pivots require Investigator source observations.");
     }
     const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
       bossAction: openingBossDecision.action,
@@ -1966,10 +1966,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.",
-      "RIGHT-HAND REVIEW: advisory only. No target, source, provider, registry, country, jurisdiction, or geography suggestion from a model is active scope.",
-      "No source observations or admitted candidates exist yet. Select one useful company, person, or asset target from any enabled registry/asset register or public-web result; one observed target is enough to begin target-scoped research.",
-      "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, source, tool, visit, pivot, and stopping point yourself.",
+      "BOSS FINAL OPENING DECISION: the normal mixed-source discovery phase is authorized under the exact human objective; no candidate, target, query, or fixed source sequence was selected.",
+      "RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence): " + (rightHand.focusLanes.length ? rightHand.focusLanes.join(", ") : rightHand.reason ?? "No specific source lanes proposed.") + ". Verify every adapter against the live runtime catalog and objective fit.",
+      "OPENING SOURCE PORTFOLIO: choose a shuffled, objective-compatible mix from the live runtime registry/asset-register catalog and independent public-web routes. Include at least one materially relevant callable registry route and one independent public-web route when both are available; record a concrete reason if either source family is omitted. No fixed order, provider, query, target class, sector, or geography.",
+      "No source observations or admitted candidates exist yet. Select one useful person, company, or asset target from the mixed-source results; one observed target is enough to begin target-scoped research.",
+      "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, registry subset, provider, source, tool, visit, pivot, and stopping point yourself.",
       "Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes. Model hypotheses, confidence, Boss rationale, and Right-hand advice are not source evidence.",
     ].join("\n");
     failureStage = "job_state_or_lease";
