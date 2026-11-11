@@ -53,7 +53,7 @@ describe("objective-led institutional orientation", () => {
     const mission = APEX_WHAT_IS_ATLAS;
     expect(mission).toContain("globally famous/household-name public figures");
     expect(mission).toContain("do not select or surface them as prospect cards");
-    expect(mission).toContain("the human explicitly names them or requests prominent public figures");
+    expect(mission).toContain("the human explicitly names them or explicitly requests them as prominent public figures");
     expect(mission).toContain("an actionable person-specific professional route");
     expect(mission).toContain("A general company switchboard, corporate inbox, investor-relations/press contact");
     expect(mission).toContain("not a name list or permanent exclusion");
