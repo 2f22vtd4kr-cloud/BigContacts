@@ -58,7 +58,7 @@ describe("canonical opening mixed-source discovery contract", () => {
     const openingObjectiveEnd = canonicalDiscoverySource.indexOf('failureStage = "job_state_or_lease";', openingObjectiveStart);
     const openingObjective = canonicalDiscoverySource.slice(openingObjectiveStart, openingObjectiveEnd);
     expect(openingObjective).toContain("openingBossDecision.reason");
-    expect(openingObjective).toContain("Advisory source-mix lanes");
+    expect(openingObjective).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(openingObjective).toContain("OPENING SOURCE PORTFOLIO");
     expect(openingObjective).toContain("at least one materially relevant callable registry route and one independent public-web route");
     expect(openingObjective).toContain("No fixed order, provider, query, target class, sector, or geography");
@@ -331,7 +331,7 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
-    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and the opening control state.");
+    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and opening control state.");
     expect(canonicalDiscoverySource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
     expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
@@ -666,9 +666,9 @@ describe("Atlas control-plane contract regression", () => {
 
   it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
     const valid = {
-      decision: "Start one immediate source-neutral target-first discovery action.",
+      decision: "Start the normal mixed-source discovery phase.",
       reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["begin target-first discovery", "verify one observed candidate"],
+      focusLanes: ["registry:sec-edgar", "public_web"],
       confidence: 0.86,
     };
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
