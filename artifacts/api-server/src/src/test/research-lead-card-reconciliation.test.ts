@@ -106,7 +106,7 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('YOU decide whether an observed organization is worth a provisional review-only company card');
+    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
   });
 
   it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
