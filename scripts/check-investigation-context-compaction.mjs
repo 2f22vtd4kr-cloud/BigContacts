@@ -9,6 +9,20 @@ const discoveryContinuation = fs.readFileSync("artifacts/api-server/src/src/rout
 const aiCompaction = fs.readFileSync("artifacts/api-server/src/src/lib/ai-investigation-context-compaction.ts", "utf8");
 const rightHand = fs.readFileSync("artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts", "utf8");
 const targetOversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
+const stepPromptStart = core.indexOf("export function buildStepPrompt(");
+const stepPromptEnd = core.indexOf("export function discoveryLeadInspectionRequirement", stepPromptStart);
+const stepPromptBuilder = stepPromptStart >= 0 && stepPromptEnd > stepPromptStart
+  ? core.slice(stepPromptStart, stepPromptEnd)
+  : "";
+const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)")
+  && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)")
+  && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)")
+  && stepPromptBuilder.includes("observation: record.observation ?? \"\"")
+  && !stepPromptBuilder.includes("compactEmergencyTrajectoryObservation(record.observation")
+  && !stepPromptBuilder.includes("record.observation.slice(");
+const appendsLatestEvidenceAfterComposedPrompt = stepPromptBuilder.includes("const composedPrompt = [")
+  && stepPromptBuilder.includes("const latestRecordTail = [")
+  && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")");
 const checks = [
   ["bounded Investigator working context exists", /export function buildInvestigatorContext/.test(source)],
   ["working-context budget is configurable and bounded", /APEX_INVESTIGATOR_CONTEXT_MAX_CHARS/.test(source) && /MIN_MAX_CHARS/.test(source) && /MAX_MAX_CHARS/.test(source)],
@@ -37,7 +51,7 @@ const checks = [
   ["recent-observation compaction fails closed instead of sending a code-truncated substitute", /No action was sent with a deterministically truncated substitute observation/.test(core)],
   ["emergency latest-record projection preserves a compact two-ended excerpt and a separate observation slot", core.includes("compactEmergencyTrajectoryObservation(parsed.observation, 180)") && core.includes("compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420)")],
   ["smallest emergency record tail retains a useful two-ended observation excerpt", core.includes("compactRecordEnvelope(latestRecord, 300, 2)")],
-  ["full Investigator prompt preserves the latest durable record without size-selected emergency tiers", core.includes("const composedPrompt = [") && core.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && core.includes("observation: latestRecord.observation ?? \"\"") && core.includes("return preserveFetchedClaimAtProviderBoundary(composedPrompt);")],
+  ["full Investigator prompt carries the complete latest action and fetched observations without size-selected emergency tiers", core.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
   ["latest durable record carries enough bounded observation context into emergency prompt assembly", core.includes("buildLatestRecordTail(520, 3)") && core.includes("LATEST_OBSERVATION_START") && core.includes("LATEST_OBSERVATION_END")],
   ["Investigator prompt qualification follows the active objective and preserves conditional wealth evidence rules", ["people are the ultimate mission", "People—not companies or executive prestige", "CASE OBJECTIVE: source-backed real-person research", "CASE OBJECTIVE: find real people with credible ownership evidence", "Seek source-backed ownership/equity/control/investment clues during target research", "owner/operator, ownership/investment or transaction signal"].every((forbidden) => !core.includes(forbidden)) && core.includes("const compactDiscoveryAdmissionContract = input.mode === \"discovery\"") && core.includes("Follow the active case objective and Boss-approved scope") && core.includes("B2B decision-makers need a fetched source binding a current role") && core.includes("wealth/investor targets also need source-backed ownership/control/equity/investment") && core.includes("Target-stage research tests the role, relationship, company relevance, materiality and public/professional route required by the active objective") && core.includes("Target-scoped research independently corroborates or falsifies the claims required by the active objective")],
   ["canonical launch defaults preserve the same caller-owned objective across UI and API", (() => {
@@ -54,9 +68,9 @@ const checks = [
       && !canonicalDiscovery.includes("Discover lesser-known people with credible wealth potential");
   })()],
   ["human case objective has explicit verbatim protection markers", source.includes("VERBATIM_CASE_OBJECTIVE_BEGIN") && source.includes("VERBATIM_CASE_OBJECTIVE_END") && source.includes("export function buildAuthoritativeCaseObjectiveBlock") && source.includes("containsVerbatimCaseObjective")],
-  ["canonical Investigator prompt separates the complete objective from bounded auxiliary context", core.includes("buildAuthoritativeCaseObjectiveBlock(input.objective)") && core.includes("authoritativeCaseObjective") && core.includes("objective: \"\"") && core.includes("const composedPrompt = [") && core.includes("activeBossScopeSection") && core.includes("return preserveFetchedClaimAtProviderBoundary(composedPrompt);")],
+  ["canonical Investigator prompt separates the complete objective from auxiliary context and appends complete latest evidence", core.includes("buildAuthoritativeCaseObjectiveBlock(input.objective)") && core.includes("authoritativeCaseObjective") && core.includes("objective: \"\"") && core.includes("const composedPrompt = [") && core.includes("activeBossScopeSection") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
   ["wealth-discovery relevance guidance rejects mission descriptors as query hypotheses without prescribing a source or sequence", core.includes("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES") && core.includes("concrete, falsifiable public-evidence hypothesis") && core.includes("Other objectives use their own evidence criteria")],
-  ["full Investigator prompt retains objective, Boss scope and decision-relevant context without size-driven emergency tiers", core.includes("const composedPrompt = [") && core.includes("authoritativeCaseObjective") && core.includes("activeBossScopeSection") && core.includes("return preserveFetchedClaimAtProviderBoundary(composedPrompt);")],
+  ["full Investigator prompt retains objective, Boss scope and complete latest decision evidence without size-driven emergency tiers", core.includes("const composedPrompt = [") && core.includes("authoritativeCaseObjective") && core.includes("activeBossScopeSection") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
   ["emergency prompt sizing remains advisory while objective and output contracts remain intact", core.includes("authoritativeCaseObjective") && core.includes("containsVerbatimCaseObjective") && core.includes("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)") && !/Cannot preserve the complete human case objective within maxPromptChars/.test(core)],
   ["complete discovery prompt retains model-owned falsifiable evidence-hypothesis guidance without a fixed source or action itinerary", core.includes("const descriptorSearchGuidance =") && core.includes("concrete, falsifiable public-evidence hypothesis") && core.includes("const discoveryQualityGate =") && core.includes("source class may vary by query") && core.includes("the Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots and stopping from current capabilities.")],
   ["provider-boundary prompt validation checks the complete action schema and preserves the original prompt verbatim", /function boundInvestigatorProviderPrompt[\s\S]*?if \(!completeSchemaPresent\)[\s\S]*?return normalized;/.test(core)],
