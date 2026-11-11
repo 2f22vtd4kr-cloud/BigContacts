@@ -299,17 +299,17 @@ export function buildDiscoveryLeadUtilizationState(
         const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines = observationLines.slice(index + 1, index + 4)
           .filter((line) => !/^(?:URL:|https?:\/\/)/i.test(line));
-        const excerpt = [title, ...snippetLines]
+        const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
-          .slice(0, 100);
+          .slice(0, 155);
         if (excerpt && !resultExcerpts.includes(excerpt)) resultExcerpts.push(excerpt);
       }
-      const selectedExcerpts = resultExcerpts.length > 5
-        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-3)]
+      const selectedExcerpts = resultExcerpts.length > 4
+        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-2)]
         : resultExcerpts;
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT TITLES/SNIPPETS; URLs are listed separately; not fetched evidence]\n" + selectedExcerpts.join(" | ").slice(0, 520)
+        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\n" + selectedExcerpts.join(" | ").slice(0, 720)
         : compactPromptSectionPreservingUrlTokens(
           observation,
           1_600,
