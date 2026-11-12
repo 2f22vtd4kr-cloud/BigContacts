@@ -796,6 +796,74 @@ describe("Investigator prompt URL integrity", () => {
   });
 
 describe("discovery lead inventory", () => {
+  it("retains provider-attributed context from three six-lead search batches", () => {
+    const serperUrls = Array.from({ length: 6 }, (_, index) => `https://serper.example.test/record/${index + 1}`);
+    const tavilyUrls = Array.from({ length: 6 }, (_, index) => `https://tavily.example.test/record/${index + 1}`);
+    const exaUrls = Array.from({ length: 6 }, (_, index) => `https://exa.example.test/record/${index + 1}`);
+    const records = [
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
+      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
+      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
+    ] as AgenticTrajectoryRecord[];
+    const state = buildDiscoveryLeadUtilizationState(records);
+    expect(state.unfetchedLeadUrlCount).toBe(18);
+    expect(state.unfetchedLeadObservations).toHaveLength(3);
+    expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("FIRST_BATCH");
+    expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("SECOND_BATCH");
+    expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("THIRD_BATCH");
+    const recentLeadContext = state.unfetchedLeadObservations.map((item) => item.observation).join(" ");
+    expect(recentLeadContext).toContain("provider=serper");
+    expect(recentLeadContext).toContain("provider=tavily");
+    expect(recentLeadContext).toContain("provider=exa");
+  });
+
+  it("preserves a representative unfetched lead from every provider in one mixed parallel search batch", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://provider-${index + 1}.example.test/result`);
+    const record = {
+      turn: 7,
+      model: "test-model",
+      action: "parallel_web_search",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      execution: "success",
+      observation: [
+        "PARALLEL_SEARCH 1 provider=serper",
+        "https://provider-1.example.test/result",
+        "Serper result title",
+        "URL: https://provider-1.example.test/result",
+        "Serper snippet identifies an ownership announcement.",
+        "PARALLEL_SEARCH 2 provider=tavily",
+        "https://provider-7.example.test/result",
+        "Tavily result title",
+        "URL: https://provider-7.example.test/result",
+        "Tavily snippet identifies a company officer filing.",
+        "PARALLEL_SEARCH 3 provider=exa",
+        "https://provider-13.example.test/result",
+        "Exa result title",
+        "URL: https://provider-13.example.test/result",
+        "Exa snippet identifies a named investor and transaction.",
+      ].join("\n"),
+      observedUrls: [],
+      leadUrls: urls,
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    const state = buildDiscoveryLeadUtilizationState([record]);
+    expect(state.unfetchedLeadUrlCount).toBe(18);
+    expect(state.unfetchedLeadObservations).toHaveLength(1);
+    const context = state.unfetchedLeadObservations[0]?.observation ?? "";
+    expect(context).toContain("provider=serper");
+    expect(context).toContain("provider=tavily");
+    expect(context).toContain("provider=exa");
+    expect(context).toContain("Serper result title");
+    expect(context).toContain("Tavily result title");
+    expect(context).toContain("Exa result title");
+  });
+
   it("keeps other search-result URLs available after one URL fails retrieval", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
     const search = {
@@ -3088,6 +3156,141 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt.match(/LATEST TRAJECTORY RECORD — TURN 18/g) ?? []).toHaveLength(1);
     expect(prompt).not.toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 18");
+  });
+
+  it("preserves provider-balanced unvisited lead context in the bounded Investigator prompt", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://investigator-provider-${index + 1}.example.test/result`);
+    const observation = [
+      "PARALLEL_SEARCH 1 provider=serper",
+      urls[0],
+      "Serper result title",
+      `URL: ${urls[0]}`,
+      "Serper snippet identifies an ownership announcement.",
+      "PARALLEL_SEARCH 2 provider=tavily",
+      urls[6],
+      "Tavily result title",
+      `URL: ${urls[6]}`,
+      "Tavily snippet identifies a company officer filing.",
+      "PARALLEL_SEARCH 3 provider=exa",
+      urls[12],
+      "Exa result title",
+      `URL: ${urls[12]}`,
+      "Exa snippet identifies a named investor and transaction.",
+      "LONG_RAW_PROVIDER_RESPONSE ".repeat(2_000),
+    ].join("\n");
+    const record: AgenticTrajectoryRecord = {
+      turn: 19,
+      model: "openai/gpt-oss-120b",
+      action: "parallel_web_search",
+      execution: "success",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      leadUrls: urls,
+      observation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover source-backed companies and people through mixed public-source research.",
+      history: [],
+      trajectoryRecords: [record],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 19");
+    expect(prompt).toContain("provider=serper");
+    expect(prompt).toContain("provider=tavily");
+    expect(prompt).toContain("provider=exa");
+    expect(prompt).toContain("Tavily result title");
+    expect(prompt).toContain("Exa result title");
+    for (const url of urls) expect(prompt).toContain(url);
+    expect(prompt).toContain("not fetched evidence");
+    expect(prompt).not.toContain(observation);
+    expect(prompt).not.toContain("LONG_RAW_PROVIDER_RESPONSE ".repeat(2_000));
+  });
+
+  it("bounds the prior mixed-provider search carry-forward after a later blocked pivot", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://carry-forward-${index + 1}.example.test/result`);
+    const rawObservation = [
+      "PARALLEL_SEARCH 1 provider=serper",
+      "Serper result title",
+      `URL: ${urls[0]}`,
+      "Serper snippet identifies an ownership announcement.",
+      "PARALLEL_SEARCH 2 provider=tavily",
+      "Tavily result title",
+      `URL: ${urls[6]}`,
+      "Tavily snippet identifies an official officer filing.",
+      "PARALLEL_SEARCH 3 provider=exa",
+      "Exa result title",
+      `URL: ${urls[12]}`,
+      "Exa snippet identifies a named investor and transaction.",
+      "RAW_PROVIDER_PAYLOAD ".repeat(2_000),
+    ].join("\n");
+    const searchRecord: AgenticTrajectoryRecord = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "parallel_web_search",
+      execution: "success",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      leadUrls: urls,
+      observation: rawObservation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+    const blockedPivot: AgenticTrajectoryRecord = {
+      turn: 2,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      execution: "blocked",
+      args: { query: "Form D filing for an unobserved company", provider: "serper" },
+      observation: "pivot_alignment_guard blocked the query before outbound execution; no request was made.",
+      observedUrls: [],
+      leadUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover source-backed companies and people through mixed public-source research.",
+      history: [],
+      trajectoryRecords: [searchRecord, blockedPivot],
+      lastObservation: blockedPivot.observation ?? "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 1");
+    expect(prompt).toContain("provider=serper");
+    expect(prompt).toContain("provider=tavily");
+    expect(prompt).toContain("provider=exa");
+    for (const url of urls) expect(prompt).toContain(url);
+    expect(prompt).toContain("not fetched evidence");
+    expect(prompt).not.toContain(rawObservation);
+    expect(prompt).not.toContain("RAW_PROVIDER_PAYLOAD ".repeat(2_000));
+    expect(prompt.length).toBeLessThan(20_000);
+    const request = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
+    const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
+    expect(Math.ceil(requestChars / 4) + request.max_completion_tokens).toBeLessThan(8_000);
   });
 
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {

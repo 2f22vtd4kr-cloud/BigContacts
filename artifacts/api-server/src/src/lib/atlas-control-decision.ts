@@ -409,17 +409,26 @@ export function buildAtlasPinnedControlState(input: {
     const url = completeAtlasControlPromptUrl(item.url);
     return url ? [{ ...item, url }] : [];
   });
-  const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 2);
-  const rawUnfetchedContext = unfetchedObservationItems.map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\s+/g, " ").trim()).join(" || ");
-  // Leave room for the fixed context label in the later control-prompt projection.
-  const unfetchedContextBudget = 360;
+  const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 3);
+  const rawUnfetchedContext = unfetchedObservationItems.map((item) => "resultText=" + item.observation.replace(/\s+/g, " ").trim() + " turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount).join(" || ");
+  // Keep each unvisited observation/result segment visible within the bounded supervisor state.
+  const unfetchedContextBudget = 1_000;
   const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
-    ? compactPromptSectionPreservingUrlTokens(
-        rawUnfetchedContext,
-        Math.max(0, unfetchedContextBudget - contextOmissionSuffix.length),
-        "[middle omitted; relevance unknown]",
-      ).replace(/\s+/g, " ") + contextOmissionSuffix
+    ? (() => {
+        const contextItems = rawUnfetchedContext.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
+        const separator = " || ";
+        const bodyBudget = Math.max(1, unfetchedContextBudget - contextOmissionSuffix.length);
+        const itemBudget = Math.max(
+          1,
+          Math.floor((bodyBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)),
+        );
+        return contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
+          item,
+          itemBudget,
+          "[detail omitted; relevance unknown]",
+        )).join(separator).replace(/\s+/g, " ") + contextOmissionSuffix;
+      })()
     : rawUnfetchedContext;
   const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
@@ -450,6 +459,25 @@ function trimPromptSection(value: string, maxChars: number): string {
     maxChars,
     "[APEX PROMPT COMPACTION: middle context omitted; URL tokens intersecting excerpt edges are omitted whole; durable case state remains authoritative]",
   );
+}
+function compactBossPinnedControlState(value: string): string {
+  const lines = value.split("\n");
+  const contextIndex = lines.findIndex((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+  if (contextIndex < 0) return value;
+  const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
+  const contextLine = lines[contextIndex] ?? "";
+  const contextBody = contextLine.startsWith(contextPrefix) ? contextLine.slice(contextPrefix.length) : contextLine;
+  const contextItems = contextBody.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
+  const separator = " || ";
+  const contextBudget = 480;
+  const itemBudget = Math.max(1, Math.floor((contextBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)));
+  const bounded = contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
+    item,
+    itemBudget,
+    "[detail omitted; relevance unknown]",
+  )).join(separator);
+  lines[contextIndex] = contextPrefix + bounded + " [Boss excerpt bounded; relevance unknown; full observations remain durable]";
+  return lines.join("\n");
 }
 
 export function buildAtlasRightHandControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string }): string {
@@ -513,7 +541,20 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
           ? searchResultContextLine.slice(contextPrefix.length)
           : searchResultContextLine;
         const contextBodyBudget = Math.max(0, remainingAfterMandatory - contextPrefix.length - contextOmissionSuffix.length);
-        const contextExcerpt = contextBody.slice(0, Math.min(480, contextBodyBudget));
+        const maxContextExcerptChars = Math.min(1_600, contextBodyBudget);
+        const contextItems = contextBody.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
+        const contextSeparator = " || ";
+        const contextItemBudget = Math.max(
+          1,
+          Math.floor((maxContextExcerptChars - Math.max(0, contextItems.length - 1) * contextSeparator.length) / Math.max(1, contextItems.length)),
+        );
+        const contextExcerpt = contextBody.length > maxContextExcerptChars
+          ? contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
+              item,
+              contextItemBudget,
+              "[detail omitted; relevance unknown]",
+            )).join(contextSeparator)
+          : contextBody;
         const contextWasOmitted = contextExcerpt.length < contextBody.length;
         const contextLine = searchResultContextLine && remainingAfterMandatory >= contextOmission.length
           ? (remainingAfterMandatory >= contextPrefix.length + 40
@@ -593,9 +634,10 @@ Return ONE JSON object only: action, candidateName, candidateType, direction, re
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
-  // The caller builds this pinned state from bounded, explicit scope/count/URL fields.
-  // Never middle-trim it: cutting a URL here can hide the very remaining lead Boss needs.
-  const pinned = input.pinnedControlState?.trim() ? input.pinnedControlState.trim() : "";
+  // Preserve authoritative scope, exact target inventory, full counts and sampled URLs.
+  // Only the explanatory unvisited-result context is compacted per item with URL-aware boundaries.
+  const rawPinned = input.pinnedControlState?.trim() ?? "";
+  const pinned = rawPinned ? compactBossPinnedControlState(rawPinned) : "";
   const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
