@@ -235,7 +235,7 @@ describe("Atlas control-plane lead continuity", () => {
     });
     const contextLine = pinnedControlState.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
     expect(contextLine).toBeDefined();
-    expect(contextLine!.length).toBeLessThanOrEqual(2_520);
+    expect(contextLine!.length).toBeLessThanOrEqual(1_180);
     expect(contextLine).toContain("additional result text omitted; relevance unknown");
     expect(contextLine).toContain("TAIL_RESULT_SENTINEL");
 
