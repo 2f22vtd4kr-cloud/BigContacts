@@ -73,7 +73,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).not.toContain("before another search");
     expect(systemCore).not.toContain("no provider fan-out");
     expect(systemCore).toContain("mixed-source");
-    expect(systemCore).toContain("one relevant company is a valid partial result");
+    expect(systemCore).toContain("Investigator selects objective-fit people/organizations for provisional review");
     expect(systemCore).toContain("On non-done actions, use findings[] for selected leads only");
     expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
     expect(systemCore).toContain("Single and parallel registry actions require runtime-callable registry IDs");
@@ -3564,7 +3564,7 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(describeAgentActionParseFailure(action("UK Companies House"))).toBe("");
       expect(parseAgentAction(action("UK Companies House"))).toMatchObject({
         action: "registry_search",
-        registry: "uk companies house",
+        registry: "companies-house",
       });
     } finally {
       vi.unstubAllEnvs();
