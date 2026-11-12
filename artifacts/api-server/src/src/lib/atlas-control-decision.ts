@@ -514,7 +514,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
           : searchResultContextLine;
         const contextBodyBudget = Math.max(0, remainingAfterMandatory - contextPrefix.length - contextOmissionSuffix.length);
         const maxContextExcerptChars = Math.min(1_600, contextBodyBudget);
-        const contextItems = contextBody.split(/\\s+(?:\\|\\||<LEAD_RESULT>)\\s+/u).filter(Boolean);
+        const contextItems = contextBody.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
         const contextSeparator = " || ";
         const contextItemBudget = Math.max(
           1,
