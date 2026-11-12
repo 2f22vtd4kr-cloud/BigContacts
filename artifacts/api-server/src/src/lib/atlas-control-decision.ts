@@ -474,7 +474,7 @@ function compactBossPinnedControlState(value: string, maxChars: number): string 
     scopeLine,
     targetsLine,
     countsLine,
-    exactUrl ? "PINNED UNFETCHED LEAD URL (exact; unvisited lead, not evidence): " + exactUrl : "",
+    exactUrl ? "PINNED UNFETCHED LEAD URL (unfetchedLeadUrls sample; exact; unvisited lead, not evidence): " + exactUrl : "",
     controlLine,
   ].filter(Boolean);
   const mandatoryText = mandatory.join("\n");
