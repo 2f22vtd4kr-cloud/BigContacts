@@ -3210,6 +3210,75 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LONG_RAW_PROVIDER_RESPONSE ".repeat(2_000));
   });
 
+  it("bounds the prior mixed-provider search carry-forward after a later blocked pivot", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://carry-forward-${index + 1}.example.test/result`);
+    const rawObservation = [
+      "PARALLEL_SEARCH 1 provider=serper",
+      "Serper result title",
+      `URL: ${urls[0]}`,
+      "Serper snippet identifies an ownership announcement.",
+      "PARALLEL_SEARCH 2 provider=tavily",
+      "Tavily result title",
+      `URL: ${urls[6]}`,
+      "Tavily snippet identifies an official officer filing.",
+      "PARALLEL_SEARCH 3 provider=exa",
+      "Exa result title",
+      `URL: ${urls[12]}`,
+      "Exa snippet identifies a named investor and transaction.",
+      "RAW_PROVIDER_PAYLOAD ".repeat(2_000),
+    ].join("\\n");
+    const searchRecord: AgenticTrajectoryRecord = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "parallel_web_search",
+      execution: "success",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      leadUrls: urls,
+      observation: rawObservation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+    const blockedPivot: AgenticTrajectoryRecord = {
+      turn: 2,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      execution: "blocked",
+      args: { query: "Form D filing for an unobserved company", provider: "serper" },
+      observation: "pivot_alignment_guard blocked the query before outbound execution; no request was made.",
+      observedUrls: [],
+      leadUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover source-backed companies and people through mixed public-source research.",
+      history: [],
+      trajectoryRecords: [searchRecord, blockedPivot],
+      lastObservation: blockedPivot.observation ?? "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 1");
+    expect(prompt).toContain("provider=serper");
+    expect(prompt).toContain("provider=tavily");
+    expect(prompt).toContain("provider=exa");
+    for (const url of urls) expect(prompt).toContain(url);
+    expect(prompt).toContain("not fetched evidence");
+    expect(prompt).not.toContain(rawObservation);
+    expect(prompt).not.toContain("RAW_PROVIDER_PAYLOAD ".repeat(2_000));
+    expect(prompt.length).toBeLessThan(15_000);
+  });
+
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
     const oldObjective = [
       "PRIMARY CASE OBJECTIVE: Discover people with credible ownership evidence.",
