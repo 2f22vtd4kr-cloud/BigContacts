@@ -96,7 +96,7 @@ export function apexInvestigatorSystemCore(): string {
     "IDENTITY/SAFETY: Separate person/company/trust/asset; public routes only.",
     "TOOLS: allowlisted OSINT only; runtime registry IDs; unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Never infer wealth from seniority.",
-    "Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Parallel registry searches need each searches[] object to contain both query and registry; registry must be exactly one runtime-callable registry ID. Never omit registry or use null. If no callable registry fits the evidence/geography, choose a web-search action instead."
+    "Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose; registry is a required nested field and must be explicitly null for every web-search item. Parallel registry searches need each searches[] object to contain both query and registry; registry must be exactly one runtime-callable registry ID. Never omit registry or use null for a registry-search item. If no callable registry fits the evidence/geography, choose a web-search action instead."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
