@@ -2616,7 +2616,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("human explicitly names or requests prominent public figures");
     expect(prompt).toContain("actionable person-specific professional route");
     expect(prompt).toContain("general company/press/IR channels do not qualify as individual access");
-    expect(prompt).toContain("Well-known companies remain eligible");
+    expect(prompt).toContain("brand familiarity alone neither excludes nor qualifies them");
     expect(prompt).toContain("do not select or surface them solely for wealth or prominence");
     expect(prompt).not.toContain("Popularity is not a filter:");
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
