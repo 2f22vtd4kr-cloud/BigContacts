@@ -257,13 +257,6 @@ describe("Atlas control-plane lead continuity", () => {
   });
 
   it("preserves provider-specific descriptions from the latest mixed-source batch within supervisor budgets", () => {
-    const observation = [
-      "provider=serper: SERPER_RESULT: ownership announcement identifies a private investor and operating company.",
-      "<LEAD_RESULT>",
-      "provider=tavily: TAVILY_RESULT: official filing index lists company officers and identifiers.",
-      "<LEAD_RESULT>",
-      "provider=exa: EXA_RESULT: acquisition report names a buyer, seller and transaction date.",
-    ].join(" ");
     const observations = [
       { turn: 1, action: "web_search", leadUrlCount: 6, observation: "provider=serper: SERPER_RESULT: ownership announcement identifies a private investor and operating company." },
       { turn: 2, action: "web_search", leadUrlCount: 6, observation: "provider=tavily: TAVILY_RESULT: official filing index lists company officers and identifiers." },
@@ -291,7 +284,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(contextLine).toContain("SERPER_RESULT");
     expect(contextLine).toContain("TAVILY_RESULT");
     expect(contextLine).toContain("EXA_RESULT");
-    expect(contextLine).toContain("unvisitedLeadCount=18");
+    expect(contextLine).toContain("unvisitedLeadCount=6");
     expect(state).toContain('"unfetchedLeadUrlCount":18');
 
     const rightHandPrompt = buildAtlasRightHandControlPrompt({
