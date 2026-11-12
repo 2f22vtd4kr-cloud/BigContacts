@@ -337,7 +337,7 @@ export function buildDiscoveryLeadUtilizationState(
           : resultExcerpts));
       }
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\n" + selectedExcerpts
+        ? "[UNVERIFIED] " + selectedExcerpts
             .map((item) => (item.provider ? `provider=${item.provider}: ` : "") + item.excerpt)
             .join(" <LEAD_RESULT> ")
             .slice(0, 720)
