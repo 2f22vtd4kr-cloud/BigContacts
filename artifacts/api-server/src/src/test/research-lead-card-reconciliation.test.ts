@@ -17,7 +17,7 @@ const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export asy
 describe("terminal review-card reconciliation", () => {
   it("requires Investigator-authored events for partial and terminal review-card provenance", () => {
     expect(reconciler.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(2);
-    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(3);
+    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(4);
     expect(reconciler).toContain("actorRole: researchCaseEventsTable.actorRole");
     expect(canonicalAtlas).toContain("actorRole: researchCaseEventsTable.actorRole");
   });
