@@ -126,7 +126,12 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("company-level discovery signals");
     expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
-    expect(discoveryPrompt).toContain("Popularity is not a filter:");
+    expect(discoveryPrompt).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(discoveryPrompt).toContain("do not select or surface them solely for wealth or prominence");
+    expect(discoveryPrompt).toContain("human explicitly names or requests prominent public figures");
+    expect(discoveryPrompt).toContain("actionable person-specific professional route");
+    expect(discoveryPrompt).toContain("general company/press/IR channels do not qualify as individual access");
+    expect(discoveryPrompt).toContain("COMPANY PROMINENCE: evaluate companies separately");
     expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
     expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
@@ -2597,7 +2602,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("scope=organization");
   });
 
-  it("does not turn popularity into an unstated discovery exclusion", () => {
+  it("applies person-level reachability realism without excluding prominent companies", () => {
     const prompt = buildStepPrompt({
       targetName: "",
       objective: "Find B2B software companies and their current decision-makers.",
@@ -2607,9 +2612,15 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("Popularity is not a filter:");
-    expect(prompt).toContain("require direct relevance to the active objective");
+    expect(prompt).toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(prompt).toContain("human explicitly names or requests prominent public figures");
+    expect(prompt).toContain("actionable person-specific professional route");
+    expect(prompt).toContain("general company/press/IR channels do not qualify as individual access");
+    expect(prompt).toContain("Well-known companies remain eligible");
+    expect(prompt).toContain("do not select or surface them solely for wealth or prominence");
+    expect(prompt).not.toContain("Popularity is not a filter:");
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
+    expect(prompt).not.toContain("exclude a person/company merely for being well-known");
   });
 
   it("keeps every runtime-attested tool model-selectable during discovery and target research", () => {
