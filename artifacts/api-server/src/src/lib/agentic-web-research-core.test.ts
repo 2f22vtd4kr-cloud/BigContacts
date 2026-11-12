@@ -74,9 +74,9 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).not.toContain("no provider fan-out");
     expect(systemCore).toContain("mixed-source");
     expect(systemCore).toContain("one relevant company is a valid partial result");
-    expect(systemCore).toContain("On any non-done action, use findings[] for a selected provisional review lead");
-    expect(systemCore).toContain("do not wait for claim-grade ownership proof or contact details to preserve a review lead");
-    expect(systemCore).toContain("Parallel registry searches need each searches[] object to contain both query and registry");
+    expect(systemCore).toContain("On non-done actions, use findings[] for selected leads only");
+    expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
+    expect(systemCore).toContain("Parallel registry items need query and one runtime-callable registry ID");
     expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
 });
