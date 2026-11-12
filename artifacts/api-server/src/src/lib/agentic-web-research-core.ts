@@ -5019,7 +5019,7 @@ export function discoveryLeadInspectionRequirement(
   return null;
 }
 
-export const MAX_DISCOVERY_SEARCH_ACTIONS = 2;
+export export const MAX_DISCOVERY_SEARCH_ACTIONS = 2;
 const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
 
 /** Count only outbound search attempts; runtime-blocked and unexecuted selections do not consume the discovery search budget. */
