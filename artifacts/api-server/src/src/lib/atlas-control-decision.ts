@@ -409,10 +409,10 @@ export function buildAtlasPinnedControlState(input: {
     const url = completeAtlasControlPromptUrl(item.url);
     return url ? [{ ...item, url }] : [];
   });
-  const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 1);
+  const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 3);
   const rawUnfetchedContext = unfetchedObservationItems.map((item) => "resultText=" + item.observation.replace(/\s+/g, " ").trim() + " turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount).join(" || ");
   // Keep each unvisited observation/result segment visible within the bounded supervisor state.
-  const unfetchedContextBudget = 600;
+  const unfetchedContextBudget = 2_400;
   const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
     ? (() => {
