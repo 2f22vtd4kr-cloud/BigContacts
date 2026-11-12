@@ -289,7 +289,10 @@ export function buildDiscoveryLeadUtilizationState(
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
       const observationLines = observation.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       const resultExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
-      let currentProvider: string | null = null;
+      const actionProvider = typeof record.args?.provider === "string" && record.args.provider.trim()
+        ? record.args.provider.trim().toLowerCase()
+        : null;
+      let currentProvider: string | null = actionProvider;
       for (let index = 0; index < observationLines.length; index += 1) {
         const providerHeader = observationLines[index]?.match(/^PARALLEL_SEARCH\s+\d+\s+provider=([a-z0-9_-]+)/i);
         if (providerHeader?.[1]) currentProvider = providerHeader[1].toLowerCase();
@@ -341,11 +344,14 @@ export function buildDiscoveryLeadUtilizationState(
             .map((item) => (item.provider ? `provider=${item.provider}: ` : "") + item.excerpt)
             .join(" <LEAD_RESULT> ")
             .slice(0, 520)
-      : compactPromptSectionPreservingUrlTokens(
-          observation,
-          1_600,
-          "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
-        );
+      : [
+          actionProvider ? `provider=${actionProvider}:` : "",
+          compactPromptSectionPreservingUrlTokens(
+            observation,
+            1_600,
+            "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
+          ),
+        ].filter(Boolean).join(" ");
       return [{
         turn: record.turn,
         action: record.action,
