@@ -64,9 +64,9 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: Generic prospect discovery must not select globally famous/household-name people");
-    expect(systemCore).toContain("TARGET: Apply only requested criteria.");
-    expect(systemCore).toContain("B2B needs fetched role/company evidence");
+    expect(systemCore).toContain("REALISM: In generic prospect discovery, globally famous/household-name people are presumptively poor-access prospects");
+    expect(systemCore).toContain("TARGET: Qualification follows the active objective.");
+    expect(systemCore).toContain("B2B decision-makers need a fetched source binding a current role");
     expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
     expect(systemCore).not.toContain("casinos in Slovenia");
     expect(systemCore).toContain("Never infer or introduce a geography from examples or model memory");
@@ -3997,7 +3997,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Qualification follows the active objective: B2B needs a fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible wealth potential");
+    expect(prompt).toContain("Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth/capital evidence");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
