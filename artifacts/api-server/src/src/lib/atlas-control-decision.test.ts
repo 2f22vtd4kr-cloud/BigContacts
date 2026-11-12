@@ -233,6 +233,12 @@ describe("Atlas control-plane lead continuity", () => {
       admittedCandidates: [],
       findings: [],
     });
+    const contextLine = pinnedControlState.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+    expect(contextLine).toBeDefined();
+    expect(contextLine!.length).toBeLessThanOrEqual(480);
+    expect(contextLine).toContain("additional result text omitted; relevance unknown");
+    expect(contextLine).toContain("TAIL_RESULT_SENTINEL");
+
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: "18 unfetched leads remain; no lead has been fetched.",
       compactState: "No fetched evidence has been established.",
