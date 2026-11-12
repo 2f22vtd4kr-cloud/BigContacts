@@ -293,8 +293,7 @@ export function buildDiscoveryLeadUtilizationState(
       for (let index = 0; index < observationLines.length; index += 1) {
         const providerHeader = observationLines[index]?.match(/^PARALLEL_SEARCH\s+\d+\s+provider=([a-z0-9_-]+)/i);
         if (providerHeader?.[1]) currentProvider = providerHeader[1].toLowerCase();
-        const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i)
-          ?? observationLines[index]?.match(/^(https?:\/\/\S+)$/i);
+        const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i);
         if (!urlMatch?.[1]) continue;
         const candidate = normalize(urlMatch[1]);
         if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
