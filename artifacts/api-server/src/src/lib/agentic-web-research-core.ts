@@ -291,17 +291,17 @@ export function buildDiscoveryLeadUtilizationState(
       const resultExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
       let currentProvider: string | null = null;
       for (let index = 0; index < observationLines.length; index += 1) {
-        const providerHeader = observationLines[index]?.match(/^PARALLEL_SEARCH\\s+\\d+\\s+provider=([a-z0-9_-]+)/i);
+        const providerHeader = observationLines[index]?.match(/^PARALLEL_SEARCH\s+\d+\s+provider=([a-z0-9_-]+)/i);
         if (providerHeader?.[1]) currentProvider = providerHeader[1].toLowerCase();
-        const urlMatch = observationLines[index]?.match(/\\bURL:\\s*(https?:\\/\\/\\S+)/i)
-          ?? observationLines[index]?.match(/^(https?:\\/\\/\\S+)$/i);
+        const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i)
+          ?? observationLines[index]?.match(/^(https?:\/\/\S+)$/i);
         if (!urlMatch?.[1]) continue;
         const candidate = normalize(urlMatch[1]);
         if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
         const previousLine = observationLines[index - 1] ?? "";
-        const title = /^(?:URL:|https?:\\/\\/)/i.test(previousLine) ? "" : previousLine;
+        const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines = observationLines.slice(index + 1, index + 4)
-          .filter((line) => !/^(?:URL:|https?:\\/\\/)/i.test(line));
+          .filter((line) => !/^(?:URL:|https?:\/\/)/i.test(line));
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
@@ -332,7 +332,7 @@ export function buildDiscoveryLeadUtilizationState(
           : resultExcerpts));
       }
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\\n" + selectedExcerpts
+        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\n" + selectedExcerpts
             .map((item) => (item.provider ? `provider=${item.provider}: ` : "") + item.excerpt)
             .join(" <LEAD_RESULT> ")
             .slice(0, 720)
