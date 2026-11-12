@@ -3226,7 +3226,7 @@ Choose each next action yourself from the available capabilities and observed ev
       `URL: ${urls[12]}`,
       "Exa snippet identifies a named investor and transaction.",
       "RAW_PROVIDER_PAYLOAD ".repeat(2_000),
-    ].join("\\n");
+    ].join("\n");
     const searchRecord: AgenticTrajectoryRecord = {
       turn: 1,
       model: "openai/gpt-oss-120b",
