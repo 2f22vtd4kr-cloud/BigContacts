@@ -467,7 +467,7 @@ function compactBossPinnedControlState(value: string): string {
   const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
   const contextLine = lines[contextIndex] ?? "";
   const contextBody = contextLine.startsWith(contextPrefix) ? contextLine.slice(contextPrefix.length) : contextLine;
-  const contextItems = contextBody.split(/\\s+(?:\\|\\||<LEAD_RESULT>)\\s+/u).filter(Boolean);
+  const contextItems = contextBody.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
   const separator = " || ";
   const contextBudget = 480;
   const itemBudget = Math.max(1, Math.floor((contextBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)));
