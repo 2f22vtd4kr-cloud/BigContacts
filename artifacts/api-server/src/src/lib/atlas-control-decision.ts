@@ -634,8 +634,8 @@ Return ONE JSON object only: action, candidateName, candidateType, direction, re
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
-  // The caller builds this pinned state from bounded, explicit scope/count/URL fields.
-  // Never middle-trim it: cutting a URL here can hide the very remaining lead Boss needs.
+  // Preserve authoritative scope, exact target inventory, full counts and sampled URLs.
+  // Only the explanatory unvisited-result context is compacted per item with URL-aware boundaries.
   const rawPinned = input.pinnedControlState?.trim() ?? "";
   const pinned = rawPinned ? compactBossPinnedControlState(rawPinned) : "";
   const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
