@@ -837,7 +837,7 @@ describe("discovery lead inventory", () => {
         "Exa result title",
         "URL: https://provider-13.example.test/result",
         "Exa snippet identifies a named investor and transaction.",
-      ].join("\\n"),
+      ].join("\n"),
       observedUrls: [],
       leadUrls: urls,
       findings: [],
