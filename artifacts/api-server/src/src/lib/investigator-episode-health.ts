@@ -65,7 +65,21 @@ export function classifyInvestigatorEpisodeFailure(
       record.execution === "blocked"
       && String(record.observation ?? "").includes("pivot_alignment_guard"),
     );
-  if (input.status !== "cancelled" && !hasExecutedInvestigatorResearchAction(episodeRecords) && !deliberatePivotGuardRecovery) {
+  // Preserve the duplicate guard while returning its actionable rejection to
+  // model-owned control. This exception is limited to duplicate page retrievals.
+  const deliberateDuplicatePageGuardRecovery = input.stopReason === "ITERATION_BUDGET"
+    && episodeRecords.length > 0
+    && episodeRecords.every((record) =>
+      (record.action === "visit" || record.action === "browser_fetch")
+      && record.execution === "blocked"
+      && String(record.observation ?? "").includes(
+        "repeat_action_guard blocked a duplicate page retrieval before execution",
+      ),
+    );
+  if (input.status !== "cancelled"
+    && !hasExecutedInvestigatorResearchAction(episodeRecords)
+    && !deliberatePivotGuardRecovery
+    && !deliberateDuplicatePageGuardRecovery) {
     return { code: "investigator_episode_no_action" };
   }
   return null;

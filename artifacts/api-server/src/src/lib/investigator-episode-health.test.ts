@@ -123,6 +123,56 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("returns to Boss after duplicate visit actions are blocked before outbound retrieval", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 2,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [
+        { action: "visit", execution: "blocked", observation: "repeat_action_guard blocked a duplicate page retrieval before execution: action=visit." },
+        { action: "visit", execution: "blocked", observation: "repeat_action_guard blocked a duplicate page retrieval before execution: action=visit." },
+      ],
+    })).toBeNull();
+  });
+
+  it("returns to Boss after a duplicate browser_fetch is blocked before outbound retrieval", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [{
+        action: "browser_fetch",
+        execution: "blocked",
+        observation: "repeat_action_guard blocked a duplicate page retrieval before execution: action=browser_fetch.",
+      }],
+    })).toBeNull();
+  });
+
+  it("does not recover a mixed episode merely because it contains a duplicate-page block", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 2,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [
+        { action: "visit", execution: "blocked", observation: "repeat_action_guard blocked a duplicate page retrieval before execution." },
+        { action: "parse_failure", execution: "error", observation: "Malformed model action contract." },
+      ],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("does not treat other repeat-action blocks as duplicate-page recovery", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [{
+        action: "web_search",
+        execution: "blocked",
+        observation: "repeat_action_guard blocked repeated discovery search before provider execution.",
+      }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
   it("recognizes an executed research tool attempt even when the tool returns an error", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",
