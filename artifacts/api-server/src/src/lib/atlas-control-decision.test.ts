@@ -256,11 +256,16 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
   });
 
-  it("preserves item-level descriptions from three recent search-result batches for supervisor judgment", () => {
+  it("preserves provider-specific descriptions from the latest mixed-source batch within supervisor budgets", () => {
+    const observation = [
+      "provider=serper: SERPER_RESULT: ownership announcement identifies a private investor and operating company.",
+      "<LEAD_RESULT>",
+      "provider=tavily: TAVILY_RESULT: official filing index lists company officers and identifiers.",
+      "<LEAD_RESULT>",
+      "provider=exa: EXA_RESULT: acquisition report names a buyer, seller and transaction date.",
+    ].join(" ");
     const observations = [
-      { turn: 1, action: "web_search", leadUrlCount: 6, observation: "SERPER_RESULT: ownership announcement identifies a private investor and a named operating company. " + "SERPER_DETAIL ".repeat(12) },
-      { turn: 2, action: "web_search", leadUrlCount: 6, observation: "TAVILY_RESULT: official filing index with officer appointments and company identifiers. " + "TAVILY_DETAIL ".repeat(12) },
-      { turn: 3, action: "web_search", leadUrlCount: 6, observation: "EXA_RESULT: acquisition report names a buyer, seller and transaction date. " + "EXA_DETAIL ".repeat(12) },
+      { turn: 3, action: "parallel_web_search", leadUrlCount: 18, observation },
     ];
     const state = buildAtlasPinnedControlState({
       activeScope: "Mixed-source discovery under the active case objective.",
@@ -278,13 +283,13 @@ describe("Atlas control-plane lead continuity", () => {
       admittedCandidates: [],
       findings: [],
     });
-    const contextLine = state.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+    const contextLine = state.split("\\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
     expect(contextLine).toBeDefined();
-    expect(contextLine!.length).toBeLessThanOrEqual(2_520);
+    expect(contextLine!.length).toBeLessThanOrEqual(720);
     expect(contextLine).toContain("SERPER_RESULT");
     expect(contextLine).toContain("TAVILY_RESULT");
     expect(contextLine).toContain("EXA_RESULT");
-    expect(contextLine).toContain("unvisitedLeadCount=6");
+    expect(contextLine).toContain("unvisitedLeadCount=18");
     expect(state).toContain('"unfetchedLeadUrlCount":18');
 
     const rightHandPrompt = buildAtlasRightHandControlPrompt({
@@ -304,7 +309,7 @@ describe("Atlas control-plane lead continuity", () => {
       rightHand: {
         status: "completed",
         decision: "continue_discovery",
-        reason: "The latest same-case search batches contain unvisited item-level leads.",
+        reason: "The latest same-case parallel search contains unvisited item-level leads.",
         direction: null,
         confidence: 0.8,
         model: "test-model",
