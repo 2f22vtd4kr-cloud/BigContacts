@@ -655,12 +655,11 @@ Return ONE JSON object only: action, candidateName, candidateType, direction, re
   // Only the explanatory unvisited-result context is compacted per item with URL-aware boundaries.
   const rawPinned = input.pinnedControlState?.trim() ?? "";
   const fixedOverhead = fixedPrefix.length + 2 + reportLabel.length + pinnedLabel.length + stateLabel.length + rightHandLabel.length;
-  // Reserve bounded room for the latest Investigator report, Right-hand advice and
-  // compact history before allocating the remainder to pinned state. Mandatory
-  // scope, complete target inventory, counts and one whole URL are never truncated.
-  const reservedDynamicChars = 1_600;
+  // Allocate available space to authoritative pinned state first, up to a
+  // bounded ceiling. Optional report/advice/history use only what remains; they
+  // must never force the builder to discard scope, targets, counts or a whole URL.
   const pinnedBudget = rawPinned
-    ? Math.min(4_000, Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedOverhead - reservedDynamicChars))
+    ? Math.min(4_000, Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedOverhead))
     : 0;
   const pinned = rawPinned ? compactBossPinnedControlState(rawPinned, pinnedBudget) : "";
   const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedOverhead - (pinned ? pinned.length : 0));
