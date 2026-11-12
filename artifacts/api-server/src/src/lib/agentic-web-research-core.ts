@@ -4469,10 +4469,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     "DISCOVERY MODEL POLICY: APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: the human objective and latest Boss-approved scope govern; DISCOVERY MODE: no person or entity target is implied. Preserve the complete human objective and topic/geography; no silent pivot. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, providers, tools, pivots, corroboration/falsification and stopping.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are signal categories, not a query, target, source, provider or jurisdiction; form a concrete, falsifiable public-evidence hypothesis. Other objectives use their own evidence criteria; source class may vary by query.",
-    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is available when useful; this is a mixed-source batch, not a fixed itinerary. FAST HANDOFF: choose the single strongest objective-fit lead, not a shortlist; quick source look is optional; Investigator decides.",
+    "DISCOVERY SEARCH ECONOMY: at most two outbound search actions; one bounded mixed-source web/registry batch is the normal starting portfolio when relevant callable registry/asset-register and independent public-web routes both exist. Build it from the randomized runtime-available catalog supplied to Boss and Right-hand; this is a source-diversity expectation, not a fixed itinerary, and a lane may be omitted for a concrete objective/scope/availability/yield/cost reason. FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist. The Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain; no registry is preferred; one lead starts target research.",
     "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct. Require direct relevance to the active objective. PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects; do not select or surface them solely for wealth or prominence. Consider them only when the human explicitly names or requests prominent public figures, or reliable evidence establishes an actionable person-specific professional route; general company/press/IR channels do not qualify as individual access. This is objective-led, not a name blacklist. COMPANY PROMINENCE: evaluate companies separately; brand familiarity alone neither excludes nor qualifies them. No registry is preferred; choose by evidence and the actual human objective; never infer or introduce a geography from examples or model memory. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-    "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects relevant exact-name leads as review-only, not every result; preserve the observed name, role/null and associated public URL; never auto-promote.",
-    "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed leads as review-only. Search snippets remain leads, not evidence; failed fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
+    "MODEL-OWNED RELEVANCE SELF-CHECK: tie each query/source to the objective-required entity, role, relationship or materiality; a generic publisher homepage needs a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: PERSON REVIEW and COMPANY REVIEW are Investigator decisions, not every result. Preserve exact observed name, role/null and associated public URL. An objective-relevant company explicitly named in a same-case search-result observation may be emitted as a provisional organization review lead without waiting for a fetch, ownership, scale, wealth or HNWI proof; never auto-promote or make unsupported claims.",
+    "PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed company/person leads as review-only, not every result. Search snippets remain leads, not evidence; failed fetches are unobserved. After visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to its exact span. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their own evidence criteria. Never infer wealth from seniority. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.",
     "SEARCH: market only if country in objective/scope; locale=language. Preserve requested subject, sector and geography; source class/provider choice remains model-owned.",
     "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn and fresh worker attestation authorizes it. Do not assume records expose owners, shareholders, members, or managers without observed documentation.",
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
@@ -4552,7 +4552,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 1_600 : 900);
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
@@ -4601,8 +4601,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
-    registryGuidance,
-    registryCoveragePromptGuidance,
+    compactRegistryGuidance,
+    compactRegistryCoveragePromptGuidance,
     providerGuidance,
     "",
     "CAPABILITY GUIDANCE:",
@@ -4610,12 +4610,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     evidenceLaw,
     terminalContractGuidance,
-    pageFormatGuidance,
+    compactPageFormatGuidance,
     "",
-    discoveryQualityGate,
-    ...(discoveryAdmissionContract ? [discoveryAdmissionContract] : []),
+    ...compactEmergencyDiscoveryContractParts,
     ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : []),
-    ...(compactDiscoveryAdmissionContract ? [compactDiscoveryAdmissionContract] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
