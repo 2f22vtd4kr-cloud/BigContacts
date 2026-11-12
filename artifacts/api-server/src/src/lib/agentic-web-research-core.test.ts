@@ -1246,7 +1246,7 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(discovery).toContain("Qualification follows the active objective");
-    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(discovery).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
@@ -1508,7 +1508,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(prompt).toContain("Qualification follows the active objective");
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -1598,7 +1598,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("Qualification follows the active objective");
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
@@ -2397,7 +2397,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
@@ -3994,7 +3994,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Qualification follows the active objective: B2B needs a fetched current role, company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible wealth potential");
+    expect(prompt).toContain("Apply objective criteria: B2B requires fetched current role/company connection and professional route; wealth requires sourced ownership/control/equity/investment and credible wealth potential");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
