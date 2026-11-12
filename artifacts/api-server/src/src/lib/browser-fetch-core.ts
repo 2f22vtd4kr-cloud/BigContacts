@@ -10,6 +10,20 @@ import { runProviderCall } from "./provider-gate";
 export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwright";
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
+/** Report the actual browser provider used after the model-selected preference. */
+export function buildBrowserFetchProviderTelemetry(requestedProvider: BrowserProvider, actualProvider: string): {
+  requestedProvider: string;
+  actualProvider: string;
+  providerFallback: string[];
+} {
+  const actual = actualProvider.trim() || "unknown";
+  return {
+    requestedProvider,
+    actualProvider: actual,
+    providerFallback: actual !== requestedProvider ? [actual] : [],
+  };
+}
+
 const require = createRequire(import.meta.url);
 
 /** Return only browser providers that are configured and actually executable. */
