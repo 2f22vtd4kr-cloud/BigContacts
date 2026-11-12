@@ -309,7 +309,7 @@ export function buildDiscoveryLeadUtilizationState(
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
-          .slice(0, 120);
+          .slice(0, 108);
         if (excerpt && !resultExcerpts.some((item) => item.provider === currentProvider && item.excerpt === excerpt)) {
           resultExcerpts.push({ provider: currentProvider, excerpt });
         }
