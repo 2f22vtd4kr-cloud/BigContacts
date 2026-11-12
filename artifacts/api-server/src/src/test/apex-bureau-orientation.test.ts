@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Apply less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("Generic prospect discovery must not select globally famous/household-name people");
+    expect(apexInvestigatorSystemCore()).toContain("REALISM: In generic prospect discovery, globally famous/household-name people are presumptively poor-access prospects");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
