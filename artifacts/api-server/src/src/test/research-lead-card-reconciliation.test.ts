@@ -84,6 +84,23 @@ describe("terminal review-card reconciliation", () => {
     expect(ensureSource).toContain("iteration: assignmentIteration");
     expect(ensureSource).toContain("await tx.update(researchCasesTable).set({ iteration: assignmentIteration");
     expect(ensureSource).not.toContain('iteration: 0,\\n    actorRole: "head_investigator"');
+
+    // Canonical Atlas supplies the caseId, so this assignment event is the
+    // actual live-run path; the helper above covers only the standalone path.
+    const atlasAssignmentAnchor = canonicalAtlas.indexOf("Canonical Atlas discovery case was cancelled before Investigator assignment event.");
+    const atlasAssignmentEnd = canonicalAtlas.indexOf("const openingDiscoveryBudget", atlasAssignmentAnchor);
+    const atlasAssignmentBlock = canonicalAtlas.slice(Math.max(0, atlasAssignmentAnchor - 1_200), atlasAssignmentEnd);
+    expect(atlasAssignmentBlock).toContain("await lockResearchCaseEventAppendStream(tx, discoveryCaseId)");
+    expect(atlasAssignmentBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    expect(atlasAssignmentBlock).toContain("iteration: nextIteration");
+    expect(atlasAssignmentBlock).toContain(".set({ iteration: nextIteration");
+
+    const rejectedCandidateStart = canonicalAtlas.indexOf("Atlas rejected an out-of-set Boss candidate selection");
+    const rejectedCandidateBlock = canonicalAtlas.slice(canonicalAtlas.lastIndexOf("await db.transaction", rejectedCandidateStart), rejectedCandidateStart + 200);
+    expect(rejectedCandidateBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    const rejectedPivotStart = canonicalAtlas.indexOf("Atlas rejected invalid model-directed");
+    const rejectedPivotBlock = canonicalAtlas.slice(canonicalAtlas.lastIndexOf("await db.transaction", rejectedPivotStart), rejectedPivotStart + 200);
+    expect(rejectedPivotBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
   });
 
   it("requires a real company or person card even if a later control turn fails", () => {
