@@ -187,7 +187,7 @@ async function ensureDiscoveryCaseContext(input: { mode?: "target" | "discovery"
         `INVESTIGATOR: ${input.investigatorLlm ?? "unassigned"}`,
         `OBJECTIVE: ${input.objective ?? ""}`,
         "STATE: Discovery mode; no person target is implied.",
-      ].join("\\n"),
+      ].join("\n"),
       investigationTimeline: [],
       investigatorTrajectory: [],
       investigatorTrajectoryRecords: [],
