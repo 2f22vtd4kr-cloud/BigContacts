@@ -30,6 +30,7 @@ function pinnedStateWithUnfetchedLead(): string {
       failedLeadUrlCount: 0,
       blockedLeadUrlCount: 0,
       unfetchedLeadUrls: [leadUrl],
+      unfetchedLeadObservations: [{ turn: 1, action: "web_search", leadUrlCount: 1, observation: "CKX Lands appears in a transaction announcement; the result is not yet fetched." }],
       failedLeadUrls: [],
       blockedLeadUrls: [],
     },
@@ -209,6 +210,52 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Find source-backed private technology company leads.");
   });
 
+  it("bounds huge unvisited search descriptions while retaining lead counts and an exact URL", () => {
+    const leadUrl = "https://www.example.test/releases/company-announcement";
+    const pinnedControlState = buildAtlasPinnedControlState({
+      activeScope: "Discover objective-relevant companies and preserve useful partial leads.",
+      leadInventory: {
+        searchResultLeadUrlCount: 18,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 18,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [leadUrl],
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+        unfetchedLeadObservations: [{
+          turn: 3,
+          action: "web_search",
+          leadUrlCount: 18,
+          observation: "CKX Lands announced a material investment transaction. " + "LONG_RESULT_DETAIL ".repeat(500) + " TAIL_RESULT_SENTINEL",
+        }],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    const contextLine = pinnedControlState.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+    expect(contextLine).toBeDefined();
+    expect(contextLine!.length).toBeLessThanOrEqual(480);
+    expect(contextLine).toContain("additional result text omitted; relevance unknown");
+    expect(contextLine).toContain("TAIL_RESULT_SENTINEL");
+
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "18 unfetched leads remain; no lead has been fetched.",
+      compactState: "No fetched evidence has been established.",
+      pinnedControlState,
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
+    expect(prompt).toContain('"unfetchedLeadUrlCount":18');
+    expect(prompt).toContain(leadUrl);
+    expect(prompt).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
+    expect(prompt).toContain("additional result text omitted; relevance unknown");
+    expect(prompt).toContain("CKX Lands announced a material investment transaction");
+    expect(prompt).toContain("TAIL_RESULT_SENTINEL");
+    expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
+  });
+
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
@@ -217,6 +264,8 @@ describe("Atlas control-plane lead continuity", () => {
     });
     expect(prompt).toContain(leadUrl);
     expect(prompt).toContain("unfetchedLeadUrls");
+    expect(pinnedStateWithUnfetchedLead()).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
+    expect(pinnedStateWithUnfetchedLead()).toContain("CKX Lands appears in a transaction announcement");
     expect(prompt).toContain("Search URLs/snippets remain leads, not evidence until fetched.");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
   });
@@ -240,6 +289,39 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("unfetchedLeadUrls");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
+  });
+
+  it("applies household-name reachability realism without excluding objective-fit companies", () => {
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "A useful in-scope lead remains unvisited.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
+    });
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
+    });
+
+    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(bossPrompt).toContain("the human explicitly names or requests prominent public figures");
+    expect(bossPrompt).toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
+    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(bossPrompt).not.toContain("anti-famous");
+
+    expect(rightHandPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(rightHandPrompt).toContain("explicit human request");
+    expect(rightHandPrompt).toContain("generic corporate, press or IR channels are not personal access");
+    expect(rightHandPrompt).toContain("well-known brands remain eligible when objective-fit");
   });
 
   it("restricts the opening Boss response to start or stop with no target or direction", () => {
@@ -297,7 +379,11 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).not.toContain("inbiz");
     expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
+    expect(law).toContain("A jurisdiction-specific registry is eligible only when its jurisdiction is grounded");
+    expect(law).toContain("If the objective supplies no jurisdiction, do not create one");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
+    expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
+    expect(atlasLeadUtilizationLaw()).toContain("relevance is unknown, not disproven");
     expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
 
     const input = {

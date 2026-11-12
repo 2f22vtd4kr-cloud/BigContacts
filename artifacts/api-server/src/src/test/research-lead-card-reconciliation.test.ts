@@ -74,6 +74,38 @@ describe("terminal review-card reconciliation", () => {
     expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
     expect(checkpointSource).not.toContain("if (input.findings.length === 0) return empty;");
   });
+  it("appends an initial standalone discovery assignment after the durable event high-water mark", () => {
+    const ensureStart = bureauPass.indexOf("async function ensureDiscoveryCaseContext");
+    const ensureEnd = bureauPass.indexOf("async function persistDiscoveryTrajectory", ensureStart);
+    const ensureSource = bureauPass.slice(ensureStart, ensureEnd);
+
+    expect(ensureSource).toContain("await lockResearchCaseEventAppendStream(tx, caseId)");
+    expect(ensureSource).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    expect(ensureSource).toContain("iteration: assignmentIteration");
+    expect(ensureSource).toContain("await tx.update(researchCasesTable).set({ iteration: assignmentIteration");
+    expect(ensureSource).not.toContain('iteration: 0,\\n    actorRole: "head_investigator"');
+
+    // Canonical Atlas supplies the caseId, so this assignment event is the
+    // actual live-run path; the helper above covers only the standalone path.
+    const atlasAssignmentAnchor = canonicalAtlas.indexOf("Canonical Atlas discovery case was cancelled before Investigator assignment event.");
+    const atlasAssignmentEnd = canonicalAtlas.indexOf("const openingDiscoveryBudget", atlasAssignmentAnchor);
+    const atlasAssignmentBlock = canonicalAtlas.slice(Math.max(0, atlasAssignmentAnchor - 1_200), atlasAssignmentEnd);
+    expect(atlasAssignmentBlock).toContain("await lockResearchCaseEventAppendStream(tx, discoveryCaseId)");
+    expect(atlasAssignmentBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    expect(atlasAssignmentBlock).toContain("iteration: nextIteration");
+    expect(atlasAssignmentBlock).toContain(".set({ iteration: nextIteration");
+
+    const rejectedCandidateStart = canonicalAtlas.indexOf('rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "candidate_selection" }');
+    const rejectedCandidateEnd = canonicalAtlas.indexOf("continue;", rejectedCandidateStart);
+    const rejectedCandidateBlock = canonicalAtlas.slice(rejectedCandidateStart, rejectedCandidateEnd);
+    expect(rejectedCandidateBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    expect(rejectedCandidateBlock).toContain("iteration: nextIteration");
+    const rejectedPivotStart = canonicalAtlas.indexOf('rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "pivot_direction" }');
+    const rejectedPivotEnd = canonicalAtlas.indexOf("continue;", rejectedPivotStart);
+    const rejectedPivotBlock = canonicalAtlas.slice(rejectedPivotStart, rejectedPivotEnd);
+    expect(rejectedPivotBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+  });
+
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
     expect(runtimeProofVerifier).toContain('lead.stage === "partial_review"');
@@ -99,14 +131,15 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
-    expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
+    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
+    expect(agenticCore).toContain("Do not wait for a fetch, ownership clue, wealth proof or HNWI qualification");
+    expect(agenticCore).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
     expect(agenticCore).toContain("Search snippets remain leads, not evidence");
     expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
     expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
+    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
   });
 
   it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {

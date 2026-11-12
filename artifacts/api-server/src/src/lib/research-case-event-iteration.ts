@@ -7,7 +7,11 @@ export async function lockResearchCaseEventAppendStream(tx: ResearchCaseEventLoc
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('apex:research_case_events:case:' || ${caseId}::text))`);
 }
 
-/** Resolve an Investigator turn against the durable case-event iteration high-water mark. */
+/** Resolve an Investigator turn against the durable event-iteration high-water mark.
+ * Several events (observation, claim, promotion and validation) may legitimately
+ * share one Investigator turn. The opening control-plane events use
+ * nextResearchCaseEventIteration instead, because they are not Investigator turns.
+ */
 export function resolveMonotonicResearchCaseIteration(recordTurn: number, latestPersistedIteration: number): number {
   const normalize = (value: number): number =>
     Number.isSafeInteger(value) && value >= 0 ? value : 0;

@@ -5,7 +5,7 @@ import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { buildBureauAgenticPassFailureResult, shouldSkipAlreadyFinalizedTrajectory } from "./bureau-agentic-pass-failure";
-import { lockResearchCaseEventAppendStream, resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
+import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration, resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords, hasDurableUrlProjectionOmissions as hasDurableUrlProjectionOmissionsHelper } from "./durable-discovery-projection";
 import { replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
@@ -167,7 +167,75 @@ async function loadMountedCaseContext(
     ? { document: document + "\n\n" + inventory.text, durableUrlInventory: inventory.text }
     : { document };
 }
-async function ensureDiscoveryCaseContext(input:{mode?:"target"|"discovery";objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string}):Promise<number|null>{if(input.mode!=="discovery"||!input.jobId)return null;const [created]=await db.insert(researchCasesTable).values({caseType:"discovery",status:"active",directorMode:"groq_boss",directorProvider:"groq",directorModel:"pending",objective:input.objective??"Canonical Atlas model-owned discovery",motivation:"Durable memory for canonical Atlas Investigator discovery.",openingPrompt:"Investigator chooses every research action. This case is memory/state, not a deterministic research plan.",caseFile:JSON.stringify({caseType:"discovery",contextDocument:["CANONICAL ATLAS DISCOVERY CASE",`JOB: ${input.jobId}`,`RUN: ${input.runId}`,`INVESTIGATOR: ${input.investigatorLlm??"unassigned"}`,`OBJECTIVE: ${input.objective??""}`,"STATE: Discovery mode; no person target is implied."].join("\n"),investigationTimeline:[],investigatorTrajectory:[],investigatorTrajectoryRecords:[],jobId:input.jobId,runId:input.runId}),currentAction:"canonical-investigator-discovery",iteration:0}).returning({id:researchCasesTable.id});const caseId=created?.id??null;if(caseId)await db.insert(researchCaseEventsTable).values({caseId,iteration:0,actorRole:"head_investigator",eventType:"assignment",status:"recorded",summary:"Atlas discovery Investigator mounted into durable discovery state.",correlationKey:`${input.runId}:assignment`,payload:JSON.stringify({jobId:input.jobId,runId:input.runId,investigatorLlm:input.investigatorLlm,architecture:"free-react",mode:"discovery"})});return caseId;}
+async function ensureDiscoveryCaseContext(input: { mode?: "target" | "discovery"; objective?: string; investigatorLlm?: InvestigatorCapability; jobId?: string; runId: string }): Promise<number | null> {
+  if (input.mode !== "discovery" || !input.jobId) return null;
+  const [created] = await db.insert(researchCasesTable).values({
+    caseType: "discovery",
+    status: "active",
+    directorMode: "groq_boss",
+    directorProvider: "groq",
+    directorModel: "pending",
+    objective: input.objective ?? "Canonical Atlas model-owned discovery",
+    motivation: "Durable memory for canonical Atlas Investigator discovery.",
+    openingPrompt: "Investigator chooses every research action. This case is memory/state, not a deterministic research plan.",
+    caseFile: JSON.stringify({
+      caseType: "discovery",
+      contextDocument: [
+        "CANONICAL ATLAS DISCOVERY CASE",
+        `JOB: ${input.jobId}`,
+        `RUN: ${input.runId}`,
+        `INVESTIGATOR: ${input.investigatorLlm ?? "unassigned"}`,
+        `OBJECTIVE: ${input.objective ?? ""}`,
+        "STATE: Discovery mode; no person target is implied.",
+      ].join("\n"),
+      investigationTimeline: [],
+      investigatorTrajectory: [],
+      investigatorTrajectoryRecords: [],
+      jobId: input.jobId,
+      runId: input.runId,
+    }),
+    currentAction: "canonical-investigator-discovery",
+    iteration: 0,
+  }).returning({ id: researchCasesTable.id });
+  const caseId = created?.id ?? null;
+  if (!caseId) return null;
+
+  // This is an append to the same durable case event stream as Boss,
+  // Right-hand, and Investigator records. Never write a hard-coded iteration
+  // zero after other control-plane events may already exist.
+  await db.transaction(async (tx) => {
+    await lockResearchCaseEventAppendStream(tx, caseId);
+    const [lockedCase] = await tx.select({ iteration: researchCasesTable.iteration })
+      .from(researchCasesTable)
+      .where(eq(researchCasesTable.id, caseId))
+      .for("update")
+      .limit(1);
+    if (!lockedCase) throw new Error("New discovery case disappeared before its Investigator assignment was recorded.");
+    const [latestEvent] = await tx.select({
+      iteration: sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration"),
+    }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, caseId));
+    const assignmentIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
+    await tx.update(researchCasesTable).set({ iteration: assignmentIteration, updatedAt: new Date() })
+      .where(eq(researchCasesTable.id, caseId));
+    await tx.insert(researchCaseEventsTable).values({
+      caseId,
+      iteration: assignmentIteration,
+      actorRole: "head_investigator",
+      eventType: "assignment",
+      status: "recorded",
+      summary: "Atlas discovery Investigator mounted into durable discovery state.",
+      correlationKey: `${input.runId}:assignment`,
+      payload: JSON.stringify({
+        jobId: input.jobId,
+        runId: input.runId,
+        investigatorLlm: input.investigatorLlm,
+        architecture: "free-react",
+        mode: "discovery",
+      }),
+    });
+  }, { isolationLevel: "serializable" });
+  return caseId;
+}
 async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string;trajectoryTurnOffset?:number;finalize?:boolean},result:{trajectory:string[];trajectoryRecords:AgenticTrajectoryRecord[];groundingTrajectoryRecords?:AgenticTrajectoryRecord[];model:string;iterations:number;searches:number;visits:number;stopReason?:string}):Promise<void>{
   const [row]=await db.select({caseFile:researchCasesTable.caseFile,iteration:researchCasesTable.iteration}).from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);
   if(!row?.caseFile)throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`);

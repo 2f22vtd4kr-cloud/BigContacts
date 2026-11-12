@@ -26,8 +26,10 @@ describe("objective-aligned Boss control decisions", () => {
       humanObjective: objective,
       rightHand: { status: "completed", decision: "continue_discovery", reason: "The Investigator should begin objective-led discovery.", direction: null, confidence: 0.9, model: "test-model", error: null },
     });
-    expect(prompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference');
-    expect(prompt).toContain("For B2B discovery, well-known/public companies and their relevant decision-makers remain eligible");
+    expect(prompt).toContain("globally famous/household-name people are presumptively poor-access prospects");
+    expect(prompt).toContain("source-backed person-specific professional route");
+    expect(prompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(prompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference');
     expect(prompt).toContain(objective);
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
   });
@@ -310,7 +312,10 @@ describe("Atlas control-plane contract regression", () => {
     expect(bossPrompt).toContain(feedback);
     expect(rightHandPrompt).toContain("realism/targetability constraints outrank Boss suggestions");
     expect(bossPrompt).toContain("Mission priority: the human objective governs target class and any reachability constraints.");
-    expect(bossPrompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
+    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(bossPrompt).toContain("person-specific professional route");
+    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(bossPrompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 

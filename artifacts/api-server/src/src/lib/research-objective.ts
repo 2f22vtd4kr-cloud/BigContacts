@@ -7,6 +7,9 @@ const GENERIC_PROVIDER_OR_TOOL_DIRECTIVE = /\b(?:switch|change|move|fall\s+back)
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
 const SEARCH_QUERY_OPERATOR = /\b(?:site|inurl|intitle|allinurl|allintitle|filetype|intext):\s*\S+/i;
+// A Boss direction is a research-scope question, not a direct adapter/tool choice.
+const RUNTIME_ROUTE_IDENTIFIER = /\b(?:web_search|parallel_web_search|registry_search|parallel_registry_search|browser_fetch|domain_lookup)(?:_[a-z0-9]+)+\b|\b(?:companies-house|sec-edgar|ares-czechia|cvr-denmark|bodacc-france|kbo-belgium|brreg|atoka-italy|ytj-finland|zefix-switzerland|borme-spain|gleif|faa)\b/i;
+const HUMAN_READABLE_ROUTE_DIRECTIVE = /\b(?:use|via|through|with|search(?:ing)?|query(?:ing)?|lookup|look\s+up|consult|access|check|switch\s+to|pivot\s+to)\b[^.!?]{0,100}\b(?:companies\s+house|sec\s+edgar|ares(?:\s+czechia)?|cvr(?:\s+denmark)?|bodacc(?:\s+france)?|kbo(?:\s+belgium)?|brreg|atoka(?:\s+italy)?|ytj(?:\s+finland)?|zefix(?:\s+switzerland)?|borme(?:\s+spain)?|gleif|faa)\b/i;
 const UNRESOLVED_SCOPE_PLACEHOLDER = /\b(?:chosen|selected|appropriate|unspecified|any)\s+(?:region|geography|location|jurisdiction|market|sector|industry)\b/i;
 const UNRESOLVED_TEMPLATE_PLACEHOLDER = /(?:\[\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\]|\{\{\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\}\}|\{\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\}|<\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*>|\b(?:TODO|TBD|CHANGEME|REPLACE_ME|INSERT_[A-Z0-9_]+)\b)/i;
 
@@ -15,7 +18,7 @@ export function validateResearchObjective(direction: string | null | undefined):
   if (!value) return { valid: false, reason: "Research redirect contained no research objective." };
   if (UNRESOLVED_TEMPLATE_PLACEHOLDER.test(value)) return { valid: false, reason: "Research redirect contains an unresolved template placeholder." };
   if (UNRESOLVED_SCOPE_PLACEHOLDER.test(value)) return { valid: false, reason: "Research redirect leaves its subject or geography as an unresolved placeholder." };
-  if (PROVIDER_OR_TOOL_DIRECTIVE.test(value) || GENERIC_PROVIDER_OR_TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe an Investigator provider or tool." };
+  if (PROVIDER_OR_TOOL_DIRECTIVE.test(value) || GENERIC_PROVIDER_OR_TOOL_DIRECTIVE.test(value) || RUNTIME_ROUTE_IDENTIFIER.test(value) || HUMAN_READABLE_ROUTE_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe an Investigator provider, registry, or tool." };
   if (SEARCH_QUERY_OPERATOR.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a search-engine query operator." };
   if (EXPLICIT_URL.test(value) || TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a concrete URL/tool destination." };
   return { valid: true, direction: value };
