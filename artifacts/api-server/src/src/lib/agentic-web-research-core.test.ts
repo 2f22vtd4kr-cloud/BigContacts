@@ -810,6 +810,50 @@ describe("discovery lead inventory", () => {
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("THIRD_BATCH");
   });
 
+  it("preserves a representative unfetched lead from every provider in one mixed parallel search batch", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://provider-${index + 1}.example.test/result`);
+    const record = {
+      turn: 7,
+      model: "test-model",
+      action: "parallel_web_search",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      execution: "success",
+      observation: [
+        "PARALLEL_SEARCH 1 provider=serper",
+        "Serper result title",
+        "URL: https://provider-1.example.test/result",
+        "Serper snippet identifies an ownership announcement.",
+        "PARALLEL_SEARCH 2 provider=tavily",
+        "Tavily result title",
+        "URL: https://provider-7.example.test/result",
+        "Tavily snippet identifies a company officer filing.",
+        "PARALLEL_SEARCH 3 provider=exa",
+        "Exa result title",
+        "URL: https://provider-13.example.test/result",
+        "Exa snippet identifies a named investor and transaction.",
+      ].join("\\n"),
+      observedUrls: [],
+      leadUrls: urls,
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    const state = buildDiscoveryLeadUtilizationState([record]);
+    expect(state.unfetchedLeadUrlCount).toBe(18);
+    expect(state.unfetchedLeadObservations).toHaveLength(1);
+    const context = state.unfetchedLeadObservations[0]?.observation ?? "";
+    expect(context).toContain("provider=serper");
+    expect(context).toContain("provider=tavily");
+    expect(context).toContain("provider=exa");
+    expect(context).toContain("Serper result title");
+    expect(context).toContain("Tavily result title");
+    expect(context).toContain("Exa result title");
+  });
+
   it("keeps other search-result URLs available after one URL fails retrieval", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
     const search = {
