@@ -29,6 +29,26 @@ describe("recent observation compaction recovery", () => {
   });
 });
 
+describe("Investigator live discovery budget context", () => {
+  it("shows the same-case remaining search-action budget before the next model decision", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first" }, execution: "success", observedUrls: [], leadUrls: ["https://one.example/"], findings: [] },
+      { turn: 2, model: "test-model", action: "parallel_registry_search", args: { searches: [{ query: "second", registry: "sec-edgar" }] }, execution: "success", observedUrls: [], leadUrls: ["https://two.example/"], findings: [] },
+    ];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find objective-fit public business owners.",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "The second search completed.",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("outbound search actions used=2; remaining=0 of 2");
+    expect(prompt).toContain("do not select web_search, parallel_web_search, registry_search, or parallel_registry_search");
+  });
+});
+
 describe("Investigator provider envelope budget", () => {
   it("uses a single system-aware user-message budget", () => {
     expect(investigatorUserPromptBudget(1_600)).toBe(6_800);
