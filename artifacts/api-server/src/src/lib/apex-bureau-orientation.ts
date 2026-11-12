@@ -96,7 +96,7 @@ export function apexInvestigatorSystemCore(): string {
     "IDENTITY/SAFETY: Separate person/company/trust/asset; public routes only.",
     "TOOLS: allowlisted OSINT only; runtime registry IDs; unavailable is not a no-hit.",
     "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Never infer wealth from seniority.",
-    "Parallel web searches need 2–4 objects with query/provider/locale/market/purpose. Parallel registry items need query and one runtime-callable registry ID; never omit or invent it. If none fits, choose another available action."
+    "Parallel web searches need 2–4 objects with query/provider/locale/market/purpose. Single and parallel registry actions require runtime-callable registry IDs; never omit or invent one. If none fits, choose another available action."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
