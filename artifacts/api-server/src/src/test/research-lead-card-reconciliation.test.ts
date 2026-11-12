@@ -16,8 +16,8 @@ const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-
 const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
   it("requires Investigator-authored events for partial and terminal review-card provenance", () => {
-    expect(reconciler.match(/isInvestigatorAuthoredResearchEvent\\(event\\.actorRole\\)/g) ?? []).toHaveLength(2);
-    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\\(event\\.actorRole\\)/g) ?? []).toHaveLength(3);
+    expect(reconciler.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\\)/g) ?? []).toHaveLength(2);
+    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\\)/g) ?? []).toHaveLength(3);
     expect(reconciler).toContain("actorRole: researchCaseEventsTable.actorRole");
     expect(canonicalAtlas).toContain("actorRole: researchCaseEventsTable.actorRole");
   });
