@@ -74,6 +74,18 @@ describe("terminal review-card reconciliation", () => {
     expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
     expect(checkpointSource).not.toContain("if (input.findings.length === 0) return empty;");
   });
+  it("appends an initial standalone discovery assignment after the durable event high-water mark", () => {
+    const ensureStart = bureauPass.indexOf("async function ensureDiscoveryCaseContext");
+    const ensureEnd = bureauPass.indexOf("async function persistDiscoveryTrajectory", ensureStart);
+    const ensureSource = bureauPass.slice(ensureStart, ensureEnd);
+
+    expect(ensureSource).toContain("await lockResearchCaseEventAppendStream(tx, caseId)");
+    expect(ensureSource).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
+    expect(ensureSource).toContain("iteration: assignmentIteration");
+    expect(ensureSource).toContain("await tx.update(researchCasesTable).set({ iteration: assignmentIteration");
+    expect(ensureSource).not.toContain('iteration: 0,\\n    actorRole: "head_investigator"');
+  });
+
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
     expect(runtimeProofVerifier).toContain('lead.stage === "partial_review"');
