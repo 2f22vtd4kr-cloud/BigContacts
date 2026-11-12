@@ -127,6 +127,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
     expect(discoveryPrompt).toContain("One source-backed relevant lead starts target research");
     expect(discoveryPrompt).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(discoveryPrompt).toContain("require direct relevance to the active objective");
     expect(discoveryPrompt).toContain("do not select or surface them solely for wealth or prominence");
     expect(discoveryPrompt).toContain("human explicitly names or requests prominent public figures");
     expect(discoveryPrompt).toContain("actionable person-specific professional route");
