@@ -1275,7 +1275,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
-  it("preserves complete fetched PDF evidence, the latest action, and every durable URL above the preferred prompt target", () => {
+  it("preserves complete fetched PDF evidence and durable URLs while bounding the newest search observation", () => {
     const objective = "Discover public-source ownership and transaction evidence relevant to the active human objective.";
     const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
     const fetchedUrl = "https://registry.example.test/filings/" + "f".repeat(120) + ".pdf";
@@ -1326,7 +1326,12 @@ describe("Investigator prompt architecture", () => {
 
     expect(prompt.length).toBeGreaterThan(8_200);
     expect(prompt).toContain(fetchedObservation);
-    expect(prompt).toContain(latestObservation);
+    // Search results are unverified leads and may be compacted; the fetched PDF remains complete.
+    expect(prompt).not.toContain(latestObservation);
+    expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
+    expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_SENTINEL");
+    expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
+    expect(prompt).toContain("observationCharsOmittedFromPrompt");
     expect(prompt).toContain("PDF_OWNERSHIP_CLAIM_SENTINEL");
     expect(prompt).toContain(fetchedUrl);
     for (const url of latestLeadUrls) expect(prompt).toContain(url);
@@ -3935,6 +3940,9 @@ describe("small emergency observation budgets", () => {
     expect(withCurrentFailure).toContain("The distinct provider notice says to avoid a futile retry.");
     expect(withCurrentFailure).toContain("FAILED_FETCH_SENTINEL");
     // The active provider path appends the newest durable record directly.
+    // Search-result observations are bounded because they are unverified leads;
+    // fetched-page observations remain complete. Complete URLs are admitted
+    // atomically, and every omitted observation character is disclosed.
     // It retains complete observations and atomically admits complete URLs;
     // any URL omitted from this prompt sample is counted, never prefix-sliced.
     const recordTailStart = agenticCoreSource.indexOf("const serializeDurablePromptRecord =");
@@ -3944,7 +3952,11 @@ describe("small emergency observation budgets", () => {
     const durableTail = agenticCoreSource.slice(recordTailStart, recordTailEnd);
     expect(durableTail).toContain("observedUrlsOmittedFromPromptCount");
     expect(durableTail).toContain("leadUrlsOmittedFromPromptCount");
-    expect(durableTail).toContain("observation: record.observation ?? \"\"");
+    expect(durableTail).toContain("const boundedObservation = searchActions.has(record.action)");
+    expect(durableTail).toContain("? compactDurablePromptObservation(rawObservation)");
+    expect(durableTail).toContain(": rawObservation");
+    expect(durableTail).toContain("observation: boundedObservation");
+    expect(durableTail).toContain("observationCharsOmittedFromPrompt");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
     expect(agenticCoreSource).toContain("export function appendEmergencyObservationContext(");
