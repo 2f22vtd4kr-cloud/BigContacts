@@ -52,6 +52,19 @@ describe("canonicalCaseContinuationGuard", () => {
     expect(source).not.toContain("context.length<=16000");
     expect(source).toContain('new Error(boss.error??"Groq Boss did not select a Groq Investigator.")');
   });
+  it("keeps discovery and target continuation endpoints for saved entity cards", () => {
+    const discoverySource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
+    const targetSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-target-continuation.ts"), "utf8");
+    expect(discoverySource).toContain('router.post(["/research/bureau/cases/:caseId/run-next-pass","/research/bureau/cases/:caseId/recover-control"]');
+    expect(discoverySource).toContain("contextOf(lockedFile)");
+    expect(discoverySource).toContain("restorePersistedDiscoveryObjective");
+    expect(discoverySource).toContain("reconcileCanonicalDiscoveryCaseReviewCards");
+    expect(discoverySource).toContain("onDiscoveryCheckpoint:async(checkpoint)");
+    expect(targetSource).toContain('router.post("/research/bureau/target-cases/:caseId/run-next-pass"');
+    expect(targetSource).toContain("contextDocument");
+    expect(targetSource).toContain("runCanonicalSingleTargetInvestigation");
+  });
+
   it("does not label a discovery-only continuation as a complete Atlas outcome", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain('outcome:"incomplete"');
