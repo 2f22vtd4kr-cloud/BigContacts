@@ -316,6 +316,8 @@ describe("Atlas control-plane lead continuity", () => {
     expect(bossPrompt).toContain("SERPER_RESULT");
     expect(bossPrompt).toContain("TAVILY_RESULT");
     expect(bossPrompt).toContain("EXA_RESULT");
+    expect(bossPrompt).toContain('"unfetchedLeadUrlCount":18');
+    expect(bossPrompt).toContain(leadUrl);
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
