@@ -2536,7 +2536,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           nextEpisodeLimit,
           discovery.trajectoryRecords ?? [],
           resolveInvestigatorTokenDailyQuotaRecoveryIterations(
-            Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
+            nextEpisodeLimit,
             nextDiscovery.iterations ?? nextDiscovery.trajectoryRecords?.length ?? 0,
             remainingInvestigatorIterations,
           ),
