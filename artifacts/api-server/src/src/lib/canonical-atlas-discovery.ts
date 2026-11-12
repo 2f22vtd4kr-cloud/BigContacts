@@ -35,6 +35,7 @@ import { bindExactRegistryLeadName } from "./registry-result-source-binding";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
+import { reconcileOrganizationReviewCardsForJob, reconcilePersonReviewCardsForJob } from "./research-lead-card-reconciliation";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -228,20 +229,64 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
   let materialized = 0;
   let evidenceRows = 0;
-  // Persist provisional review cards before attempting stricter target admission.
-  // A later ownership/corroboration admission error must not erase an already
-  // observed person/company lead from this discovery checkpoint.
-  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
-  materialized += partialPeople.materialized;
-  evidenceRows += partialPeople.evidenceRows;
-  const partialOrganizations = await materializePartialOrganizationLeadCards({
-    findings: input.findings,
-    atlasJobId: input.atlasJobId,
-    discoveryRunId: input.discoveryRunId,
-    discoveryCaseId: input.discoveryCaseId,
-  });
-  materialized += partialOrganizations.materialized;
-  evidenceRows += partialOrganizations.evidenceRows;
+  // Reconcile model-selected provisional leads from the immutable case-event
+  // ledger before stricter ownership/corroboration admission. These helpers
+  // independently bind every finding URL to a successful search lead or fetch
+  // observation for this exact job; snippets remain review-only, never proof.
+  const [personReconciliation, organizationReconciliation] = await Promise.all([
+    reconcilePersonReviewCardsForJob(input.atlasJobId),
+    reconcileOrganizationReviewCardsForJob(input.atlasJobId),
+  ]);
+  materialized += personReconciliation.cards + organizationReconciliation.cards;
+  evidenceRows += personReconciliation.evidenceRows + organizationReconciliation.evidenceRows;
+
+  const reviewRows = await db.select({
+    name: entitiesTable.name,
+    type: entitiesTable.type,
+    metadata: entitiesTable.metadata,
+  }).from(entitiesTable).where(and(
+    inArray(entitiesTable.type, ["PersonCandidate", "Corporation"]),
+    sql`${entitiesTable.metadata}::jsonb ->> 'discoveryCaseId' = ${String(input.discoveryCaseId)}`,
+    sql`${entitiesTable.metadata}::jsonb ->> 'atlasJobId' = ${input.atlasJobId}`,
+  ));
+  const partialPeople = {
+    candidates: reviewRows.flatMap((row) => {
+      if (row.type !== "PersonCandidate" || typeof row.name !== "string") return [];
+      let metadata: Record<string, unknown>;
+      try {
+        const parsed: unknown = JSON.parse(row.metadata ?? "{}");
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+        metadata = parsed as Record<string, unknown>;
+      } catch { return []; }
+      if (metadata.reviewOnly !== true || metadata.partialPersonLead !== true) return [];
+      const sourceUrls = Array.isArray(metadata.sourceUrls)
+        ? metadata.sourceUrls.map((url) => typeof url === "string" ? normalizeSourceUrl(url) : null).filter((url): url is string => url !== null)
+        : [];
+      if (!sourceUrls.length) return [];
+      return [{
+        name: row.name,
+        role: typeof metadata.role === "string" && metadata.role.trim() ? metadata.role.trim() : null,
+        sourceUrls: [...new Set(sourceUrls)],
+      }];
+    }),
+  };
+  const partialOrganizations = {
+    candidates: reviewRows.flatMap((row) => {
+      if (row.type !== "Corporation" || typeof row.name !== "string") return [];
+      let metadata: Record<string, unknown>;
+      try {
+        const parsed: unknown = JSON.parse(row.metadata ?? "{}");
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+        metadata = parsed as Record<string, unknown>;
+      } catch { return []; }
+      if (metadata.reviewOnly !== true || metadata.partialOrganizationLead !== true) return [];
+      const sourceUrls = Array.isArray(metadata.sourceUrls)
+        ? metadata.sourceUrls.map((url) => typeof url === "string" ? normalizeSourceUrl(url) : null).filter((url): url is string => url !== null)
+        : [];
+      if (!sourceUrls.length) return [];
+      return [{ name: row.name, sourceUrls: [...new Set(sourceUrls)] }];
+    }),
+  };
 
   for (const name of candidates) {
     const identity = normalizeCandidateIdentityName(name);
@@ -391,7 +436,6 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     .filter(({ name }) => !strictPersonIdentities.has(normalizeCandidateIdentityName(name)))
     .map(({ name, role, sourceUrls }) => ({ name, sourceUrls, targetType: "person" as const, role }));
   const organizationTargets = partialOrganizations.candidates
-    .filter(({ targetEligibleForResearch }) => targetEligibleForResearch)
     .map(({ name, sourceUrls }) => ({
       name, sourceUrls, targetType: "organization" as const, role: null,
     }));
