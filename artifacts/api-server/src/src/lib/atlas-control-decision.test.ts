@@ -235,7 +235,7 @@ describe("Atlas control-plane lead continuity", () => {
     });
     const contextLine = pinnedControlState.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
     expect(contextLine).toBeDefined();
-    expect(contextLine!.length).toBeLessThanOrEqual(480);
+    expect(contextLine!.length).toBeLessThanOrEqual(2_520);
     expect(contextLine).toContain("additional result text omitted; relevance unknown");
     expect(contextLine).toContain("TAIL_RESULT_SENTINEL");
 
@@ -254,6 +254,38 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("CKX Lands announced a material investment transaction");
     expect(prompt).toContain("TAIL_RESULT_SENTINEL");
     expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
+  });
+
+  it("preserves item-level descriptions from three recent search-result batches for supervisor judgment", () => {
+    const observations = [
+      { turn: 1, action: "web_search", leadUrlCount: 6, observation: "SERPER_RESULT: ownership announcement identifies a private investor and a named operating company. " + "SERPER_DETAIL ".repeat(12) },
+      { turn: 2, action: "web_search", leadUrlCount: 6, observation: "TAVILY_RESULT: official filing index with officer appointments and company identifiers. " + "TAVILY_DETAIL ".repeat(12) },
+      { turn: 3, action: "web_search", leadUrlCount: 6, observation: "EXA_RESULT: acquisition report names a buyer, seller and transaction date. " + "EXA_DETAIL ".repeat(12) },
+    ];
+    const state = buildAtlasPinnedControlState({
+      activeScope: "Mixed-source discovery under the active case objective.",
+      leadInventory: {
+        searchResultLeadUrlCount: 18,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 18,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [leadUrl],
+        unfetchedLeadObservations: observations,
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    const contextLine = state.split("\\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+    expect(contextLine).toBeDefined();
+    expect(contextLine!.length).toBeLessThanOrEqual(2_520);
+    expect(contextLine).toContain("SERPER_RESULT");
+    expect(contextLine).toContain("TAVILY_RESULT");
+    expect(contextLine).toContain("EXA_RESULT");
+    expect(contextLine).toContain("unvisitedLeadCount=6");
+    expect(state).toContain('"unfetchedLeadUrlCount":18');
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
