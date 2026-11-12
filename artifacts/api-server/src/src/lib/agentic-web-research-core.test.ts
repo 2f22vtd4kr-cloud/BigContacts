@@ -3276,7 +3276,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("not fetched evidence");
     expect(prompt).not.toContain(rawObservation);
     expect(prompt).not.toContain("RAW_PROVIDER_PAYLOAD ".repeat(2_000));
-    expect(prompt.length).toBeLessThan(15_000);
+    expect(prompt.length).toBeLessThan(18_000);
+    const request = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
+    const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
+    expect(Math.ceil(requestChars / 4) + request.max_completion_tokens).toBeLessThan(8_000);
   });
 
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
