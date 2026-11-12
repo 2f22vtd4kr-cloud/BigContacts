@@ -322,7 +322,7 @@ export function buildDiscoveryLeadUtilizationState(
         observation: boundedResultContext,
       }];
     })
-    .slice(0, 2);
+    .slice(0, 3);
   const failed = newestFirst.flatMap(([key, lead]) => {
     const attempt = attempts.get(key);
     if (!attempt || fetched.has(key)) return [];
