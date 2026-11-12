@@ -278,7 +278,7 @@ describe("Atlas control-plane lead continuity", () => {
       admittedCandidates: [],
       findings: [],
     });
-    const contextLine = state.split("\\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+    const contextLine = state.split("\n").find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
     expect(contextLine).toBeDefined();
     expect(contextLine!.length).toBeLessThanOrEqual(2_520);
     expect(contextLine).toContain("SERPER_RESULT");
