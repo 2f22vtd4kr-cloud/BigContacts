@@ -411,15 +411,24 @@ export function buildAtlasPinnedControlState(input: {
   });
   const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 3);
   const rawUnfetchedContext = unfetchedObservationItems.map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\s+/g, " ").trim()).join(" || ");
-  // Leave room for the fixed context label in the later control-prompt projection.
-  const unfetchedContextBudget = 2_400;
+  // Keep each unvisited observation/result segment visible within the bounded supervisor state.
+  const unfetchedContextBudget = 1_000;
   const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
-    ? compactPromptSectionPreservingUrlTokens(
-        rawUnfetchedContext,
-        Math.max(0, unfetchedContextBudget - contextOmissionSuffix.length),
-        "[middle omitted; relevance unknown]",
-      ).replace(/\s+/g, " ") + contextOmissionSuffix
+    ? (() => {
+        const contextItems = rawUnfetchedContext.split(/\\s+(?:\\|\\||<LEAD_RESULT>)\\s+/u).filter(Boolean);
+        const separator = " || ";
+        const bodyBudget = Math.max(1, unfetchedContextBudget - contextOmissionSuffix.length);
+        const itemBudget = Math.max(
+          1,
+          Math.floor((bodyBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)),
+        );
+        return contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
+          item,
+          itemBudget,
+          "[detail omitted; relevance unknown]",
+        )).join(separator).replace(/\\s+/g, " ") + contextOmissionSuffix;
+      })()
     : rawUnfetchedContext;
   const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
