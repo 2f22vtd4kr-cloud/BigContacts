@@ -460,6 +460,25 @@ function trimPromptSection(value: string, maxChars: number): string {
     "[APEX PROMPT COMPACTION: middle context omitted; URL tokens intersecting excerpt edges are omitted whole; durable case state remains authoritative]",
   );
 }
+function compactBossPinnedControlState(value: string): string {
+  const lines = value.split("\n");
+  const contextIndex = lines.findIndex((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
+  if (contextIndex < 0) return value;
+  const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
+  const contextLine = lines[contextIndex] ?? "";
+  const contextBody = contextLine.startsWith(contextPrefix) ? contextLine.slice(contextPrefix.length) : contextLine;
+  const contextItems = contextBody.split(/\\s+(?:\\|\\||<LEAD_RESULT>)\\s+/u).filter(Boolean);
+  const separator = " || ";
+  const contextBudget = 480;
+  const itemBudget = Math.max(1, Math.floor((contextBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)));
+  const bounded = contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
+    item,
+    itemBudget,
+    "[detail omitted; relevance unknown]",
+  )).join(separator);
+  lines[contextIndex] = contextPrefix + bounded + " [Boss excerpt bounded; relevance unknown; full observations remain durable]";
+  return lines.join("\n");
+}
 
 export function buildAtlasRightHandControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string }): string {
   // Keep fixed policy lean so source counts, exact URLs, and scope-recovery feedback
@@ -617,7 +636,8 @@ Return ONE JSON object only: action, candidateName, candidateType, direction, re
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
   // The caller builds this pinned state from bounded, explicit scope/count/URL fields.
   // Never middle-trim it: cutting a URL here can hide the very remaining lead Boss needs.
-  const pinned = input.pinnedControlState?.trim() ? input.pinnedControlState.trim() : "";
+  const rawPinned = input.pinnedControlState?.trim() ?? "";
+  const pinned = rawPinned ? compactBossPinnedControlState(rawPinned) : "";
   const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
