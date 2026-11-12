@@ -245,6 +245,30 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
   });
 
+  it("applies household-name reachability realism without excluding objective-fit companies", () => {
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
+    });
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
+    });
+
+    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(bossPrompt).toContain("the human explicitly names or requests prominent public figures");
+    expect(bossPrompt).toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
+    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(bossPrompt).not.toContain("anti-famous");
+
+    expect(rightHandPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(rightHandPrompt).toContain("explicit human request");
+    expect(rightHandPrompt).toContain("generic corporate, press or IR channels are not personal access");
+    expect(rightHandPrompt).toContain("well-known brands remain eligible when objective-fit");
+  });
+
   it("restricts the opening Boss response to start or stop with no target or direction", () => {
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.action.enum).toEqual(["continue_discovery", "stop"]);
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateName.type).toBe("null");
