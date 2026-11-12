@@ -4740,16 +4740,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (
-    value: unknown,
-    maxChars = 1_600,
-    record?: AgenticTrajectoryRecord,
-  ): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 1_600): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
-    const providerBalancedObservation = record
+    const matchingRecord = input.trajectoryRecords.find(
+      (record) => typeof record.observation === "string" && record.observation.trim() === normalized,
+    );
+    const providerBalancedObservation = matchingRecord
       ? promptLeadUtilizationState.unfetchedLeadObservations.find(
-          (item) => item.turn === record.turn && item.action === record.action,
+          (item) => item.turn === matchingRecord.turn && item.action === matchingRecord.action,
         )?.observation
       : undefined;
     if (providerBalancedObservation) {
@@ -4785,7 +4784,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // provider response after the historical carry-forward copy is compacted.
     // Fetched-page observations remain complete.
     const boundedObservation = searchActions.has(record.action)
-      ? compactDurablePromptObservation(rawObservation, 1_600, record)
+      ? compactDurablePromptObservation(rawObservation)
       : rawObservation;
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
@@ -4833,7 +4832,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : carryForwardSuccessfulSearch;
       const carryForwardPromptRecord = serializeDurablePromptRecord(carryForwardRecord);
       if (!searchRecordAlreadyCompacted) {
-        const boundedObservation = compactDurablePromptObservation(carryForwardRecord.observation, 1_600, carryForwardRecord);
+        const boundedObservation = compactDurablePromptObservation(carryForwardRecord.observation);
         carryForwardPromptRecord.observation = boundedObservation;
         carryForwardPromptRecord.observationCharsOmitted = Math.max(
           0,
