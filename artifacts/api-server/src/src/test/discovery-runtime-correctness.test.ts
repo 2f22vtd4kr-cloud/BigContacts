@@ -334,7 +334,7 @@ describe("discovery runtime architecture", () => {
     const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
     expect(controlSource).toContain("Assess feasibility against observed public-source access/status");
     expect(controlSource).toContain("assume no nonpublic filings, private records or registry coverage without runtime evidence");
-    expect(controlSource).toContain("publicly verifiable alternative");
+    expect(controlSource).toContain("do not assume private/registry access without runtime evidence");
   });
 
   it("does not allow a cold discovery run to terminate after a single unusable external search", async () => {
