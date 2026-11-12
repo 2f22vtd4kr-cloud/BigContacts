@@ -605,6 +605,92 @@ describe("Atlas control-plane lead continuity", () => {
 });
 
 
+describe("Boss control prompt budget recovery", () => {
+  it("keeps mandatory pinned state while shedding oversized optional history and route samples", () => {
+    const leadUrls = Array.from({ length: 12 }, (_, index) =>
+      `https://registry.example.test/records/company-${index + 1}?source=official`,
+    );
+    const pinnedControlState = buildAtlasPinnedControlState({
+      activeScope: "Find operating B2B companies and current business decision-makers; use public professional sources only.",
+      leadInventory: {
+        searchResultLeadUrlCount: 12,
+        successfullyFetchedLeadUrlCount: 1,
+        unfetchedLeadUrlCount: 10,
+        failedLeadUrlCount: 1,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: leadUrls,
+        unfetchedLeadObservations: [{
+          turn: 1,
+          action: "web_search",
+          leadUrlCount: 12,
+          observation: "Relevant company and decision-maker search results. " + "OPTIONAL_RESULT_DETAIL ".repeat(900),
+        }],
+        failedLeadUrls: [{
+          url: "https://registry.example.test/failed-route",
+          action: "visit",
+          execution: "http_error",
+          failureDomain: "external_page_fetch",
+        }],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: [{
+        name: "Northstar Industrial Systems",
+        role: "Chief Financial Officer",
+        sourceUrls: ["https://northstar.example/about"],
+        targetType: "organization",
+      }],
+      findings: [],
+    });
+
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "Large report history. " + "OPTIONAL_REPORT_DETAIL ".repeat(2_000),
+      compactState: "Large durable historical projection. " + "OPTIONAL_HISTORY_DETAIL ".repeat(4_000),
+      pinnedControlState,
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "The current run retains an unvisited source lead.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("Find operating B2B companies and current business decision-makers; use public professional sources only.");
+    expect(prompt).toContain("Northstar Industrial Systems");
+    expect(prompt).toContain('"unfetchedLeadUrlCount":10');
+    expect(prompt).toContain(leadUrls[0]);
+    expect(prompt).not.toContain("OPTIONAL_HISTORY_DETAIL ".repeat(100));
+    expect(prompt).not.toContain("OPTIONAL_REPORT_DETAIL ".repeat(100));
+    expect(prompt).toContain("Optional control context omitted");
+  });
+
+  it("fails closed when mandatory exact target inventory cannot fit", () => {
+    const oversizedTargetInventory = "COMPLETE AVAILABLE REVIEW TARGETS " + "EXACT_TARGET ".repeat(20_000);
+    expect(() => buildAtlasBossControlPrompt({
+      investigatorReport: "",
+      compactState: "",
+      pinnedControlState: [
+        "ACTIVE ACCEPTED BOSS SCOPE: Exact scope.",
+        oversizedTargetInventory,
+        "AUTHORITATIVE DURABLE LEAD COUNTS: searchResultLeadUrlCount=0; unfetchedLeadUrlCount=0.",
+        "CONTROL LAW: Search leads are not evidence.",
+      ].join("\n"),
+      rightHand: {
+        status: "unavailable",
+        decision: null,
+        reason: null,
+        direction: null,
+        confidence: null,
+        model: "none",
+        error: "unavailable",
+      },
+    })).toThrow(/mandatory scope, complete review-target inventory/);
+  });
+});
+
 describe("Boss-owned target handoff judgment", () => {
   it("keeps target handoff as a model decision when source-attributed review targets exist", () => {
     const prompt = buildAtlasBossControlPrompt({
