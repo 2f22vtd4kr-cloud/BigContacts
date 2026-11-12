@@ -313,8 +313,9 @@ export function buildDiscoveryLeadUtilizationState(
       // A mixed parallel batch must not let the first provider's results crowd
       // every other provider out of supervisor context. Preserve one model-ranked
       // result per provider first; then use remaining room for additional leads.
-      const providerOrder = Array.isArray(record.args?.searches)
-        ? record.args.searches.flatMap((search) => {
+      const rawSearches = record.args?.searches;
+      const providerOrder = Array.isArray(rawSearches)
+        ? rawSearches.flatMap((search) => {
             if (!search || typeof search !== "object" || Array.isArray(search)) return [];
             const provider = (search as Record<string, unknown>).provider;
             return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : [];
