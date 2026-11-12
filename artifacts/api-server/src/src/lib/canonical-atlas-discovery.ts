@@ -2046,6 +2046,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const discoveryIterationCeiling = depth.agenticMaxIterations;
     const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
     const openingInvestigatorIterations = resolveOpeningInvestigatorIterations(depth, discoveryIterationCeiling);
+    let latestDiscoveryEpisodeLimit = openingInvestigatorIterations;
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
     discovery = await runDiscoveryWithQuotaRecovery(
@@ -2220,7 +2221,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         missionActionBudget: buildMissionActionBudget({
           actionsUsed: investigatorIterationsUsed,
           maximumActions: depth.agenticMaxIterations,
-          maximumActionsPerEpisode: discoveryIterationsPerAct,
+          maximumActionsPerEpisode: latestDiscoveryEpisodeLimit,
           episodeStopReason: discovery.stopReason ?? null,
         }),
         discoverySearchBudget: {
@@ -2524,13 +2525,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations);
+        latestDiscoveryEpisodeLimit = nextEpisodeLimit;
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,
           directedObjective,
           discoveryBudget,
-          Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
+          nextEpisodeLimit,
           discovery.trajectoryRecords ?? [],
           resolveInvestigatorTokenDailyQuotaRecoveryIterations(
             Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
