@@ -95,11 +95,14 @@ describe("terminal review-card reconciliation", () => {
     expect(atlasAssignmentBlock).toContain("iteration: nextIteration");
     expect(atlasAssignmentBlock).toContain(".set({ iteration: nextIteration");
 
-    const rejectedCandidateStart = canonicalAtlas.indexOf("Atlas rejected an out-of-set Boss candidate selection");
-    const rejectedCandidateBlock = canonicalAtlas.slice(canonicalAtlas.lastIndexOf("await db.transaction", rejectedCandidateStart), rejectedCandidateStart + 200);
+    const rejectedCandidateStart = canonicalAtlas.indexOf('rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "candidate_selection" }');
+    const rejectedCandidateEnd = canonicalAtlas.indexOf("continue;", rejectedCandidateStart);
+    const rejectedCandidateBlock = canonicalAtlas.slice(rejectedCandidateStart, rejectedCandidateEnd);
     expect(rejectedCandidateBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
-    const rejectedPivotStart = canonicalAtlas.indexOf("Atlas rejected invalid model-directed");
-    const rejectedPivotBlock = canonicalAtlas.slice(canonicalAtlas.lastIndexOf("await db.transaction", rejectedPivotStart), rejectedPivotStart + 200);
+    expect(rejectedCandidateBlock).toContain("iteration: nextIteration");
+    const rejectedPivotStart = canonicalAtlas.indexOf('rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "pivot_direction" }');
+    const rejectedPivotEnd = canonicalAtlas.indexOf("continue;", rejectedPivotStart);
+    const rejectedPivotBlock = canonicalAtlas.slice(rejectedPivotStart, rejectedPivotEnd);
     expect(rejectedPivotBlock).toContain("nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration)");
   });
 
