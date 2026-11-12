@@ -491,14 +491,25 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         const authoritativeCountsLine = lines.find((line) => line.startsWith("AUTHORITATIVE DURABLE LEAD COUNTS")) ?? "";
         const searchResultContextLine = lines.find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT")) ?? "";
         const scopeAndGuard = [lines[0] ?? "", lines[2] ?? "", lines.slice(-1)[0] ?? ""].filter(Boolean).join("\n");
-        const reservedPinnedLines = [authoritativeCountsLine, pinnedUrlLine, searchResultContextLine].filter(Boolean);
-        const reservedPinnedLength = reservedPinnedLines.reduce((total, line) => total + line.length, 0) + Math.max(0, reservedPinnedLines.length - 1);
-        if (reservedPinnedLength > pinnedBudget) {
+        const mandatoryPinnedLines = [authoritativeCountsLine, pinnedUrlLine].filter(Boolean);
+        const mandatoryPinnedLength = mandatoryPinnedLines.reduce((total, line) => total + line.length, 0) + Math.max(0, mandatoryPinnedLines.length - 1);
+        if (mandatoryPinnedLength > pinnedBudget) {
           throw new Error("Atlas Right-hand prompt cannot preserve authoritative lead counts and an exact unfetched URL within its pinned-state budget.");
         }
-        const coreBudget = Math.max(0, pinnedBudget - reservedPinnedLength - (scopeAndGuard ? 1 : 0));
-        const compactCore = trimPromptSection(scopeAndGuard, coreBudget);
-        const compacted = [compactCore, ...reservedPinnedLines].filter(Boolean).join("\n");
+        // Counts and one exact unfetched URL are non-negotiable. Search-result
+        // descriptions and narrative scope/guard text are model-facing excerpts:
+        // allocate only the space actually left after the mandatory state.
+        const contextOmission = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT: omitted from this prompt budget; relevance remains unknown and full observations remain durable.";
+        const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
+        const remainingAfterMandatory = Math.max(0, pinnedBudget - mandatoryPinnedLength - (mandatoryPinnedLines.length ? 1 : 0));
+        const contextLine = searchResultContextLine && remainingAfterMandatory >= contextOmission.length
+          ? (remainingAfterMandatory >= contextPrefix.length + 40
+              ? contextPrefix + searchResultContextLine.slice(contextPrefix.length, contextPrefix.length + Math.min(480, remainingAfterMandatory - contextPrefix.length))
+              : contextOmission)
+          : "";
+        const remainingAfterContext = Math.max(0, remainingAfterMandatory - (contextLine ? contextLine.length + 1 : 0));
+        const compactCore = trimPromptSection(scopeAndGuard, remainingAfterContext);
+        const compacted = [compactCore, ...mandatoryPinnedLines, contextLine].filter(Boolean).join("\n");
         return compacted.length <= pinnedBudget ? compacted : trimPromptSection(compacted, pinnedBudget);
       })()
     : "";
