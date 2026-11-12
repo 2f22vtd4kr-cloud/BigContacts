@@ -57,7 +57,7 @@ describe("Groq Investigator runtime contract", () => {
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
-      searches: [{ query: "West Midlands private manufacturing directors", provider: "exa", locale: "United Kingdom (English)", market: "United Kingdom market" }],
+      searches: [{ query: "West Midlands private manufacturing directors", provider: "exa", registry: null, locale: "United Kingdom (English)", market: "United Kingdom market" }],
       hypothesis: "A focused search may surface public company and director sources.",
       purpose: "Find public source leads for person-level verification.",
       expectedInformationGain: 0.5,
@@ -68,6 +68,17 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.query).toContain("manufacturing directors");
     expect(parsed.searches[0]?.locale).toBeUndefined();
     expect(parsed.searches[0]?.market).toBeUndefined();
+  });
+
+  it("rejects a parallel web-search item that omits the schema-required null registry field", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "company founder public profile", provider: "serper" }],
+      hypothesis: "A public search may identify a relevant operating-company lead.",
+      purpose: "Verify the nested shared-schema contract locally.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed).toBeNull();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
