@@ -140,8 +140,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("normal starting portfolio");
     expect(discoveryPrompt).toContain("randomized runtime-available catalog supplied to Boss and Right-hand");
     expect(discoveryPrompt).toContain("source-diversity expectation");
-    expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
-    expect(discoveryPrompt).toContain("no registry is preferred; one lead starts target research");
+    expect(discoveryPrompt).toContain("Investigator chooses the next action by expected information gain");
+    expect(discoveryPrompt).toContain("no registry is preferred; one lead can start target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(discoveryPrompt).toContain("ranking-only mentions are leads, not qualified targets");
