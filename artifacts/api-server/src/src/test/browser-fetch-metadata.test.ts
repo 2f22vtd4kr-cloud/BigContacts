@@ -10,12 +10,24 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod, createPlaywrightEgressBudget, reservePlaywrightRequest, releasePlaywrightRequest, accountPlaywrightResponseBytes, isBrowserRedirectResponse, MAX_PLAYWRIGHT_SUBREQUESTS, MAX_PLAYWRIGHT_TOTAL_BYTES, MAX_PLAYWRIGHT_CONCURRENT_REQUESTS } from "../lib/browser-fetch-core";
+import { browserFetchHtml, buildBrowserFetchProviderTelemetry, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod, createPlaywrightEgressBudget, reservePlaywrightRequest, releasePlaywrightRequest, accountPlaywrightResponseBytes, isBrowserRedirectResponse, MAX_PLAYWRIGHT_SUBREQUESTS, MAX_PLAYWRIGHT_TOTAL_BYTES, MAX_PLAYWRIGHT_CONCURRENT_REQUESTS } from "../lib/browser-fetch-core";
 import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
 describe("hosted browser fetch final-URL provenance", () => {
+  it("records the actual provider when a selected provider falls back", () => {
+    expect(buildBrowserFetchProviderTelemetry("scrapfly", "zenrows")).toEqual({
+      requestedProvider: "scrapfly",
+      actualProvider: "zenrows",
+      providerFallback: ["zenrows"],
+    });
+    expect(buildBrowserFetchProviderTelemetry("scrapfly", "scrapfly")).toEqual({
+      requestedProvider: "scrapfly",
+      actualProvider: "scrapfly",
+      providerFallback: [],
+    });
+  });
   it("blocks redirect responses instead of handing Location to Chromium", () => {
     expect(isBrowserRedirectResponse(301, "https://public.example/final")).toBe(true);
     expect(isBrowserRedirectResponse(302, "http://127.0.0.1/private")).toBe(true);
