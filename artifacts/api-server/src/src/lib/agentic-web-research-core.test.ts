@@ -3034,6 +3034,45 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("must visit");
   });
 
+  it("bounds a newest successful search observation without duplicating its raw provider payload", () => {
+    const url = "https://news.example.test/releases/ckx-lands-investment";
+    const observation = "CKX Lands appears in a transaction announcement with Jacobs Private Equity. "
+      + "Search-result snippets remain unverified leads, not fetched evidence. "
+      + "LONG_RESULT_SNIPPET ".repeat(2_000);
+    const record: AgenticTrajectoryRecord = {
+      turn: 18,
+      model: "openai/gpt-oss-120b",
+      action: "parallel_web_search",
+      execution: "success",
+      args: { searches: [{ query: "CKX Lands investment", provider: "serper" }] },
+      leadUrls: [url],
+      observation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate source-backed companies and their business relationships.",
+      history: [],
+      trajectoryRecords: [record],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 18");
+    expect(prompt).toContain(url);
+    expect(prompt).toContain("CKX Lands");
+    expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
+    expect(prompt).toContain("observationCharsOmittedFromPrompt");
+    expect(prompt).not.toContain(observation);
+    expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
+    expect(prompt.match(/LATEST TRAJECTORY RECORD — TURN 18/g) ?? []).toHaveLength(1);
+    expect(prompt).not.toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 18");
+  });
+
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
     const oldObjective = [
       "PRIMARY CASE OBJECTIVE: Discover people with credible ownership evidence.",
