@@ -419,7 +419,7 @@ export function buildAtlasPinnedControlState(input: {
         rawUnfetchedContext,
         Math.max(0, unfetchedContextBudget - contextOmissionSuffix.length),
         "[middle omitted; relevance unknown]",
-      ) + contextOmissionSuffix
+      ).replace(/\s+/g, " ") + contextOmissionSuffix
     : rawUnfetchedContext;
   const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
