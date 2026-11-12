@@ -26,8 +26,10 @@ describe("objective-aligned Boss control decisions", () => {
       humanObjective: objective,
       rightHand: { status: "completed", decision: "continue_discovery", reason: "The Investigator should begin objective-led discovery.", direction: null, confidence: 0.9, model: "test-model", error: null },
     });
-    expect(prompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference');
-    expect(prompt).toContain("For B2B discovery, well-known/public companies and their relevant decision-makers remain eligible");
+    expect(prompt).toContain("globally famous/household-name people are presumptively poor-access prospects");
+    expect(prompt).toContain("source-backed person-specific professional route");
+    expect(prompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(prompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference');
     expect(prompt).toContain(objective);
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
   });
