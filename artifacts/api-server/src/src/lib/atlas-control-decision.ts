@@ -460,24 +460,41 @@ function trimPromptSection(value: string, maxChars: number): string {
     "[APEX PROMPT COMPACTION: middle context omitted; URL tokens intersecting excerpt edges are omitted whole; durable case state remains authoritative]",
   );
 }
-function compactBossPinnedControlState(value: string): string {
+function compactBossPinnedControlState(value: string, maxChars: number): string {
   const lines = value.split("\n");
-  const contextIndex = lines.findIndex((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT"));
-  if (contextIndex < 0) return value;
-  const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
-  const contextLine = lines[contextIndex] ?? "";
-  const contextBody = contextLine.startsWith(contextPrefix) ? contextLine.slice(contextPrefix.length) : contextLine;
-  const contextItems = contextBody.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
-  const separator = " || ";
-  const contextBudget = 480;
-  const itemBudget = Math.max(1, Math.floor((contextBudget - Math.max(0, contextItems.length - 1) * separator.length) / Math.max(1, contextItems.length)));
-  const bounded = contextItems.map((item) => compactPromptSectionPreservingUrlTokens(
-    item,
-    itemBudget,
-    "[detail omitted; relevance unknown]",
-  )).join(separator);
-  lines[contextIndex] = contextPrefix + bounded + " [Boss excerpt bounded; relevance unknown; full observations remain durable]";
-  return lines.join("\n");
+  const scopeLine = lines.find((line) => line.startsWith("ACTIVE ACCEPTED BOSS SCOPE:")) ?? "";
+  const targetsLine = lines.find((line) => line.startsWith("COMPLETE AVAILABLE REVIEW TARGETS")) ?? "";
+  const countsLine = lines.find((line) => line.startsWith("AUTHORITATIVE DURABLE LEAD COUNTS")) ?? "";
+  const unfetchedLine = lines.find((line) => line.startsWith("UNFETCHED (")) ?? "";
+  const contextLine = lines.find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT")) ?? "";
+  const controlLine = lines.find((line) => line.startsWith("CONTROL LAW:")) ?? "";
+  const firstUrl = unfetchedLine.match(/https?:\/\/[^\s|]+/)?.[0] ?? "";
+  const exactUrl = firstUrl ? completeAtlasControlPromptUrl(firstUrl) : null;
+  const mandatory = [
+    scopeLine,
+    targetsLine,
+    countsLine,
+    exactUrl ? "PINNED UNFETCHED LEAD URL (exact; unvisited lead, not evidence): " + exactUrl : "",
+    controlLine,
+  ].filter(Boolean);
+  const mandatoryText = mandatory.join("\n");
+  if (mandatoryText.length > maxChars) {
+    throw new Error("Atlas Boss prompt cannot fit the mandatory scope, complete review-target inventory, durable lead counts, and an exact unfetched URL within its pinned-state budget.");
+  }
+
+  const omitted = "[Optional control context omitted from this prompt; full observations and route inventory remain durable.]";
+  const remaining = maxChars - mandatoryText.length - 1;
+  if (contextLine && remaining > omitted.length + 80) {
+    const prefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
+    const body = contextLine.startsWith(prefix) ? contextLine.slice(prefix.length) : contextLine;
+    const contextBudget = Math.max(0, remaining - omitted.length - prefix.length - 1);
+    const excerpt = contextBudget > 0
+      ? compactPromptSectionPreservingUrlTokens(body, contextBudget, "[detail omitted; relevance unknown]")
+      : "";
+    const context = excerpt ? prefix + excerpt + " " + omitted : omitted;
+    return [mandatoryText, context].join("\n");
+  }
+  return [mandatoryText, omitted].join("\n");
 }
 
 export function buildAtlasRightHandControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string }): string {
@@ -637,8 +654,16 @@ Return ONE JSON object only: action, candidateName, candidateType, direction, re
   // Preserve authoritative scope, exact target inventory, full counts and sampled URLs.
   // Only the explanatory unvisited-result context is compacted per item with URL-aware boundaries.
   const rawPinned = input.pinnedControlState?.trim() ?? "";
-  const pinned = rawPinned ? compactBossPinnedControlState(rawPinned) : "";
-  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
+  const fixedOverhead = fixedPrefix.length + 2 + reportLabel.length + pinnedLabel.length + stateLabel.length + rightHandLabel.length;
+  // Reserve bounded room for the latest Investigator report, Right-hand advice and
+  // compact history before allocating the remainder to pinned state. Mandatory
+  // scope, complete target inventory, counts and one whole URL are never truncated.
+  const reservedDynamicChars = 1_600;
+  const pinnedBudget = rawPinned
+    ? Math.min(4_000, Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedOverhead - reservedDynamicChars))
+    : 0;
+  const pinned = rawPinned ? compactBossPinnedControlState(rawPinned, pinnedBudget) : "";
+  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedOverhead - (pinned ? pinned.length : 0));
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
   const report = trimPromptSection(input.investigatorReport, reportBudget);
