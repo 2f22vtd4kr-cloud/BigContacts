@@ -400,7 +400,7 @@ export function buildAtlasPinnedControlState(input: {
   findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
 }): string {
   const state = input.leadInventory;
-  const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 4);
+  const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 2);
   const failedSample = state.failedLeadUrls.slice(0, 1).flatMap((item) => {
     const url = completeAtlasControlPromptUrl(item.url);
     return url ? [{ ...item, url }] : [];
