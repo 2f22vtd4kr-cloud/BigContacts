@@ -416,7 +416,7 @@ export function buildAtlasPinnedControlState(input: {
   const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
     ? (() => {
-        const contextItems = rawUnfetchedContext.split(/\\s+(?:\\|\\||<LEAD_RESULT>)\\s+/u).filter(Boolean);
+        const contextItems = rawUnfetchedContext.split(/\s+(?:\|\||<LEAD_RESULT>)\s+/u).filter(Boolean);
         const separator = " || ";
         const bodyBudget = Math.max(1, unfetchedContextBudget - contextOmissionSuffix.length);
         const itemBudget = Math.max(
@@ -427,7 +427,7 @@ export function buildAtlasPinnedControlState(input: {
           item,
           itemBudget,
           "[detail omitted; relevance unknown]",
-        )).join(separator).replace(/\\s+/g, " ") + contextOmissionSuffix;
+        )).join(separator).replace(/\s+/g, " ") + contextOmissionSuffix;
       })()
     : rawUnfetchedContext;
   const lines = [
