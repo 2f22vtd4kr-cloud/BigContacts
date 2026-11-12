@@ -498,7 +498,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const discoveryIterationCeiling = depth.agenticMaxIterations");
     expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = resolveOpeningInvestigatorIterations(depth, discoveryIterationCeiling)");
-    expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
+    expect(canonicalSource).toContain("const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     const openingRecoveryCall = canonicalSource.slice(
       canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery("),
@@ -527,7 +527,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("missionActionBudget: buildMissionActionBudget({");
     expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
     expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
-    expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
+    expect(canonicalSource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
+    expect(canonicalSource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
     expect(canonicalSource).toContain("episodeStopReason: discovery.stopReason ?? null");
     const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
     expect(depthSource).toContain('episodeLimitReached: episodeStopReason === "ITERATION_BUDGET"');
