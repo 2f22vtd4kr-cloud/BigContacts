@@ -302,8 +302,9 @@ export function buildDiscoveryLeadUtilizationState(
         const snippetLines: string[] = [];
         for (let snippetIndex = index + 1; snippetIndex < Math.min(observationLines.length, index + 4); snippetIndex += 1) {
           const snippetLine = observationLines[snippetIndex] ?? "";
-          if (/^PARALLEL_SEARCH\s+\d+\s+provider=/i.test(snippetLine)) break;
-          if (!/^(?:URL:|https?:\/\/)/i.test(snippetLine)) snippetLines.push(snippetLine);
+          if (/^PARALLEL_SEARCH\\s+\\d+\\s+provider=/i.test(snippetLine)) break;
+          if (/^(?:URL:|https?:\\/\\/)/i.test(snippetLine)) break;
+          snippetLines.push(snippetLine);
         }
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
