@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   nextResearchCaseEventIteration,
+  isInvestigatorAuthoredResearchEvent,
   lockResearchCaseEventAppendStream,
   resolveMonotonicResearchCaseIteration,
 } from "./research-case-event-iteration";
 
 describe("research case event iteration high-water", () => {
+  it("accepts only Investigator-authored events for discovery card provenance", () => {
+    expect(isInvestigatorAuthoredResearchEvent("head_investigator")).toBe(true);
+    expect(isInvestigatorAuthoredResearchEvent("groq_boss")).toBe(false);
+    expect(isInvestigatorAuthoredResearchEvent("right_hand")).toBe(false);
+    expect(isInvestigatorAuthoredResearchEvent("system")).toBe(false);
+    expect(isInvestigatorAuthoredResearchEvent(null)).toBe(false);
+  });
   it("acquires the per-case append lock through the active transaction", async () => {
     let calls = 0;
     await lockResearchCaseEventAppendStream({ execute: () => { calls += 1; } }, 42);
