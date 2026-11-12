@@ -64,7 +64,7 @@ describe("objective-led institutional orientation", () => {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("globally famous/household-name");
       expect(prompt).toContain("person-specific professional route");
-      expect(prompt).toContain("general company/press/IR channels do not qualify");
+      expect(prompt).toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
       expect(prompt).toContain("explicitly requests them");
       expect(prompt).toContain("COMPANY REALISM");
       expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
