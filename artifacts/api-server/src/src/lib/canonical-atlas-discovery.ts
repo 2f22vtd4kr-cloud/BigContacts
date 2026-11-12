@@ -2199,8 +2199,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed),
         targetResearchReserveRemaining: Math.max(0, targetResearchReserveIterations - Math.max(0, investigatorIterationsUsed - discoveryIterationsUsed)),
       };
-      const pinnedControlState = buildAtlasPinnedControlState({
-        activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
+      const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
         leadInventory: controlLeadInventory,
         admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })),
         findings: controlFindings,
@@ -2218,17 +2217,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         scopeRecoveryFeedback: buildAtlasScopeRecoveryFeedback(discovery.trajectoryRecords ?? []),
         status: discovery.status,
         stopReason: discovery.stopReason ?? null,
-        missionActionBudget: {
-          ...buildMissionActionBudget({
-            actionsUsed: investigatorIterationsUsed,
-            maximumActions: depth.agenticMaxIterations,
-            maximumActionsPerEpisode: discoveryIterationsPerAct,
-            episodeStopReason: discovery.stopReason ?? null,
-          }),
-          discoveryActionsRemaining: controlBudgetState.discoveryActionsRemaining,
-          discoverySearchActionsUsed: controlBudgetState.discoverySearchActionsUsed,
-          discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining,
-          targetResearchReserveRemaining: controlBudgetState.targetResearchReserveRemaining,
+        missionActionBudget: buildMissionActionBudget({
+          actionsUsed: investigatorIterationsUsed,
+          maximumActions: depth.agenticMaxIterations,
+          maximumActionsPerEpisode: discoveryIterationsPerAct,
+          episodeStopReason: discovery.stopReason ?? null,
+        }),
+        discoverySearchBudget: {
+          actionsUsed: controlBudgetState.discoverySearchActionsUsed,
+          actionsRemaining: controlBudgetState.discoverySearchActionsRemaining,
         },
         errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
         searches: discovery.searches,
