@@ -474,7 +474,7 @@ function compactBossPinnedControlState(value: string, maxChars: number): string 
       const exact = completeAtlasControlPromptUrl(match[0]);
       return exact ? [exact] : [];
     });
-  const unfetchedCount = Number(countsLine.match(/"unfetchedLeadUrlCount"\\s*:\\s*(\\d+)/)?.[1] ?? 0);
+  const unfetchedCount = Number(countsLine.match(/"unfetchedLeadUrlCount"\s*:\s*(\d+)/)?.[1] ?? 0);
   const omittedUrlCount = Math.max(0, unfetchedCount - exactUrls.length);
   const urlSampleLine = exactUrls.length
     ? "PINNED UNFETCHED LEAD URLS (unfetchedLeadUrls sample; exact; unvisited leads, not evidence): " +
