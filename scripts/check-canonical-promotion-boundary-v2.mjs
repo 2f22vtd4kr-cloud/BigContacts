@@ -85,7 +85,7 @@ assert(hasAll(control, ["structuredTrajectory", "discoveryTrajectoryRecords", "P
 assert(atlas.includes("discovery = mergeDiscoveryResults(discovery, nextDiscovery)") && atlas.includes("trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])]"), "Atlas preserves trajectory records across discovery pivots through the cumulative result merger");
 assert(atlas.includes('mode: "discovery"'), "Atlas uses explicit discovery mode");
 assert(!atlas.includes("Discovery slot"), "Atlas has no fake Discovery target slot");
-assert(hasAll(bureau, ['mode?:"target"|"discovery"', 'input.mode!=="discovery"']), "Bureau discovery mode is explicit");
+assert(hasAll(bureau, ['mode?: "target" | "discovery"']) && /input\.mode\s*!==\s*"discovery"/.test(bureau), "Bureau discovery mode is explicit");
 assert(atlas.includes('name, type: "PersonCandidate"') && atlas.includes('"HNWI", "Gatekeeper", "PersonCandidate"'), "discovery admission uses a neutral PersonCandidate type and preserves candidate identity lookup");
 assert(hasAll(entityTaxonomy, ['"PersonCandidate"', "wealth not established", "Candidate"]), "frontend taxonomy marks review-only identities as candidates rather than HNWIs");
 assert(entityPage.includes('"PersonCandidate"') && entityPage.includes("Candidate — wealth unverified"), "entity filters label unverified candidates explicitly");
