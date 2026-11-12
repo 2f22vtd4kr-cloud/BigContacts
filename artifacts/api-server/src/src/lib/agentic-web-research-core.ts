@@ -288,29 +288,55 @@ export function buildDiscoveryLeadUtilizationState(
       if (!urls.length) return [];
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
       const observationLines = observation.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const resultExcerpts: string[] = [];
+      const resultExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      let currentProvider: string | null = null;
       for (let index = 0; index < observationLines.length; index += 1) {
-        const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i)
-          ?? observationLines[index]?.match(/^(https?:\/\/\S+)$/i);
+        const providerHeader = observationLines[index]?.match(/^PARALLEL_SEARCH\\s+\\d+\\s+provider=([a-z0-9_-]+)/i);
+        if (providerHeader?.[1]) currentProvider = providerHeader[1].toLowerCase();
+        const urlMatch = observationLines[index]?.match(/\\bURL:\\s*(https?:\\/\\/\\S+)/i)
+          ?? observationLines[index]?.match(/^(https?:\\/\\/\\S+)$/i);
         if (!urlMatch?.[1]) continue;
         const candidate = normalize(urlMatch[1]);
         if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
         const previousLine = observationLines[index - 1] ?? "";
-        const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
+        const title = /^(?:URL:|https?:\\/\\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines = observationLines.slice(index + 1, index + 4)
-          .filter((line) => !/^(?:URL:|https?:\/\/)/i.test(line));
+          .filter((line) => !/^(?:URL:|https?:\\/\\/)/i.test(line));
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
           .slice(0, 155);
-        if (excerpt && !resultExcerpts.includes(excerpt)) resultExcerpts.push(excerpt);
+        if (excerpt && !resultExcerpts.some((item) => item.provider === currentProvider && item.excerpt === excerpt)) {
+          resultExcerpts.push({ provider: currentProvider, excerpt });
+        }
       }
-      const selectedExcerpts = resultExcerpts.length > 4
-        ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-2)]
-        : resultExcerpts;
+      // A mixed parallel batch must not let the first provider's results crowd
+      // every other provider out of supervisor context. Preserve one model-ranked
+      // result per provider first; then use remaining room for additional leads.
+      const providerOrder = Array.isArray(record.args?.searches)
+        ? record.args.searches.flatMap((search) => {
+            if (!search || typeof search !== "object" || Array.isArray(search)) return [];
+            const provider = (search as Record<string, unknown>).provider;
+            return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : [];
+          })
+        : [];
+      const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
+      const selectedExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      for (const provider of providers) {
+        const first = resultExcerpts.find((item) => item.provider === provider);
+        if (first) selectedExcerpts.push(first);
+      }
+      if (!selectedExcerpts.length) {
+        selectedExcerpts.push(...(resultExcerpts.length > 4
+          ? [...resultExcerpts.slice(0, 2), ...resultExcerpts.slice(-2)]
+          : resultExcerpts));
+      }
       const boundedResultContext = selectedExcerpts.length
-        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\n" + selectedExcerpts.join(" | ").slice(0, 720)
-        : compactPromptSectionPreservingUrlTokens(
+        ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence]\\n" + selectedExcerpts
+            .map((item) => (item.provider ? `provider=${item.provider}: ` : "") + item.excerpt)
+            .join(" <LEAD_RESULT> ")
+            .slice(0, 720)
+      : compactPromptSectionPreservingUrlTokens(
           observation,
           1_600,
           "[SEARCH RESULT TEXT BOUNDED: unvisited leads remain unverified; full observation is durable; omitted text is unknown]",
