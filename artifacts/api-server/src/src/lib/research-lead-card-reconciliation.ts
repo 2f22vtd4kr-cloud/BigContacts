@@ -9,6 +9,7 @@ import { logger } from "./logger";
 import { buildDiscoverySourceAttribution } from "./discovery-source-attribution";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { getJobStrict } from "./job-queue";
+import { isInvestigatorAuthoredResearchEvent } from "./research-case-event-iteration";
 
 /**
  * Review-lead reconciliation normally runs while the Atlas lease is owned.
@@ -70,7 +71,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
   let evidenceRows = 0;
   let changed = false;
   for (const researchCase of cases) {
-    const events = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
+    const events = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
@@ -78,7 +79,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
     const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
-      if (!payload || payload.jobId !== jobId) continue;
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId) continue;
       if (Array.isArray(payload.findings)) {
         for (const raw of payload.findings) {
           if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
@@ -344,7 +345,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
   let evidenceRows = 0;
   let changed = false;
   for (const researchCase of cases) {
-    const events = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
+    const events = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
@@ -352,7 +353,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
     const observations: Array<{ url: string; text: string; eventId: number; createdAt: Date; action: string; verificationLevel: "fetched_source" | "search_result_lead"; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
-      if (!payload || payload.jobId !== jobId) continue;
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId) continue;
       if (Array.isArray(payload.findings)) for (const raw of payload.findings) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const finding = raw as Record<string, unknown>;
