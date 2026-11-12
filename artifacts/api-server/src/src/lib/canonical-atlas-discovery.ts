@@ -22,7 +22,7 @@ import {
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
-import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
+import { isInvestigatorAuthoredResearchEvent, lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -252,11 +252,11 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       .filter(Boolean))];
     if (!candidateRoles.length) continue;
 
-    const caseEvents = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
+    const caseEvents = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
       .where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
     const observations = caseEvents.flatMap((event) => {
-      if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
       try {
         const payload = JSON.parse(event.payload) as { jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
         // Both the job and the exact Investigator run must match: a case-scoped
@@ -438,7 +438,7 @@ export async function reconcileCanonicalDiscoveryCaseReviewCards(input: {
 }): Promise<{ materialized: number; evidenceRows: number }> {
   const empty = { materialized: 0, evidenceRows: 0 };
   try {
-    const events = await db.select({ eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload })
+    const events = await db.select({ actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload })
       .from(researchCaseEventsTable)
       .where(and(
         eq(researchCaseEventsTable.caseId, input.discoveryCaseId),
@@ -448,7 +448,7 @@ export async function reconcileCanonicalDiscoveryCaseReviewCards(input: {
     let materialized = 0;
     let evidenceRows = 0;
     for (const event of events) {
-      if (typeof event.payload !== "string") continue;
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || typeof event.payload !== "string") continue;
       let payload: Record<string, unknown>;
       try {
         const parsed: unknown = JSON.parse(event.payload);
@@ -539,6 +539,7 @@ async function materializePartialPersonLeadCards(input: {
 
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
+    actorRole: researchCaseEventsTable.actorRole,
     eventType: researchCaseEventsTable.eventType,
     payload: researchCaseEventsTable.payload,
     createdAt: researchCaseEventsTable.createdAt,
@@ -547,7 +548,7 @@ async function materializePartialPersonLeadCards(input: {
     eq(researchCaseEventsTable.eventType, "tool_observation"),
   ));
   const observations = caseEvents.flatMap((event) => {
-    if (typeof event.payload !== "string") return [];
+    if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
         jobId?: string | null; action?: string; execution?: string;
@@ -862,6 +863,7 @@ async function materializePartialOrganizationLeadCards(input: {
   }
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
+    actorRole: researchCaseEventsTable.actorRole,
     eventType: researchCaseEventsTable.eventType,
     payload: researchCaseEventsTable.payload,
     createdAt: researchCaseEventsTable.createdAt,
@@ -870,7 +872,7 @@ async function materializePartialOrganizationLeadCards(input: {
     eq(researchCaseEventsTable.eventType, "tool_observation"),
   ));
   const observations = caseEvents.flatMap((event) => {
-    if (typeof event.payload !== "string") return [];
+    if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
         jobId?: string | null; action?: string; execution?: string;

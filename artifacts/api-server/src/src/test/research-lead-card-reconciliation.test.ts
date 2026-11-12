@@ -15,6 +15,12 @@ const launchDefaults = readFileSync(new URL("../lib/atlas-launch-defaults.ts", i
 const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-union.ts", import.meta.url), "utf8");
 const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
+  it("requires Investigator-authored events for partial and terminal review-card provenance", () => {
+    expect(reconciler.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(2);
+    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(4);
+    expect(reconciler).toContain("actorRole: researchCaseEventsTable.actorRole");
+    expect(canonicalAtlas).toContain("actorRole: researchCaseEventsTable.actorRole");
+  });
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientation).toContain("registry search and public-web search are equal, neutral first-discovery options");

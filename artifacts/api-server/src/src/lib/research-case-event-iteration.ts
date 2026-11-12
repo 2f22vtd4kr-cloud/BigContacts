@@ -1,5 +1,10 @@
 import { sql, type SQL } from "drizzle-orm";
 
+/** Only Investigator-authored case events may select or support discovery review cards. */
+export function isInvestigatorAuthoredResearchEvent(actorRole: unknown): boolean {
+  return actorRole === "head_investigator";
+}
+
 /** Acquire the same per-case transaction lock used by the database append-only event trigger. */
 type ResearchCaseEventLockExecutor = { execute: (query: SQL) => unknown };
 export async function lockResearchCaseEventAppendStream(tx: ResearchCaseEventLockExecutor, caseId: number): Promise<void> {

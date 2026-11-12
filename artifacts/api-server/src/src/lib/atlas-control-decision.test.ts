@@ -366,6 +366,10 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).not.toContain("HUMAN OBJECTIVE: The complete current human objective is in COMPLETE DISCOVERY STATE");
     expect(prompt).toContain("Choose only continue_discovery or stop.");
     expect(prompt).toContain("RIGHT-HAND ADVICE");
+    expect(prompt).toContain("RUNTIME SOURCE/REGISTRY FEASIBILITY");
+    expect(prompt).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
+    expect(prompt).toContain("SOURCE-MIX CONTRACT");
+    expect(prompt).toContain("Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 
