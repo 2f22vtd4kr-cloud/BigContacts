@@ -276,7 +276,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
+    expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
