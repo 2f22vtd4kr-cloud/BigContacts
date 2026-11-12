@@ -44,8 +44,8 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("outbound search actions used=2; remaining=0 of 2");
-    expect(prompt).toContain("do not select web_search, parallel_web_search, registry_search, or parallel_registry_search");
+    expect(prompt).toContain("used=2; remaining=0/2");
+    expect(prompt).toContain("At zero, web/registry search actions cannot execute");
   });
 });
 
