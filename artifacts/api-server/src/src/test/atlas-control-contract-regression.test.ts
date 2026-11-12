@@ -865,6 +865,9 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(rightHandPrompt).toContain("episodeStopReason=ITERATION_BUDGET");
     expect(bossPrompt).toContain("actionsRemaining is greater than zero");
     expect(canonicalDiscoverySource).toContain("missionActionBudget: buildMissionActionBudget({");
+    expect(canonicalDiscoverySource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
+    expect(canonicalDiscoverySource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
+
   });
 
   it("gives both supervisor prompts source-route recovery guidance without prescribing the next action", () => {
