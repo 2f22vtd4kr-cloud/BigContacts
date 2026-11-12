@@ -468,13 +468,24 @@ function compactBossPinnedControlState(value: string, maxChars: number): string 
   const unfetchedLine = lines.find((line) => line.startsWith("UNFETCHED (")) ?? "";
   const contextLine = lines.find((line) => line.startsWith("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT")) ?? "";
   const controlLine = lines.find((line) => line.startsWith("CONTROL LAW:")) ?? "";
-  const firstUrl = unfetchedLine.match(/https?:\/\/[^\s|]+/)?.[0] ?? "";
-  const exactUrl = firstUrl ? completeAtlasControlPromptUrl(firstUrl) : null;
+  const exactUrls = [...unfetchedLine.matchAll(/https?:\/\/[^\s|]+/g)]
+    .slice(0, 2)
+    .flatMap((match) => {
+      const exact = completeAtlasControlPromptUrl(match[0]);
+      return exact ? [exact] : [];
+    });
+  const unfetchedCount = Number(countsLine.match(/"unfetchedLeadUrlCount"\\s*:\\s*(\\d+)/)?.[1] ?? 0);
+  const omittedUrlCount = Math.max(0, unfetchedCount - exactUrls.length);
+  const urlSampleLine = exactUrls.length
+    ? "PINNED UNFETCHED LEAD URLS (unfetchedLeadUrls sample; exact; unvisited leads, not evidence): " +
+      exactUrls.join(" | ") +
+      (omittedUrlCount ? ` [${omittedUrlCount} URL(s) omitted whole from this prompt sample; complete routes remain in durable case state]` : "")
+    : (unfetchedCount > 0 ? "UNFETCHED URL SAMPLE: no complete URL fits this prompt sample; all routes remain durable and relevance is unknown." : "");
   const mandatory = [
     scopeLine,
     targetsLine,
     countsLine,
-    exactUrl ? "PINNED UNFETCHED LEAD URL (unfetchedLeadUrls sample; exact; unvisited lead, not evidence): " + exactUrl : "",
+    urlSampleLine,
     controlLine,
   ].filter(Boolean);
   const mandatoryText = mandatory.join("\n");
@@ -482,7 +493,7 @@ function compactBossPinnedControlState(value: string, maxChars: number): string 
     throw new Error("Atlas Boss prompt cannot fit the mandatory scope, complete review-target inventory, durable lead counts, and an exact unfetched URL within its pinned-state budget.");
   }
 
-  const omitted = "[Optional control context omitted from this prompt; full observations and route inventory remain durable.]";
+  const omitted = "[Optional control context omitted; complete routes remain in durable case state and full observations remain durable.]";
   const remaining = maxChars - mandatoryText.length - 1;
   if (contextLine && remaining > omitted.length + 80) {
     const prefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
