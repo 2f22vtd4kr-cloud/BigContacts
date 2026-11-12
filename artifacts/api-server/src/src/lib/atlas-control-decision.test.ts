@@ -227,7 +227,7 @@ describe("Atlas control-plane lead continuity", () => {
           turn: 3,
           action: "web_search",
           leadUrlCount: 18,
-          observation: "CKX Lands announced a material investment transaction. " + "LONG_RESULT_DETAIL ".repeat(500),
+          observation: "CKX Lands announced a material investment transaction. " + "LONG_RESULT_DETAIL ".repeat(500) + " TAIL_RESULT_SENTINEL",
         }],
       },
       admittedCandidates: [],
@@ -246,6 +246,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
     expect(prompt).toContain("additional result text omitted; relevance unknown");
     expect(prompt).toContain("CKX Lands announced a material investment transaction");
+    expect(prompt).toContain("TAIL_RESULT_SENTINEL");
     expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
   });
 
