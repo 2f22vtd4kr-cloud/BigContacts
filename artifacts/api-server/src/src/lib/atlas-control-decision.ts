@@ -555,6 +555,8 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
       "HUMAN OBJECTIVE (complete and authoritative; do not shorten, reinterpret, add geography, or add a source preference):",
       humanObjective,
       "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery under the exact human objective. Do not compare strategies, sectors, or geographies.",
+      "RUNTIME SOURCE/REGISTRY FEASIBILITY (inform the start/stop decision only; do not prescribe a route or order):",
+      atlasRegistryFeasibilityLaw(),
       "SOURCE-NEUTRALITY: after this decision, the Investigator selects one useful company, person, or asset from any enabled registry/asset register or public-web result. All enabled registries and public-web search are equal, neutral options. One observed target is enough.",
       "EVIDENCE BOUNDARY: Boss and Right-hand output, hypotheses, confidence, and rationale are not source evidence. Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.",
       "RIGHT-HAND ADVICE (advisory only; no free-form rationale or focus lanes are passed as evidence):",
