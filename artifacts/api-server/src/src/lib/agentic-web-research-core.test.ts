@@ -796,14 +796,17 @@ describe("Investigator prompt URL integrity", () => {
   });
 
 describe("discovery lead inventory", () => {
-  it("retains item-level context from three recent successful search batches", () => {
+  it("retains provider-attributed context from three six-lead search batches", () => {
+    const serperUrls = Array.from({ length: 6 }, (_, index) => `https://serper.example.test/record/${index + 1}`);
+    const tavilyUrls = Array.from({ length: 6 }, (_, index) => `https://tavily.example.test/record/${index + 1}`);
+    const exaUrls = Array.from({ length: 6 }, (_, index) => `https://exa.example.test/record/${index + 1}`);
     const records = [
-      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: "FIRST_BATCH: official filing names the investor.\nURL: https://first.example.test/record", observedUrls: [], leadUrls: ["https://first.example.test/record"], findings: [] },
-      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: "SECOND_BATCH: transaction report names the buyer.\nURL: https://second.example.test/record", observedUrls: [], leadUrls: ["https://second.example.test/record"], findings: [] },
-      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: "THIRD_BATCH: registry result lists company officers.\nURL: https://third.example.test/record", observedUrls: [], leadUrls: ["https://third.example.test/record"], findings: [] },
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
+      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
+      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
     ] as AgenticTrajectoryRecord[];
     const state = buildDiscoveryLeadUtilizationState(records);
-    expect(state.unfetchedLeadUrlCount).toBe(3);
+    expect(state.unfetchedLeadUrlCount).toBe(18);
     expect(state.unfetchedLeadObservations).toHaveLength(3);
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("FIRST_BATCH");
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("SECOND_BATCH");
