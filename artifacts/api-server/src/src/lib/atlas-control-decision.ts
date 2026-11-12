@@ -411,7 +411,8 @@ export function buildAtlasPinnedControlState(input: {
   });
   const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 2);
   const rawUnfetchedContext = unfetchedObservationItems.map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\\s+/g, " ").trim()).join(" || ");
-  const unfetchedContextBudget = 480;
+  // Leave room for the fixed context label in the later control-prompt projection.
+  const unfetchedContextBudget = 360;
   const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
     ? compactPromptSectionPreservingUrlTokens(
