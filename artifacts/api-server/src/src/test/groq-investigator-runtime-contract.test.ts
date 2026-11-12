@@ -84,6 +84,18 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.registry).toBe("sec-edgar");
   });
 
+  it("rejects a single registry action when the adapter is not runtime-callable", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "registry_search",
+      query: "private company officers",
+      registry: "invented-global-owners-register",
+      hypothesis: "A registry may identify relevant public records.",
+      purpose: "Test that unsupported adapter IDs are not dispatched.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed).toBeNull();
+  });
+
   it("rejects a parallel registry action when any search omits its registry ID", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_registry_search",
