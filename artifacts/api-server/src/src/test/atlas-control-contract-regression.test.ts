@@ -312,7 +312,10 @@ describe("Atlas control-plane contract regression", () => {
     expect(bossPrompt).toContain(feedback);
     expect(rightHandPrompt).toContain("realism/targetability constraints outrank Boss suggestions");
     expect(bossPrompt).toContain("Mission priority: the human objective governs target class and any reachability constraints.");
-    expect(bossPrompt).toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
+    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
+    expect(bossPrompt).toContain("person-specific professional route");
+    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(bossPrompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
