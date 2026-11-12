@@ -277,7 +277,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
     expect(submitted).toContain('"url":null');
-    expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
+    expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
