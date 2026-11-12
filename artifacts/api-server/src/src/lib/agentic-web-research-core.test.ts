@@ -3458,6 +3458,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const searches = (count: number) => Array.from({ length: count }, (_, index) => ({
       query: `model-query-${index + 1}`,
       provider: "serper",
+      registry: null,
       locale: null,
       market: null,
       purpose: `model-purpose-${index + 1}`,
