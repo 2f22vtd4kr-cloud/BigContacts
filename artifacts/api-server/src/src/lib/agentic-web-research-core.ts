@@ -4739,12 +4739,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const boundedObservation = searchActions.has(record.action)
       ? compactDurablePromptObservation(rawObservation)
       : rawObservation;
+    const rawArgs = record.args ?? {};
+    const promptArgs = compactLatestArgs(rawArgs);
+    const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
     return {
       turn: record.turn,
       pivotScopeKey: record.pivotScopeKey,
       action: record.action,
       execution: record.execution ?? "unknown",
-      args: record.args ?? {},
+      args: promptArgs,
+      argsOmittedFromPromptCount,
       observedUrls,
       observedUrlsOmittedFromPromptCount: Math.max(0, rawObservedUrls.length - observedUrls.length),
       leadUrls,
