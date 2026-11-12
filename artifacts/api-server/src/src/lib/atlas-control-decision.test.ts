@@ -250,6 +250,15 @@ describe("Atlas control-plane lead continuity", () => {
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
       compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
       pinnedControlState: pinnedStateWithUnfetchedLead(),
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "A useful in-scope lead remains unvisited.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
     });
     const rightHandPrompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
