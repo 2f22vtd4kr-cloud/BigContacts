@@ -84,6 +84,17 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.registry).toBe("sec-edgar");
   });
 
+  it("rejects a parallel registry action when any search omits its registry ID", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_registry_search",
+      searches: [{ query: "private company officers" }],
+      hypothesis: "A callable registry may identify relevant public records.",
+      purpose: "Test the local action contract without dispatching an unspecified adapter.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed).toBeNull();
+  });
+
   it("preserves the active Boss question when emergency compaction receives a bounded objective", () => {
     const direction = "Perform registry queries on Zefix/Swiss commercial register for family-owned mid-market firms in the target sectors to extract named owners with publicly documented wealth indicators.";
     const boundedObjective = buildBoundedInvestigatorObjective({
