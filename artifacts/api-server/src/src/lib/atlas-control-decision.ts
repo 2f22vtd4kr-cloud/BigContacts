@@ -412,12 +412,13 @@ export function buildAtlasPinnedControlState(input: {
   const unfetchedObservationItems = (state.unfetchedLeadObservations ?? []).slice(0, 2);
   const rawUnfetchedContext = unfetchedObservationItems.map((item) => "turn=" + item.turn + " action=" + item.action + " unvisitedLeadCount=" + item.leadUrlCount + " resultText=" + item.observation.replace(/\\s+/g, " ").trim()).join(" || ");
   const unfetchedContextBudget = 480;
+  const contextOmissionSuffix = " [additional result text omitted; relevance unknown; full observation remains durable]";
   const boundedUnfetchedContext = rawUnfetchedContext.length > unfetchedContextBudget
     ? compactPromptSectionPreservingUrlTokens(
         rawUnfetchedContext,
-        unfetchedContextBudget,
-        "[unvisited result context middle omitted; remaining relevance unknown; full observations remain in durable case state]",
-      )
+        Math.max(0, unfetchedContextBudget - contextOmissionSuffix.length),
+        "[middle omitted; relevance unknown]",
+      ) + contextOmissionSuffix
     : rawUnfetchedContext;
   const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
