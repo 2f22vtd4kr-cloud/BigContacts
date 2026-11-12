@@ -513,7 +513,13 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
           ? searchResultContextLine.slice(contextPrefix.length)
           : searchResultContextLine;
         const contextBodyBudget = Math.max(0, remainingAfterMandatory - contextPrefix.length - contextOmissionSuffix.length);
-        const contextExcerpt = contextBody.slice(0, Math.min(480, contextBodyBudget));
+        const contextExcerpt = contextBody.length > Math.min(1_600, contextBodyBudget)
+          ? compactPromptSectionPreservingUrlTokens(
+              contextBody,
+              Math.max(1, Math.min(1_600, contextBodyBudget)),
+              "[middle omitted; relevance unknown]",
+            )
+          : contextBody;
         const contextWasOmitted = contextExcerpt.length < contextBody.length;
         const contextLine = searchResultContextLine && remainingAfterMandatory >= contextOmission.length
           ? (remainingAfterMandatory >= contextPrefix.length + 40
