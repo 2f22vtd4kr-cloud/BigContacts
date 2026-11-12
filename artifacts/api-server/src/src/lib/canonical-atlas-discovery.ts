@@ -539,6 +539,7 @@ async function materializePartialPersonLeadCards(input: {
 
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
+    actorRole: researchCaseEventsTable.actorRole,
     eventType: researchCaseEventsTable.eventType,
     payload: researchCaseEventsTable.payload,
     createdAt: researchCaseEventsTable.createdAt,
@@ -862,6 +863,7 @@ async function materializePartialOrganizationLeadCards(input: {
   }
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
+    actorRole: researchCaseEventsTable.actorRole,
     eventType: researchCaseEventsTable.eventType,
     payload: researchCaseEventsTable.payload,
     createdAt: researchCaseEventsTable.createdAt,
