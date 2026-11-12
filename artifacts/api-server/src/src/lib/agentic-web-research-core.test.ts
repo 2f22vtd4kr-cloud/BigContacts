@@ -2684,7 +2684,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("at most two outbound search actions");
     expect(prompt).toContain("mixed-source web/registry batch");
-    expect(prompt).toContain("FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist");
+    expect(prompt).toContain("FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
