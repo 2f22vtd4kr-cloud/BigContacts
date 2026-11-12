@@ -76,6 +76,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("one relevant company is a valid partial result");
     expect(systemCore).toContain("On any non-done action, use findings[] for a selected provisional review lead");
     expect(systemCore).toContain("do not wait for claim-grade ownership proof or contact details to preserve a review lead");
+    expect(systemCore).toContain("Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose");
+    expect(systemCore).toContain("registry is a required nested field and must be explicitly null for every web-search item");
     expect(systemCore).toContain("Parallel registry searches need each searches[] object to contain both query and registry");
     expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
