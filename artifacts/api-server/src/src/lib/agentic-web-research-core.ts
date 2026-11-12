@@ -4731,12 +4731,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       .map((value) => completePromptUrl(value))
       .filter((value): value is string => Boolean(value));
     const rawObservation = record.observation ?? "";
-    // A successful search response is unverified lead context, not fetched
-    // evidence. Bound it even when the search itself is the newest action;
-    // otherwise the latest-record envelope can reintroduce the full provider
-    // response after the historical carry-forward copy has been compacted.
-    // Successful fetched-page observations remain complete.
-    const boundedObservation = searchActions.has(record.action) && record.execution === "success"
+    // Search responses are unverified lead context, including partial results,
+    // not fetched evidence. Bound them even when the search itself is the newest
+    // action; otherwise the latest-record envelope can reintroduce the full
+    // provider response after the historical carry-forward copy is compacted.
+    // Fetched-page observations remain complete.
+    const boundedObservation = searchActions.has(record.action)
       ? compactDurablePromptObservation(rawObservation)
       : rawObservation;
     return {
