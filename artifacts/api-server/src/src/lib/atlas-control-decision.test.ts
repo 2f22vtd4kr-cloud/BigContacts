@@ -286,6 +286,35 @@ describe("Atlas control-plane lead continuity", () => {
     expect(contextLine).toContain("EXA_RESULT");
     expect(contextLine).toContain("unvisitedLeadCount=6");
     expect(state).toContain('"unfetchedLeadUrlCount":18');
+
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "18 unfetched leads remain; none has been fetched.",
+      compactState: "No fetched evidence has been established.",
+      pinnedControlState: state,
+    });
+    expect(rightHandPrompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(rightHandPrompt).toContain("SERPER_RESULT");
+    expect(rightHandPrompt).toContain("TAVILY_RESULT");
+    expect(rightHandPrompt).toContain("EXA_RESULT");
+
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "18 unfetched leads remain; none has been fetched.",
+      compactState: "No fetched evidence has been established.",
+      pinnedControlState: state,
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "The latest same-case search batches contain unvisited item-level leads.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
+    });
+    expect(bossPrompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+    expect(bossPrompt).toContain("SERPER_RESULT");
+    expect(bossPrompt).toContain("TAVILY_RESULT");
+    expect(bossPrompt).toContain("EXA_RESULT");
   });
 
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
