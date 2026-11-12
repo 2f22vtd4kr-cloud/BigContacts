@@ -1245,9 +1245,9 @@ describe("Investigator prompt architecture", () => {
     });
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("Qualification follows the active objective");
+    expect(discovery).toContain("Apply objective criteria");
     expect(discovery).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality");
+    expect(discovery).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -1507,7 +1507,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Qualification follows the active objective");
+    expect(prompt).toContain("Apply objective criteria");
     expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
@@ -1597,7 +1597,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("Qualification follows the active objective");
+    expect(prompt).toContain("Apply objective criteria");
     expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
@@ -2408,7 +2408,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source eligibility is not HNWI promotion: only an explicit model-promoted,
     // same-source identity/role plus wealth-potential lead can be materialized.
     // Independent corroboration and the realistic contact route remain target-stage work.
-    expect(agenticCoreSource).toContain("Qualification follows the active objective");
+    expect(agenticCoreSource).toContain("Apply objective criteria");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
