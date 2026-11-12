@@ -23,6 +23,16 @@ describe("research objective validation", () => {
     });
     expect(validateResearchObjective("Use the companies-house registry to find UK owners.").valid).toBe(false);
     expect(validateResearchObjective("Use the sec-edgar adapter for Form D searches.").valid).toBe(false);
+    expect(validateResearchObjective("Investigate private companies via Companies House in the UK.").valid).toBe(false);
+    expect(resolveBossDirectedDiscoveryObjective({
+      action: "pivot_discovery",
+      baseObjective: "Discover source-backed owners and operators in private businesses.",
+      currentObjective: "Discover source-backed owners and operators in private businesses.",
+      direction: "registry_search_companies_house",
+    })).toEqual({
+      valid: false,
+      reason: "Research redirect attempted to prescribe an Investigator provider, registry, or tool.",
+    });
     expect(validateResearchObjective("Switch to an alternative OSINT provider (e.g., SerpAPI or a self-hosted scraper) and redesign discovery queries for private mid-market sectors and regions.")).toEqual({
       valid: false,
       reason: "Research redirect attempted to prescribe an Investigator provider, registry, or tool.",
