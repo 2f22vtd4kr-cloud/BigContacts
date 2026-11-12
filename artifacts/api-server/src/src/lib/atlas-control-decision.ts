@@ -484,7 +484,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         const unfetchedLine = lines.find((line) => line.startsWith("UNFETCHED (")) ?? "";
         const firstUnfetchedUrl = unfetchedLine.match(/https?:\/\/[^\s|]+/)?.[0] ?? "";
         const exactUnfetchedUrl = completeAtlasControlPromptUrl(firstUnfetchedUrl);
-        const pinnedUrlLine = exactUnfetchedUrl ? "PINNED UNFETCHED LEAD URL (exact; lead, not evidence): " + exactUnfetchedUrl : "";
+        const pinnedUrlLine = exactUnfetchedUrl ? "PINNED UNFETCHED LEAD URL (unfetchedLeadUrls sample; exact; lead, not evidence): " + exactUnfetchedUrl : "";
         // Compact the explanatory state first, then append the complete URL as an
         // atomic suffix so head/tail compaction cannot cut it out or select a failed
         // route in place of an actually unfetched lead.
@@ -499,12 +499,19 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         // Counts and one exact unfetched URL are non-negotiable. Search-result
         // descriptions and narrative scope/guard text are model-facing excerpts:
         // allocate only the space actually left after the mandatory state.
-        const contextOmission = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT: omitted from this prompt budget; relevance remains unknown and full observations remain durable.";
+        const contextOmission = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT: omitted; relevance unknown; full observations remain durable.";
         const contextPrefix = "ACTUAL UNFETCHED SEARCH-RESULT CONTEXT (untrusted, unvisited leads; not fetched evidence): ";
+        const contextOmissionSuffix = " [additional result text omitted; relevance unknown]";
         const remainingAfterMandatory = Math.max(0, pinnedBudget - mandatoryPinnedLength - (mandatoryPinnedLines.length ? 1 : 0));
+        const contextBody = searchResultContextLine.startsWith(contextPrefix)
+          ? searchResultContextLine.slice(contextPrefix.length)
+          : searchResultContextLine;
+        const contextBodyBudget = Math.max(0, remainingAfterMandatory - contextPrefix.length - contextOmissionSuffix.length);
+        const contextExcerpt = contextBody.slice(0, Math.min(480, contextBodyBudget));
+        const contextWasOmitted = contextExcerpt.length < contextBody.length;
         const contextLine = searchResultContextLine && remainingAfterMandatory >= contextOmission.length
           ? (remainingAfterMandatory >= contextPrefix.length + 40
-              ? contextPrefix + searchResultContextLine.slice(contextPrefix.length, contextPrefix.length + Math.min(480, remainingAfterMandatory - contextPrefix.length))
+              ? contextPrefix + contextExcerpt + (contextWasOmitted ? contextOmissionSuffix : "")
               : contextOmission)
           : "";
         const remainingAfterContext = Math.max(0, remainingAfterMandatory - (contextLine ? contextLine.length + 1 : 0));
