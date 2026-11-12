@@ -320,6 +320,53 @@ describe("Atlas control-plane lead continuity", () => {
     expect(bossPrompt).toContain(leadUrl);
   });
 
+  it("keeps full lead counts and a small set of complete URLs when Boss pinned state is crowded", () => {
+    const urls = Array.from({ length: 18 }, (_, index) =>
+      `https://registry.example.test/search/lead-${index + 1}?source=official`,
+    );
+    const pinnedControlState = buildAtlasPinnedControlState({
+      activeScope: "Public-company discovery under the exact accepted objective.",
+      leadInventory: {
+        searchResultLeadUrlCount: 18,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 18,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: urls,
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    expect(pinnedControlState).toContain('"searchResultLeadUrlCount":18');
+    expect(pinnedControlState).toContain('"unfetchedLeadUrlCount":18');
+    expect(pinnedControlState).toContain(urls[0]!);
+    expect(pinnedControlState).toContain(urls[1]!);
+    expect(pinnedControlState).not.toContain(urls[2]!);
+    expect(pinnedControlState).toContain("16 URL(s) omitted whole from this prompt sample");
+
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "Search completed with no fetched findings.",
+      compactState: "The durable case retains all 18 search leads.",
+      pinnedControlState,
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "Search leads remain unvisited.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
+    });
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain('"unfetchedLeadUrlCount":18');
+    expect(prompt).toContain(urls[0]!);
+    expect(prompt).toContain(urls[1]!);
+    expect(prompt).toContain("complete routes remain in durable case state");
+  });
+
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
