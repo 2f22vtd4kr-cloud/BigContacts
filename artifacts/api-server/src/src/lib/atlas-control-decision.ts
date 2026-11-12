@@ -600,7 +600,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   const baseLength = fixedPrefix.length + reportLabel.length +
     (pinned ? pinnedLabel.length + pinned.length : 0) + stateLabel.length;
   const dynamicBudget = Math.max(0, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET - baseLength);
-  const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.40));
+  const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.65));
   const report = trimPromptSection(input.investigatorReport, reportBudget);
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length));
   const prompt = fixedPrefix + reportLabel + report +
