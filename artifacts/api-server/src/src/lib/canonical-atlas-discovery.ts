@@ -11,7 +11,7 @@ import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, MAX_DISCOVERY_SEARCH_ACTIONS, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -2183,7 +2183,29 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failureStage = "oversight_control_decision";
       const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])];
       const controlLeadInventory = buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? []);
-      const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective), leadInventory: controlLeadInventory, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), findings: controlFindings });
+      const discoverySearchActionsUsed = countDiscoverySearchActions(discovery.trajectoryRecords ?? []);
+      const controlBudgetState = {
+        investigatorActionsUsed: Math.max(0, investigatorIterationsUsed),
+        globalActionsRemaining: Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed),
+        discoveryActionsRemaining: resolveRemainingDiscoveryIterations({
+          totalIterationCeiling: depth.agenticMaxIterations,
+          discoveryIterationCeiling,
+          discoveryIterationsUsed,
+          investigatorIterationsUsed,
+          targetResearchReserveIterations,
+          hasAdmittedCandidates: admittedCandidateSources.length > 0,
+        }),
+        discoverySearchActionsUsed,
+        discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed),
+        targetResearchReserveRemaining: Math.max(0, targetResearchReserveIterations - Math.max(0, investigatorIterationsUsed - discoveryIterationsUsed)),
+      };
+      const pinnedControlState = buildAtlasPinnedControlState({
+        activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
+        leadInventory: controlLeadInventory,
+        admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })),
+        findings: controlFindings,
+        missionBudget: controlBudgetState,
+      });
       const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
@@ -2196,12 +2218,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         scopeRecoveryFeedback: buildAtlasScopeRecoveryFeedback(discovery.trajectoryRecords ?? []),
         status: discovery.status,
         stopReason: discovery.stopReason ?? null,
-        missionActionBudget: buildMissionActionBudget({
-          actionsUsed: investigatorIterationsUsed,
-          maximumActions: depth.agenticMaxIterations,
-          maximumActionsPerEpisode: discoveryIterationsPerAct,
-          episodeStopReason: discovery.stopReason ?? null,
-        }),
+        missionActionBudget: {
+          ...buildMissionActionBudget({
+            actionsUsed: investigatorIterationsUsed,
+            maximumActions: depth.agenticMaxIterations,
+            maximumActionsPerEpisode: discoveryIterationsPerAct,
+            episodeStopReason: discovery.stopReason ?? null,
+          }),
+          discoveryActionsRemaining: controlBudgetState.discoveryActionsRemaining,
+          discoverySearchActionsUsed: controlBudgetState.discoverySearchActionsUsed,
+          discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining,
+          targetResearchReserveRemaining: controlBudgetState.targetResearchReserveRemaining,
+        },
         errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
         searches: discovery.searches,
         visits: discovery.visits,

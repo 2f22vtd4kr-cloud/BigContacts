@@ -24,6 +24,36 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed && "url" in parsed ? parsed.url : undefined).toBe("https://example.com/about");
   });
 
+  it("preserves an Investigator-selected provisional person lead separately from claim-grade findings", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "company founder public profile",
+      provider: "serper",
+      findings: [{
+        vectorType: "other",
+        value: "Sammy Abdullah",
+        personName: "Sammy Abdullah",
+        role: "Co-founder",
+        scope: "candidate",
+        sourceUrls: ["https://example.com/team"],
+        note: "The observed role is relevant to the discovery objective.",
+      }],
+      hypothesis: "A public company profile may identify a relevant decision-maker.",
+      purpose: "Preserve a source-associated review lead without claiming verified ownership.",
+      expectedInformationGain: 0.6,
+    }));
+    expect(parsed?.partialFindings).toHaveLength(1);
+    expect(parsed?.partialFindings[0]).toMatchObject({
+      value: "Sammy Abdullah",
+      personName: "Sammy Abdullah",
+      role: "Co-founder",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.com/team"],
+    });
+    expect(parsed?.partialFindings[0]?.promotionDecision).toBeUndefined();
+  });
+
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
@@ -52,6 +82,17 @@ describe("Groq Investigator runtime contract", () => {
     if (parsed?.action !== "parallel_registry_search") throw new Error("expected parallel registry search");
     expect(parsed.searches).toHaveLength(1);
     expect(parsed.searches[0]?.registry).toBe("sec-edgar");
+  });
+
+  it("rejects a parallel registry action when any search omits its registry ID", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_registry_search",
+      searches: [{ query: "private company officers" }],
+      hypothesis: "A callable registry may identify relevant public records.",
+      purpose: "Test the local action contract without dispatching an unspecified adapter.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed).toBeNull();
   });
 
   it("preserves the active Boss question when emergency compaction receives a bounded objective", () => {

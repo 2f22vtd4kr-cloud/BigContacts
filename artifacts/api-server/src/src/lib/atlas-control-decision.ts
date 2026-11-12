@@ -364,7 +364,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   return [
     `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are callable native registry/asset-register adapters in this process.`,
     "SOURCE-MIX CONTRACT: When relevant routes exist, the opening portfolio should include a callable registry/asset-register lane and independent public-web discovery; explain any omission. Boss/Right-hand advise lanes; Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping. No fixed itinerary. A jurisdiction-specific registry is eligible only when its jurisdiction is grounded in the human objective or same-case evidence; if no jurisdiction is supplied, do not create one; use objective-compatible public web or a genuinely global register. Never invent a country, company or market.",
-    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. Generic agency pages are web sources, not native registry adapters. A generic agency landing page does not prove that a dedicated register exists or is searchable. If the objective supplies no jurisdiction, do not create one; use objective-compatible public-web evidence or a genuinely global register. Never infer wealth/contactability from seniority alone.",
+    "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. GLEIF is a global LEI entity-identity register with parent/relationship data only where reported; it is not a natural-person shareholder or beneficial-owner search and must never be described as surfacing disclosed owners/shareholders. Generic agency pages are web sources, not native registry adapters. A generic agency landing page does not prove that a dedicated register exists or is searchable. If the objective supplies no jurisdiction, do not create one; use objective-compatible public-web evidence or a genuinely global register. Never infer wealth/contactability from seniority alone.",
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
@@ -398,6 +398,7 @@ export function buildAtlasPinnedControlState(input: {
   leadInventory: AtlasControlLeadInventory;
   admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>;
   findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
+  missionBudget?: { investigatorActionsUsed: number; globalActionsRemaining: number; discoveryActionsRemaining: number; discoverySearchActionsUsed: number; discoverySearchActionsRemaining: number; targetResearchReserveRemaining: number };
 }): string {
   const state = input.leadInventory;
   const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 2);
@@ -434,6 +435,7 @@ export function buildAtlasPinnedControlState(input: {
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
     "COMPLETE AVAILABLE REVIEW TARGETS (all model-selected durable targets; exact names and types; no top-N truncation): " + JSON.stringify(input.admittedCandidates.map((candidate) => ({ name: candidate.name, type: candidate.targetType ?? "person", role: candidate.role, sourceCount: candidate.sourceUrls.length }))),
     "This scope persists through directionless continue_discovery turns. Right-hand direction is advice unless Boss explicitly accepts a pivot.",
+    "AUTHORITATIVE EXECUTABLE ACTION BUDGET (same-case control state; deterministic caps remain authoritative): " + JSON.stringify(input.missionBudget ?? null),
     "AUTHORITATIVE DURABLE LEAD COUNTS (full counts; URLs below are samples): " + JSON.stringify({
       searchResultLeadUrlCount: state.searchResultLeadUrlCount,
       successfullyFetchedLeadUrlCount: state.successfullyFetchedLeadUrlCount,
