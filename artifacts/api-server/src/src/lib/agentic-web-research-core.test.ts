@@ -798,9 +798,9 @@ describe("Investigator prompt URL integrity", () => {
 describe("discovery lead inventory", () => {
   it("retains item-level context from three recent successful search batches", () => {
     const records = [
-      { turn: 1, model: "test-model", action: "web_search", args: { query: "first" }, execution: "success", observation: "FIRST_BATCH: official filing names the investor.\nURL: https://first.example.test/record", observedUrls: [], leadUrls: ["https://first.example.test/record"], findings: [] },
-      { turn: 2, model: "test-model", action: "web_search", args: { query: "second" }, execution: "success", observation: "SECOND_BATCH: transaction report names the buyer.\nURL: https://second.example.test/record", observedUrls: [], leadUrls: ["https://second.example.test/record"], findings: [] },
-      { turn: 3, model: "test-model", action: "web_search", args: { query: "third" }, execution: "success", observation: "THIRD_BATCH: registry result lists company officers.\nURL: https://third.example.test/record", observedUrls: [], leadUrls: ["https://third.example.test/record"], findings: [] },
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: "FIRST_BATCH: official filing names the investor.\nURL: https://first.example.test/record", observedUrls: [], leadUrls: ["https://first.example.test/record"], findings: [] },
+      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: "SECOND_BATCH: transaction report names the buyer.\nURL: https://second.example.test/record", observedUrls: [], leadUrls: ["https://second.example.test/record"], findings: [] },
+      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: "THIRD_BATCH: registry result lists company officers.\nURL: https://third.example.test/record", observedUrls: [], leadUrls: ["https://third.example.test/record"], findings: [] },
     ] as AgenticTrajectoryRecord[];
     const state = buildDiscoveryLeadUtilizationState(records);
     expect(state.unfetchedLeadUrlCount).toBe(3);
@@ -808,6 +808,10 @@ describe("discovery lead inventory", () => {
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("FIRST_BATCH");
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("SECOND_BATCH");
     expect(state.unfetchedLeadObservations.map((item) => item.observation).join(" ")).toContain("THIRD_BATCH");
+    const recentLeadContext = state.unfetchedLeadObservations.map((item) => item.observation).join(" ");
+    expect(recentLeadContext).toContain("provider=serper");
+    expect(recentLeadContext).toContain("provider=tavily");
+    expect(recentLeadContext).toContain("provider=exa");
   });
 
   it("preserves a representative unfetched lead from every provider in one mixed parallel search batch", () => {
