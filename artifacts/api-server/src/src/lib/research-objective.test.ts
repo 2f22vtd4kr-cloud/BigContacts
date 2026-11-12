@@ -17,7 +17,7 @@ describe("research objective validation", () => {
   it("rejects provider/tool directives and concrete URLs", () => {
     expect(validateResearchObjective("Use Groq to search Serper for the person.").valid).toBe(false);
     expect(validateResearchObjective("Search using Serper to find the person's email.").valid).toBe(false);
-    expect(validateResearchObjective("registry_search_companies_house").toEqual({
+    expect(validateResearchObjective("registry_search_companies_house")).toEqual({
       valid: false,
       reason: "Research redirect attempted to prescribe an Investigator provider, registry, or tool.",
     });
