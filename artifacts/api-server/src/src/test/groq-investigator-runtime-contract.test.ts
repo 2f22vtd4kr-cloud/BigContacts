@@ -24,6 +24,36 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed && "url" in parsed ? parsed.url : undefined).toBe("https://example.com/about");
   });
 
+  it("preserves an Investigator-selected provisional person lead separately from claim-grade findings", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "company founder public profile",
+      provider: "serper",
+      findings: [{
+        vectorType: "other",
+        value: "Sammy Abdullah",
+        personName: "Sammy Abdullah",
+        role: "Co-founder",
+        scope: "candidate",
+        sourceUrls: ["https://example.com/team"],
+        note: "The observed role is relevant to the discovery objective.",
+      }],
+      hypothesis: "A public company profile may identify a relevant decision-maker.",
+      purpose: "Preserve a source-associated review lead without claiming verified ownership.",
+      expectedInformationGain: 0.6,
+    }));
+    expect(parsed?.partialFindings).toHaveLength(1);
+    expect(parsed?.partialFindings[0]).toMatchObject({
+      value: "Sammy Abdullah",
+      personName: "Sammy Abdullah",
+      role: "Co-founder",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.com/team"],
+    });
+    expect(parsed?.partialFindings[0]?.promotionDecision).toBeUndefined();
+  });
+
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
