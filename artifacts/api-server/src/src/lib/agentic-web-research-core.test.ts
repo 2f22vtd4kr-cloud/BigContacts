@@ -76,7 +76,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("one relevant company is a valid partial result");
     expect(systemCore).toContain("On non-done actions, use findings[] for selected leads only");
     expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
-    expect(systemCore).toContain("Parallel registry items need query and one runtime-callable registry ID");
+    expect(systemCore).toContain("Single and parallel registry actions require runtime-callable registry IDs");
     expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
 });
