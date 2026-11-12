@@ -1368,7 +1368,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1509,7 +1509,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(prompt).toContain("Apply objective criteria");
     expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1599,7 +1599,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("Apply objective criteria");
     expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2398,7 +2398,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
