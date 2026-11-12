@@ -507,7 +507,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
     expect(law).toContain("A jurisdiction-specific registry is eligible only when its jurisdiction is grounded");
-    expect(law).toContain("If the objective supplies no jurisdiction, do not create one");
+    expect(law).toContain("if no jurisdiction is supplied, do not create one");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
     expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
     expect(atlasLeadUtilizationLaw()).toContain("relevance is unknown, not disproven");
