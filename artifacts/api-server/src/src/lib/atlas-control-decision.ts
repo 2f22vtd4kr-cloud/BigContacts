@@ -465,7 +465,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   const reportLabel = "\n\nLATEST REPORT — INVESTIGATOR TEXT REPORT:\n";
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
-  const reservedDynamicChars = 1_200;
+  const reservedDynamicChars = 300;
   const availableForPinned = Math.max(
     0,
     ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - stateLabel.length - reservedDynamicChars,
