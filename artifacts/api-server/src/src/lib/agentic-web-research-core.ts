@@ -4755,7 +4755,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return compactPromptSectionPreservingUrlTokens(
         providerBalancedObservation,
         maxChars,
-        "[PROVIDER RESULT DETAILS BOUNDED: full observations and exact URLs remain durable; omitted text is unknown]",
+        "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]",
       );
     }
     return compactPromptSectionPreservingUrlTokens(
