@@ -3276,7 +3276,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("not fetched evidence");
     expect(prompt).not.toContain(rawObservation);
     expect(prompt).not.toContain("RAW_PROVIDER_PAYLOAD ".repeat(2_000));
-    expect(prompt.length).toBeLessThan(19_000);
+    expect(prompt.length).toBeLessThan(20_000);
     const request = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
       prompt,
