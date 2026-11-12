@@ -2245,7 +2245,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "control_event_persistence";
         await db.transaction(async (tx) => {
           await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
-          const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+          const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration })
             .from(researchCasesTable)
             .where(and(
               eq(researchCasesTable.id, discoveryCaseId),
@@ -2261,10 +2261,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
             .orderBy(desc(researchCaseEventsTable.id))
             .limit(1);
-          const nextIteration = Number(latestEvent?.iteration ?? 0) + 1;
+          const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
           await tx.update(researchCasesTable).set({
             status: "active",
             currentAction: "canonical-control-candidate-rejected",
+            iteration: nextIteration,
             lastDecisionAt: new Date(),
             updatedAt: new Date(),
           }).where(and(
@@ -2410,7 +2411,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           failureStage = "control_event_persistence";
           await db.transaction(async (tx) => {
             await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
-            const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
+            const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
               .from(researchCasesTable)
               .where(and(
                 eq(researchCasesTable.id, discoveryCaseId),
@@ -2429,6 +2430,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             await tx.update(researchCasesTable).set({
               status: "active",
               currentAction: "canonical-control-direction-rejected",
+              iteration: nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration),
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
@@ -2439,7 +2441,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ));
             await tx.insert(researchCaseEventsTable).values({
               caseId: discoveryCaseId,
-              iteration: Number(latestEvent?.iteration ?? 0) + 1,
+              iteration: nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration),
               actorRole: "groq_boss",
               eventType: "observation",
               status: "rejected",
