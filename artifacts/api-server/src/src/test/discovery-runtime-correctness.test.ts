@@ -333,7 +333,7 @@ describe("discovery runtime architecture", () => {
   it("directs Boss and Right-hand to reject infeasible nonpublic research premises", () => {
     const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
     expect(controlSource).toContain("Assess feasibility against observed public-source access/status");
-    expect(controlSource).toContain("nonpublic filing, private record, searchable registry entry");
+    expect(controlSource).toContain("assume no nonpublic filings, private records or registry coverage without runtime evidence");
     expect(controlSource).toContain("publicly verifiable alternative");
   });
 
