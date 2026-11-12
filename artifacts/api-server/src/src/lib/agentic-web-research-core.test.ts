@@ -3151,6 +3151,65 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 18");
   });
 
+  it("preserves provider-balanced unvisited lead context in the bounded Investigator prompt", () => {
+    const urls = Array.from({ length: 18 }, (_, index) => `https://investigator-provider-${index + 1}.example.test/result`);
+    const observation = [
+      "PARALLEL_SEARCH 1 provider=serper",
+      urls[0],
+      "Serper result title",
+      `URL: ${urls[0]}`,
+      "Serper snippet identifies an ownership announcement.",
+      "PARALLEL_SEARCH 2 provider=tavily",
+      urls[6],
+      "Tavily result title",
+      `URL: ${urls[6]}`,
+      "Tavily snippet identifies a company officer filing.",
+      "PARALLEL_SEARCH 3 provider=exa",
+      urls[12],
+      "Exa result title",
+      `URL: ${urls[12]}`,
+      "Exa snippet identifies a named investor and transaction.",
+      "LONG_RAW_PROVIDER_RESPONSE ".repeat(2_000),
+    ].join("\n");
+    const record: AgenticTrajectoryRecord = {
+      turn: 19,
+      model: "openai/gpt-oss-120b",
+      action: "parallel_web_search",
+      execution: "success",
+      args: {
+        searches: [
+          { query: "private company shareholder filing", provider: "serper" },
+          { query: "private firm ownership disclosure", provider: "tavily" },
+          { query: "private equity investor press release", provider: "exa" },
+        ],
+      },
+      leadUrls: urls,
+      observation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    };
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover source-backed companies and people through mixed public-source research.",
+      history: [],
+      trajectoryRecords: [record],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 19");
+    expect(prompt).toContain("provider=serper");
+    expect(prompt).toContain("provider=tavily");
+    expect(prompt).toContain("provider=exa");
+    expect(prompt).toContain("Tavily result title");
+    expect(prompt).toContain("Exa result title");
+    for (const url of urls) expect(prompt).toContain(url);
+    expect(prompt).toContain("not fetched evidence");
+    expect(prompt).not.toContain(observation);
+    expect(prompt).not.toContain("LONG_RAW_PROVIDER_RESPONSE ".repeat(2_000));
+  });
+
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
     const oldObjective = [
       "PRIMARY CASE OBJECTIVE: Discover people with credible ownership evidence.",
