@@ -872,7 +872,7 @@ async function materializePartialOrganizationLeadCards(input: {
     eq(researchCaseEventsTable.eventType, "tool_observation"),
   ));
   const observations = caseEvents.flatMap((event) => {
-    if (typeof event.payload !== "string") return [];
+    if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
         jobId?: string | null; action?: string; execution?: string;
