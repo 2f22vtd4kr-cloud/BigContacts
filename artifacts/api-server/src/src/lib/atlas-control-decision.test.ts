@@ -246,7 +246,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
     expect(prompt).toContain("additional result text omitted; relevance unknown");
     expect(prompt).toContain("CKX Lands announced a material investment transaction");
-    expect(prompt).not.toContain("TAIL_RESULT_SENTINEL");
+    expect(prompt).toContain("TAIL_RESULT_SENTINEL");
     expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
   });
 
