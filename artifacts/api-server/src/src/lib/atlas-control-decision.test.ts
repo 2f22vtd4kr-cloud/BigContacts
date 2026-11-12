@@ -210,6 +210,45 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Find source-backed private technology company leads.");
   });
 
+  it("bounds huge unvisited search descriptions while retaining lead counts and an exact URL", () => {
+    const leadUrl = "https://www.example.test/releases/company-announcement";
+    const pinnedControlState = buildAtlasPinnedControlState({
+      activeScope: "Discover objective-relevant companies and preserve useful partial leads.",
+      leadInventory: {
+        searchResultLeadUrlCount: 18,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 18,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [leadUrl],
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+        unfetchedLeadObservations: [{
+          turn: 3,
+          action: "web_search",
+          leadUrlCount: 18,
+          observation: "CKX Lands announced a material investment transaction. " + "LONG_RESULT_DETAIL ".repeat(500),
+        }],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "18 unfetched leads remain; no lead has been fetched.",
+      compactState: "No fetched evidence has been established.",
+      pinnedControlState,
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
+    expect(prompt).toContain('"unfetchedLeadUrlCount":18');
+    expect(prompt).toContain(leadUrl);
+    expect(prompt).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
+    expect(prompt).toContain("additional result text omitted; relevance unknown");
+    expect(prompt).toContain("CKX Lands announced a material investment transaction");
+    expect(prompt).not.toContain("LONG_RESULT_DETAIL ".repeat(500));
+  });
+
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
