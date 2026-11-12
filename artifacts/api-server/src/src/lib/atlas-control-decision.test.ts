@@ -265,7 +265,9 @@ describe("Atlas control-plane lead continuity", () => {
       "provider=exa: EXA_RESULT: acquisition report names a buyer, seller and transaction date.",
     ].join(" ");
     const observations = [
-      { turn: 3, action: "parallel_web_search", leadUrlCount: 18, observation },
+      { turn: 1, action: "web_search", leadUrlCount: 6, observation: "provider=serper: SERPER_RESULT: ownership announcement identifies a private investor and operating company." },
+      { turn: 2, action: "web_search", leadUrlCount: 6, observation: "provider=tavily: TAVILY_RESULT: official filing index lists company officers and identifiers." },
+      { turn: 3, action: "web_search", leadUrlCount: 6, observation: "provider=exa: EXA_RESULT: acquisition report names a buyer, seller and transaction date." },
     ];
     const state = buildAtlasPinnedControlState({
       activeScope: "Mixed-source discovery under the active case objective.",
