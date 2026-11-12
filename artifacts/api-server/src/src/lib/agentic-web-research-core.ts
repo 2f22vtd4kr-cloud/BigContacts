@@ -1967,13 +1967,17 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       const rawRegistry = cleanText(entry.registry, 60);
-      return { query: cleanText(entry.query, 200), registry: normalizeRegistryId(rawRegistry) ?? "", purpose: cleanText(entry.purpose, 500) || undefined };
-    }) as Array<{ query: string; registry: string; purpose?: string }>;
+      return { query: cleanText(entry.query, 200), registry: normalizeRegistryId(rawRegistry), purpose: cleanText(entry.purpose, 500) || undefined };
+    });
     // Strict provider schemas are not used by every fallback model. Keep the
     // local parser equally strict: never dispatch a registry action with a
     // missing, unknown, or non-runtime-callable adapter ID.
-    if (searches.some((search) => !search.query || !search.registry || !getAvailableRegistryIdsForPrompt().includes(search.registry))) return null;
-    return { action: "parallel_registry_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta };
+    const availableRegistryIds = new Set(getAvailableRegistryIdsForPrompt());
+    const validSearches = searches.filter((search): search is { query: string; registry: NonNullable<typeof search.registry>; purpose?: string } =>
+      Boolean(search.query && search.registry && availableRegistryIds.has(search.registry)),
+    );
+    if (validSearches.length !== searches.length) return null;
+    return { action: "parallel_registry_search", searches: validSearches, thought: cleanText(value.thought, 500) || undefined, ...meta };
   } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: typeof value.locale === "string" && value.locale.trim().length <= 16 ? cleanText(value.locale, 16) || undefined : undefined, market: typeof value.market === "string" && value.market.trim().length <= 16 ? cleanText(value.market, 16) || undefined : undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","phone","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
     const findings: AgenticFinding[] = [];
     for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) {
@@ -5029,7 +5033,7 @@ export function discoveryLeadInspectionRequirement(
   return null;
 }
 
-export export const MAX_DISCOVERY_SEARCH_ACTIONS = 2;
+export const MAX_DISCOVERY_SEARCH_ACTIONS = 2;
 const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
 
 /** Count only outbound search attempts; runtime-blocked and unexecuted selections do not consume the discovery search budget. */
