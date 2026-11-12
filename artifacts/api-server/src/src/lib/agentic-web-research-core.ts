@@ -4752,8 +4752,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         )?.observation
       : undefined;
     if (providerBalancedObservation) {
+      const providerBalancedProjection = "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]\\n" + providerBalancedObservation;
       return compactPromptSectionPreservingUrlTokens(
-        providerBalancedObservation,
+        providerBalancedProjection,
         maxChars,
         "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]",
       );
