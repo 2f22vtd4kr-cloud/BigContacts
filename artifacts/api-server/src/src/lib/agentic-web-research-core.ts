@@ -2569,12 +2569,19 @@ async function callGroqJson(
           }
 
           if (response.status === 413) {
-            // Do not deterministically delete arbitrary prompt spans after the
-            // provider rejects the request. The structured prompt builder and
-            // Boss-generated memory compactor own context reduction; the full
-            // action schema, active scope, evidence rules, and latest findings
-            // must never be silently clipped as a generic retry.
-            return { model, raw: "", error: "upstream_request_size_rejected" };
+            // Groq can use HTTP 413 for a token-window capacity rejection as
+            // well as a genuinely oversized request. Preserve only the bounded
+            // provider classification needed by recovery/diagnostics; never
+            // expose the provider message or response body.
+            const tokenWindowCapacityRejection = providerCode === "rate_limit_exceeded"
+              && providerErrorType === "tokens";
+            return {
+              model,
+              raw: "",
+              error: tokenWindowCapacityRejection
+                ? "upstream_token_window_capacity_exceeded"
+                : "upstream_request_size_rejected",
+            };
           }
           if (response.status === 401 || response.status === 403) break;
 
