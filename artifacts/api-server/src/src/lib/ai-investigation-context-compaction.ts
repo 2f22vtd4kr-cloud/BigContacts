@@ -308,7 +308,8 @@ function validateSummary(
   if (!summary) issues.push("missing_or_unparseable_summary: the previous response did not contain a parseable summary");
   if (summary && summary.length > maxChars) issues.push(`summary_exceeds_character_limit: the previous summary was ${summary.length} characters, exceeding the hard limit of ${maxChars}`);
   if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) issues.push("summary_contains_ungrounded_url: URL tokens that were not copied exactly from the source were included");
-  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");\n  if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
+  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");
+  if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
   if (summary && summaryContainsUnverifiableNumericClaim(summary, allowedSource)) issues.push("summary_contains_unverifiable_numeric_claim: numeric values and ownership/portfolio relationships must be supported by the same source clause so their denominator and attribution cannot be changed");
   return {
     summary,
