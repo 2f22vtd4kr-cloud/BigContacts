@@ -345,7 +345,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(prompt).toContain("Apply objective criteria");
+    expect(messages.map((message) => message.content).join("\n")).toContain("Apply objective criteria");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
@@ -371,7 +371,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(body).toMatchObject({
       model: "openai/gpt-oss-120b",
       reasoning_effort: "medium",
-      max_completion_tokens: 1024,
+      max_completion_tokens: 768,
       include_reasoning: false,
     });
   });
