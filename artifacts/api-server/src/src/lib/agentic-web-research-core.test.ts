@@ -67,6 +67,32 @@ describe("new Investigator episode observation continuity", () => {
     expect(observation).not.toContain("No research action has been selected yet");
   });
 
+  it("does not carry a fetched observation across an explicitly changed discovery pivot", () => {
+    const objective = [
+      "Discover relevant operating companies.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate North Texas family-owned manufacturing companies.",
+    ].join("\n\n");
+    const activeScope = discoveryPivotScopeKey(objective);
+    if (!activeScope) throw new Error("Expected an active discovery pivot scope");
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "visit", pivotScopeKey: "previous-pivot",
+        args: { url: "https://old.example/filing" }, execution: "success",
+        observedUrls: ["https://old.example/filing"], leadUrls: [],
+        observation: "OLD_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 2, model: "test-model", action: "visit", pivotScopeKey: activeScope,
+        args: { url: "https://current.example/filing" }, execution: "success",
+        observedUrls: ["https://current.example/filing"], leadUrls: [],
+        observation: "ACTIVE_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+    ];
+    const observation = buildInitialInvestigatorObservation(records, objective, "discovery");
+    expect(observation).toContain("ACTIVE_PIVOT_FETCH_SENTINEL");
+    expect(observation).not.toContain("OLD_PIVOT_FETCH_SENTINEL");
+  });
+
   it("keeps the neutral first-action context when no successful fetched source exists", () => {
     const records: AgenticTrajectoryRecord[] = [
       {
