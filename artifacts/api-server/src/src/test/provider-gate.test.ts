@@ -765,4 +765,58 @@ describe("provider quota gate", () => {
     expect(response.status).toBe(200);
     expect(calls).toBe(2);
   });
+
+  it("reconciles Groq reservations against actual usage before admitting another role", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "10000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const firstRequest = { model: "openai/gpt-oss-20b", reservedTokens: 3_000 };
+    const secondRequest = { model: "openai/gpt-oss-20b", reservedTokens: 2_500 };
+    const first = await runProviderCall({ provider: "groq", account: "investigator", groqRequest: firstRequest }, async () =>
+      new Response(JSON.stringify({ usage: { prompt_tokens: 700, completion_tokens: 300, total_tokens: 1_000 } }), { status: 200 }),
+    );
+    expect(first.status).toBe(200);
+    const second = await runProviderCall({ provider: "groq", account: "right-hand", groqRequest: secondRequest }, async () =>
+      new Response(JSON.stringify({ usage: { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 } }), { status: 200 }),
+    );
+    expect(second.status).toBe(200);
+  });
+
+  it("honors the provider token-reset header across Groq role credentials after a token 429", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "60000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "10000";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const groqRequest = { model: "openai/gpt-oss-20b", reservedTokens: 1_000 };
+    const first = await withProviderRetryOwnership("groq", "caller", () =>
+      runProviderCall({ provider: "groq", account: "investigator", groqRequest }, async () =>
+        new Response(JSON.stringify({ error: { type: "tokens" } }), {
+          status: 429,
+          headers: { "x-ratelimit-reset-tokens": "10s" },
+        }),
+      ),
+    );
+    expect(first.status).toBe(429);
+    let calls = 0;
+    const pending = withProviderRetryOwnership("groq", "caller", () =>
+      runProviderCall({ provider: "groq", account: "right-hand", groqRequest }, async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ usage: { total_tokens: 500 } }), { status: 200 });
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(calls).toBe(0);
+    await vi.advanceTimersByTimeAsync(1);
+    const second = await pending;
+    expect(second.status).toBe(200);
+    expect(calls).toBe(1);
+  });
+
 });
