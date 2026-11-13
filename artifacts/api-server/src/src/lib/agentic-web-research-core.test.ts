@@ -253,7 +253,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Investor firms need evidence of capital capacity or actual investment activity and mandate fit");
     expect(modelPrompt).toContain("company-level discovery signals");
     expect(modelPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner’s wealth");
-    expect(modelPrompt).toContain("One source-backed relevant lead starts target research");
+    expect(modelPrompt).toContain("FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist");
     expect(modelPrompt).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).toContain("require direct relevance to the active objective");
     expect(modelPrompt).toContain("do not select or surface them solely for wealth or prominence");
@@ -1609,15 +1609,16 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt.length).toBeGreaterThan(8_200);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Apply objective criteria");
-    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toContain("Apply only requested criteria");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1698,6 +1699,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt.length).toBeGreaterThan(8_200);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
@@ -1705,9 +1707,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("Apply objective criteria");
-    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toContain("Apply only requested criteria");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
