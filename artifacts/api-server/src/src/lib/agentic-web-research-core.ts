@@ -4584,6 +4584,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
+    "DISCOVERY SEARCH ECONOMY: the runtime safety ceiling is " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound search actions per case; this is a cost guard, not a stopping target or fixed sequence.",
     "DISCOVERY HANDOFF: Choose objective-fit observed people/organizations for review-only findings, not every result. Preserve exact names, role or null, and associated public HTTPS URLs; no invented identity, ownership, wealth, relationship or contact claim. One relevant lead may start target research. Apply B2B/wealth qualification only when the human objective requests it."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
