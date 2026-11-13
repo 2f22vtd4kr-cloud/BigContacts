@@ -288,7 +288,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(submitted).toContain('"url":null');
+    expect(submitted).toContain("url may be null when unused");
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
