@@ -302,7 +302,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    if(isQuotaResponse(provider,response)){
     const retryMs=Math.max(parseRetryAfter(response),response.status===429?5_000:60_000);
     if(retryOwner==="gate"){
-     state.cooldownUntil=Date.now()+retryMs;
+     state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+retryMs);
      logger.warn({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"quota_gate"},"External provider quota cooldown set");
     }else logger.info({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"caller"},"Provider retry ownership delegated to caller");
    }
@@ -349,7 +349,7 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
     if(groqReservation && result instanceof Response) await reconcileGroqTokenWindow(groqWindowKey,groqReservation,result);
     if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
      const retryMs=parseRetryAfter(result);
-     state.cooldownUntil=Date.now()+Math.max(retryMs,result.status===429?5_000:60_000);
+     state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+Math.max(retryMs,result.status===429?5_000:60_000));
     }
     return result;
    }catch(error){if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
