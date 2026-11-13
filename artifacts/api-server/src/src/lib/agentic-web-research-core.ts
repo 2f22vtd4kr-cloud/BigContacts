@@ -2124,7 +2124,7 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
     const remainingHeadroom = typeof input.rateLimitRemainingTokens === "number"
       && Number.isFinite(input.rateLimitRemainingTokens)
       ? input.rateLimitRemainingTokens - promptTokenEstimate
-      : Number.POSITIVE_INFINITY;
+      : Number.MAX_SAFE_INTEGER;
     if (proposedCompletionTokens !== null && remainingHeadroom >= proposedCompletionTokens) {
       return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
     }
