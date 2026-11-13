@@ -239,10 +239,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
-    expect(discoveryPrompt).toContain("Do not force a mixed-source batch or a registry-first order");
+    expect(discoveryPrompt).toContain("do not force a mixed-source batch, a particular source class, a registry-first order or a predetermined search/fetch itinerary");
     expect(discoveryPrompt).toContain("source class need not appear in every discovery query");
     expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
-    expect(discoveryPrompt).toContain("Public-web and registry routes are neutral options");
+    expect(discoveryPrompt).toContain("Web/registry sources have neutral standing; no registry-first/fixed order");
     expect(discoveryPrompt).toContain("Investigator chooses the next action by expected information gain");
     expect(discoveryPrompt).toContain("no registry is preferred; one lead can start target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
@@ -2786,7 +2786,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain(objective);
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("runtime safety ceiling is 8 outbound search actions per case");
-    expect(prompt).toContain("Do not force a mixed-source batch or a registry-first order");
+    expect(prompt).toContain("do not force a mixed-source batch, a particular source class, a registry-first order or a predetermined search/fetch itinerary");
     expect(prompt).toContain("FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
