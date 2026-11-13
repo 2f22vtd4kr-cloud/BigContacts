@@ -137,11 +137,12 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
 function groqResetDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
   if (!value) return null;
+  const maxResetMs = 24 * 60 * 60_000;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(5 * 60_000, Math.floor(seconds * 1_000));
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(maxResetMs, Math.floor(seconds * 1_000));
   const match = value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
   if (!match) return null;
-  return Math.min(5 * 60_000, Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000));
+  return Math.min(maxResetMs, Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000));
 }
 
 async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
