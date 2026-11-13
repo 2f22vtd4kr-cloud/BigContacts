@@ -2089,6 +2089,10 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
   responseFormat: "json_schema" | "json_object";
   completionBudgetRetryUsed: boolean;
   currentMaxCompletionTokens: number;
+  /** Provider-reported tokens remaining in the current TPM window, when available. */
+  rateLimitRemainingTokens?: number | null;
+  /** Conservative estimate of tokens consumed by the system + user prompt. */
+  promptTokenEstimate?: number;
   finishReason?: string | null;
 }): GroqInvestigatorOutputRecoveryDecision {
   // Groq may successfully return HTTP 200 while the model has exhausted its
@@ -2100,15 +2104,30 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
     && isGroqCompletionTruncationMessage(input.providerMessage);
   if (successfulResponseTruncated || validationTruncated) {
     if (input.completionBudgetRetryUsed) return { action: "fail" };
-    const nextMaxCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
-    return nextMaxCompletionTokens === null
-      ? { action: "fail" }
-      : { action: "increase_completion_budget", nextMaxCompletionTokens };
+    const proposedCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    if (proposedCompletionTokens === null) return { action: "fail" };
+    // A truncated response is not permission to overrun the remaining TPM
+    // window. If provider headers are available, reserve the full next prompt
+    // first and retry only when the proposed output budget still fits.
+    const promptTokenEstimate = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
+    if (typeof input.rateLimitRemainingTokens === "number"
+      && Number.isFinite(input.rateLimitRemainingTokens)
+      && input.rateLimitRemainingTokens - promptTokenEstimate < proposedCompletionTokens) {
+      return { action: "fail" };
+    }
+    return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
   }
   if (input.status !== 400 || input.providerCode !== "json_validate_failed") return { action: "fail" };
   if (!input.completionBudgetRetryUsed && input.responseFormat === "json_object") {
-    const nextMaxCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
-    if (nextMaxCompletionTokens !== null) return { action: "increase_completion_budget", nextMaxCompletionTokens };
+    const proposedCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    const promptTokenEstimate = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
+    const remainingHeadroom = typeof input.rateLimitRemainingTokens === "number"
+      && Number.isFinite(input.rateLimitRemainingTokens)
+      ? input.rateLimitRemainingTokens - promptTokenEstimate
+      : Number.POSITIVE_INFINITY;
+    if (proposedCompletionTokens !== null && remainingHeadroom >= proposedCompletionTokens) {
+      return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
+    }
   }
   if (input.responseFormat === "json_schema") return { action: "retry_json_object" };
   return { action: "fail" };
@@ -2230,7 +2249,7 @@ function captureGroqRateLimitSnapshot(quotaAccount: string, model: string, respo
 }
 
 function groqPromptTokenEstimate(promptChars: number): number {
-  return Math.ceil(Math.max(0, promptChars) / 4);
+  return Math.ceil(Math.max(0, promptChars) / 3.4);
 }
 
 export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal): Promise<void> {
@@ -2553,6 +2572,8 @@ async function callGroqJson(
             responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+            rateLimitRemainingTokens: rateLimits.remainingTokens,
+            promptTokenEstimate: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
           });
           if (recovery.action === "increase_completion_budget") {
             // Truncation is an output-capacity failure, not a key or quota failure.
@@ -2655,6 +2676,8 @@ async function callGroqJson(
             responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+            rateLimitRemainingTokens: rateLimits.remainingTokens,
+            promptTokenEstimate: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
             finishReason,
           });
           if (recovery.action === "increase_completion_budget") {
