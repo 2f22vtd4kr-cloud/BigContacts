@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
@@ -49,6 +49,16 @@ describe("Groq rate-limit header parsing", () => {
 });
 
 describe.sequential("Groq Investigator provider boundary", () => {
+  beforeEach(() => {
+    // Provider-boundary tests validate request routing/retry semantics, not the
+    // production TPM ceiling. Dedicated provider-gate tests cover that budget.
+    process.env.APEX_GROQ_TPM_BUDGET = "1000000";
+    resetProviderGateForTests();
+    resetGroqRateLimitSnapshotsForTests();
+    mocks.safeOutboundFetch.mockReset();
+    mocks.browserFetchHtml.mockReset();
+  });
+
   it("advertises exactly the configured key-bound capabilities", () => {
     const env = {
       GROQ_INVESTIGATOR_API_KEY: "key-1",
@@ -137,6 +147,9 @@ describe.sequential("Groq Investigator provider boundary", () => {
     delete process.env.GROQ_INVESTIGATOR_API_KEY_4;
     delete process.env.GROQ_INVESTIGATOR_API_KEY_5;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
+    delete process.env.APEX_GROQ_TPM_BUDGET;
+    delete process.env.APEX_GROQ_TPM_WINDOW_MS;
+    delete process.env.APEX_GROQ_TPM_MAX_WAIT_MS;
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
     mocks.safeOutboundFetch.mockReset();
@@ -146,7 +159,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
 
 
 
-  it("does not carry a token-window cooldown across credential rotation in the same capability slot", async () => {
+  it("keeps a model-wide token-window cooldown across credential rotation in the same capability slot", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "rotated-slot-old-credential";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
@@ -188,12 +201,10 @@ describe.sequential("Groq Investigator provider boundary", () => {
       hardTimeoutMs: 30_000,
     });
 
-    expect(second.status).toBe("completed");
-    expect(calls).toBe(2);
-    expect(authorizationHeaders).toEqual([
-      "Bearer rotated-slot-old-credential",
-      "Bearer rotated-slot-new-credential",
-    ]);
+    expect(["unavailable", "error"]).toContain(second.status);
+    expect(second.trajectoryRecords[0]?.observation).toContain("upstream_token_window_wait_exceeded");
+    expect(calls).toBe(1);
+    expect(authorizationHeaders).toEqual(["Bearer rotated-slot-old-credential"]);
   });
 
   it("fails closed on HTTP 413 without a lossy retry or preferred-size clipping", async () => {
