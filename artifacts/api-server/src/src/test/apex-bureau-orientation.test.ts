@@ -101,7 +101,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("SCENARIOS: Descriptors are not queries");
+    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
     expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");
