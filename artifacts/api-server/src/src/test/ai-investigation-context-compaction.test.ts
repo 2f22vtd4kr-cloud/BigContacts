@@ -310,6 +310,34 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("summary_denies_successful_fetch");
   });
 
+  it("allows a source-specific no-fetch statement for a separate lead beside a successful fetch", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const unvisitedUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "HISTORICAL DURABLE TRAJECTORY:",
+      JSON.stringify([{ turn: 6, action: "visit", execution: "success", observedUrls: [fetchedUrl] }]),
+      "SEARCH-ONLY LEAD: " + unvisitedUrl,
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The leadership page was fetched; the investor page remains unvisited.",
+      "BACKGROUND: " + "Keep fetched evidence distinct from unfetched leads. ".repeat(35),
+    ].join("\n");
+    const summary = "The leadership page was fetched (source: " + fetchedUrl + "); no fetch was attempted for the investor lead (lead URL: " + unvisitedUrl + ").";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
     const sourceUrl = "https://company.example/leadership";
     const source = [
