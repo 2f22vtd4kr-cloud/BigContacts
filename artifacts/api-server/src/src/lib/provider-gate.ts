@@ -145,6 +145,9 @@ function groqResetDurationMs(raw: string | null): number | null {
 }
 
 async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
+  // The provider window continues to include tokens consumed during generation;
+  // start the conservative local expiry at response completion, not request start.
+  reservation.createdAt = Date.now();
   const state = groqTokenWindowState(key);
   const providerLimit = Number(response.headers.get("x-ratelimit-limit-tokens"));
   if (Number.isFinite(providerLimit) && providerLimit > 0) {
