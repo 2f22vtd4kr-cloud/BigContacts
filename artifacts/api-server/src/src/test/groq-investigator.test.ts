@@ -507,12 +507,12 @@ describe.sequential("Groq Investigator provider boundary", () => {
       choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
     });
     const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
-    const originalGetReader = response.body!.getReader.bind(response.body!);
-    Object.defineProperty(response.body!, "getReader", {
+    const originalBody = response.body;
+    Object.defineProperty(response, "body", {
       configurable: true,
-      value: () => {
+      get: () => {
         bodyReads += 1;
-        return originalGetReader();
+        return originalBody;
       },
     });
     mocks.safeOutboundFetch.mockResolvedValue(response);
@@ -525,7 +525,9 @@ describe.sequential("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
+    expect(mocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
     expect(bodyReads).toBe(1);
+    expect(response.bodyUsed).toBe(true);
   });
 
   it("accepts Investigator capability 2 when its dedicated key is configured", async () => {
