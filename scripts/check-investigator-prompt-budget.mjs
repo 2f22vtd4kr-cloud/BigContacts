@@ -38,7 +38,10 @@ assert(
     && /require direct relevance to the active objective/.test(stepPrompt)
     && /No name blacklist, preset targets or invented geography/.test(stepPrompt)
     && /Web\/registry sources have neutral standing; no registry-first\/fixed order/.test(stepPrompt)
-    && /at most two outbound search actions is a per-episode cost ceiling, not a prescribed sequence/.test(stepPrompt)
+    && /runtime safety ceiling is/.test(stepPrompt)
+    && /not a stopping target or fixed sequence/.test(stepPrompt)
+    && /source class may vary by query/.test(stepPrompt)
+    && /Do not force a mixed-source batch/.test(stepPrompt)
     && /Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(stepPrompt),
   "discovery targetability and source-choice guidance must remain explicit while preserving model-owned investigative decisions",
 );
