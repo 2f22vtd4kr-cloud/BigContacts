@@ -4620,7 +4620,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const workingTrajectoryRecords = input.mode === "discovery"
     ? input.trajectoryRecords.filter((record) => record.turn !== latestWorkingTurn && record.turn !== previousWorkingTurn)
     : input.trajectoryRecords;
-  const workingLastObservation = input.mode === "discovery" ? "" : input.lastObservation;
+  const latestRecordObservation = input.trajectoryRecords.at(-1)?.observation ?? "";
+  const lastObservationAlreadyInLatestRecord = Boolean(input.lastObservation) && latestRecordObservation.includes(input.lastObservation!);
+  const workingLastObservation = input.mode === "discovery" && lastObservationAlreadyInLatestRecord ? "" : input.lastObservation;
   const workingContext = aiHistoricalMemory
     ? [
         "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + currentControlContext,
