@@ -252,7 +252,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("ranking-only mentions are leads, not qualified targets");
     expect(modelPrompt).toContain("Investor firms need evidence of capital capacity or actual investment activity and mandate fit");
     expect(modelPrompt).toContain("company-level discovery signals");
-    expect(modelPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner's wealth");
+    expect(modelPrompt).toContain("Company growth and materiality must be assessed separately from an individual owner’s wealth");
     expect(modelPrompt).toContain("One source-backed relevant lead starts target research");
     expect(modelPrompt).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).toContain("require direct relevance to the active objective");
