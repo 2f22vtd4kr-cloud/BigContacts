@@ -165,7 +165,7 @@ export function classifyInvestigatorProviderError(value: string): { domain: Atla
   if (/^http_(401|403)(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_auth_failure" };
   if (/^http_404(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_endpoint_not_found" };
   if (/^http_5\d\d(?:$|:)/.test(code) || code === "provider_unavailable") return { domain: "model_provider", kind: "provider_unavailable" };
-  if (code === "upstream_token_window_wait_exceeded" || code === "upstream_capacity_exhausted" || code === "agenticproviderqueuefullerror") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
+  if (code === "upstream_token_window_wait_exceeded" || code === "upstream_token_window_capacity_exceeded" || code === "upstream_capacity_exhausted" || code === "agenticproviderqueuefullerror") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "invalid_json_response" || code === "empty_response" || code === "completion_output_truncated") return { domain: "model_provider", kind: "invalid_contract" };
   if (code === "timeout" || code === "timed out") return { domain: "model_provider", kind: "timeout" };
   if (code === "cancelled") return { domain: "lease_job_state", kind: "cancelled" };
