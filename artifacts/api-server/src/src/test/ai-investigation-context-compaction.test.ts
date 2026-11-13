@@ -500,7 +500,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({ jobId: null, caseId: null, cognitiveTask: "context_compaction" });
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxCompletionTokens: 768 });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxCompletionTokens: 1_536 });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
@@ -568,7 +568,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 768,
+      maxCompletionTokens: 1_536,
       maxAttempts: 1,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({
@@ -627,7 +627,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 768,
+      maxCompletionTokens: 1_536,
       maxAttempts: 1,
     });
   });
@@ -685,7 +685,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 768,
+      maxCompletionTokens: 1_536,
       maxAttempts: 1,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({
