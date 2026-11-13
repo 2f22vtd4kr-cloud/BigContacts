@@ -81,7 +81,7 @@ export function getGroqTokenRequest(input: string | URL | Request, init?: Reques
       response_format: body.response_format,
       tool_choice: body.tool_choice,
     });
-    const promptTokens = Math.ceil(promptMaterial.length / 4.4 * 1.05);
+    const promptTokens = Math.ceil(promptMaterial.length / 3.4 * 1.1);
     const rawCompletion = body.max_completion_tokens ?? body.max_tokens;
     const completionTokens = typeof rawCompletion === "number" && Number.isFinite(rawCompletion)
       ? Math.max(1, Math.floor(rawCompletion))
