@@ -524,11 +524,11 @@ describe("discovery runtime architecture", () => {
   it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
-    expect(canonicalSource).toContain("missionActionBudget: buildMissionActionBudget({");
+    expect(canonicalSource).toContain("...buildMissionActionBudget({");
+    expect(canonicalSource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
     expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
     expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
-    expect(canonicalSource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
-    expect(canonicalSource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
+    expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
     expect(canonicalSource).toContain("episodeStopReason: discovery.stopReason ?? null");
     const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
     expect(depthSource).toContain('episodeLimitReached: episodeStopReason === "ITERATION_BUDGET"');

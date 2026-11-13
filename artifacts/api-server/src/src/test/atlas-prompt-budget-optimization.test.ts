@@ -87,8 +87,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("https://source.example/lead-1");
       expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
       expect(prompt).toContain("Follow the active case objective and Boss-approved scope");
-      expect(prompt).toContain("B2B decision-makers need a fetched source binding a current role");
-      expect(prompt).toContain("wealth/investor targets also need source-backed ownership/control/equity/investment");
+      expect(prompt).toContain("B2B requires fetched current role/company connection and professional route");
+      expect(prompt).toContain("wealth requires sourced ownership/control/equity/investment and credible wealth potential");
       expect(prompt).not.toContain("people are the ultimate mission");
       expect(prompt).not.toContain("People—not companies or executive prestige");
       expect(prompt).not.toContain("owner/operator, ownership/investment or transaction signal");
