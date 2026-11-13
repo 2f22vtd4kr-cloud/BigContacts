@@ -127,8 +127,8 @@ export function isInvestigatorTokenCapacityUnavailableEpisode(
   const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
     (record) => record.action === "investigator_provider_error",
   );
-  if (latestProviderError) return /upstream_token_window_wait_exceeded/i.test(latestProviderError.observation ?? "");
-  return result.error === "upstream_token_window_wait_exceeded";
+  if (latestProviderError) return /(?:upstream_token_window_wait_exceeded|upstream_token_window_capacity_exceeded)/i.test(latestProviderError.observation ?? "");
+  return result.error === "upstream_token_window_wait_exceeded" || result.error === "upstream_token_window_capacity_exceeded";
 }
 
 /**
