@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -26,6 +26,60 @@ describe("recent observation compaction recovery", () => {
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
     expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
     expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
+  });
+});
+
+describe("new Investigator episode observation continuity", () => {
+  it("hydrates the latest successful fetched source and ignores search leads and failed fetches", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "visit",
+        args: { url: "https://registry.example.test/old" }, execution: "success",
+        observedUrls: ["https://registry.example.test/old"], leadUrls: [],
+        observation: "OLD_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 2, model: "test-model", action: "web_search",
+        args: { query: "new possible director" }, execution: "success",
+        observedUrls: [], leadUrls: ["https://registry.example.test/lead"],
+        observation: "SEARCH_LEAD_SENTINEL", findings: [],
+      },
+      {
+        turn: 3, model: "test-model", action: "browser_fetch",
+        args: { url: "https://registry.example.test/unavailable" }, execution: "error",
+        observedUrls: [], leadUrls: [],
+        observation: "FAILED_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 4, model: "test-model", action: "visit",
+        args: { url: "https://registry.example.test/current" }, execution: "success",
+        observedUrls: ["https://registry.example.test/current"], leadUrls: [],
+        observation: "LATEST_FETCH_SENTINEL: the filing identifies the current director.",
+        findings: [],
+      },
+    ];
+
+    const observation = buildInitialInvestigatorObservation(records);
+    expect(observation).toContain("PRIOR SUCCESSFUL FETCHED SOURCE OBSERVATION");
+    expect(observation).toContain("LATEST_FETCH_SENTINEL");
+    expect(observation).not.toContain("SEARCH_LEAD_SENTINEL");
+    expect(observation).not.toContain("FAILED_FETCH_SENTINEL");
+    expect(observation).not.toContain("No research action has been selected yet");
+  });
+
+  it("keeps the neutral first-action context when no successful fetched source exists", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "web_search",
+        args: { query: "possible director" }, execution: "success",
+        observedUrls: [], leadUrls: ["https://registry.example.test/lead"],
+        observation: "SEARCH_ONLY_SENTINEL", findings: [],
+      },
+    ];
+    const observation = buildInitialInvestigatorObservation(records);
+    expect(observation).toContain("CASE CONTEXT LOADED");
+    expect(observation).toContain("No research action has been selected yet");
+    expect(observation).not.toContain("SEARCH_ONLY_SENTINEL");
   });
 });
 
