@@ -35,6 +35,14 @@ describe("Investigator quota diagnostics", () => {
       domain: "model_provider",
       kind: "provider_capacity_exhausted",
     });
+    expect(classifyInvestigatorProviderError("upstream_request_size_rejected")).toEqual({
+      domain: "model_provider",
+      kind: "invalid_provider_request",
+    });
+    expect(classifyInvestigatorProviderError("upstream_token_window_capacity_exceeded")).toEqual({
+      domain: "model_provider",
+      kind: "provider_capacity_exhausted",
+    });
   });
 });
 
