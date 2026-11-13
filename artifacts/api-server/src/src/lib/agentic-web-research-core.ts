@@ -4584,15 +4584,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY MODEL POLICY: APEX INVESTIGATOR: Follow the active case objective and Boss-approved scope. MISSION PRIORITY: the human objective and latest Boss-approved scope govern; DISCOVERY MODE: no person or entity target is implied. Preserve topic/geography; no silent pivot. No strategy detour, sector comparisons or geography expansion. No fixed action sequence. The Investigator chooses hypotheses, targets, queries, sources, tools, pivots, corroboration/falsification and stopping.",
-    "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: descriptors are not query terms, targets, sources, providers or jurisdictions.",
-    "DISCOVERY SEARCH ECONOMY: the runtime safety ceiling is " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound search actions per case, not a target or prescribed sequence. Do not stop merely because one or two searches have been used; Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain within the remaining case/deadline budget. Public-web and registry routes are neutral options; do not force a mixed-source batch or a registry-first order. A source class need not appear in every discovery query. Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose. Ranking-only mentions are leads, not qualified targets. FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss. Investigator chooses the next action by expected information gain; no registry is preferred; one lead can start target research.",
-    "DISCOVERY TARGETABILITY / REALISM: people, companies and assets are distinct; require direct relevance to the active objective. One source-backed relevant lead starts target research. PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects; do not select or surface them solely for wealth or prominence. Consider them only when the human explicitly names or requests prominent public figures, or reliable evidence establishes an actionable person-specific professional route; general company/press/IR channels do not qualify as individual access. This is objective-led, not a name blacklist. COMPANY PROMINENCE: evaluate companies separately; brand familiarity alone neither excludes nor qualifies them; well-known/public companies remain eligible when objective-fit. No registry is preferred; one lead starts target research; choose by evidence and the actual human objective; never infer or introduce geography from examples or model memory. " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-    "MODEL-OWNED RELEVANCE SELF-CHECK: tie query/source to the required entity, role, relationship or materiality; generic publisher homepages need a same-case evidence link. DISCOVERY LEAD HANDOFF CONTRACT: PERSON REVIEW and COMPANY REVIEW are Investigator decisions, not every result; one relevant company is a valid partial result. Preserve exact observed names, role/null and associated public URL as review-only; company leads use scope=organization, personName=null and role=null. Do not wait for fetch, ownership or wealth proof; never auto-promote. Apply objective criteria: B2B requires fetched current role/company connection and professional route; wealth requires sourced ownership/control/equity/investment and credible wealth potential. Never infer wealth from seniority. Target research verifies role/relationship/materiality, counter-evidence and route before promotion.",
-    "CONTACT FACTS: use public/professional routes; generic company/IR is not individual access. Snippets are leads; failed fetches are unobserved. After fetch, sourceUrls=[that URL only] and claims bind to its exact span. Never infer wealth from seniority.",
-    "SEARCH: market only if country in objective/scope; locale=language. Preserve requested subject, sector and geography; source class/provider choice remains model-owned.",
-    "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn and fresh worker attestation authorizes it. Never assume records expose owners, shareholders, members, or managers without observed documentation.",
-    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    "DISCOVERY AUTONOMY: The human objective and latest Boss-approved scope govern target class, topic and geography. Keep discovery cross-sector unless the objective or concrete same-case fetched evidence justifies narrowing; name that evidence in the hypothesis. Do not broaden geography, repeat mission descriptors as queries, force a mixed-source batch, or prefer web/registry. Investigator chooses hypotheses, sources, tools, pivots, corroboration and stopping by expected information gain. The search cap is a safety ceiling, not a stopping target.",
+    "TARGETABILITY: people, companies and assets are distinct. Famous individuals require an explicit human request or an actionable person-specific professional route; generic company/press/IR is not individual access. Company fame, ranking, size and growth are not qualification; ranking-only mentions are leads. Keep companies eligible when objective-fit; do not impose private/mid-market or wealth requirements unless requested. One objective-fit lead may start target research.",
+    "REVIEW-LEAD HANDOFF: Investigator chooses relevant observed people/organizations, not every result. Preserve exact observed name, role or null, and associated public HTTPS URL as review-only; no invented identity, ownership, wealth, relationship or contact claim. Do not require a fetch/ownership clue for a provisional review lead. B2B/wealth qualification applies only when the objective requests it; otherwise follow the objective.",
+    "SEARCH/RETRIEVAL: market only if country in objective/scope; locale is language. Web and callable registries are neutral options. Snippets are leads, not evidence; fetched claims bind only to the exact fetched URL/span. Failed fetches are unknown. visit supports text-bearing PDFs; browser_fetch is HTML-only; scanned/encrypted/malformed PDFs remain unobserved."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
@@ -4713,7 +4708,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     authoritativeCaseObjective,
     activeBossScopeSection,
     "",
-    researchContract,
+    ...(input.mode === "discovery" ? [] : [researchContract]),
     actionLiveness,
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
@@ -4727,12 +4722,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     evidenceLaw,
     terminalContractGuidance,
-    compactPageFormatGuidance,
+    ...(input.mode === "discovery" ? [] : [compactPageFormatGuidance]),
     "",
     ...compactEmergencyDiscoveryContractParts,
-    ...(discoveryQualityGate ? [discoveryQualityGate] : []),
-    ...(compactDiscoveryAdmissionContract ? [compactDiscoveryAdmissionContract] : []),
-    ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 400, "[advisory detail omitted; all actions remain available]"), "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
