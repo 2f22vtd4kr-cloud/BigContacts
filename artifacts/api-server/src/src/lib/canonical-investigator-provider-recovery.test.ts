@@ -47,6 +47,23 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     ).toBe(MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE);
   });
 
+  it("counts Groq's token-window HTTP 413 capacity response in the same bounded recovery circuit", () => {
+    const tokenWindowCapacity = unavailable(
+      "INVESTIGATOR_PROVIDER_ERROR upstream_token_window_capacity_exceeded",
+    );
+    expect(isInvestigatorProviderUnavailableEpisode(tokenWindowCapacity)).toBe(true);
+    expect(isInvestigatorTokenCapacityUnavailableEpisode(tokenWindowCapacity)).toBe(true);
+    expect(advanceInvestigatorTokenCapacityFailureStreak(0, tokenWindowCapacity)).toBe(1);
+    expect(advanceInvestigatorTokenCapacityFailureStreak(1, tokenWindowCapacity))
+      .toBe(MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(
+      MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+      tokenWindowCapacity,
+    )).toBe(true);
+    expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(tokenWindowCapacity)).toBe(false);
+    expect(isInvestigatorHardRequestQuotaUnavailableEpisode(tokenWindowCapacity)).toBe(false);
+  });
+
   it("does not treat an episode with successful research plus a provider error as a fully unavailable episode", () => {
     const mixedEpisode = {
       status: "unavailable",
