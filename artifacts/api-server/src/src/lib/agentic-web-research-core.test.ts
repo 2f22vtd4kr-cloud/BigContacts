@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -3089,7 +3089,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
     const systemPrompt = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    const targetRequestChars = 20_650;
+    const targetRequestChars = 16_000;
     const basePrompt = completeInvestigatorProviderPrompt;
     const padding = "Source-bound discovery context remains untrusted data; retain exact scope and provenance. ";
     const needed = Math.max(0, targetRequestChars - systemPrompt.length - basePrompt.length - 2);
@@ -3101,11 +3101,11 @@ Choose each next action yourself from the available capabilities and observed ev
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
-    expect(request.max_completion_tokens).toBe(1792);
-    // The live 120B trace used about 3.4 characters per requested token,
-    // materially denser than the older 4-char estimate. Keep margin below the
-    // 8,000 TPM ceiling rather than validating only the optimistic estimate.
-    expect(Math.ceil(requestChars / 3.4) + request.max_completion_tokens).toBeLessThan(8_000);
+    expect(request.max_completion_tokens).toBe(1024);
+    // Keep a conservative tokenization margin below the local 7,000 TPM
+    // reservation budget, leaving capacity for other roles in the same window.
+
+    expect(Math.ceil(requestChars / 3.4 * 1.1) + request.max_completion_tokens).toBeLessThan(7_000);
   });
 
   it("preserves unfetched search-result leads in compacted Investigator context", () => {
@@ -3707,6 +3707,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(describeAgentActionParseFailure('{"action":"footprint_email","email":"person@example.com"}')).toBe("unsupported_action action=footprint_email");
     expect(describeAgentActionParseFailure('{"action":"harvest_domain","domain":"example.com"}')).toBe("unsupported_action action=harvest_domain");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"not-a-url","hypothesis":"validate URL handling","purpose":"check parser rejection","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=visit invalid=url");
+    const malformedUrlFailure = describeAgentActionParseFailure('{"action":"browser_fetch","url":"httpshttps://peclimaterisks.org/private-equity-global-energy-company-tracker/","provider":"scrapfly","hypothesis":"inspect an observed lead","purpose":"retrieve the observed source","expectedInformationGain":0.6}');
+    expect(malformedUrlFailure).toBe("invalid_action_arguments action=browser_fetch invalid=url");
+    expect(buildActionParseFailureObservation(malformedUrlFailure)).toContain("Use exactly one scheme prefix");
     expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toContain("non_json_envelope chars=");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toContain("multiple_json_objects chars=");
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[],"hypothesis":"test batch validation","purpose":"verify empty search batches are rejected","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=1");
@@ -4486,5 +4489,22 @@ describe("restricted community source content boundary", () => {
     expect(source).toContain("hasRestrictedCommunityUrl");
     expect(source).toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
     expect(source).toContain("observedPageIdentity: restrictedCommunitySource ? null");
+  });
+  it("keeps discovery cross-sector when the human objective does not name an industry", () => {
+    const system = apexInvestigatorSystemCore();
+    expect(system).toContain("Do not introduce an industry/sector or jurisdiction absent from the human objective");
+    expect(system).toContain("when no sector is specified, keep discovery cross-sector");
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
+  });
+
+  it("blocks unsupported sector narrowing but allows sectors named by the objective or established by a fetched same-case source", () => {
+    const objective = "Discover lesser-known people with credible wealth potential and public/professional routes. Focus on private and mid-market firms, controlling owners and investors.";
+    const query = ["private renewable energy company founder equity stake"];
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, [])).toEqual(["renewable energy"]);
+    expect(findUnsupportedDiscoverySectorTerms(query, objective + " The human explicitly requests renewable energy.", [])).toEqual([]);
+    const fetched: AgenticTrajectoryRecord[] = [{ turn: 1, model: "openai/gpt-oss-120b", action: "visit", args: { url: "https://example.test/source" }, execution: "success", observation: "The fetched source describes a renewable energy company.", observedUrls: ["https://example.test/source"], findings: [], providerFallback: [] }];
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, fetched)).toEqual([]);
+    const searchOnly: AgenticTrajectoryRecord[] = [{ turn: 1, model: "openai/gpt-oss-120b", action: "web_search", args: { query: "renewable energy" }, execution: "success", observation: "Search snippets mention renewable energy.", observedUrls: [], findings: [], providerFallback: [] }];
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, searchOnly)).toEqual(["renewable energy"]);
   });
 });

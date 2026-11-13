@@ -40,6 +40,9 @@ describe("provider quota gate", () => {
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC;
     delete process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY;
     delete process.env.APEX_EXTERNAL_CACHE_BODY_READ_TIMEOUT_MS;
+    delete process.env.APEX_GROQ_TPM_BUDGET;
+    delete process.env.APEX_GROQ_TPM_WINDOW_MS;
+    delete process.env.APEX_GROQ_TPM_MAX_WAIT_MS;
     resetProviderGateForTests();
   });
 
@@ -702,4 +705,36 @@ describe("provider quota gate", () => {
     });
   });
 
+  it("shares one rolling Groq TPM reservation across roles even when they use different credentials for the same model", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "10000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "10000";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ usage: { prompt_tokens: 400, completion_tokens: 2_000, total_tokens: 2_400 }, choices: [{ message: { content: "{}" }, finish_reason: "stop" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const request = { model: "openai/gpt-oss-20b", max_completion_tokens: 2_000, messages: [{ role: "user", content: "x".repeat(1_000) }] };
+      const url = "https://api.groq.com/openai/v1/chat/completions";
+      const firstInit = { method: "POST", headers: { Authorization: "Bearer investigator-key", "Content-Type": "application/json" }, body: JSON.stringify(request) };
+      const secondInit = { method: "POST", headers: { Authorization: "Bearer right-hand-key", "Content-Type": "application/json" }, body: JSON.stringify(request) };
+      await withProviderRole("investigator", () => globalThis.fetch(url, firstInit));
+      expect(calls).toBe(1);
+      const pending = withProviderRole("control", () => globalThis.fetch(url, secondInit));
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(calls).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      const second = await pending;
+      expect(second.status).toBe(200);
+      expect(calls).toBe(2);
+    } finally { globalThis.fetch = originalFetch; }
+  });
 });
