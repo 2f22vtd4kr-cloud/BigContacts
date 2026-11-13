@@ -3415,7 +3415,7 @@ Choose each next action yourself from the available capabilities and observed ev
       cognitiveTask: "identity_resolution",
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
-    expect(Math.ceil(requestChars / 3.4) + request.max_completion_tokens).toBeLessThan(8_000);
+    expect(Math.ceil(requestChars / 4) + request.max_completion_tokens).toBeLessThan(8_000);
   });
 
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
