@@ -7,6 +7,8 @@ export type AiInvestigationContextCompactionInput = {
   maxChars?: number;
   jobId?: string | null;
   caseId?: number | null;
+  /** Runtime-persisted case document used only to authorize fetched-page provenance. */
+  trustedSourceContext?: string;
   /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
   allowRecoveryModel?: boolean;
 };
@@ -504,11 +506,15 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const MAX_COMPACTION_SOURCE_CHUNKS = 8;
   const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
   const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
+  // Never derive fetch authority from the combined prompt: it begins with the
+  // user/Boss objective, which is untrusted and may quote runtime-looking headings.
+  // The continuation route supplies the separately persisted case document.
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
     logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
     return null;
   }
-  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
+  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input, trustedFetchUrls);
 
   // A 1,200-character floor rejected otherwise usable 1,393-character partial
   // memories in the live run. Give intermediate model summaries bounded headroom;
@@ -520,7 +526,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   // The same-role 20B model handles compaction; Boss 120B retains capacity for strategic
   // control decisions; the Investigator still owns all research actions.
   for (const chunk of sourceChunks) {
-    const chunkSuccessfulFetchUrls = sourceSuccessfulFetchUrls(chunk);
+    const chunkSuccessfulFetchUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
     for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
     const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
     if (!summary) return null;
