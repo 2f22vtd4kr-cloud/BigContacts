@@ -45,7 +45,7 @@ assert(
     && /human objective\/Boss scope govern/.test(orientation)
     && /require direct relevance to the active objective/.test(orientation)
     && /do not force a mixed-source batch or a registry-first order/.test(orientation)
-    && /Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(orientation)
+    && /The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(orientation)
     && /ranking-only mentions are leads, not qualified targets/.test(orientation),
   "institutional system contract must preserve objective-led, model-owned discovery without duplicating it in each user prompt",
 );
