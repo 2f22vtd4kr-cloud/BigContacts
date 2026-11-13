@@ -2721,9 +2721,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           if (tokenCapacityFailureLimitReached && !tokenCapacityReassignmentUsed) {
             capacityReassignmentAttemptedThisEpisode = true;
             const failedCapability = selectedInvestigator;
+            const latestTokenCapacityError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find(
+              (record) => record.action === "investigator_provider_error",
+            )?.observation ?? nextDiscovery.error ?? "token-window capacity failure";
             const replacement = await reassignInvestigatorAfterPersistentTokenCapacity(
               failedCapability,
-              "upstream_token_window_wait_exceeded after bounded same-capability retries in consecutive discovery episodes",
+              `${latestTokenCapacityError} after bounded same-capability retries in consecutive discovery episodes`,
             );
             if (replacement) {
               consecutiveInvestigatorProviderUnavailable = 0;

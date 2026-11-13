@@ -7,6 +7,8 @@ export type AiInvestigationContextCompactionInput = {
   maxChars?: number;
   jobId?: string | null;
   caseId?: number | null;
+  /** Runtime-persisted case document used only to authorize fetched-page provenance. */
+  trustedSourceContext?: string;
   /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
   allowRecoveryModel?: boolean;
 };
@@ -111,28 +113,37 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  */
 function sourceSuccessfulFetchUrls(source: string): Set<string> {
   // Only parse JSON records under runtime-authored trajectory metadata headings.
+  // Canonical case files serialize the bounded projection as one JSON array line;
+  // older context shapes may contain one JSON record per line.
   // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
   const lines = source.split("\n");
   const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
-  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS)/.test(line));
+  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS|BOUNDED TRAJECTORY PROJECTION)/.test(line));
   const candidates: string[] = [];
   if (metadataIndex >= 0 && lines[metadataIndex + 1]) candidates.push(lines[metadataIndex + 1]!.trim());
   if (durableIndex >= 0) {
     for (const line of lines.slice(durableIndex + 1)) {
       const candidate = line.trim();
-      if (candidate.startsWith("{") && candidate.endsWith("}")) candidates.push(candidate);
+      if ((candidate.startsWith("{") && candidate.endsWith("}"))
+        || (candidate.startsWith("[") && candidate.endsWith("]"))) candidates.push(candidate);
     }
   }
   const fetchedUrls = new Set<string>();
   for (const candidate of candidates) {
-    if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
+    if (!((candidate.startsWith("{") && candidate.endsWith("}"))
+      || (candidate.startsWith("[") && candidate.endsWith("]")))) continue;
     try {
-      const record = JSON.parse(candidate) as Record<string, unknown>;
-      const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
-      if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
-      for (const rawUrl of record.observedUrls) {
-        if (typeof rawUrl === "string" && rawUrl.trim()) {
-          for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
+      const parsed = JSON.parse(candidate) as unknown;
+      const records = Array.isArray(parsed) ? parsed : [parsed];
+      for (const value of records) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+        const record = value as Record<string, unknown>;
+        const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
+        if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
+        for (const rawUrl of record.observedUrls) {
+          if (typeof rawUrl === "string" && rawUrl.trim()) {
+            for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
+          }
         }
       }
     } catch {
@@ -495,11 +506,15 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const MAX_COMPACTION_SOURCE_CHUNKS = 8;
   const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
   const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
+  // Never derive fetch authority from the combined prompt: it begins with the
+  // user/Boss objective, which is untrusted and may quote runtime-looking headings.
+  // The continuation route supplies the separately persisted case document.
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
     logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
     return null;
   }
-  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
+  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input, trustedFetchUrls);
 
   // A 1,200-character floor rejected otherwise usable 1,393-character partial
   // memories in the live run. Give intermediate model summaries bounded headroom;
@@ -511,7 +526,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   // The same-role 20B model handles compaction; Boss 120B retains capacity for strategic
   // control decisions; the Investigator still owns all research actions.
   for (const chunk of sourceChunks) {
-    const chunkSuccessfulFetchUrls = sourceSuccessfulFetchUrls(chunk);
+    const chunkSuccessfulFetchUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
     for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
     const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
     if (!summary) return null;

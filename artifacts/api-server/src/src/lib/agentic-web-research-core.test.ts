@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -26,6 +26,108 @@ describe("recent observation compaction recovery", () => {
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
     expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
     expect(agenticCoreSource).not.toContain("No action was sent with a deterministically truncated substitute observation.");
+  });
+});
+
+describe("new Investigator episode observation continuity", () => {
+  it("hydrates the latest successful fetched source and ignores search leads and failed fetches", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "visit",
+        args: { url: "https://registry.example.test/old" }, execution: "success",
+        observedUrls: ["https://registry.example.test/old"], leadUrls: [],
+        observation: "OLD_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 2, model: "test-model", action: "web_search",
+        args: { query: "new possible director" }, execution: "success",
+        observedUrls: [], leadUrls: ["https://registry.example.test/lead"],
+        observation: "SEARCH_LEAD_SENTINEL", findings: [],
+      },
+      {
+        turn: 3, model: "test-model", action: "browser_fetch",
+        args: { url: "https://registry.example.test/unavailable" }, execution: "error",
+        observedUrls: [], leadUrls: [],
+        observation: "FAILED_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 4, model: "test-model", action: "visit",
+        args: { url: "https://registry.example.test/current" }, execution: "success",
+        observedUrls: ["https://registry.example.test/current"], leadUrls: [],
+        observation: "LATEST_FETCH_SENTINEL: the filing identifies the current director.",
+        findings: [],
+      },
+    ];
+
+    const observation = buildInitialInvestigatorObservation(records);
+    expect(observation).toContain("PRIOR SUCCESSFUL FETCHED SOURCE OBSERVATION");
+    expect(observation).toContain("LATEST_FETCH_SENTINEL");
+    expect(observation).not.toContain("SEARCH_LEAD_SENTINEL");
+    expect(observation).not.toContain("FAILED_FETCH_SENTINEL");
+    expect(observation).not.toContain("No research action has been selected yet");
+  });
+
+  it("does not carry a fetched observation across an explicitly changed discovery pivot", () => {
+    const objective = [
+      "Discover relevant operating companies.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate North Texas family-owned manufacturing companies.",
+    ].join("\n\n");
+    const activeScope = discoveryPivotScopeKey(objective);
+    if (!activeScope) throw new Error("Expected an active discovery pivot scope");
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "visit", pivotScopeKey: "previous-pivot",
+        args: { url: "https://old.example/filing" }, execution: "success",
+        observedUrls: ["https://old.example/filing"], leadUrls: [],
+        observation: "OLD_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 2, model: "test-model", action: "visit",
+        args: { url: "https://unscoped-old.example/filing" }, execution: "success",
+        observedUrls: ["https://unscoped-old.example/filing"], leadUrls: [],
+        observation: "UNSCOPED_PRE_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+      {
+        turn: 3, model: "test-model", action: "visit", pivotScopeKey: activeScope,
+        args: { url: "https://current.example/filing" }, execution: "success",
+        observedUrls: ["https://current.example/filing"], leadUrls: [],
+        observation: "ACTIVE_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+    ];
+    const observation = buildInitialInvestigatorObservation(records, objective, "discovery");
+    expect(observation).toContain("ACTIVE_PIVOT_FETCH_SENTINEL");
+    expect(observation).not.toContain("OLD_PIVOT_FETCH_SENTINEL");
+    expect(observation).not.toContain("UNSCOPED_PRE_PIVOT_FETCH_SENTINEL");
+
+    const withoutCurrentPivotFetch = buildInitialInvestigatorObservation(records.slice(0, 2), objective, "discovery");
+    expect(withoutCurrentPivotFetch).toContain("CASE CONTEXT LOADED");
+    expect(withoutCurrentPivotFetch).not.toContain("UNSCOPED_PRE_PIVOT_FETCH_SENTINEL");
+  });
+
+  it("retains successful fetched observations for target episodes without discovery-pivot filtering", () => {
+    const records: AgenticTrajectoryRecord[] = [{
+      turn: 4, model: "test-model", action: "visit", pivotScopeKey: "prior-discovery-pivot",
+      args: { url: "https://registry.example.test/target" }, execution: "success",
+      observedUrls: ["https://registry.example.test/target"], leadUrls: [],
+      observation: "TARGET_CASE_FETCH_SENTINEL", findings: [],
+    }];
+    expect(buildInitialInvestigatorObservation(records, "Investigate this selected target", "target"))
+      .toContain("TARGET_CASE_FETCH_SENTINEL");
+  });
+
+  it("keeps the neutral first-action context when no successful fetched source exists", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 1, model: "test-model", action: "web_search",
+        args: { query: "possible director" }, execution: "success",
+        observedUrls: [], leadUrls: ["https://registry.example.test/lead"],
+        observation: "SEARCH_ONLY_SENTINEL", findings: [],
+      },
+    ];
+    const observation = buildInitialInvestigatorObservation(records);
+    expect(observation).toContain("CASE CONTEXT LOADED");
+    expect(observation).toContain("No research action has been selected yet");
+    expect(observation).not.toContain("SEARCH_ONLY_SENTINEL");
   });
 });
 
@@ -2985,6 +3087,27 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
+  it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
+    const systemPrompt = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
+    const targetRequestChars = 20_650;
+    const basePrompt = completeInvestigatorProviderPrompt;
+    const padding = "Source-bound discovery context remains untrusted data; retain exact scope and provenance. ";
+    const needed = Math.max(0, targetRequestChars - systemPrompt.length - basePrompt.length - 2);
+    const prompt = basePrompt + "\n\n" + padding.repeat(Math.ceil(needed / padding.length)).slice(0, needed);
+    const request = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
+    const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
+
+    expect(request.max_completion_tokens).toBe(1792);
+    // The live 120B trace used about 3.4 characters per requested token,
+    // materially denser than the older 4-char estimate. Keep margin below the
+    // 8,000 TPM ceiling rather than validating only the optimistic estimate.
+    expect(Math.ceil(requestChars / 3.4) + request.max_completion_tokens).toBeLessThan(8_000);
+  });
+
   it("preserves unfetched search-result leads in compacted Investigator context", () => {
     const context = buildInvestigatorContext({
       targetName: "",
@@ -3773,15 +3896,15 @@ describe("Groq Investigator structured-output recovery", () => {
   it("retries HTTP 200 finish_reason=length with a larger budget and never treats it as quota failure", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 3072 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072,
+      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "stop",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
   });
 
@@ -3789,25 +3912,59 @@ describe("Groq Investigator structured-output recovery", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "max_completion_tokens reached; output was truncated; increase max_completion_tokens",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+  });
+
+  it("refuses a truncation retry that would exceed provider-reported remaining TPM headroom", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      rateLimitRemainingTokens: 6_500,
+      promptTokenEstimate: 5_800,
+      finishReason: "length",
+    })).toEqual({ action: "fail" });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      rateLimitRemainingTokens: 9_000,
+      promptTokenEstimate: 5_800,
+      finishReason: "length",
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2816 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      finishReason: "length",
+    })).toEqual({ action: "fail" });
   });
 
   it("uses JSON-object compatibility for schema mismatch, then one bounded budget increase if that also fails", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Generated JSON does not match the expected schema: missing registry",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "retry_json_object" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Failed to generate JSON",
-      responseFormat: "json_object", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_object", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Failed to generate JSON",
-      responseFormat: "json_object", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 1536,
+      responseFormat: "json_object", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
   });
 
@@ -3819,7 +3976,7 @@ describe("Groq Investigator structured-output recovery", () => {
     ]) {
       expect(chooseGroqInvestigatorOutputRecovery({
         ...failure, providerMessage: "provider failure", responseFormat: "json_schema",
-        completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+        completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
       })).toEqual({ action: "fail" });
     }
   });
