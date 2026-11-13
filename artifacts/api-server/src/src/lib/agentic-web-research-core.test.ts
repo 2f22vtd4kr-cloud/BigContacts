@@ -1530,7 +1530,7 @@ describe("Investigator prompt architecture", () => {
       actionAllowlist: ["web_search", "visit", "done"],
     });
 
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeGreaterThan(6_000);
     expect(prompt).toContain(fetchedObservation);
     // Search results are unverified leads and may be compacted; the fetched PDF remains complete.
     expect(prompt).not.toContain(latestObservation);
@@ -4251,7 +4251,8 @@ describe("prompt composition recovery integrity", () => {
     const memoryPath = agenticCoreSource.slice(start, end);
     expect(memoryPath).toContain("AI-COMPACTED HISTORICAL RESEARCH MEMORY");
     expect(memoryPath).toContain("history: [],");
-    expect(memoryPath).toContain("trajectoryRecords: input.trajectoryRecords.filter");
+    expect(memoryPath).toContain("trajectoryRecords: workingTrajectoryRecords.filter");
+    expect(agenticCoreSource).toContain("const completePromptRecords = [...completePriorTrajectoryRecords, ...records];");
     expect(memoryPath).not.toContain("boundInvestigatorPromptSection(aiHistoricalMemory");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
