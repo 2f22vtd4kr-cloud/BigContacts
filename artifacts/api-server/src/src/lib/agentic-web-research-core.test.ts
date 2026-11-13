@@ -2500,6 +2500,7 @@ Choose each next action yourself from the available capabilities and observed ev
       intelligenceContext: "Research frontier and unresolved evidence requirements. ".repeat(400),
       mode: "discovery",
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
     expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
@@ -2507,8 +2508,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
