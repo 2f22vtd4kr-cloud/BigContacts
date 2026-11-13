@@ -1349,11 +1349,12 @@ describe("Investigator prompt architecture", () => {
       findings: [],
       mode: "target",
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("Apply objective criteria");
-    expect(discovery).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(discovery).toContain("Target research verifies role/relationship/materiality");
+    expect(modelPrompt).toContain("Apply only requested criteria");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
