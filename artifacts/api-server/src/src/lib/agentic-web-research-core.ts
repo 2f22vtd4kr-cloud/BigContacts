@@ -4730,6 +4730,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactPageFormatGuidance,
     "",
     ...compactEmergencyDiscoveryContractParts,
+    ...(discoveryQualityGate ? [discoveryQualityGate] : []),
+    ...(compactDiscoveryAdmissionContract ? [compactDiscoveryAdmissionContract] : []),
     ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 400, "[advisory detail omitted; all actions remain available]"), "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
