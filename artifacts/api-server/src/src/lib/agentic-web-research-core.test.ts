@@ -78,7 +78,6 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
     expect(systemCore).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(systemCore).toContain("Single and parallel registry actions require runtime-callable registry IDs");
-    expect(systemCore).toContain("Single and parallel registry actions require runtime-callable registry IDs");
     expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
   });
 });
