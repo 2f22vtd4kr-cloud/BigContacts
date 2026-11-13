@@ -366,13 +366,13 @@ describe("AI investigation context compaction", () => {
     const source = [
       "CANONICAL CASE CONTEXT",
       "BOUNDED TRAJECTORY PROJECTION",
-      JSON.stringify({
+      JSON.stringify([{
         turn: 7,
         action: "visit",
         execution: "success",
         observedUrls: [sourceUrl],
         observation: "The registry filing names Alice Example as a current director.",
-      }),
+      }]),
       "CURRENT CASE OBJECTIVE: retain source provenance and investigate unresolved ownership.",
       "BACKGROUND: " + "The case preserves complete durable source observations without treating omitted text as negative evidence. ".repeat(18),
     ].join("\n");
