@@ -95,6 +95,18 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.registry).toBe("sec-edgar");
   });
 
+  it("rejects a single registry action when the adapter is not runtime-callable", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "registry_search",
+      query: "private company officers",
+      registry: "invented-global-owners-register",
+      hypothesis: "A registry may identify relevant public records.",
+      purpose: "Test that unsupported adapter IDs are not dispatched.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed).toBeNull();
+  });
+
   it("rejects a parallel registry action when any search omits its registry ID", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_registry_search",
@@ -275,7 +287,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
+    expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
@@ -333,7 +345,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(prompt).toContain("Qualification follows the active objective");
+    expect(prompt).toContain("Apply objective criteria");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {

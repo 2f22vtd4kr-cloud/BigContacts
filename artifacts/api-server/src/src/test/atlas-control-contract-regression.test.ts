@@ -864,7 +864,8 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     });
     expect(rightHandPrompt).toContain("episodeStopReason=ITERATION_BUDGET");
     expect(bossPrompt).toContain("actionsRemaining is greater than zero");
-    expect(canonicalDiscoverySource).toContain("missionActionBudget: buildMissionActionBudget({");
+    expect(canonicalDiscoverySource).toContain("...buildMissionActionBudget({");
+    expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
     expect(canonicalDiscoverySource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
 
@@ -1142,7 +1143,10 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
   it("passes the durable inventory and nonterminal partial findings into control decisions", () => {
     expect(canonicalDiscoverySource).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
     expect(canonicalDiscoverySource).toContain("buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? [])");
-    expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
+    expect(canonicalDiscoverySource).toContain("const controlBudgetState = {");
+    expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed)");
+    expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");
+    expect(canonicalDiscoverySource).toContain("activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
     expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");
   });
 });

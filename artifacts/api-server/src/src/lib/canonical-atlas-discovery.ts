@@ -2829,6 +2829,29 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `canonical-control-${finalControlAction ?? "incomplete"}`
             : "canonical-evidence-terminal-incomplete"
       : "canonical-atlas-complete";
+    const discoverySearchActionsUsedAtTerminal = countDiscoverySearchActions(discovery.trajectoryRecords ?? []);
+    const terminalSnapshot = {
+      status: finalIncomplete ? "incomplete" : "complete",
+      jobStatus: finalIncomplete ? "failed" : "done",
+      caseStatus: finalCaseStatus,
+      caseAction: finalCaseAction,
+      evidenceBackedTerminal,
+      latestEvidenceBackedTerminal,
+      admittedTargetCount: admittedCandidateSources.length,
+      materializedCardCount: materialized,
+      evidenceRows,
+      completedTargetInvestigations: researched,
+      explicitCardPromotions: contactsFound,
+      controlTurns,
+      finalControlAction,
+      investigatorActionsUsed: investigatorIterationsUsed,
+      investigatorActionLimit: depth.agenticMaxIterations,
+      discoverySearchActionsUsed: discoverySearchActionsUsedAtTerminal,
+      discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsedAtTerminal),
+    };
+    // A durable terminal snapshot makes completed/failed runs auditable without
+    // inferring final state from an intermediate progress checkpoint.
+    phaseSummary.terminal = JSON.stringify(terminalSnapshot);
     failureStage = "terminal_persistence";
     await db.update(researchCasesTable).set({
       status: finalCaseStatus,
@@ -2842,7 +2865,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
     failureStage = "job_state_or_lease";
-    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
+    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ terminal: terminalSnapshot, rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "";
@@ -2878,6 +2901,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // all other unexpected exception messages remain digest-only.
     const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
     const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
+    const failureTerminalSnapshot = {
+      status: "incomplete",
+      jobStatus: cancelled ? "cancelled" : "failed",
+      caseStatus: jobStateUnavailable ? "unknown" : "review",
+      caseAction: currentAction,
+      failureStage,
+      failureDomain: failureDiagnostic.domain,
+      failureKind: failureDiagnostic.kind,
+      jobStateUnavailable,
+    };
+    phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
@@ -2906,7 +2940,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     if (!jobStateUnavailable) {
       const terminalMessage = failureStatePersistenceFailed ? `${message} (failureStatePersistence=case_update_failed)` : message;
       try {
-        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", errors: cancelled ? Number(durableJob?.errors ?? 0) : Math.max(1, Number(durableJob?.errors ?? 0)), message: terminalMessage, finishedAt: new Date().toISOString() });
+        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", errors: cancelled ? Number(durableJob?.errors ?? 0) : Math.max(1, Number(durableJob?.errors ?? 0)), message: terminalMessage, result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }), finishedAt: new Date().toISOString() });
       } catch {
         // There is no safe durable sink left at this boundary. Preserve the
         // original error so the outer launch boundary can reconcile it.

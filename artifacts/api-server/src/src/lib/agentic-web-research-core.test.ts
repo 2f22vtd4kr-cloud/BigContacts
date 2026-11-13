@@ -44,8 +44,8 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("outbound search actions used=2; remaining=0 of 2");
-    expect(prompt).toContain("do not select web_search, parallel_web_search, registry_search, or parallel_registry_search");
+    expect(prompt).toContain("used=2; remaining=0/2");
+    expect(prompt).toContain("At zero, web/registry search actions cannot execute");
   });
 });
 
@@ -142,8 +142,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("normal starting portfolio");
     expect(discoveryPrompt).toContain("randomized runtime-available catalog supplied to Boss and Right-hand");
     expect(discoveryPrompt).toContain("source-diversity expectation");
-    expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
-    expect(discoveryPrompt).toContain("no registry is preferred; one lead starts target research");
+    expect(discoveryPrompt).toContain("Investigator chooses the next action by expected information gain");
+    expect(discoveryPrompt).toContain("no registry is preferred; one lead can start target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(discoveryPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(discoveryPrompt).toContain("ranking-only mentions are leads, not qualified targets");
@@ -1247,9 +1247,9 @@ describe("Investigator prompt architecture", () => {
     });
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("Qualification follows the active objective");
-    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
-    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality");
+    expect(discovery).toContain("Apply objective criteria");
+    expect(discovery).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(discovery).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -1370,7 +1370,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1509,9 +1509,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Qualification follows the active objective");
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toContain("Apply objective criteria");
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1599,9 +1599,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("Qualification follows the active objective");
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toContain("Apply objective criteria");
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2399,8 +2399,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
-    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(prompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
@@ -2410,7 +2410,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source eligibility is not HNWI promotion: only an explicit model-promoted,
     // same-source identity/role plus wealth-potential lead can be materialized.
     // Independent corroboration and the realistic contact route remain target-stage work.
-    expect(agenticCoreSource).toContain("Qualification follows the active objective");
+    expect(agenticCoreSource).toContain("Apply objective criteria");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
@@ -2686,7 +2686,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("at most two outbound search actions");
     expect(prompt).toContain("mixed-source web/registry batch");
-    expect(prompt).toContain("FAST HANDOFF: when useful discovery evidence supports a plausible objective-fit lead, the Investigator may choose the single strongest lead for Boss review rather than construct a shortlist");
+    expect(prompt).toContain("FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
@@ -3567,7 +3567,7 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(describeAgentActionParseFailure(action("UK Companies House"))).toBe("");
       expect(parseAgentAction(action("UK Companies House"))).toMatchObject({
         action: "registry_search",
-        registry: "uk companies house",
+        registry: "companies-house",
       });
     } finally {
       vi.unstubAllEnvs();
