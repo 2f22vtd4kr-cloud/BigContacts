@@ -36,7 +36,7 @@ assert(
   /AUTHORITATIVE SAME-CASE SEARCH BUDGET/.test(stepPrompt)
     && /runtime safety ceiling is/.test(stepPrompt)
     && /not a stopping target or fixed sequence/.test(stepPrompt)
-    && /DISCOVERY HANDOFF:/.test(stepPrompt)
+    && /DISCOVERY LEAD HANDOFF CONTRACT:/.test(stepPrompt)
     && /review-only findings/.test(stepPrompt),
   "dynamic discovery prompt must retain its live search budget and review-only handoff state",
 );
