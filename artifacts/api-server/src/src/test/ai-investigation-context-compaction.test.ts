@@ -361,6 +361,32 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("recognizes source-backed visit records in the canonical bounded trajectory projection", async () => {
+    const sourceUrl = "https://registry.example.test/company/14943848";
+    const source = [
+      "CANONICAL CASE CONTEXT",
+      "BOUNDED TRAJECTORY PROJECTION",
+      JSON.stringify({
+        turn: 7,
+        action: "visit",
+        execution: "success",
+        observedUrls: [sourceUrl],
+        observation: "The registry filing names Alice Example as a current director.",
+      }),
+      "CURRENT CASE OBJECTIVE: retain source provenance and investigate unresolved ownership.",
+    ].join("\\n");
+    const summary = "The fetched registry filing names Alice Example as a current director. Source: " + sourceUrl;
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "mock-right-hand-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("does not let one successful fetch authorize a different search-lead URL", async () => {
     const fetchedUrl = "https://company.example/about";
     const searchLeadUrl = "https://company.example/investors";
