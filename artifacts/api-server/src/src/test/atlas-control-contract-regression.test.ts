@@ -866,8 +866,7 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(bossPrompt).toContain("actionsRemaining is greater than zero");
     expect(canonicalDiscoverySource).toContain("...buildMissionActionBudget({");
     expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
-    expect(canonicalDiscoverySource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
-    expect(canonicalDiscoverySource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
+    expect(canonicalDiscoverySource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
 
   });
 
