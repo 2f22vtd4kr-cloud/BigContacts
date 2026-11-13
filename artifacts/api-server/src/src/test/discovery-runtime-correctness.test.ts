@@ -528,8 +528,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
     expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
     expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
-    expect(canonicalSource).toContain("let latestDiscoveryEpisodeLimit = openingInvestigatorIterations");
-    expect(canonicalSource).toContain("maximumActionsPerEpisode: latestDiscoveryEpisodeLimit");
+    expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
     expect(canonicalSource).toContain("episodeStopReason: discovery.stopReason ?? null");
     const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
     expect(depthSource).toContain('episodeLimitReached: episodeStopReason === "ITERATION_BUDGET"');
