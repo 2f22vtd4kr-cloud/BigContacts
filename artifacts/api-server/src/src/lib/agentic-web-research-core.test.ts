@@ -3885,15 +3885,15 @@ describe("Groq Investigator structured-output recovery", () => {
   it("retries HTTP 200 finish_reason=length with a larger budget and never treats it as quota failure", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 3072 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072,
+      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "stop",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
   });
 
@@ -3901,7 +3901,7 @@ describe("Groq Investigator structured-output recovery", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "max_completion_tokens reached; output was truncated; increase max_completion_tokens",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
   });
 
@@ -3934,17 +3934,17 @@ describe("Groq Investigator structured-output recovery", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Generated JSON does not match the expected schema: missing registry",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "retry_json_object" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Failed to generate JSON",
-      responseFormat: "json_object", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      responseFormat: "json_object", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "Failed to generate JSON",
-      responseFormat: "json_object", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 1536,
+      responseFormat: "json_object", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
   });
 
@@ -3956,7 +3956,7 @@ describe("Groq Investigator structured-output recovery", () => {
     ]) {
       expect(chooseGroqInvestigatorOutputRecovery({
         ...failure, providerMessage: "provider failure", responseFormat: "json_schema",
-        completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+        completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
       })).toEqual({ action: "fail" });
     }
   });
