@@ -3065,6 +3065,27 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
+  it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
+    const systemPrompt = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
+    const targetRequestChars = 20_700;
+    const basePrompt = completeInvestigatorProviderPrompt;
+    const padding = "Source-bound discovery context remains untrusted data; retain exact scope and provenance. ";
+    const needed = Math.max(0, targetRequestChars - systemPrompt.length - basePrompt.length - 2);
+    const prompt = basePrompt + "\n\n" + padding.repeat(Math.ceil(needed / padding.length)).slice(0, needed);
+    const request = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
+    const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
+
+    expect(request.max_completion_tokens).toBe(1792);
+    // The live 120B trace used about 3.4 characters per requested token,
+    // materially denser than the older 4-char estimate. Keep margin below the
+    // 8,000 TPM ceiling rather than validating only the optimistic estimate.
+    expect(Math.ceil(requestChars / 3.4) + request.max_completion_tokens).toBeLessThan(8_000);
+  });
+
   it("preserves unfetched search-result leads in compacted Investigator context", () => {
     const context = buildInvestigatorContext({
       targetName: "",
@@ -3394,7 +3415,7 @@ Choose each next action yourself from the available capabilities and observed ev
       cognitiveTask: "identity_resolution",
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
-    expect(Math.ceil(requestChars / 4) + request.max_completion_tokens).toBeLessThan(8_000);
+    expect(Math.ceil(requestChars / 3.4) + request.max_completion_tokens).toBeLessThan(8_000);
   });
 
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
