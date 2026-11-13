@@ -97,7 +97,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: One root JSON object, no prose; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done hypothesis/purpose are non-empty strings and expectedInformationGain is [0,1]; only done may null them. Findings: vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "IDENTITY/SAFETY: Separate person/company/trust/asset; public routes only.",
     "TOOLS: allowlisted OSINT only; runtime registry IDs; unavailable is not a no-hit.",
-    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority.",
+    "TARGET: Apply only requested criteria. B2B needs fetched role/company evidence and a professional route; wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence. Other objectives use their own evidence criteria. Never infer wealth from seniority.",
     "Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Single and parallel registry actions require runtime-callable registry IDs; never omit or invent one. If none fits, choose another available action."
   ].join("\n");
 }
