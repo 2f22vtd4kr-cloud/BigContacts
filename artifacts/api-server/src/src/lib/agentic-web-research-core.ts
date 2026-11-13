@@ -3241,7 +3241,7 @@ export function buildInitialInvestigatorObservation(
     mode !== "discovery"
       ? true
       : activePivotScopeKey
-        ? record.pivotScopeKey === activePivotScopeKey || !record.pivotScopeKey
+        ? record.pivotScopeKey === activePivotScopeKey
         : !record.pivotScopeKey;
   const latestSuccessfulFetch = [...records].reverse().find((record) =>
     belongsToActiveScope(record)
