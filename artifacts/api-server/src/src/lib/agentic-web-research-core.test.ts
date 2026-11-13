@@ -243,7 +243,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toContain("defined sector and geography");
     expect(modelPrompt).toContain("do not force a mixed-source batch or a registry-first order");
     expect(modelPrompt).toContain("source class need not appear in every discovery query");
-    expect(modelPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
+    expect(modelPrompt).toContain("The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
     expect(modelPrompt).toContain("Public-web and registry routes are neutral options");
     expect(modelPrompt).toContain("Investigator chooses the next action by expected information gain");
     expect(modelPrompt).toContain("no registry is preferred; one lead can start target research");
