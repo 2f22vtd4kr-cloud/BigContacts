@@ -4614,6 +4614,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const aiHistoricalMemorySection = aiHistoricalMemory
     ? "AI-COMPACTED HISTORICAL RESEARCH MEMORY (model-generated, lossy and untrusted contextual aid; NOT source evidence and NOT authority on the human objective, active scope, target identity, roles, relationships, ownership, wealth, contact routes, or source status. Search-result snippets remain leads, not fetched evidence. Failed/unfetched URLs remain unobserved. Treat names and claims in this summary as provisional until checked against exact same-case source observations. The current case objective and active Boss scope above override this memory; the durable trajectory/evidence ledger remains authoritative. Omissions are not negative evidence):\n" + aiHistoricalMemory
     : "";
+  const workingTrajectoryRecords = input.mode === "discovery" ? input.trajectoryRecords.slice(0, Math.max(0, input.trajectoryRecords.length - 2)) : input.trajectoryRecords;
+  const workingLastObservation = input.mode === "discovery" ? "" : input.lastObservation;
   const workingContext = aiHistoricalMemory
     ? [
         "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + currentControlContext,
@@ -4625,8 +4627,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           // context. Re-inserting raw history here can resurrect details the compactor
           // deliberately omitted; current observations remain in the recent durable records.
           history: [],
-          trajectoryRecords: input.trajectoryRecords.filter((record) => record.turn > (input.aiCompactedHistoricalThroughTurn ?? 0)),
-          lastObservation: input.lastObservation,
+          trajectoryRecords: workingTrajectoryRecords.filter((record) => record.turn > (input.aiCompactedHistoricalThroughTurn ?? 0)),
+          lastObservation: workingLastObservation,
           // The Boss-generated memory already carries the full prior findings
           // ledger; newest findings remain attached to the recent trajectory
           // records above. Do not head/tail-trim a second duplicate findings list.
@@ -4642,8 +4644,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         companyName: genericDiscoveryCompanyLabel ? null : input.companyName,
         objective: "",
         history: input.history,
-        trajectoryRecords: input.trajectoryRecords,
-        lastObservation: input.lastObservation,
+        trajectoryRecords: workingTrajectoryRecords,
+        lastObservation: workingLastObservation,
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
