@@ -11,7 +11,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
-import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { classifyExternalProvider, getGroqTokenRequest, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
@@ -1515,7 +1515,7 @@ async function gatedSafeOutboundFetch(input: RequestInfo | URL, init: RequestIni
   const provider = classifyExternalProvider(rawUrl);
   let account = "operation";
   try { account = new URL(rawUrl).hostname.toLowerCase(); } catch {}
-  return runProviderCall({ provider, account, signal: init.signal ?? undefined }, () => safeOutboundFetch(input, init));
+  return runProviderCall({ provider, account, signal: init.signal ?? undefined, groqRequest: getGroqTokenRequest(input, init) }, () => safeOutboundFetch(input, init));
 }
 
 async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa", locale?: string, market?: string, signal?: AbortSignal): Promise<{ text: string; urls: string[]; provider: string; status: "success" | "empty" | "error"; failureClass?: ProviderFailureClass }> {
@@ -2454,14 +2454,17 @@ async function callGroqJson(
         if (isModelPromptAuditCaptureEnabled() && !modelAuditRequestId) {
           throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Investigator request");
         }
+        const groqRequestUrl = "https://api.groq.com/openai/v1/chat/completions";
+        const groqRequestInit: RequestInit = {
+          method: "POST",
+          headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+          signal,
+        };
+        const groqRequest = getGroqTokenRequest(groqRequestUrl, groqRequestInit);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
-            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-              body: JSON.stringify(requestBody),
-              signal,
-            }),
+          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
+            safeOutboundFetch(groqRequestUrl, groqRequestInit),
           ),
         );
 

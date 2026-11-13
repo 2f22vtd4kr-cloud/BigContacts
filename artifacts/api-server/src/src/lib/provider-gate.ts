@@ -65,16 +65,16 @@ const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
 const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 60_000, 0, 120_000);
 
-function groqChatRequestDetails(input: string | URL | Request, init?: RequestInit): { model: string; reservedTokens: number } | null {
+export function getGroqTokenRequest(input: string | URL | Request, init?: RequestInit): { model: string; reservedTokens: number } | undefined {
   const url = requestUrl(input);
-  if (!/api\.groq\.com\/openai\/v1\/chat\/completions(?:[?#]|$)/i.test(url)) return null;
+  if (!/api\.groq\.com\/openai\/v1\/chat\/completions(?:[?#]|$)/i.test(url)) return undefined;
   const raw = typeof init?.body === "string" ? init.body : null;
-  if (!raw) return null;
+  if (!raw) return undefined;
   try {
     const body = JSON.parse(raw) as Record<string, unknown>;
     const model = typeof body.model === "string" ? body.model.trim() : "";
     const messages = Array.isArray(body.messages) ? body.messages : null;
-    if (!model || !messages) return null;
+    if (!model || !messages) return undefined;
     const promptMaterial = JSON.stringify({
       messages,
       tools: body.tools,
@@ -88,7 +88,7 @@ function groqChatRequestDetails(input: string | URL | Request, init?: RequestIni
       : 1_024;
     return { model, reservedTokens: promptTokens + completionTokens };
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -286,7 +286,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    // rate-limit delay. Recheck synchronously immediately before the request.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
    assertAtlasRoleBudgetAvailable(provider,roleBudget);
-   const groqRequest = provider === "groq" ? groqChatRequestDetails(input, init) : null;
+   const groqRequest = provider === "groq" ? getGroqTokenRequest(input, init) : undefined;
    // Groq TPM is shared by all role credentials within the deployment for a
    // given model. Keying only by model prevents role API-key aliases from
    // each believing they own a fresh token window.
@@ -320,7 +320,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
  if(key)inFlight.set(key,task);
  try{return await task;}finally{if(key&&inFlight.get(key)===task)inFlight.delete(key);}
 }
-export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal},fn:()=>Promise<T>):Promise<T>{
+export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal;groqRequest?:{model:string;reservedTokens:number}},fn:()=>Promise<T>):Promise<T>{
  const provider=options.provider,account=options.account??"operation",scope=options.scope??getScope();
  return scopeStorage.run(scope,async()=>{
   const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now(),roleBudget=atlasRoleBudget(provider);
@@ -338,9 +338,14 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
    // checking the live counters again, immediately before the actual operation.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
    assertAtlasRoleBudgetAvailable(provider,roleBudget);
+   const groqWindowKey = provider === "groq" && options.groqRequest ? "groq-model:" + options.groqRequest.model : "";
+   const groqReservation = groqWindowKey
+    ? await reserveGroqTokenWindow(groqWindowKey, options.groqRequest!.reservedTokens, options.signal)
+    : null;
    state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
    try{
     const result=await fn();
+    if(groqReservation && result instanceof Response) await reconcileGroqTokenWindow(groqWindowKey,groqReservation,result);
     if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
      const retryMs=parseRetryAfter(result);
      state.cooldownUntil=Date.now()+Math.max(retryMs,result.status===429?5_000:60_000);

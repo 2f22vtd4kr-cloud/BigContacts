@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProviderQuotaError,
   classifyExternalProvider,
+  getGroqTokenRequest,
   resetProviderGateForTests,
   runProviderCall,
   withProviderRetryOwnership,
@@ -736,5 +737,32 @@ describe("provider quota gate", () => {
       expect(second.status).toBe(200);
       expect(calls).toBe(2);
     } finally { globalThis.fetch = originalFetch; }
+  });
+  it("shares the Groq token window across pinned safe-fetch role calls", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "10000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "10000";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const url = "https://api.groq.com/openai/v1/chat/completions";
+    const init: RequestInit = { method: "POST", body: JSON.stringify({ model: "openai/gpt-oss-20b", max_completion_tokens: 2_000, messages: [{ role: "user", content: "x".repeat(1_000) }] }) };
+    const groqRequest = getGroqTokenRequest(url, init);
+    expect(groqRequest).toBeDefined();
+    let calls = 0;
+    const invoke = (account: string) => runProviderCall({ provider: "groq", account, groqRequest }, async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ usage: { prompt_tokens: 400, completion_tokens: 2_000, total_tokens: 2_400 }, choices: [{ message: { content: "{}" }, finish_reason: "stop" }] }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await invoke("investigator-role-key");
+    expect(calls).toBe(1);
+    const pending = invoke("right-hand-role-key");
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const response = await pending;
+    expect(response.status).toBe(200);
+    expect(calls).toBe(2);
   });
 });
