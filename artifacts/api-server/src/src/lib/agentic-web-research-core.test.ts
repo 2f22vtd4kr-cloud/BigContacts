@@ -9,6 +9,7 @@ import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./i
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
+import { getGroqTokenRequest } from "./provider-gate";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
@@ -3106,6 +3107,12 @@ Choose each next action yourself from the available capabilities and observed ev
     // reservation budget, leaving capacity for other roles in the same window.
 
     expect(Math.ceil(requestChars / 3.4 * 1.1) + request.max_completion_tokens).toBeLessThan(7_000);
+    const reservation = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    expect(reservation?.reservedTokens).toBeDefined();
+    expect(reservation!.reservedTokens).toBeLessThan(7_000);
   });
 
   it("preserves unfetched search-result leads in compacted Investigator context", () => {
