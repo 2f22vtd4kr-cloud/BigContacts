@@ -4018,12 +4018,13 @@ describe("PDF prompt capability contract", () => {
       findings: [],
       mode: "discovery",
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
-    expect(prompt).toMatch(/Scanned\/image-only PDFs require(?: OCR \(unavailable\)| unavailable OCR)/i);
-    expect(prompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
-    expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
-    expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
+    expect(modelPrompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
+    expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require(?: OCR \(unavailable\)| unavailable OCR)/i);
+    expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
+    expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
+    expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
 });
 
