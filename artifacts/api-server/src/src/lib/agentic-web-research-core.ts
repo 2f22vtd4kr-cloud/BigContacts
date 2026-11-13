@@ -2110,9 +2110,9 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
     // window. If provider headers are available, reserve the full next prompt
     // first and retry only when the proposed output budget still fits.
     const promptTokenEstimate = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
-    if (typeof input.rateLimitRemainingTokens === "number"
-      && Number.isFinite(input.rateLimitRemainingTokens)
-      && input.rateLimitRemainingTokens - promptTokenEstimate < proposedCompletionTokens) {
+    if (typeof input.rateLimitRemainingTokens !== "number"
+      || !Number.isFinite(input.rateLimitRemainingTokens)
+      || input.rateLimitRemainingTokens - promptTokenEstimate < proposedCompletionTokens) {
       return { action: "fail" };
     }
     return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
@@ -2124,7 +2124,7 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
     const remainingHeadroom = typeof input.rateLimitRemainingTokens === "number"
       && Number.isFinite(input.rateLimitRemainingTokens)
       ? input.rateLimitRemainingTokens - promptTokenEstimate
-      : Number.MAX_SAFE_INTEGER;
+      : 0;
     if (proposedCompletionTokens !== null && remainingHeadroom >= proposedCompletionTokens) {
       return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
     }
