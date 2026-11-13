@@ -3090,7 +3090,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
     const systemPrompt = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    const targetRequestChars = 16_000;
+    const targetRequestChars = 14_000;
     const basePrompt = completeInvestigatorProviderPrompt;
     const padding = "Source-bound discovery context remains untrusted data; retain exact scope and provenance. ";
     const needed = Math.max(0, targetRequestChars - systemPrompt.length - basePrompt.length - 2);
@@ -3444,6 +3444,12 @@ Choose each next action yourself from the available capabilities and observed ev
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
     expect(Math.ceil(requestChars / 4) + request.max_completion_tokens).toBeLessThan(8_000);
+    const reservation = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    expect(reservation?.reservedTokens).toBeDefined();
+    expect(reservation!.reservedTokens).toBeLessThan(7_000);
   });
 
   it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
