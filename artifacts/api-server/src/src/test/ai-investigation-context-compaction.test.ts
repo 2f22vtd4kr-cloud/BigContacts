@@ -178,7 +178,7 @@ describe("AI investigation context compaction", () => {
         attempts: [],
       });
 
-    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(summary);
 
     const firstOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
     const repairOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5];
