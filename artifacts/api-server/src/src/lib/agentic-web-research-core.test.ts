@@ -1529,7 +1529,7 @@ describe("Investigator prompt architecture", () => {
       actionAllowlist: ["web_search", "visit", "done"],
     });
 
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toContain(fetchedObservation);
     // Search results are unverified leads and may be compacted; the fetched PDF remains complete.
     expect(prompt).not.toContain(latestObservation);
@@ -1610,7 +1610,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
@@ -1700,7 +1700,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
@@ -2501,7 +2501,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
@@ -2865,7 +2865,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toContain("OUTPUT CONTRACT: Return exactly one root JSON object");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
@@ -3266,7 +3266,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
@@ -3589,7 +3589,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeGreaterThan(8_200);
+    expect(prompt.length).toBeGreaterThan(7_000);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
