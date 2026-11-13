@@ -4584,8 +4584,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY SEARCH ECONOMY: runtime safety ceiling is " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound search actions per case; a cost guard, not a stopping target or fixed sequence. No forced mixed-source/registry-first order; web and registries are neutral. Choose the next action by expected information gain.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected objective-fit review-only findings; one relevant lead may start target research. Keep exact observed name, role/null and public URL; do not invent identity, ownership, wealth, relationship or contact claims. Apply B2B/wealth criteria only when requested; target-stage verify role, relationship, materiality, counter-evidence and route. After visit/browser_fetch, sourceUrls=[that fetched URL only]."
+    "DISCOVERY SEARCH ECONOMY: ceiling " + MAX_DISCOVERY_SEARCH_ACTIONS + " searches/case; cost guard, not a stopping target or fixed sequence. No forced mixed-source/registry-first order; choose by expected information gain.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected objective-fit review-only findings; one relevant lead may start target research. Keep exact name, role/null and public URL; no invented claims. Apply requested B2B/wealth criteria; target-stage verify role, relationship, materiality, counter-evidence and route."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
@@ -4647,12 +4647,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 1_600 : 3_000,
+        maxChars: input.mode === "discovery" ? 1_200 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 600 : 900,
+    input.mode === "discovery" ? 500 : 900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -4724,7 +4724,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done requires hypothesis/purpose and expectedInformationGain in [0,1]; only done may null them. PARTIAL FINDINGS: preserve selected objective-fit review leads with exact name, role/null and public sourceUrls. After visit/browser_fetch, sourceUrls=[that fetched URL only]. No invented identity, contact, relationship or qualification. Worker actions must be in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done requires hypothesis/purpose and expectedInformationGain [0,1]; only done may null them. Worker actions must be in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
