@@ -4614,7 +4614,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const aiHistoricalMemorySection = aiHistoricalMemory
     ? "AI-COMPACTED HISTORICAL RESEARCH MEMORY (model-generated, lossy and untrusted contextual aid; NOT source evidence and NOT authority on the human objective, active scope, target identity, roles, relationships, ownership, wealth, contact routes, or source status. Search-result snippets remain leads, not fetched evidence. Failed/unfetched URLs remain unobserved. Treat names and claims in this summary as provisional until checked against exact same-case source observations. The current case objective and active Boss scope above override this memory; the durable trajectory/evidence ledger remains authoritative. Omissions are not negative evidence):\n" + aiHistoricalMemory
     : "";
-  const workingTrajectoryRecords = input.mode === "discovery" ? input.trajectoryRecords.slice(0, Math.max(0, input.trajectoryRecords.length - 2)) : input.trajectoryRecords;
+  const latestWorkingTurn = input.trajectoryRecords.at(-1)?.turn;
+  const previousWorkingTurn = input.trajectoryRecords.at(-2)?.turn;
+  const workingTrajectoryRecords = input.mode === "discovery"
+    ? input.trajectoryRecords.filter((record) => record.turn !== latestWorkingTurn && record.turn !== previousWorkingTurn)
+    : input.trajectoryRecords;
   const workingLastObservation = input.mode === "discovery" ? "" : input.lastObservation;
   const workingContext = aiHistoricalMemory
     ? [
