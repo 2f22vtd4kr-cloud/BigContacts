@@ -287,7 +287,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
    assertAtlasRoleBudgetAvailable(provider,roleBudget);
    const groqRequest = provider === "groq" ? getGroqTokenRequest(input, init) : undefined;
-   // Groq TPM is shared by all role credentials within the deployment for a
+   // Groq TPM is shared by all role credentials within this API process for a
    // given model. Keying only by model prevents role API-key aliases from
    // each believing they own a fresh token window.
    const groqWindowKey = groqRequest ? "groq-model:" + groqRequest.model : "";
