@@ -139,7 +139,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: JSON.stringify([{ action: "visit", execution: "success", args: { url: sourceUrl }, observedUrls: [sourceUrl] }]), maxChars: 900 });
+    const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: "BOUNDED TRAJECTORY PROJECTION:\\n" + JSON.stringify([{ action: "visit", execution: "success", args: { url: sourceUrl }, observedUrls: [sourceUrl] }]), maxChars: 900 });
 
     expect(result).toBe(correctedSummary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
