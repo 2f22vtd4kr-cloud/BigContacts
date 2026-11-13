@@ -826,4 +826,33 @@ describe("provider quota gate", () => {
     expect(calls).toBe(1);
   });
 
+  it("preserves provider token-reset windows longer than the generic retry-after cap", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const request = { model: "openai/gpt-oss-20b", reservedTokens: 1_000 };
+    await runProviderCall({ provider: "groq", account: "long-reset", groqRequest: request }, async () =>
+      new Response(JSON.stringify({ error: { type: "tokens" } }), {
+        status: 429,
+        headers: { "x-ratelimit-reset-tokens": "1h" },
+      }),
+    );
+    await expect(
+      runProviderCall({ provider: "groq", account: "another-role", groqRequest: request }, async () => new Response("unexpected")),
+    ).rejects.toMatchObject({
+      code: "cooldown",
+      provider: "groq",
+      retryAfterMs: expect.any(Number),
+    });
+    try {
+      await runProviderCall({ provider: "groq", account: "another-role", groqRequest: request }, async () => new Response("unexpected"));
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProviderQuotaError);
+      expect((error as ProviderQuotaError).retryAfterMs).toBeGreaterThan(300_000);
+    }
+  });
+
 });
