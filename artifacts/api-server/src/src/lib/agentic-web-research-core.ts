@@ -2464,7 +2464,7 @@ async function callGroqJson(
         const groqRequest = getGroqTokenRequest(groqRequestUrl, groqRequestInit);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
-            safeOutboundFetch(groqRequestUrl, groqRequestInit),
+            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
           ),
         );
 
