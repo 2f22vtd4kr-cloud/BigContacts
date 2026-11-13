@@ -211,37 +211,23 @@ function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: Read
  * Require every numeric summary clause to be copied verbatim from the source.
  */
 function summaryContainsUnverifiableNumericClaim(summary: string, source: string): boolean {
-  const normalize = (value: string) => value.toLocaleLowerCase("en-US").replace(/\s+/g, " ").trim().replace(/[.!?;:,]+$/u, "");
-  const sourceClauses = source
-    .replace(/https?:\/\/[^\s<>]+/giu, "")
-    .split(/(?:[!?;]+|\.(?=\s|$)|\n+)/u)
-    .map((clause) => normalize(clause))
-    .filter(Boolean);
+  const normalize = (value: string) => value.toLocaleLowerCase("en-US").replace(/\\s+/g, " ").trim().replace(/[.!?;:,]+$/u, "");
+  const normalizedSource = normalize(source.replace(/https?:\\/\\/[^\\s<>]+/giu, ""));
   const clauses = summary
-    .replace(/https?:\/\/[^\s<>]+/giu, "")
-    .split(/(?:[!?;]+|\.(?=\s|$)|\n+)/u)
-    .map((clause) => normalize(clause))
+    .replace(/https?:\\/\\/[^\\s<>]+/giu, "")
+    .split(/(?:[!?;]+|\\.(?=\\s|$)|\\n+)/u)
+    .map((clause) => normalize(clause.replace(/^\\s*[-*•]\\s*/u, "")))
     .filter(Boolean);
-  const relationshipTerms = [
-    /\bowners?\b/iu, /\bowns?\b/iu, /\bowned\b/iu, /\bownership\b/iu,
-    /\bequity\b/iu, /\bstakes?\b/iu, /\bshareholders?\b/iu,
-    /\bcontrols?\b/iu, /\bcontrolled\b/iu, /\bportfolios?\b/iu,
-    /\bassets?\b/iu, /\brevenue\b/iu, /\bvaluations?\b/iu,
-    /\bholdings?\b/iu, /\bfunds?\b/iu, /\binvestments?\b/iu,
-    /\binvestors?\b/iu, /\bprofits?\b/iu, /\bdebt\b/iu,
-  ];
   for (const clause of clauses) {
-    const numericValues = clause.match(/(?:[$€£]\s*)?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|million|billion|thousand|m|bn))?/giu) ?? [];
+    const numericValues = clause.match(/(?:[$€£]\\s*)?\\d[\\d,]*(?:\\.\\d+)?(?:\\s?(?:%|percent|million|billion|thousand|m|bn))?/giu) ?? [];
     if (!numericValues.length) continue;
+    // A numeric paraphrase can silently change the subject, denominator,
+    // time period, or whether a figure describes a portfolio or personal
+    // ownership. Require the complete normalized clause verbatim in source.
+    if (!normalizedSource.includes(clause)) return true;
     for (const numericValue of numericValues) {
-      const normalizedValue = numericValue.replace(/\s+/g, "").toLocaleLowerCase("en-US");
-      const matchingSourceClauses = sourceClauses.filter((sourceClause) =>
-        sourceClause.replace(/\s+/g, "").includes(normalizedValue),
-      );
-      if (!matchingSourceClauses.length) return true;
-      if (relationshipTerms.some((term) => term.test(clause) && !matchingSourceClauses.some((sourceClause) => term.test(sourceClause)))) {
-        return true;
-      }
+      const normalizedValue = numericValue.replace(/\\s+/g, "").toLocaleLowerCase("en-US");
+      if (!normalizedSource.replace(/\\s+/g, "").includes(normalizedValue)) return true;
     }
   }
   return false;
