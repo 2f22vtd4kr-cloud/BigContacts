@@ -81,14 +81,15 @@ describe("Apex Atlas prompt budget optimization", () => {
     const promptWithoutMemory = buildStepPrompt(promptInput);
 
     for (const prompt of [promptWithMemory, promptWithoutMemory]) {
+      const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
       expect(prompt).toContain("LATEST_OBSERVATION_START");
       expect(prompt).toContain("LATEST_OBSERVATION_END");
       expect(prompt).toContain("https://source.example/search-result");
       expect(prompt).toContain("https://source.example/lead-1");
       expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
-      expect(prompt).toContain("Follow the active case objective and Boss-approved scope");
-      expect(prompt).toContain("B2B requires fetched current role/company connection and professional route");
-      expect(prompt).toContain("wealth requires sourced ownership/control/equity/investment and credible wealth potential");
+      expect(modelPrompt).toContain("Follow the active case objective and Boss-approved scope");
+      expect(modelPrompt).toContain("B2B needs fetched role/company evidence and a professional route");
+      expect(modelPrompt).toContain("wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence");
       expect(prompt).not.toContain("people are the ultimate mission");
       expect(prompt).not.toContain("People—not companies or executive prestige");
       expect(prompt).not.toContain("owner/operator, ownership/investment or transaction signal");
