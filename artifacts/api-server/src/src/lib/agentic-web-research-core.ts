@@ -4584,8 +4584,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY SEARCH ECONOMY: the runtime safety ceiling is " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound search actions per case; this is a cost guard, not a stopping target or fixed sequence. No fixed action sequence; do not force a mixed-source batch or a registry-first order. Public-web and registry routes are neutral options; a source class need not appear in every discovery query. Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain. FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss when useful.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected objective-fit review-only findings; YOU decide whether an observed person is worth a provisional review card. News publishers and articles are evidence leads only, never targets or access routes. MISSION PRIORITY: human objective/Boss scope govern; preserve topic/geography; no silent pivot. DISCOVERY TARGETABILITY: people, companies and assets are distinct; people, not companies/prestige. Apply objective criteria; other objectives use their own evidence criteria. PERSON REVIEW: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; preserve exact observed name, role or null, and associated public HTTPS URL; no ownership/wealth/relationship/HNWI/contact claim. COMPANY REVIEW: VALID COMPANY REVIEW-LEAD SHAPE uses scope=organization, personName=null, role=null and exact observed company name/public URL. One source-backed relevant lead starts target research. Apply objective criteria: B2B requires fetched current role/company connection and professional route; wealth requires sourced ownership/control/equity/investment and credible wealth potential, only when requested. Target research verifies role/relationship/materiality, counter-evidence and route before promotion. Target-scoped research independently corroborates or falsifies the claims required by the active objective. After fetch, sourceUrls=[that fetched URL only]. CONTACT FACTS (observed, not attributed): public/professional routes only; generic company/IR is not individual access. Never infer wealth from seniority."
+    "DISCOVERY SEARCH ECONOMY: runtime safety ceiling is " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound search actions per case; a cost guard, not a stopping target. No fixed sequence or forced mixed-source/registry-first order; web and registries are neutral. Choose the next action by expected information gain.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: preserve selected objective-fit review-only findings; one relevant lead may start target research. Keep exact observed name, role/null and public URL; do not invent identity, ownership, wealth, relationship or contact claims. Apply B2B/wealth criteria only when requested; target-stage verify role, relationship, materiality, counter-evidence and route. After visit/browser_fetch, sourceUrls=[that fetched URL only]."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
@@ -4647,12 +4647,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 2_200 : 3_000,
+        maxChars: input.mode === "discovery" ? 1_600 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    900,
+    input.mode === "discovery" ? 600 : 900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -4724,7 +4724,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done actions require non-empty hypothesis/purpose and expectedInformationGain in [0,1]; only done may null them. Use 2–4 objects for parallel searches. findings[] preserves only selected objective-fit review leads with exact observed names, role or null, scope, public HTTPS sourceUrls, note and promotion fields. Snippets are leads; after a fetch, bind claims only to that fetched URL/span. Do not invent identities, contacts, relationships or qualifications. Worker-backed actions must appear in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done requires hypothesis/purpose and expectedInformationGain in [0,1]; only done may null them. PARTIAL FINDINGS: preserve selected objective-fit review leads with exact name, role/null and public sourceUrls. After visit/browser_fetch, sourceUrls=[that fetched URL only]. No invented identity, contact, relationship or qualification. Worker actions must be in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
