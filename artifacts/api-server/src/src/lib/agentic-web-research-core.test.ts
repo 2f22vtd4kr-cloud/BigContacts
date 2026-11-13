@@ -93,6 +93,17 @@ describe("new Investigator episode observation continuity", () => {
     expect(observation).not.toContain("OLD_PIVOT_FETCH_SENTINEL");
   });
 
+  it("retains successful fetched observations for target episodes without discovery-pivot filtering", () => {
+    const records: AgenticTrajectoryRecord[] = [{
+      turn: 4, model: "test-model", action: "visit", pivotScopeKey: "prior-discovery-pivot",
+      args: { url: "https://registry.example.test/target" }, execution: "success",
+      observedUrls: ["https://registry.example.test/target"], leadUrls: [],
+      observation: "TARGET_CASE_FETCH_SENTINEL", findings: [],
+    }];
+    expect(buildInitialInvestigatorObservation(records, "Investigate this selected target", "target"))
+      .toContain("TARGET_CASE_FETCH_SENTINEL");
+  });
+
   it("keeps the neutral first-action context when no successful fetched source exists", () => {
     const records: AgenticTrajectoryRecord[] = [
       {
