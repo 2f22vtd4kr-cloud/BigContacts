@@ -1453,6 +1453,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
 
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
     const actionLine = prompt.split("\n").find((line) => line.startsWith("AVAILABLE ACTIONS:")) ?? "";
@@ -1462,21 +1463,21 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
-    expect(prompt).toMatch(/VALID PROVIDERS: web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/i);
-    expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
-    expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
-    expect(prompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
-    expect(prompt).toMatch(/MISSION PRIORITY:/);
-    expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
+    expect(modelPrompt).toMatch(/VALID PROVIDERS: web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/i);
+    expect(modelPrompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
+    expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
+    expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
+    expect(modelPrompt).toMatch(/MISSION PRIORITY:/);
+    expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
-    expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
-    expect(prompt).toMatch(/ownership\/control\/equity\/investment/i);
-    expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
-    expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
-    expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
-    expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
-    expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
-    expect(prompt).toMatch(/Target research verifies role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
+    expect(modelPrompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
+    expect(modelPrompt).toMatch(/ownership\/control\/equity\/investment/i);
+    expect(modelPrompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
+    expect(modelPrompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
+    expect(modelPrompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
+    expect(modelPrompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
+    expect(modelPrompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
+    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
