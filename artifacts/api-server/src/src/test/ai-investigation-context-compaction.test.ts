@@ -374,6 +374,7 @@ describe("AI investigation context compaction", () => {
         observation: "The registry filing names Alice Example as a current director.",
       }),
       "CURRENT CASE OBJECTIVE: retain source provenance and investigate unresolved ownership.",
+      "BACKGROUND: " + "The case preserves complete durable source observations without treating omitted text as negative evidence. ".repeat(18),
     ].join("\n");
     const summary = "The fetched registry filing names Alice Example as a current director. Source: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
