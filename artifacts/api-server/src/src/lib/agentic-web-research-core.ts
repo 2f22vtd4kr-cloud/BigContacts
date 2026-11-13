@@ -2050,9 +2050,12 @@ function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveT
 function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   if (task === "contradiction_resolution" || task === "final_adjudication") return 2048;
   if (task === "contact_extraction") return 1024;
-  // Reasoning tokens count against Groq's completion limit. A 1024-token cap
-  // can consume the entire allowance before a structured action is emitted.
-  return 2048;
+  // Leave headroom in Groq's 8k TPM window for the source-bound prompt. The
+  // observed 120B identity-resolution request reserved 2,048 completion tokens
+  // and crossed the window by 167 tokens despite a valid prompt. 1,792 keeps
+  // the Investigator's structured action budget useful while avoiding that
+  // narrow, repeatable capacity failure; truncation recovery remains explicit.
+  return 1792;
 }
 
 const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 4096;
