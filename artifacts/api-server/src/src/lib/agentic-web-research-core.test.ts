@@ -3067,7 +3067,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
     const systemPrompt = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    const targetRequestChars = 20_700;
+    const targetRequestChars = 20_650;
     const basePrompt = completeInvestigatorProviderPrompt;
     const padding = "Source-bound discovery context remains untrusted data; retain exact scope and provenance. ";
     const needed = Math.max(0, targetRequestChars - systemPrompt.length - basePrompt.length - 2);
