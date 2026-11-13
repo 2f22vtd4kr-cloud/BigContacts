@@ -11,7 +11,7 @@ const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
-assert(/maxChars: input\.mode === "discovery" \? 2_200 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
+assert(/maxChars: input\.mode === "discovery" \? 1_600 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /900,\n  \);/.test(core), "intelligence state must remain bounded to 900 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
