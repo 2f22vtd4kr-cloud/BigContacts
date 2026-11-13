@@ -3894,6 +3894,31 @@ describe("Groq Investigator structured-output recovery", () => {
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
   });
 
+  it("refuses a truncation retry that would exceed provider-reported remaining TPM headroom", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      rateLimitRemainingTokens: 6_500,
+      promptTokenEstimate: 5_800,
+      finishReason: "length",
+    })).toEqual({ action: "fail" });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      rateLimitRemainingTokens: 9_000,
+      promptTokenEstimate: 5_800,
+      finishReason: "length",
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2816 });
+  });
+
   it("uses JSON-object compatibility for schema mismatch, then one bounded budget increase if that also fails", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
