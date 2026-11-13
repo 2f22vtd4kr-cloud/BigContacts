@@ -3997,7 +3997,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth/capital evidence");
+    expect(prompt).toContain("Apply objective criteria: B2B requires fetched current role/company connection and professional route; wealth requires sourced ownership/control/equity/investment and credible wealth potential");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
