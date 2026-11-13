@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Apply less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("Generic prospect discovery must not select globally famous/household-name people");
+    expect(apexInvestigatorSystemCore()).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
@@ -81,7 +81,7 @@ describe("objective-led institutional orientation", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).not.toContain("casinos in Slovenia");
     expect(core).toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("SCENARIOS: Descriptors are not queries");
+    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
     expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
