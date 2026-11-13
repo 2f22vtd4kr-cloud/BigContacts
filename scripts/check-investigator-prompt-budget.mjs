@@ -41,7 +41,7 @@ assert(
     && /runtime safety ceiling is/.test(stepPrompt)
     && /not a stopping target or fixed sequence/.test(stepPrompt)
     && /source class may vary by query/.test(stepPrompt)
-    && /Do not force a mixed-source batch/.test(stepPrompt)
+    && /do not force a mixed-source batch/i.test(stepPrompt)
     && /Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(stepPrompt),
   "discovery targetability and source-choice guidance must remain explicit while preserving model-owned investigative decisions",
 );
