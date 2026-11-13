@@ -111,6 +111,8 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  */
 function sourceSuccessfulFetchUrls(source: string): Set<string> {
   // Only parse JSON records under runtime-authored trajectory metadata headings.
+  // Canonical case files serialize the bounded projection as one JSON array line;
+  // older context shapes may contain one JSON record per line.
   // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
   const lines = source.split("\n");
   const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
@@ -120,19 +122,26 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
   if (durableIndex >= 0) {
     for (const line of lines.slice(durableIndex + 1)) {
       const candidate = line.trim();
-      if (candidate.startsWith("{") && candidate.endsWith("}")) candidates.push(candidate);
+      if ((candidate.startsWith("{") && candidate.endsWith("}"))
+        || (candidate.startsWith("[") && candidate.endsWith("]"))) candidates.push(candidate);
     }
   }
   const fetchedUrls = new Set<string>();
   for (const candidate of candidates) {
-    if (!candidate.startsWith("{") || !candidate.endsWith("}")) continue;
+    if (!((candidate.startsWith("{") && candidate.endsWith("}"))
+      || (candidate.startsWith("[") && candidate.endsWith("]")))) continue;
     try {
-      const record = JSON.parse(candidate) as Record<string, unknown>;
-      const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
-      if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
-      for (const rawUrl of record.observedUrls) {
-        if (typeof rawUrl === "string" && rawUrl.trim()) {
-          for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
+      const parsed = JSON.parse(candidate) as unknown;
+      const records = Array.isArray(parsed) ? parsed : [parsed];
+      for (const value of records) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+        const record = value as Record<string, unknown>;
+        const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
+        if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
+        for (const rawUrl of record.observedUrls) {
+          if (typeof rawUrl === "string" && rawUrl.trim()) {
+            for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
+          }
         }
       }
     } catch {
