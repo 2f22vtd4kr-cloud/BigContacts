@@ -364,8 +364,10 @@ describe("AI investigation context compaction", () => {
   it("recognizes source-backed visit records in the canonical bounded trajectory projection", async () => {
     const sourceUrl = "https://registry.example.test/company/14943848";
     const source = [
-      "CANONICAL CASE CONTEXT",
-      "BOUNDED TRAJECTORY PROJECTION",
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION:",
+      JSON.stringify({ caseType: "discovery", admittedCandidates: [] }),
+      "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
       JSON.stringify([{
         turn: 7,
         action: "visit",
