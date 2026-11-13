@@ -524,7 +524,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
       hardTimeoutMs: 30_000,
     });
 
-    expect(result.status).toBe("completed");
+    expect(result.status, result.trajectoryRecords.map((record) => record.observation).join("\n")).toBe("completed");
     expect(mocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
     expect(bodyReads).toBe(1);
     expect(response.bodyUsed).toBe(true);
