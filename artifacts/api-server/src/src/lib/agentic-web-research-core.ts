@@ -3238,7 +3238,11 @@ export function buildInitialInvestigatorObservation(
 ): string {
   const activePivotScopeKey = mode === "discovery" ? discoveryPivotScopeKey(objective) : null;
   const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean =>
-    activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey || !record.pivotScopeKey : !record.pivotScopeKey;
+    mode !== "discovery"
+      ? true
+      : activePivotScopeKey
+        ? record.pivotScopeKey === activePivotScopeKey || !record.pivotScopeKey
+        : !record.pivotScopeKey;
   const latestSuccessfulFetch = [...records].reverse().find((record) =>
     belongsToActiveScope(record)
     && record.execution === "success"
