@@ -98,6 +98,10 @@ describe("new Investigator episode observation continuity", () => {
     expect(observation).toContain("ACTIVE_PIVOT_FETCH_SENTINEL");
     expect(observation).not.toContain("OLD_PIVOT_FETCH_SENTINEL");
     expect(observation).not.toContain("UNSCOPED_PRE_PIVOT_FETCH_SENTINEL");
+
+    const withoutCurrentPivotFetch = buildInitialInvestigatorObservation(records.slice(0, 2), objective, "discovery");
+    expect(withoutCurrentPivotFetch).toContain("CASE CONTEXT LOADED");
+    expect(withoutCurrentPivotFetch).not.toContain("UNSCOPED_PRE_PIVOT_FETCH_SENTINEL");
   });
 
   it("retains successful fetched observations for target episodes without discovery-pivot filtering", () => {
