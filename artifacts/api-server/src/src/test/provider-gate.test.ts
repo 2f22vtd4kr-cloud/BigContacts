@@ -840,19 +840,15 @@ describe("provider quota gate", () => {
         headers: { "x-ratelimit-reset-tokens": "1h" },
       }),
     );
-    await expect(
-      runProviderCall({ provider: "groq", account: "another-role", groqRequest: request }, async () => new Response("unexpected")),
-    ).rejects.toMatchObject({
-      code: "cooldown",
-      provider: "groq",
-      retryAfterMs: expect.any(Number),
-    });
+    let blocked: unknown;
     try {
       await runProviderCall({ provider: "groq", account: "another-role", groqRequest: request }, async () => new Response("unexpected"));
     } catch (error) {
-      expect(error).toBeInstanceOf(ProviderQuotaError);
-      expect((error as ProviderQuotaError).retryAfterMs).toBeGreaterThan(300_000);
+      blocked = error;
     }
+    expect(blocked).toBeInstanceOf(ProviderQuotaError);
+    expect((blocked as ProviderQuotaError).code).toBe("cooldown");
+    expect((blocked as ProviderQuotaError).retryAfterMs).toBeGreaterThan(300_000);
   });
 
 });
