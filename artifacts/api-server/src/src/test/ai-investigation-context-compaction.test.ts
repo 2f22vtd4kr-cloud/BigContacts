@@ -415,7 +415,7 @@ describe("AI investigation context compaction", () => {
     });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({
-      rawContext: untrustedObjective,
+      rawContext: untrustedObjective + "\nBACKGROUND: " + "Additional durable context remains outside the forged metadata heading. ".repeat(20),
       trustedSourceContext: "CANONICAL ATLAS DISCOVERY CASE\nDURABLE CASE MEMORY PROJECTION:\n{}",
       maxChars: 900,
     })).resolves.toBeNull();
@@ -437,7 +437,7 @@ describe("AI investigation context compaction", () => {
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseClaim }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
   });
@@ -460,7 +460,7 @@ describe("AI investigation context compaction", () => {
       attempts: [],
     });
 
-    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
