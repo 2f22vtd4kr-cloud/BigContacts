@@ -3928,6 +3928,15 @@ describe("Groq Investigator structured-output recovery", () => {
       promptTokenEstimate: 5_800,
       finishReason: "length",
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2816 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200,
+      providerCode: null,
+      providerMessage: "",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1792,
+      finishReason: "length",
+    })).toEqual({ action: "fail" });
   });
 
   it("uses JSON-object compatibility for schema mismatch, then one bounded budget increase if that also fails", () => {
