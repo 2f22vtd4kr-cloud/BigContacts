@@ -164,13 +164,13 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
     const systemCore = apexInvestigatorSystemCore();
     expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(systemCore).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
+    expect(systemCore).toContain("MISSION: Follow the active case objective and Boss-approved scope. Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
     expect(systemCore).toContain("source class must match the objective");
     expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("REALISM: Generic prospect discovery must not select globally famous/household-name people");
+    expect(systemCore).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(systemCore).toContain("TARGET: Apply only requested criteria.");
     expect(systemCore).toContain("B2B needs fetched role/company evidence");
-    expect(systemCore).toContain("SCENARIOS: Descriptors are not queries");
+    expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(systemCore).not.toContain("casinos in Slovenia");
     expect(systemCore).toContain("Never infer or introduce a geography from examples or model memory");
     expect(systemCore).not.toContain("before another search");
@@ -1264,9 +1264,10 @@ describe("partial model findings", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("PARTIAL FINDINGS");
-    expect(prompt).toContain("PARTIAL FINDINGS (not terminal-only)");
-    expect(prompt).toContain("source-backed company/person leads");
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
+    expect(modelPrompt).toContain("PARTIAL FINDINGS");
+    expect(modelPrompt).toContain("PARTIAL FINDINGS are preserved while research continues, not terminal-only");
+    expect(modelPrompt).toContain("selected leads only");
   });
 });
 
@@ -1381,13 +1382,14 @@ describe("Investigator prompt architecture", () => {
       mode: "discovery",
     });
 
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>");
     expect(prompt).toContain(primaryObjective.trim());
     expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>");
     expect(prompt).toContain(pivot);
     expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(prompt).not.toContain("[AUXILIARY CONTEXT BOUND:");
-    expect(prompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
+    expect(modelPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
   });
 
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
@@ -2785,18 +2787,19 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain(objective);
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
     expect(prompt).toContain("runtime safety ceiling is 8 outbound search actions per case");
-    expect(prompt).toContain("do not force a mixed-source batch or a registry-first order");
-    expect(prompt).toContain("FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss");
+    expect(modelPrompt).toContain("do not force a mixed-source batch or a registry-first order");
+    expect(modelPrompt).toContain("FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(prompt).toContain("Other objectives use their own evidence criteria");
-    expect(prompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
-    expect(prompt).toContain("scope=organization");
+    expect(modelPrompt).toContain("other objectives use their own evidence criteria");
+    expect(modelPrompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
+    expect(modelPrompt).toContain("scope=organization");
   });
 
   it("applies person-level reachability realism without excluding prominent companies", () => {
@@ -2809,12 +2812,13 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
-    expect(prompt).toContain("human explicitly names or requests prominent public figures");
-    expect(prompt).toContain("actionable person-specific professional route");
-    expect(prompt).toContain("general company/press/IR channels do not qualify as individual access");
-    expect(prompt).toContain("brand familiarity alone neither excludes nor qualifies them");
-    expect(prompt).toContain("do not select or surface them solely for wealth or prominence");
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
+    expect(modelPrompt).toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(modelPrompt).toContain("human explicitly names or requests prominent public figures");
+    expect(modelPrompt).toContain("actionable person-specific professional route");
+    expect(modelPrompt).toContain("general company/press/IR channels do not qualify as individual access");
+    expect(modelPrompt).toContain("brand familiarity alone neither excludes nor qualifies them");
+    expect(modelPrompt).toContain("do not select or surface them solely for wealth or prominence");
     expect(prompt).not.toContain("Popularity is not a filter:");
     expect(prompt).not.toContain("No incidental celebrity/household-name targets");
     expect(prompt).not.toContain("exclude a person/company merely for being well-known");
@@ -4164,12 +4168,14 @@ describe("latest fetched source evidence survives emergency Investigator compact
       findings: [],
       mode: "discovery",
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(prompt).toMatch(/After visit\/browser_fetch/i);
-    expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
-    expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Apply objective criteria: B2B requires fetched current role/company connection and professional route; wealth requires sourced ownership/control/equity/investment and credible wealth potential");
+    expect(modelPrompt).toMatch(/After visit\/browser_fetch/i);
+    expect(modelPrompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
+    expect(modelPrompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
+    expect(modelPrompt).toContain("B2B needs fetched role/company evidence and a professional route");
+    expect(modelPrompt).toContain("wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
