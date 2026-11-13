@@ -568,6 +568,20 @@ function trajectoryEvidenceSignature(record: AgenticTrajectoryRecord): string | 
  * the case since that search. A new rationale alone is not new information.
  * Different providers/locales/markets remain independent research options.
  */
+export function discoveryQueriesAreNearDuplicates(left: string, right: string): boolean {
+  const stopWords = new Set(["the", "and", "for", "of", "to", "in", "on", "with", "a", "an", "by", "from", "at", "near", "who", "what", "how", "about", "into", "through", "find", "search", "discover", "identify"]);
+  const tokensFor = (value: string) => new Set(
+    normalizeDiscoverySearchQuery(value)
+      .split(/\s+/u)
+      .filter((token) => token.length >= 3 && !stopWords.has(token)),
+  );
+  const leftTokens = tokensFor(left);
+  const rightTokens = tokensFor(right);
+  if (leftTokens.size < 4 || rightTokens.size < 4) return false;
+  const shared = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  return shared >= 4 && shared / Math.min(leftTokens.size, rightTokens.size) >= 0.72;
+}
+
 export function repeatedDiscoverySearchReason(
   request: { query: string; provider: string; locale?: string; market?: string },
   priorRecords: readonly AgenticTrajectoryRecord[],
@@ -579,21 +593,32 @@ export function repeatedDiscoverySearchReason(
       normalizeDiscoverySearchQuery(cleanText(value.locale, 16)),
       normalizeDiscoverySearchQuery(cleanText(value.market, 16)),
     ]);
+  const routeKeyFor = (value: { provider?: unknown; locale?: unknown; market?: unknown }) =>
+    JSON.stringify([
+      cleanText(value.provider, 30).toLowerCase(),
+      normalizeDiscoverySearchQuery(cleanText(value.locale, 16)),
+      normalizeDiscoverySearchQuery(cleanText(value.market, 16)),
+    ]);
   const requestKey = keyFor(request);
+  const requestRouteKey = routeKeyFor(request);
+  const matchesRequest = (candidate: { query?: unknown; provider?: unknown; locale?: unknown; market?: unknown }) =>
+    keyFor(candidate) === requestKey
+    || (routeKeyFor(candidate) === requestRouteKey
+      && discoveryQueriesAreNearDuplicates(request.query, cleanText(candidate.query, 300)));
   let matchedIndex = -1;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const record = priorRecords[index]!;
-    if (record.action === "web_search" && keyFor({
+    if (record.action === "web_search" && matchesRequest({
       query: record.args.query, provider: record.args.provider,
       locale: record.args.locale, market: record.args.market,
-    }) === requestKey) {
+    })) {
       matchedIndex = index;
       break;
     }
     if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
       const hasMatch = record.args.searches.some((item) => {
         if (!item || typeof item !== "object" || Array.isArray(item)) return false;
-        return keyFor(item as Record<string, unknown>) === requestKey;
+        return matchesRequest(item as Record<string, unknown>);
       });
       if (hasMatch) { matchedIndex = index; break; }
     }
@@ -617,7 +642,7 @@ export function repeatedDiscoverySearchReason(
     });
   });
   if (independentlyAdvanced) return null;
-  return "repeat_action_guard blocked repeated discovery search before provider execution: the normalized query/provider/locale/market was already attempted and no newly fetched public source has advanced the case since. Change the query, provider, locale, or market, or fetch a new source and revisit the question; changing rationale alone is not new information. No provider request was made; no fixed research sequence is prescribed.";
+  return "repeat_action_guard blocked a repeated or near-duplicate discovery search before provider execution: this query substantially overlaps the previous query on the same provider/locale/market, and no newly fetched public source has advanced the case since. Change the research dimension or provider, fetch a new source, or choose another action; changing a few words or the rationale alone is not new information. No provider request was made; no fixed research sequence is prescribed.";
 }
 /**
  * Prevent repeated page retrievals from spending turns on the same successful
