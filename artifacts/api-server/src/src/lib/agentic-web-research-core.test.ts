@@ -239,7 +239,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
-    expect(discoveryPrompt).toContain("do not force a mixed-source batch or a registry-first order");
+    expect(discoveryPrompt).toContain("Do not force a mixed-source batch or a registry-first order");
     expect(discoveryPrompt).toContain("source class need not appear in every discovery query");
     expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
     expect(discoveryPrompt).toContain("Public-web and registry routes are neutral options");
