@@ -4584,10 +4584,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY AUTONOMY: The human objective and latest Boss-approved scope govern target class, topic and geography. Keep discovery cross-sector unless the objective or concrete same-case fetched evidence justifies narrowing; name that evidence in the hypothesis. Do not broaden geography, repeat mission descriptors as queries, force a mixed-source batch, or prefer web/registry. Investigator chooses hypotheses, sources, tools, pivots, corroboration and stopping by expected information gain. The search cap is a safety ceiling, not a stopping target.",
-    "TARGETABILITY: people, companies and assets are distinct. Famous individuals require an explicit human request or an actionable person-specific professional route; generic company/press/IR is not individual access. Company fame, ranking, size and growth are not qualification; ranking-only mentions are leads. Keep companies eligible when objective-fit; do not impose private/mid-market or wealth requirements unless requested. One objective-fit lead may start target research.",
-    "REVIEW-LEAD HANDOFF: Investigator chooses relevant observed people/organizations, not every result. Preserve exact observed name, role or null, and associated public HTTPS URL as review-only; no invented identity, ownership, wealth, relationship or contact claim. Do not require a fetch/ownership clue for a provisional review lead. B2B/wealth qualification applies only when the objective requests it; otherwise follow the objective.",
-    "SEARCH/RETRIEVAL: market only if country in objective/scope; locale is language. Web and callable registries are neutral options. Snippets are leads, not evidence; fetched claims bind only to the exact fetched URL/span. Failed fetches are unknown. visit supports text-bearing PDFs; browser_fetch is HTML-only; scanned/encrypted/malformed PDFs remain unobserved."
+    "DISCOVERY HANDOFF: Choose objective-fit observed people/organizations for review-only findings, not every result. Preserve exact names, role or null, and associated public HTTPS URLs; no invented identity, ownership, wealth, relationship or contact claim. One relevant lead may start target research. Apply B2B/wealth qualification only when the human objective requests it."
   ] : [];
   const emergencyAssignment = input.mode === "discovery"
     ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
@@ -4714,9 +4711,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "CAPABILITY GUIDANCE:",
     capabilityGuidance,
     "",
-    evidenceLaw,
+    ...(input.mode === "discovery" ? [] : [evidenceLaw]),
     terminalContractGuidance,
-    ...(input.mode === "discovery" ? [] : [compactPageFormatGuidance]),
+    compactPageFormatGuidance,
     "",
     ...compactEmergencyDiscoveryContractParts,
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 400, "[advisory detail omitted; all actions remain available]"), "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
@@ -4730,7 +4727,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return exactly one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include all fields; inactive scalars null, unused arrays []. Except action=done, top-level hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose; parallel registry searches need 2–4 with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): preserve relevant source-backed company/person leads as review-only, not every result. Keep exact observed name, role or null, associated public HTTPS URL; search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Do not require a fetch or ownership clue for a provisional review lead. Snippets remain leads, not evidence. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact span. Qualification follows the active objective: B2B needs fetched current role/company connection and professional route; wealth needs sourced ownership/control/equity/investment and credible wealth potential; other objectives use their own evidence criteria. Never infer wealth from seniority. Action fields: web_search=query+provider; parallel_web_search=searches; visit=url; browser_fetch=url+provider; registry_search=query+registry; domain_lookup=domain+provider; done=findings+thought. Worker-backed actions only when listed in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return one root JSON object conforming to the required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done actions require non-empty hypothesis/purpose and expectedInformationGain in [0,1]; only done may null them. Use 2–4 objects for parallel searches. findings[] preserves only selected objective-fit review leads with exact observed names, role or null, scope, public HTTPS sourceUrls, note and promotion fields. Snippets are leads; after a fetch, bind claims only to that fetched URL/span. Do not invent identities, contacts, relationships or qualifications. Worker-backed actions must appear in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
