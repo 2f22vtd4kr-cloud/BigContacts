@@ -762,7 +762,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("rejects numeric summaries that change portfolio composition into personal ownership and preserves the original statement verbatim", async () => {
-    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies."; 
+    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
     const source = "EARLY CASE CONTEXT " + "boilerplate context. ".repeat(80) + sourceFact + " " + "later unrelated context. ".repeat(80);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
       model: "openai/gpt-oss-20b",

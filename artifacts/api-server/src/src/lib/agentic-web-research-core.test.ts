@@ -4494,6 +4494,8 @@ describe("restricted community source content boundary", () => {
     const system = apexInvestigatorSystemCore();
     expect(system).toContain("Do not introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).toContain("when no sector is specified, keep discovery cross-sector");
+    expect(system).toContain("Do not force a mixed-source first pass or a preferred source order");
+    expect(system).not.toContain("quick bounded first-pass mix");
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
   });
 
