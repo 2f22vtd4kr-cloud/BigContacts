@@ -153,6 +153,21 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
   return fetchedUrls;
 }
 
+function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
+  if (successfulFetchUrls.size === 0) return false;
+  const clauses = summary.split(/(?:[.!?]\\s+|;\\s+|,\\s+but\\s+|\\bhowever\\b)/i);
+  const globalNoFetch = /\\b(?:no|none|zero)\\b.{0,80}\\b(?:fetch(?:es)?|visits?|browser_fetch|page retrievals?)\\b.{0,80}\\b(?:recorded|occurred|succeeded|executed|performed|available|has been|have been|was|were)?/i;
+  const noPageRetrieved = /\\b(?:no|none|zero)\\b.{0,60}\\b(?:page|pages|source|sources)\\b.{0,60}\\b(?:was|were|has been|have been|is|are)?\\s*(?:successfully\\s*)?(?:fetched|visited|retrieved|opened)\\b/i;
+  return clauses.some((clause) => {
+    if (/\\b(?:additional|further|other|another|subsequent|remaining|unvisited|search[- ]only|lead)\\b/i.test(clause)) return false;
+    if (!globalNoFetch.test(clause) && !noPageRetrieved.test(clause)) return false;
+    const urls = extractAiContextUrls(clause);
+    // A source-specific negative can be correct when a different page was fetched.
+    // A URL-specific denial is contradictory only when it names a successful URL.
+    return urls.length === 0 || urls.some((url) => successfulFetchUrls.has(url));
+  });
+}
+
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
   const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
   const negativeRetrieval = /\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\b.{0,60}\b(?:fetched|visited|read|reviewed|verified|confirmed)\b/i;
@@ -293,7 +308,7 @@ function validateSummary(
   if (!summary) issues.push("missing_or_unparseable_summary: the previous response did not contain a parseable summary");
   if (summary && summary.length > maxChars) issues.push(`summary_exceeds_character_limit: the previous summary was ${summary.length} characters, exceeding the hard limit of ${maxChars}`);
   if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) issues.push("summary_contains_ungrounded_url: URL tokens that were not copied exactly from the source were included");
-  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");
+  if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");\n  if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
   if (summary && summaryContainsUnverifiableNumericClaim(summary, allowedSource)) issues.push("summary_contains_unverifiable_numeric_claim: numeric values and ownership/portfolio relationships must be supported by the same source clause so their denominator and attribution cannot be changed");
   return {
     summary,
