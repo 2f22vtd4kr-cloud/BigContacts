@@ -82,6 +82,12 @@ describe("new Investigator episode observation continuity", () => {
         observation: "OLD_PIVOT_FETCH_SENTINEL", findings: [],
       },
       {
+        turn: 1.5, model: "test-model", action: "visit",
+        args: { url: "https://unscoped-old.example/filing" }, execution: "success",
+        observedUrls: ["https://unscoped-old.example/filing"], leadUrls: [],
+        observation: "UNSCOPED_PRE_PIVOT_FETCH_SENTINEL", findings: [],
+      },
+      {
         turn: 2, model: "test-model", action: "visit", pivotScopeKey: activeScope,
         args: { url: "https://current.example/filing" }, execution: "success",
         observedUrls: ["https://current.example/filing"], leadUrls: [],
@@ -91,6 +97,7 @@ describe("new Investigator episode observation continuity", () => {
     const observation = buildInitialInvestigatorObservation(records, objective, "discovery");
     expect(observation).toContain("ACTIVE_PIVOT_FETCH_SENTINEL");
     expect(observation).not.toContain("OLD_PIVOT_FETCH_SENTINEL");
+    expect(observation).not.toContain("UNSCOPED_PRE_PIVOT_FETCH_SENTINEL");
   });
 
   it("retains successful fetched observations for target episodes without discovery-pivot filtering", () => {
