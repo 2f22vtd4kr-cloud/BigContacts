@@ -2060,7 +2060,7 @@ function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   return 1024;
 }
 
-const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 4096;
+const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 2048;
 
 /** Increase output allowance once when Groq explicitly reports a truncated completion. */
 export function nextGroqInvestigatorCompletionBudget(current: number): number | null {

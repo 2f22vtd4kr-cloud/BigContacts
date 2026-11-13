@@ -3890,8 +3890,8 @@ describe("Groq Investigator structured-output recovery", () => {
 
   it("raises output budget once, without exceeding the bounded ceiling", () => {
     expect(nextGroqInvestigatorCompletionBudget(1024)).toBe(1536);
-    expect(nextGroqInvestigatorCompletionBudget(1536)).toBe(2304);
-    expect(nextGroqInvestigatorCompletionBudget(2048)).toBe(3072);
+    expect(nextGroqInvestigatorCompletionBudget(1536)).toBe(2048);
+    expect(nextGroqInvestigatorCompletionBudget(2048)).toBeNull();
     expect(nextGroqInvestigatorCompletionBudget(4096)).toBeNull();
     expect(nextGroqInvestigatorCompletionBudget(Number.NaN)).toBeNull();
   });
@@ -3899,15 +3899,15 @@ describe("Groq Investigator structured-output recovery", () => {
   it("retries HTTP 200 finish_reason=length with a larger budget and never treats it as quota failure", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
-    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 3072 });
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2048 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "length",
-      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
+      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200, providerCode: null, providerMessage: "", finishReason: "stop",
-      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 10_000, promptTokenEstimate: 0,
     })).toEqual({ action: "fail" });
   });
 
