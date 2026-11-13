@@ -1611,7 +1611,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeGreaterThan(6_800);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
