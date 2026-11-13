@@ -159,7 +159,7 @@ function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUr
   const globalNoFetch = /\b(?:no|none|zero)\b.{0,80}\b(?:fetch(?:es)?|visits?|browser_fetch|page retrievals?)\b.{0,80}\b(?:recorded|occurred|succeeded|executed|performed|available|has been|have been|was|were)?/i;
   const noPageRetrieved = /\b(?:no|none|zero)\b.{0,60}\b(?:page|pages|source|sources)\b.{0,60}\b(?:was|were|has been|have been|is|are)?\s*(?:successfully\s*)?(?:fetched|visited|retrieved|opened)\b/i;
   return clauses.some((clause) => {
-    if (/\b(?:additional|further|other|another|subsequent|remaining|unvisited|search[- ]only|lead)\b/i.test(clause)) return false;
+    if (/\b(?:additional|further|other|another|subsequent|remaining|unvisited|search[- ]only|lead|previous|prior|earlier|before|until)\b/i.test(clause)) return false;
     if (!globalNoFetch.test(clause) && !noPageRetrieved.test(clause)) return false;
     const urls = extractAiContextUrls(clause);
     // A source-specific negative can be correct when a different page was fetched.
