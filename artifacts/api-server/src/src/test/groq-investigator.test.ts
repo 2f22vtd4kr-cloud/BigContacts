@@ -202,7 +202,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     });
 
     expect(["unavailable", "error"]).toContain(second.status);
-    expect(second.trajectoryRecords[0]?.observation).toContain("upstream_token_window_wait_exceeded");
+    expect(second.trajectoryRecords[0]?.observation).toContain("local_provider_cooldown");
     expect(calls).toBe(1);
     expect(authorizationHeaders).toEqual(["Bearer rotated-slot-old-credential"]);
   });
@@ -507,13 +507,12 @@ describe.sequential("Groq Investigator provider boundary", () => {
       choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
     });
     const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
-    if (!response.body) throw new Error("response body reader unavailable");
-    const originalGetReader = response.body.getReader.bind(response.body);
-    Object.defineProperty(response.body, "getReader", {
+    const originalJson = response.json.bind(response);
+    Object.defineProperty(response, "json", {
       configurable: true,
-      value: () => {
+      value: async () => {
         bodyReads += 1;
-        return originalGetReader();
+        return originalJson();
       },
     });
     mocks.safeOutboundFetch.mockResolvedValue(response);
