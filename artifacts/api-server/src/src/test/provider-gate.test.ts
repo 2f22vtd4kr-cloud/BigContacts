@@ -750,6 +750,13 @@ describe("provider quota gate", () => {
     const init: RequestInit = { method: "POST", body: JSON.stringify({ model: "openai/gpt-oss-20b", max_completion_tokens: 2_000, messages: [{ role: "user", content: "x".repeat(1_000) }] }) };
     const groqRequest = getGroqTokenRequest(url, init);
     expect(groqRequest).toBeDefined();
+    const promptMaterial = JSON.stringify({
+      messages: [{ role: "user", content: "x".repeat(1_000) }],
+      tools: undefined,
+      response_format: undefined,
+      tool_choice: undefined,
+    });
+    expect(groqRequest?.reservedTokens).toBe(Math.ceil(promptMaterial.length / 3.4 * 1.1) + 2_000);
     let calls = 0;
     const invoke = (account: string) => runProviderCall({ provider: "groq", account, groqRequest }, async () => {
       calls += 1;
