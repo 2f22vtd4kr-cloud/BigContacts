@@ -114,7 +114,7 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
   // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
   const lines = source.split("\n");
   const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
-  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS)/.test(line));
+  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS|BOUNDED TRAJECTORY PROJECTION)/.test(line));
   const candidates: string[] = [];
   if (metadataIndex >= 0 && lines[metadataIndex + 1]) candidates.push(lines[metadataIndex + 1]!.trim());
   if (durableIndex >= 0) {
