@@ -283,6 +283,33 @@ describe("AI investigation context compaction", () => {
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("unverified search leads");
   });
 
+  it("repairs a summary that denies successful fetches recorded in the durable trajectory", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "HISTORICAL DURABLE TRAJECTORY:",
+      JSON.stringify([{ turn: 6, action: "visit", execution: "success", observedUrls: [fetchedUrl] }]),
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The leadership page was successfully fetched and returned source text.",
+      "BACKGROUND: " + "Preserve the exact source-stage history and remaining open questions. ".repeat(40),
+    ].join("\n");
+    const falseNegative = "No fetch or visit had been recorded; the remaining search leads are unverified.";
+    const corrected = "The leadership page was fetched (source: " + fetchedUrl + "); other search leads remain unverified.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseNegative }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    const repairPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
+    expect(repairPrompt).toContain("REPAIR REQUIRED");
+    expect(repairPrompt).toContain("summary_denies_successful_fetch");
+  });
+
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
     const sourceUrl = "https://company.example/leadership";
     const source = [
