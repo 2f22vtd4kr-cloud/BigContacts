@@ -82,13 +82,13 @@ describe("new Investigator episode observation continuity", () => {
         observation: "OLD_PIVOT_FETCH_SENTINEL", findings: [],
       },
       {
-        turn: 1.5, model: "test-model", action: "visit",
+        turn: 2, model: "test-model", action: "visit",
         args: { url: "https://unscoped-old.example/filing" }, execution: "success",
         observedUrls: ["https://unscoped-old.example/filing"], leadUrls: [],
         observation: "UNSCOPED_PRE_PIVOT_FETCH_SENTINEL", findings: [],
       },
       {
-        turn: 2, model: "test-model", action: "visit", pivotScopeKey: activeScope,
+        turn: 3, model: "test-model", action: "visit", pivotScopeKey: activeScope,
         args: { url: "https://current.example/filing" }, execution: "success",
         observedUrls: ["https://current.example/filing"], leadUrls: [],
         observation: "ACTIVE_PIVOT_FETCH_SENTINEL", findings: [],
