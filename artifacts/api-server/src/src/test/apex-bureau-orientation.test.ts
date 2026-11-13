@@ -86,8 +86,8 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
     expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("genuinely global register");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("runtime safety ceiling of 8 outbound search actions by default");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("Do not force a mixed-source batch or registry-first order");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("runtime enforces a configurable safety ceiling (default 8 outbound search actions)");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
     expect(APEX_BUREAU_PLAYBOOK).toContain("single strongest objective-fit lead, not a shortlist");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
