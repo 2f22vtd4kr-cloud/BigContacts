@@ -134,7 +134,7 @@ describe("AI investigation context compaction", () => {
     ].join(" ");
     expect(firstSummary.length).toBeGreaterThan(900);
 
-    const correctedSummary = "Alice Example is the managing director, appointed on 2024-06-12. Source: " + sourceUrl;
+    const correctedSummary = "Alice Example is the managing director. The filing states Alice Example was appointed director on 2024-06-12. Source: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
