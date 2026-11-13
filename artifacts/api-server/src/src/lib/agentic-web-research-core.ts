@@ -2078,11 +2078,11 @@ function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveT
 function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   if (task === "contradiction_resolution" || task === "final_adjudication") return 1536;
   if (task === "contact_extraction") return 768;
-  // Structured action JSON is compact. Keep normal turns small so prompt
-  // tokens and concurrent role activity fit inside the shared Groq TPM window.
-  // The bounded output-recovery path can increase this only when provider
-  // headers prove sufficient remaining capacity.
-  return 1024;
+  // Structured action JSON is compact. Keep ordinary turns to a small
+  // completion allowance so prompt tokens and concurrent role activity fit
+  // inside the shared Groq TPM window. The bounded recovery path can increase
+  // this only when provider headers prove sufficient remaining capacity.
+  return 768;
 }
 
 const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 2048;
