@@ -161,7 +161,7 @@ export function classifyInvestigatorProviderError(value: string): { domain: Atla
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
   if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
   if (code === "upstream_rate_limited" || code === "rate_limited" || /^http_429(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_rate_limited" };
-  if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
+  if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "upstream_request_size_rejected" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
   if (/^http_(401|403)(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_auth_failure" };
   if (/^http_404(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_endpoint_not_found" };
   if (/^http_5\d\d(?:$|:)/.test(code) || code === "provider_unavailable") return { domain: "model_provider", kind: "provider_unavailable" };
