@@ -2801,7 +2801,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(modelPrompt).toContain("other objectives use their own evidence criteria");
+    expect(modelPrompt).toContain("Other objectives use their own evidence criteria");
     expect(modelPrompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
     expect(modelPrompt).toContain("scope=organization");
   });
