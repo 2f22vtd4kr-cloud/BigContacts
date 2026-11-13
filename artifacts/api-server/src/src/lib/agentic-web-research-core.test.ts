@@ -146,7 +146,7 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("used=2; remaining=0/2");
+    expect(prompt).toContain("used=2; remaining=6/8");
     expect(prompt).toContain("At zero, web/registry search actions cannot execute");
   });
 });
@@ -174,7 +174,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("Never infer or introduce a geography from examples or model memory");
     expect(systemCore).not.toContain("before another search");
     expect(systemCore).not.toContain("no provider fan-out");
-    expect(systemCore).toContain("mixed-source");
+    expect(systemCore).toContain("No extra wealth or ownership criteria unless requested.");
     expect(systemCore).toContain("Investigator selects objective-fit people/organizations for provisional review");
     expect(systemCore).toContain("On non-done actions, use findings[] for selected leads only");
     expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
@@ -239,10 +239,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
-    expect(discoveryPrompt).toContain("One bounded mixed-source web/registry batch");
-    expect(discoveryPrompt).toContain("normal starting portfolio");
-    expect(discoveryPrompt).toContain("randomized runtime-available catalog supplied to Boss and Right-hand");
-    expect(discoveryPrompt).toContain("source-diversity expectation");
+    expect(discoveryPrompt).toContain("do not force a mixed-source batch or a registry-first order");
+    expect(discoveryPrompt).toContain("source class need not appear in every discovery query");
+    expect(discoveryPrompt).toContain("Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
+    expect(discoveryPrompt).toContain("Public-web and registry routes are neutral options");
     expect(discoveryPrompt).toContain("Investigator chooses the next action by expected information gain");
     expect(discoveryPrompt).toContain("no registry is preferred; one lead can start target research");
     expect(discoveryPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
@@ -2589,7 +2589,7 @@ Choose each next action yourself from the available capabilities and observed ev
       args: { query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si", hypothesis: "Find ownership", purpose: "Find the owner" },
       execution: "success", observation: "WEB_SEARCH returned two leads", observedUrls: ["https://search.example/1"], findings: [], providerFallback: [],
     } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
-    expect(repeatedDiscoverySearchReason({ query: "  casino   portoroz OWNERSHIP ", provider: "serper", locale: "sl", market: "si" }, [first])).toContain("repeat_action_guard blocked repeated discovery search");
+    expect(repeatedDiscoverySearchReason({ query: "  casino   portoroz OWNERSHIP ", provider: "serper", locale: "sl", market: "si" }, [first])).toContain("near-duplicate discovery search");
     expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "exa", locale: "sl", market: "si" }, [first])).toBeNull();
     const failedFetch = {
       turn: 2, model: "test-model", action: "visit", args: { url: "https://casino.example/ownership" },
@@ -2750,7 +2750,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ])).toBeNull();
   });
 
-  it("caps discovery at two outbound search actions and excludes blocked/preflight attempts", () => {
+  it("keeps the adaptive discovery search budget bounded and excludes blocked/preflight attempts", () => {
     const records = [
       { ...livenessRecord("web_search", "success"), leadUrls: ["https://www.ohiosos.gov/business/search"] },
       livenessRecord("parallel_registry_search", "blocked"),
@@ -2759,7 +2759,7 @@ Choose each next action yourself from the available capabilities and observed ev
       livenessRecord("web_search", "blocked"),
       livenessRecord("parallel_web_search", "blocked"),
     ];
-    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBe(2);
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
     expect(countDiscoverySearchActions(records)).toBe(2);
     const agedHistory = [
       ...records,
@@ -2785,8 +2785,8 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     expect(prompt).toContain(objective);
     expect(prompt).toContain("DISCOVERY SEARCH ECONOMY");
-    expect(prompt).toContain("at most two outbound search actions");
-    expect(prompt).toContain("mixed-source web/registry batch");
+    expect(prompt).toContain("runtime safety ceiling is 8 outbound search actions per case");
+    expect(prompt).toContain("Do not force a mixed-source batch or a registry-first order");
     expect(prompt).toContain("FAST HANDOFF: Investigator may send one strongest objective-fit lead to Boss");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
@@ -2835,7 +2835,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(budgetGuard).toBeGreaterThan(-1);
     expect(registryDispatch).toBeGreaterThan(budgetGuard);
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
-    expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: two outbound discovery search actions");
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH ECONOMY: the runtime safety ceiling is ");
   });
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
@@ -3941,7 +3941,7 @@ describe("Groq Investigator structured-output recovery", () => {
       rateLimitRemainingTokens: 9_000,
       promptTokenEstimate: 5_800,
       finishReason: "length",
-    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2816 });
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 2048 });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200,
       providerCode: null,
@@ -4492,9 +4492,9 @@ describe("restricted community source content boundary", () => {
   });
   it("keeps discovery cross-sector when the human objective does not name an industry", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("Do not introduce an industry/sector or jurisdiction absent from the human objective");
+    expect(system).toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).toContain("when no sector is specified, keep discovery cross-sector");
-    expect(system).toContain("Do not force a mixed-source first pass or a preferred source order");
+    expect(system).toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
   });

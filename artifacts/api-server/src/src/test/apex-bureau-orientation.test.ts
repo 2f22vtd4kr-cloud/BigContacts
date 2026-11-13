@@ -81,13 +81,13 @@ describe("objective-led institutional orientation", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).not.toContain("casinos in Slovenia");
     expect(core).toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("sector and jurisdiction");
+    expect(core).toContain("SCENARIOS: Descriptors are not queries");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
     expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("genuinely global register");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("at most two outbound search actions");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("one bounded mixed-source batch");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("runtime safety ceiling of 8 outbound search actions by default");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Do not force a mixed-source batch or registry-first order");
     expect(APEX_BUREAU_PLAYBOOK).toContain("single strongest objective-fit lead, not a shortlist");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
@@ -101,7 +101,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("a bounded mixed-source first pass is available when useful");
+    expect(core).toContain("SCENARIOS: Descriptors are not queries");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
     expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");
