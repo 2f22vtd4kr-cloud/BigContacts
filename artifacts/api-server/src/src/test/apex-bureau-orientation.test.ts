@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Apply less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("REALISM: In generic prospect discovery, globally famous/household-name people are presumptively poor-access prospects");
+    expect(apexInvestigatorSystemCore()).toContain("Generic prospect discovery must not select globally famous/household-name people");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
@@ -97,9 +97,9 @@ describe("objective-led institutional orientation", () => {
 
   it("applies qualification criteria only when required by the human objective", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("Qualification follows the active objective");
-    expect(core).toContain("B2B decision-makers need a fetched source binding a current role");
-    expect(core).toContain("wealth/investor targets also need source-backed ownership/control/equity/investment");
+    expect(core).toContain("Apply only requested criteria");
+    expect(core).toContain("B2B needs fetched role/company evidence");
+    expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
     expect(core).toContain("a bounded mixed-source first pass is available when useful");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
