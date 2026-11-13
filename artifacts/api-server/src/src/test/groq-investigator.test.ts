@@ -507,12 +507,12 @@ describe.sequential("Groq Investigator provider boundary", () => {
       choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
     });
     const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
-    const originalJson = response.json.bind(response);
-    Object.defineProperty(response, "json", {
+    const originalGetReader = response.body!.getReader.bind(response.body!);
+    Object.defineProperty(response.body!, "getReader", {
       configurable: true,
-      value: async () => {
+      value: () => {
         bodyReads += 1;
-        return originalJson();
+        return originalGetReader();
       },
     });
     mocks.safeOutboundFetch.mockResolvedValue(response);
