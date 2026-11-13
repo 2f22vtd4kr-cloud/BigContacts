@@ -3112,7 +3112,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
-    expect(request.max_completion_tokens).toBe(1024);
+    expect(request.max_completion_tokens).toBe(768);
     // Keep a conservative tokenization margin below the local 7,000 TPM
     // reservation budget, leaving capacity for other roles in the same window.
 
