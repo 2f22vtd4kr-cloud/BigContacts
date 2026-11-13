@@ -1952,6 +1952,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
   const json = extractJsonObject(normalizedRaw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parsePartialFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+    if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || (item as Record<string, unknown>).registry !== null)) return null;
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       return {
