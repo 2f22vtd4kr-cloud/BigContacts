@@ -450,7 +450,6 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       eq(assetsTable.category, "Aviation"),
       eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
       isNotNull(assetsTable.ownerEntityId),
-      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
@@ -483,12 +482,25 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       eq(entitiesTable.type, "HNWI"),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
-    const candidateAssetIds = legacyAssets.map((row) => row.id);
+    const legacyFaaOwnedLinks = await tx.select({
+      sourceEntityId: relationshipsTable.sourceEntityId,
+      targetId: relationshipsTable.targetId,
+    }).from(relationshipsTable).innerJoin(assetsTable, and(
+      eq(relationshipsTable.targetId, assetsTable.id),
+      eq(relationshipsTable.targetType, "Asset"),
+    )).where(and(
+      eq(relationshipsTable.relationshipType, "OWNS"),
+      eq(relationshipsTable.notes, "FAA aircraft registration"),
+      eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+    ));
     // The legacy ownerEntityId itself came from the FAA registrant import.
-    // Reclassify every FAA-only association even if an older OWNS relationship
-    // row was never written or has since been lost.
+    // Reclassify every FAA association even if an older OWNS relationship row
+    // was never written or has since been lost.
     const repairAssets = legacyAssets;
-    const assetIds = repairAssets.map((row) => row.id);
+    const assetIds = Array.from(new Set([
+      ...repairAssets.map((row) => row.id),
+      ...legacyFaaOwnedLinks.map((row) => row.targetId),
+    ]));
     if (assetIds.length > 0) {
       await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
       await tx.update(relationshipsTable).set({
