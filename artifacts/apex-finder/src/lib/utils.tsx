@@ -366,7 +366,7 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
     || metadata.wealthStatus === "not_assessed"
     || hasFaaSource && metadata.personalWealthEvidence !== true;
 
-  if (hasFaaSource || /faa/i.test(reg) || categories.some((c) => c.includes("aviation") || c.includes("aircraft"))) {
+  if (/faa/i.test(reg) || !reg && hasFaaSource || !reg && categories.some((c) => c.includes("aviation") || c.includes("aircraft"))) {
     const n = entity.assetCount ?? 0;
     return `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is an asset-linked review lead, not proof of personal wealth or HNWI status.`;
   }
