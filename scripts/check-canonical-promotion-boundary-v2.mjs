@@ -41,8 +41,8 @@ assert(hasAll(target, [
 ]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target contact output requires same-observation candidate attribution after cumulative source grounding; split-page-only claims remain outside target contact output");
 assert(hasAll(strict, [
   "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
-  "quoteAppearsInObservation(observationText, exactQuote)",
-  "hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)",
+  "quoteAppearsInObservation(observation.observationText, exactQuote)",
+  "hasBoundIdentityAndValue(exactQuote,personName,cleanValue,vectorType)",
   "hasCanonicalPromotionJobBinding(provenance)",
   "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
 ]), "trusted candidate promotion independently requires an exact quoted span in one successful observation, person/value binding within that same quote, and live case/job ownership");
