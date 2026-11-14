@@ -1020,7 +1020,7 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
 }
 
 export type AtlasRightHandAdvisoryOverride = {
-  status: "completed" | "unavailable";
+  status: AtlasRightHandStatus;
   decision: string | null;
   reason: string | null;
   direction: string | null;
