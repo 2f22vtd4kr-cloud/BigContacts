@@ -1344,7 +1344,7 @@ export default function ApexProfile() {
               try { srcRegs2 = JSON.parse(e2.sourceRegistries ?? "[]"); } catch {}
               const primaryReg = srcRegs2[0] ?? "";
               const registryLabel = (() => {
-                if (/faa/i.test(primaryReg))          return "the FAA Releasable Aircraft Database (a U.S. federal registry of aircraft owners)";
+                if (/faa/i.test(primaryReg))          return "the FAA Releasable Aircraft Database (a public registry of aircraft registration applicants; registration is not proof of beneficial ownership)";
                 if (/edgar|sec/i.test(primaryReg))    return "SEC EDGAR (U.S. securities filings identifying beneficial owners and executives)";
                 if (/land.?reg|hmlr/i.test(primaryReg)) return "the UK Land Registry (property transaction records)";
                 if (/brreg|norway/i.test(primaryReg)) return "Norway's official business registry (BRREG)";
@@ -1679,10 +1679,10 @@ export default function ApexProfile() {
             : `${pName} appears in executive compensation filings submitted to the U.S. Securities and Exchange Commission (SEC EDGAR DEF 14A). Board directors and named executives of public companies must file these annually — that's how we know they hold a senior role.`);
         } else if (/faa/i.test(primaryReg)) {
           const jets = assetArr.filter((a: any) => a.category === "Aviation");
-          lines.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA — the U.S. Federal Aviation Administration. Every private aircraft in the U.S. must be registered with the FAA, and that registry is public. Turbine aircraft (jets and large turboprops) cost millions to own and operate, which is why FAA ownership is one of our strongest wealth signals.`);
+          lines.push(`${pName} is named as a registrant on ${jets.length > 1 ? `${jets.length} FAA aircraft records` : "an FAA aircraft record"}. The FAA record identifies the registration applicant; it does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth. Any aircraft value or co-registrant name is a separate review lead, not a personal-wealth finding.`);
         } else if (/land.?reg|hmlr/i.test(primaryReg)) {
           const props = assetArr.filter((a: any) => a.category === "RealEstate");
-          lines.push(`${pName} shows up in the UK Land Registry as the buyer or registered owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above £1 million. Every property transaction in England and Wales is filed with the Land Registry — it's how the UK tracks real estate ownership, and it's freely accessible.`);
+          lines.push(`${pName} is associated with ${props.length > 1 ? `${props.length} UK Land Registry sale transaction records` : "a UK Land Registry sale transaction record"}. Price Paid Data records a transaction and the named parties where published; it does not prove current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
         } else if (/brreg/i.test(primaryReg)) {
           lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
         } else if (/companies.?house/i.test(primaryReg)) {
@@ -1690,21 +1690,21 @@ export default function ApexProfile() {
          } else if (/^manual$/i.test(primaryReg)) {
            lines.push(`${pName} is a manually created research record. No public registry or asset evidence is recorded yet.`);
          } else if (primaryReg) {
-          lines.push(`${pName} appears in ${primaryReg} — a public registry we monitor for high-net-worth individuals and significant asset holders.`);
+          lines.push(`${pName} appears in ${primaryReg}. This is a source lead only; objective relevance, identity, ownership, and qualification require separate evidence.`);
         }
         if (e.estimatedNetWorth != null) {
           lines.push(`Estimated net worth or AUM: ${formatCurrency(e.estimatedNetWorth)}.`);
         }
         if (assetArr.length > 0) {
           const cats = [...new Set(assetArr.map((a: any) => a.category))];
-          lines.push(`Registered assets on file: ${assetArr.length} (${cats.join(", ")}).`);
+          lines.push(`Asset / transaction records on file: ${assetArr.length} (${cats.join(", ")}).`);
         }
 
         if (!lines.length) return null;
         return (
           <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
             <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
-              Why {pName} is in this database
+              Source context for {pName}
             </div>
             <p className="text-[11px] text-muted-foreground/75 leading-relaxed">
               {lines.join(" ")}
