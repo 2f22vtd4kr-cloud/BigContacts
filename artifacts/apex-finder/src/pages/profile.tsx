@@ -539,6 +539,7 @@ export default function ApexProfile() {
     return metadata.source === "faa-aircraft-registry"
       || asset.sourceRegistry === "FAA Releasable Aircraft Database";
   });
+  const faaLinkedAssetsToDisplay = faaLinkedAssets.slice(0, 20);
 
   const geoAssets  = (assets as any[]).filter((a) => a.latitude != null && a.longitude != null);
   const confidence = computeConfidence(entity, assets as any[], relationships as any[]);
@@ -1177,9 +1178,9 @@ export default function ApexProfile() {
               </div>
             ))}
           </div>
-          {faaLinkedAssets.length > 0 ? (
+          {faaLinkedAssetsToDisplay.length > 0 ? (
             <div className="mt-3 space-y-2">
-              {faaLinkedAssets.map((asset: any, assetIndex: number) => {
+              {faaLinkedAssetsToDisplay.map((asset: any, assetIndex: number) => {
                 let assetMetadata: Record<string, any> = {};
                 try {
                   const parsed = JSON.parse(asset.metadata ?? "{}");
@@ -1206,6 +1207,11 @@ export default function ApexProfile() {
                   </div>
                 );
               })}
+              {faaLinkedAssets.length > faaLinkedAssetsToDisplay.length && (
+                <p className="text-[10px] text-muted-foreground">
+                  Showing {faaLinkedAssetsToDisplay.length} of {faaLinkedAssets.length} linked FAA aircraft records.
+                </p>
+              )}
             </div>
           ) : (
             <p className="mt-3 text-[10px] text-muted-foreground">No linked FAA aircraft records are loaded for this profile.</p>
