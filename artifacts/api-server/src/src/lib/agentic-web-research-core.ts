@@ -4607,6 +4607,48 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
   return { allowed, rejected };
 }
 
+/**
+ * Semantic scope diagnostics are advisory only. They inform the next model
+ * decision and preserve an audit trail; they never suppress a selected action.
+ */
+export function buildDiscoveryScopeAdvisory(
+  objective: string,
+  action: string,
+  args: Record<string, unknown>,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): string | null {
+  const notes: string[] = [];
+  const queries = action === "web_search" || action === "registry_search"
+    ? [String(args.query ?? "")]
+    : action === "parallel_web_search" || action === "parallel_registry_search"
+      ? (Array.isArray(args.searches) ? args.searches.map((entry) =>
+          entry && typeof entry === "object" && !Array.isArray(entry)
+            ? String((entry as Record<string, unknown>).query ?? "")
+            : "") : [])
+      : [];
+  if (queries.length) {
+    const unsupported = findUnsupportedDiscoverySectorTerms(queries, objective, priorRecords);
+    if (unsupported.length) notes.push("possible sector narrowing: " + unsupported.join(", "));
+  }
+  const geography = discoveryUnscopedGeographyReason(objective, action, args);
+  if (geography) notes.push(geography.replace(/No outbound request was made\\.?/i, ""));
+  const pivot = discoveryPivotAlignmentReason(objective, action, args, priorRecords);
+  if (pivot) notes.push(pivot.replace(/No outbound request was made\\.?/i, ""));
+  if (action === "parallel_web_search") {
+    const searches = Array.isArray(args.searches) ? args.searches as Array<{query:string;provider:string}> : [];
+    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, priorRecords);
+    if (partition.rejected.length) notes.push(partition.rejected.length + " parallel web query/queries differ from the current Boss scope; they remain eligible for execution.");
+  }
+  if (action === "parallel_registry_search") {
+    const searches = Array.isArray(args.searches) ? args.searches as Array<{query:string;registry:string}> : [];
+    const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, priorRecords);
+    if (partition.rejected.length) notes.push(partition.rejected.length + " parallel registry query/queries differ from the current Boss scope; they remain eligible for execution.");
+  }
+  if (!notes.length) return null;
+  return "SCOPE ADVISORY ONLY — no action or query was blocked or removed. " + notes.join(" | ")
+    + " Investigator retains semantic judgement; explain the relevance and expected information gain, and raise a strategic scope change to Boss/Right-hand when appropriate.";
+}
+
 // SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.
 // SOURCE-NEUTRAL MIXED TARGET DISCOVERY: choose among enabled web/registry evidence routes by fit and yield.
 // YOU decide whether any observed organization is worth preserving as a provisional review card; never admit every result.
@@ -5857,29 +5899,16 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
-if (input.mode === "discovery") {
-  if (DISCOVERY_SEARCH_ACTIONS.has(action.action)) {
-    const actionQueries = action.action === "web_search" || action.action === "registry_search"
-      ? [action.query]
-      : action.action === "parallel_web_search" || action.action === "parallel_registry_search"
-        ? action.searches.map((item) => item.query)
-        : [];
-    const unsupportedSectors = findUnsupportedDiscoverySectorTerms(actionQueries, input.objective ?? "", previousResearchRecords);
-    if (unsupportedSectors.length) {
-      record.execution = "blocked";
-      record.failureDomain = "tool_execution";
-      record.failureKind = "request_failure";
-      record.observation = "DISCOVERY SCOPE GUARD: no outbound request was sent because the selected query introduced an industry/sector not present in the human objective or a successful fetched source within the active Boss pivot (" + unsupportedSectors.join(", ") + "). Keep the hypothesis cross-sector unless a concrete fetched observation within the active Boss pivot justifies this narrowing. The next research action and source remain your decision.";
-      lastObservation = record.observation;
-      pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=unsupported_discovery_sector");
-      await emitSanitizedTrajectoryRecord(record);
-      emit(action.action, { provider: "none", status: "blocked", summary: "Query blocked to preserve the human's unspecialized discovery scope." });
-      continue;
-    }
-  }
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = input.mode === "discovery"
+  ? buildDiscoveryScopeAdvisory(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)
+  : null;
+if (scopeFilterSummary) {
+  selectedArgs.scopeAdvisory = scopeFilterSummary;
+  record.args = selectedArgs;
+}
+if (input.mode === "discovery" && DISCOVERY_SEARCH_ACTIONS.has(action.action)) {
   const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);
-  if (DISCOVERY_SEARCH_ACTIONS.has(action.action) && discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
+  if (discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
@@ -5890,8 +5919,6 @@ if (input.mode === "discovery") {
     emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted at the configured ceiling." });
     continue;
   }
-  // Mixed-source provider and registry batches are allowed in discovery;
-  // the same two-action budget and active-scope validation still apply.
 }
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
@@ -5914,47 +5941,14 @@ if (action.action === "parallel_web_search") {
       emit("parallel_web_search", { provider: "multi", status: "blocked", summary: "All proposed search providers are disabled for this trajectory; no request was sent." });
       continue;
     }
-    scopeFilterSummary = "SEARCH PROVIDER FILTER: removed " + providerRejectedSearches.length + " query/provider pair(s) for providers disabled after repeated non-retryable failures. The remaining model-selected query/provider pairs may execute; no substitute query or provider is generated by the runtime.";
+    scopeFilterSummary = [scopeFilterSummary, "SEARCH PROVIDER FILTER: removed " + providerRejectedSearches.length + " query/provider pair(s) for providers disabled after repeated non-retryable failures. The remaining model-selected query/provider pairs may execute; no substitute query or provider is generated by the runtime."].filter(Boolean).join("\\n");
   }
 }
-if (input.mode === "discovery" && action.action === "parallel_web_search") {
-      const originalSearches = [...action.searches];
-      const partition = partitionParallelWebSearchesByPivotScope(input.objective ?? "", originalSearches, previousResearchRecords);
-      if (partition.allowed.length > 0 && partition.rejected.length > 0) {
-        action.searches = partition.allowed;
-        selectedArgs.proposedSearches = originalSearches;
-        selectedArgs.searches = partition.allowed;
-        selectedArgs.scopeRejectedSearches = partition.rejected.map(({ search, reason }) => ({
-          query: search.query, provider: search.provider,
-          mismatch: reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope",
-        }));
-        record.args = selectedArgs;
-        scopeFilterSummary = [scopeFilterSummary, "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
-          + " scope-aligned query(s); removed " + partition.rejected.length
-          + " out-of-scope query(s) before any outbound request. Rejected dimensions: "
-          + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
-          + ". Rejected queries were not sent."].filter(Boolean).join("\n");
-      }
-    }
-    if (input.mode === "discovery" && action.action === "parallel_registry_search") {
-      const originalSearches = [...action.searches];
-      const partition = partitionParallelRegistrySearchesByPivotScope(input.objective ?? "", originalSearches, previousResearchRecords);
-      if (partition.allowed.length > 0 && partition.rejected.length > 0) {
-        action.searches = partition.allowed;
-        selectedArgs.proposedSearches = originalSearches;
-        selectedArgs.searches = partition.allowed;
-        selectedArgs.scopeRejectedSearches = partition.rejected.map(({ search, reason }) => ({
-          query: search.query, registry: search.registry,
-          mismatch: reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope",
-        }));
-        record.args = selectedArgs;
-        scopeFilterSummary = "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
-          + " in-scope registry/query pair(s); removed " + partition.rejected.length
-          + " out-of-scope pair(s) before any outbound request. Rejected dimensions: "
-          + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
-          + ". Rejected registry/query pairs were not sent.";
-      }
-    } const unapprovedGeographyReason = input.mode === "discovery" ? discoveryUnscopedGeographyReason(input.objective ?? "", action.action, selectedArgs) : null; if (unapprovedGeographyReason) { record.execution = "blocked"; record.observation = unapprovedGeographyReason; lastObservation = unapprovedGeographyReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=unapproved_geography_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "unapproved_geography_guard blocked a model-added country/market before outbound execution" }); continue; } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const unavailableSearchProvider = action.action === "web_search" && isSearchProviderDisabled(searchProviderFailures, action.provider) ? action.provider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+if (scopeFilterSummary) {
+  selectedArgs.scopeAdvisory = scopeFilterSummary;
+  record.args = selectedArgs;
+}
+const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const unavailableSearchProvider = action.action === "web_search" && isSearchProviderDisabled(searchProviderFailures, action.provider) ? action.provider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       // Carry only bounded binding metadata while evaluating the terminal evidence gate.
       // The metadata is attached to the durable terminal event only if the gate accepts it.
