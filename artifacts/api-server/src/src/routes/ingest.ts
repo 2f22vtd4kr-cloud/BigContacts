@@ -35,7 +35,7 @@ import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
-  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedupPrefix, getDedupCount,
+  setActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedupPrefix, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
@@ -69,6 +69,60 @@ async function claimIngestionJobOrRespond(type: string, jobId: string, res: Resp
     res.status(503).json({
       error: "Could not claim the ingestion job; no work was started.",
       code: "JOB_CLAIM_UNAVAILABLE",
+    });
+    return false;
+  }
+}
+
+async function ensureIngestionLaneAvailable(type: string, res: Response): Promise<boolean> {
+  try {
+    await enablePermanentRedis();
+    const existingJobId = await getActiveJobStrict(type);
+    if (!existingJobId) return true;
+
+    const existing = await getJobStrict(existingJobId);
+    if (!existing) {
+      res.status(503).json({
+        error: "An ingestion lane lock exists without a readable durable job record; refusing to assume the lane is idle.",
+        code: "JOB_STATE_INCONSISTENT",
+        jobId: existingJobId,
+      });
+      return false;
+    }
+
+    const laneStatus = classifyActiveJobLaneStatus(existing.status);
+    if (laneStatus === "active") {
+      res.status(409).json({ error: "An ingestion job already owns this lane.", jobId: existingJobId, status: existing.status });
+      return false;
+    }
+    if (laneStatus === "unknown") {
+      res.status(503).json({
+        error: "The persisted ingestion job status is unknown; refusing to replace its lane owner.",
+        code: "JOB_STATE_INCONSISTENT",
+        jobId: existingJobId,
+        status: existing.status,
+      });
+      return false;
+    }
+
+    // Recover a terminal lock left by an older process/crash, but only through
+    // the compare-by-ID release. A concurrently claimed new owner is never cleared.
+    const released = await clearActiveJobIfMatches(type, existingJobId);
+    if (!released) {
+      const currentOwner = await getActiveJobStrict(type);
+      if (currentOwner) {
+        res.status(409).json({
+          error: "The ingestion lane changed owner during terminal-lock reconciliation; no new job was started.",
+          jobId: currentOwner,
+        });
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    res.status(503).json({
+      error: "Ingestion lane state is unavailable; refusing to start a job without confirming ownership.",
+      code: "JOB_STATE_UNAVAILABLE",
     });
     return false;
   }
