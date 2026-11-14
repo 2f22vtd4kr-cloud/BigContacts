@@ -2241,7 +2241,10 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   const fixed = [assignment, objective, bossScope, availableActions, output].filter(Boolean);
   const fixedText = fixed.join("\n\n");
   if (fixedText.length > budget) {
-    throw new Error("Investigator objective, active Boss scope, available actions and output contract exceed the safe prompt budget; refusing to drop authoritative mission content.");
+    // The size target is advisory. If authoritative mission/scope/action/schema
+    // sections alone exceed it, preserve the original prompt intact rather than
+    // drop or truncate any of those required instructions.
+    return normalized;
   }
   let remaining = budget - fixedText.length - 160;
   const optional: string[] = [];
