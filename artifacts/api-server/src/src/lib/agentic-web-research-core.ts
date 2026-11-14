@@ -1515,7 +1515,7 @@ async function gatedSafeOutboundFetch(input: RequestInfo | URL, init: RequestIni
   const provider = classifyExternalProvider(rawUrl);
   let account = "operation";
   try { account = new URL(rawUrl).hostname.toLowerCase(); } catch {}
-  return runProviderCall({ provider, account, signal: init.signal ?? undefined, groqRequest: getGroqTokenRequest(input, init) }, () => safeOutboundFetch(input, init));
+  return runProviderCall({ provider, account, signal: init.signal ?? undefined }, () => safeOutboundFetch(input, init));
 }
 
 async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa", locale?: string, market?: string, signal?: AbortSignal): Promise<{ text: string; urls: string[]; provider: string; status: "success" | "empty" | "error"; failureClass?: ProviderFailureClass }> {
@@ -2462,10 +2462,12 @@ async function callGroqJson(
           body: JSON.stringify(requestBody),
           signal,
         };
-        const groqRequest = getGroqTokenRequest(groqRequestUrl, groqRequestInit);
+        // TPM reservation is owned by the installed global-fetch provider gate.
+        // Do not reserve again in runProviderCall: safeOutboundFetch reaches the
+        // same guarded fetch and would otherwise double-charge every request.
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
-            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
+          runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
+            safeOutboundFetch(groqRequestUrl, groqRequestInit),
           ),
         );
 
