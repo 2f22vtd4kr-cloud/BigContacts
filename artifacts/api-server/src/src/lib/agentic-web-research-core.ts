@@ -6,7 +6,7 @@ import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } fro
 import { isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { AgenticDailyTokenBudgetError, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
-import { GROQ_CHAT_MODELS } from "./groq-models";
+import { GROQ_CHAT_MODELS, GROQ_DEFAULT_MODEL } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
@@ -26,7 +26,7 @@ import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, getAvailableRegistryIdsForPrompt, normalizeRegistryId, type RegistryId } from "./registry-client";
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
 import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
-import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
+import { inferResearchCognitiveTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
 import { buildBrowserFetchProviderTelemetry, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable } from "./browser-fetch-core";
@@ -2088,6 +2088,27 @@ export function buildAgenticActionParseFailureRecord(input: {
   };
 }
 
+/**
+ * Route ordinary action selection to the economical model and reserve the
+ * stronger model for contradiction/final adjudication. An explicit model
+ * environment override remains authoritative; the 20B capability is pinned.
+ */
+export function selectGroqInvestigatorModel(input: {
+  capability?: InvestigatorCapability;
+  cognitiveTask: ResearchCognitiveTask;
+  configuredModel?: string | null;
+  routineModel?: string | null;
+  highReasoningModel?: string | null;
+}): string {
+  if (input.capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "openai/gpt-oss-20b";
+  const configured = input.configuredModel?.trim();
+  if (configured) return configured;
+  if (input.cognitiveTask === "contradiction_resolution" || input.cognitiveTask === "final_adjudication") {
+    return input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
+  }
+  return input.routineModel?.trim() || "openai/gpt-oss-20b";
+}
+
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
   const configured = (process.env.GROQ_AGENTIC_REASONING_EFFORT || "").trim().toLowerCase();
   const requested = configured === "low" || configured === "medium" || configured === "high" ? configured : "";
@@ -2448,9 +2469,13 @@ async function callGroqJson(
   // A selected Investigator capability owns one explicit model. Do not silently
   // rotate to another model after provider failure; cross-capability recovery is
   // owned by Boss-directed reassignment, which preserves durable ownership.
-  const routedModels = investigatorCapability === GROQ_INVESTIGATOR_20B_CAPABILITY
-    ? ["openai/gpt-oss-20b"]
-    : rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);
+  const routedModels = [selectGroqInvestigatorModel({
+    capability: investigatorCapability,
+    cognitiveTask,
+    configuredModel: process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null,
+    routineModel: process.env.APEX_GROQ_INVESTIGATOR_ROUTINE_MODEL?.trim() || null,
+    highReasoningModel: GROQ_DEFAULT_MODEL,
+  })];
   for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
