@@ -800,7 +800,8 @@ describe("Right-hand advisory authority", () => {
       compactState: "Durable case state is available.",
       rightHand: { status: "unavailable", decision: null, reason: null, direction: null, confidence: null, model: "none", error: "provider unavailable" },
     });
-    expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
+    expect(prompt).toContain("If status is unavailable, review was attempted but failed");
+    expect(prompt).toContain("make an independent Boss decision");
   });
 });
 
