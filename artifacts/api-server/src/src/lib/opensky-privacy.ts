@@ -1,6 +1,6 @@
 export interface PrivacySafeOpenSkyObservationInput {
   icao24: string | null;
-  onGround: boolean;
+  onGround: boolean | null;
   altitudeMeters: number | null;
   speedMetersPerSecond: number | null;
   observedAt: Date;
@@ -26,7 +26,7 @@ export function buildPrivacySafeOpenSkyObservation(input: PrivacySafeOpenSkyObse
 
   return {
     icao24: input.icao24?.trim().toLowerCase() || null,
-    status: input.onGround ? "on_ground" : "airborne",
+    status: input.onGround == null ? "unknown" : input.onGround ? "on_ground" : "airborne",
     altitudeBandFt: roundToBand(altitudeFeet, 1_000),
     speedBandKnots: roundToBand(speedKnots, 10),
     observedAtHour: observedAt.toISOString(),
