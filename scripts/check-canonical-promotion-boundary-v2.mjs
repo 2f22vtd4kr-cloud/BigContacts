@@ -42,7 +42,7 @@ assert(hasAll(target, [
 assert(hasAll(strict, [
   "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
   "quoteAppearsInObservation(observation.observationText, exactQuote)",
-  "hasBoundIdentityAndValue(exactQuote,personName,cleanValue,vectorType)",
+  "hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)",
   "hasCanonicalPromotionJobBinding(provenance)",
   "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
 ]), "trusted candidate promotion independently requires an exact quoted span in one successful observation, person/value binding within that same quote, and live case/job ownership");
