@@ -2209,12 +2209,16 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
 export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
-  const normalized = typeof prompt === "string" ? prompt.trim() : "";
+  // Preserve the original prompt byte-for-byte when it fits. Trim only section
+  // projections used when actual provider-boundary compaction is necessary.
+  const normalized = typeof prompt === "string" ? prompt : "";
   const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
-  if (fieldsAt < 0 || !requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field))) {
+  const completeSchemaPresent = fieldsAt >= 0
+    && requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field));
+  if (!completeSchemaPresent) {
     throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
   }
   const budget = Math.max(1_800, Math.min(6_000, Math.floor(preferredMaxChars)));
