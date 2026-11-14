@@ -508,7 +508,7 @@ function normalizedDomainResource(value: unknown): string {
 }
 
 /** Stable identity for a concrete, model-selected research request; it does not encode a research itinerary. */
-function researchActionResource(action: string, args: Record<string, unknown>): string | null {
+export function researchActionResource(action: string, args: Record<string, unknown>): string | null {
   const text = (key: string, max = 300) => cleanText(args[key], max);
   const textFromValue = (value: unknown, max = 300) => cleanText(value, max);
   const query = (value: unknown) => normalizeDiscoverySearchQuery(cleanText(value, 300));
@@ -547,7 +547,7 @@ function researchActionResource(action: string, args: Record<string, unknown>): 
     case "domain_lookup":
       return JSON.stringify([action, normalizedDomainResource(args.domain), text("provider", 30).toLowerCase()]);
     case "harvest_domain":
-      return JSON.stringify([action, normalizedDomainResource(args.domain), normalizeHarvesterSourceSelection(args.sources) ?? []]);
+      return JSON.stringify([action, normalizedDomainResource(args.domain), [...(normalizeHarvesterSourceSelection(args.sources) ?? [])].sort()]);
     case "footprint_email":
       return JSON.stringify([action, text("email", 160).toLowerCase()]);
     case "footprint_username_maigret":
