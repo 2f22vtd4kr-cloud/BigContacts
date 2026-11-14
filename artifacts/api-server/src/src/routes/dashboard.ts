@@ -45,7 +45,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   const entities = await db
     .select()
     .from(entitiesTable)
-    .where(and(eq(entitiesTable.type, "HNWI"), eq(entitiesTable.isHidden, false)))
+    .where(and(qualifiedHnwiCondition(), eq(entitiesTable.isHidden, false)))
     .orderBy(reachabilityOrderExpr())
     .limit(Math.max(limit * 10, 100)); // enough candidates for final ranking
 
@@ -712,7 +712,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db
       .select()
       .from(entitiesTable)
-      .where(and(visibleEntity, eq(entitiesTable.type, "HNWI")))
+      .where(and(visibleEntity, qualifiedHnwiCondition()))
       .orderBy(sql`
         CASE ${entitiesTable.contactOutcome}
           WHEN 'direct_contact_verified'   THEN 6
@@ -771,7 +771,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       veryHnw:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 30000000 and 100000000)::int`,
       hnw:      sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 4000000 and 30000000)::int`,
       unknown:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} is null or ${entitiesTable.estimatedNetWorth} < 4000000)::int`,
-    }).from(entitiesTable).where(visibleEntity),
+    }).from(entitiesTable).where(and(visibleEntity, qualifiedHnwiCondition())),
     // L2: break down the "Reachable" metric by outcome type so the dashboard
     // distinguishes personal contacts from organisational/social signals.
     db.select({
