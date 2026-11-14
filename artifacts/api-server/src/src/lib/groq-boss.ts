@@ -339,9 +339,14 @@ async function generateGroqBossTextImpl(
   };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
+  // A process-local TPM reservation is keyed by model, not API-key alias.
+  // Once a model is blocked, do not repeat the same doomed reservation for
+  // another credential slot; try only the remaining same-role model candidates.
+  const locallyTokenBlockedModels = new Set<string>();
 
   for (const entry of ordered) {
     for (const model of candidates) {
+      if (locallyTokenBlockedModels.has(model)) continue;
       if (Date.now() >= deadline) break;
       let transient503Retries = 0;
       let rateLimitRetries = 0;
@@ -577,6 +582,7 @@ async function generateGroqBossTextImpl(
             // model may still be recoverable on the next bounded model of the
             // SAME Boss role; rotating API-key aliases cannot create TPM.
             if (error instanceof ProviderQuotaError && error.provider === "groq" && error.quotaKind === "tokens") {
+              locallyTokenBlockedModels.add(model);
               lastError = `Groq Boss ${model} was blocked by the local shared token-window budget; trying the next bounded Boss model.`;
               break;
             }
