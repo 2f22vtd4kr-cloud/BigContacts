@@ -27,6 +27,7 @@ import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { extractImportDrafts, type ImportDraftEntity } from "../lib/manual-import-extract";
 import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
 import { validateValueBoundContactRevocation } from "../lib/contact-revocation";
+import { qualifiedHnwiCondition } from "../lib/hnwi-qualification";
 
 const router: IRouter = Router();
 
@@ -189,7 +190,8 @@ router.get("/entities", async (req, res): Promise<void> => {
   }
 
   const conditions = [];
-  if (type) conditions.push(eq(entitiesTable.type, type));
+  if (type === "HNWI") conditions.push(qualifiedHnwiCondition());
+  else if (type) conditions.push(eq(entitiesTable.type, type));
   if (minScore !== undefined) conditions.push(gte(entitiesTable.bayesianScore, minScore));
   if (search) conditions.push(ilike(entitiesTable.name, `%${search}%`));
   // Visibility: starred view shows starred regardless of hidden; hidden view shows hidden only;
