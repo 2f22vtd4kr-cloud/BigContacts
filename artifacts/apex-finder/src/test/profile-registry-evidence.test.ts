@@ -54,6 +54,7 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain('if (registrantType === "1") return "PersonCandidate"');
     expect(profileSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
     expect(profileSource).toContain("const displayType = profileDisplayEntityType(entity)");
+    expect(profileSource).toContain('{ key: "type",        label: "Type",         done: !!displayType }');
     expect(profileSource).toContain('displayType === "HNWI"');
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
     expect(profileSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
