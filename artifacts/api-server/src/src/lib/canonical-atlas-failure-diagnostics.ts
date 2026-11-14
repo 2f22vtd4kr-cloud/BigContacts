@@ -100,7 +100,7 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
   const chain: Record<string, unknown>[] = [];
   const seen = new Set<object>();
   let current: unknown = error;
-  for (let depth = 0; depth < 5 && current && typeof current === "object" && !seen.has(current); depth += 1) {
+  for (let depth = 0; depth < 8 && current && typeof current === "object" && !seen.has(current); depth += 1) {
     seen.add(current);
     const record = current as Record<string, unknown>;
     chain.push(record);
@@ -110,10 +110,10 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
   const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name : "unknown";
   const message = error instanceof Error ? error.message : typeof value.message === "string" ? value.message : "";
   const quotaRecord = chain.find((record) => record.name === "ProviderQuotaError");
-  const code = typeof value.code === "string"
-    ? value.code
-    : typeof quotaRecord?.code === "string"
-      ? quotaRecord.code
+  const code = typeof quotaRecord?.code === "string"
+    ? quotaRecord.code
+    : typeof value.code === "string"
+      ? value.code
       : chain.map((record) => record.code).find((candidate): candidate is string => typeof candidate === "string") ?? "";
   const rawStatus = chain.map((record) => record.status ?? record.statusCode)
     .find((candidate) => candidate !== undefined && candidate !== null);
