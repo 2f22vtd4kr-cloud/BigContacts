@@ -196,6 +196,7 @@ describe("FAA MASTER parser and candidate projection", () => {
       expirationDate: "2027/10/31",
       uniqueId: "FAA-001",
       additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+      additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
     });
     expect(asset.category).toBe("Aviation");
     expect(asset.identifier).toBe("N12345");
@@ -210,6 +211,7 @@ describe("FAA MASTER parser and candidate projection", () => {
       personalWealthEvidence: false,
       hnwiQualificationStatus: "unverified",
       additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+      additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
       reviewOnly: true,
     });
     expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("do not establish");
