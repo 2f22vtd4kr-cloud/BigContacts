@@ -707,7 +707,12 @@ describe("provider quota gate", () => {
     });
   });
 
-  it("does not treat JSON-escaped long Right-hand compaction prompts as TPM usage", () => {
+  it("does not treat JSON-escaped long Right-hand compaction prompts as TPM usage", async () => {
+    process.env.APEX_GROQ_TPM_BUDGET = "7000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "60000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
     const repeatedLines = (prefix: string, totalChars: number) => {
       const lines = Array.from({ length: Math.ceil(totalChars / 80) }, (_, index) =>
         prefix + String(index % 10).repeat(79),
@@ -733,6 +738,13 @@ describe("provider quota gate", () => {
     // Escaping newlines in JSON must not inflate that valid request above the
     // 7k local safety budget before the provider can report real usage.
     expect(request?.reservedTokens).toBeLessThanOrEqual(7_000);
+    const body = JSON.stringify({ usage: { prompt_tokens: 4_314, completion_tokens: 330, total_tokens: 4_644 } });
+    const response = await runProviderCall(
+      { provider: "groq", account: "right-hand-compaction-estimate", groqRequest: request },
+      async () => new Response(body, { status: 200 }),
+    );
+    expect(response.status).toBe(200);
+    reconcileGroqTokenResponse(response, body);
   });
 
   it("shares one rolling Groq TPM reservation across roles even when they use different credentials for the same model", async () => {
