@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { displayEntityType, hasPersonalWealthEvidence } from "../lib/utils";
 import { describe, expect, it } from "vitest";
 
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
@@ -6,6 +7,45 @@ const narrativeSource = readFileSync(new URL("../lib/utils.tsx", import.meta.url
 const dataSourcesSource = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 const entitiesSource = readFileSync(new URL("../pages/entities.tsx", import.meta.url), "utf8");
 const taxonomySource = readFileSync(new URL("../lib/entity-taxonomy.tsx", import.meta.url), "utf8");
+
+describe("FAA registrant wealth classification behavior", () => {
+  const faaSource = JSON.stringify(["FAA Releasable Aircraft Database"]);
+
+  it("keeps registry-only individual registrants as review candidates without personal wealth evidence", () => {
+    const entity = { type: "HNWI", sourceRegistries: faaSource, estimatedNetWorth: 5_000_000, metadata: JSON.stringify({ typeRegistrant: "1" }) };
+    expect(displayEntityType(entity)).toBe("PersonCandidate");
+    expect(hasPersonalWealthEvidence(entity)).toBe(false);
+  });
+
+  it("preserves an independently qualified FAA-linked HNWI", () => {
+    for (const metadata of [
+      { typeRegistrant: "1", wealthStatus: "verified" },
+      { typeRegistrant: "1", hnwiQualificationStatus: "qualified" },
+      { typeRegistrant: "1", personalWealthEvidence: true },
+    ]) {
+      const entity = { type: "HNWI", sourceRegistries: faaSource, estimatedNetWorth: 5_000_000, metadata: JSON.stringify(metadata) };
+      expect(displayEntityType(entity)).toBe("HNWI");
+      expect(hasPersonalWealthEvidence(entity)).toBe(true);
+    }
+  });
+
+  it("lets explicit negative evidence override contradictory positive wealth metadata", () => {
+    const entity = {
+      type: "HNWI",
+      sourceRegistries: faaSource,
+      estimatedNetWorth: 5_000_000,
+      metadata: JSON.stringify({ typeRegistrant: "1", personalWealthEvidence: false, wealthStatus: "verified" }),
+    };
+    expect(displayEntityType(entity)).toBe("PersonCandidate");
+    expect(hasPersonalWealthEvidence(entity)).toBe(false);
+  });
+
+  it("does not apply FAA-only downgrading to non-FAA HNWI records", () => {
+    const entity = { type: "HNWI", sourceRegistries: JSON.stringify(["Companies House"]), estimatedNetWorth: 5_000_000, metadata: "{}" };
+    expect(displayEntityType(entity)).toBe("HNWI");
+    expect(hasPersonalWealthEvidence(entity)).toBe(true);
+  });
+});
 
 describe("registry profile evidence semantics", () => {
   it("does not promote FAA registrants or HMLR transaction parties into owners or wealthy people", () => {
