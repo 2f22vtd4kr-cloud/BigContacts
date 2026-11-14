@@ -56,9 +56,9 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("const displayType = profileDisplayEntityType(entity)");
     expect(profileSource).toContain('displayType === "HNWI"');
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
-    expect(profileSource).toContain("sourceRegistries.length === 1");
-    expect(profileSource).toContain('sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry"');
-    expect(profileSource).toContain('entityMetadata.source === "faa-aircraft-registry" ? "FAA Releasable Aircraft Database" : ""');
+    expect(profileSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
+    expect(profileSource).toContain("const lacksIndependentWealthAssessment = metadata.personalWealthEvidence !== true");
+    expect(profileSource).toContain('metadata.typeRegistrant ?? metadata.registrantTypeCode ?? ""');
   });
 
   it("keeps the registry confidence badge from presenting source confidence as proof of wealth", () => {
