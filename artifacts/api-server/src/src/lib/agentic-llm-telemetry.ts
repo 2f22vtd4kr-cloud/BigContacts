@@ -114,7 +114,8 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const prompt = Math.max(0, Math.floor(event.promptTokens ?? 0));
     const cached = Math.max(0, Math.floor(event.cachedPromptTokens ?? 0));
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
-    const totalFallback = event.promptTokens == null && event.totalTokens == null ? (event.estimatedTokens ?? prompt + completion) : (prompt + completion);
+    const estimated = Math.max(0, Math.floor(event.estimatedTokens ?? 0));
+    const totalFallback = event.success && event.providerRequestSent !== false && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
     const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
     const budget = Math.max(0, Math.floor(event.dailyBudgetTokens ?? 0));
     const table = agenticLlmDailyUsageTable;
@@ -129,6 +130,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       cachedPromptTokens: cached,
       completionTokens: completion,
       totalTokens: total,
+      estimatedTokens: estimated,
       reservedTokens: 0,
       dailyBudgetTokens: budget,
       budgetExhausted: event.budgetExhausted === true,
@@ -147,6 +149,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         cachedPromptTokens: sql`${table.cachedPromptTokens} + ${cached}`,
         completionTokens: sql`${table.completionTokens} + ${completion}`,
         totalTokens: sql`${table.totalTokens} + ${total}`,
+        estimatedTokens: sql`${table.estimatedTokens} + ${estimated}`,
         reservedTokens: sql`GREATEST(${table.reservedTokens} - ${reservationTokens}, 0)`,
         dailyBudgetTokens: budget > 0 ? budget : table.dailyBudgetTokens,
         budgetExhausted: sql`${table.budgetExhausted} OR ${event.budgetExhausted === true}`,
