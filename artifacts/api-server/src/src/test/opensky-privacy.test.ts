@@ -15,7 +15,7 @@ describe("privacy-safe latest ADS-B observation", () => {
     expect(observation).toEqual({
       icao24: "abc123",
       status: "airborne",
-      altitudeBandFt: 12_000,
+      altitudeBandFt: 11_000,
       speedBandKnots: 230,
       observedAtHour: "2026-11-14T12:00:00.000Z",
       source: "adsb.lol",
