@@ -390,13 +390,24 @@ function recoverableCompactionModelThrottle(error: string | null): boolean {
     return true;
   });
 
+  const hasLocalTokenWindowThrottle = records.some((record) => {
+    const retryAfterMs = record.retryAfterMs;
+    return record.httpStatus === null
+      && record.rateLimitKind === "tokens"
+      && record.failureClass === "rate_limited"
+      && (record.providerCode === "budget_exhausted" || record.providerCode === "cooldown")
+      && typeof retryAfterMs === "number"
+      && Number.isFinite(retryAfterMs)
+      && retryAfterMs >= 0
+      && retryAfterMs <= 60 * 60 * 1_000;
+  });
   const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
   // Older safe diagnostics may carry only the classifier field plus an
   // explicit short-window message. Structured reset metadata is preferred.
   const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
     && /rate_limit_exceeded/i.test(diagnostic)
     && shortWindowText;
-  return (hasStructuredModelTokenThrottle || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
+  return (hasStructuredModelTokenThrottle || hasLocalTokenWindowThrottle || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
     && !dailyText;
 }
 async function requestRightHandSummary(
