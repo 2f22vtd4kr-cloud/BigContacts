@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { buildPrivacySafeOpenSkyObservation, redactLegacyOpenSkyPositionLog, sanitizeOpenSkyMetadataJson, sanitizeOpenSkyMetadataRecord } from "../lib/opensky-privacy";
 
 const assetsRoute = readFileSync(new URL("../routes/assets.ts", import.meta.url), "utf8");
+const entitiesRoute = readFileSync(new URL("../routes/entities.ts", import.meta.url), "utf8");
 const ingestRoute = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
 const canonicalTarget = readFileSync(new URL("../lib/canonical-seeded-target.ts", import.meta.url), "utf8");
 
@@ -12,6 +13,11 @@ describe("ADS-B privacy boundary wiring", () => {
     expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(body.data.metadata)");
     expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(asset.metadata)");
     expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(row.asset.metadata)");
+  });
+
+  it("sanitizes the legacy entity OpenSky endpoint as well as the generic asset endpoints", () => {
+    expect(entitiesRoute).toContain('import { sanitizeOpenSkyMetadataJson } from "../lib/opensky-privacy";');
+    expect(entitiesRoute).toContain("JSON.parse(sanitizeOpenSkyMetadataJson(a.metadata) ?? \"{}\")");
   });
 
   it("redacts coordinate-bearing legacy job logs before returning them", () => {
