@@ -64,7 +64,7 @@ const groqTokenWindows = new Map<string, GroqTokenWindowState>();
 const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
 const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
-const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 60_000, 0, 120_000);
+const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 10_000, 0, 120_000);
 
 function estimateStructuredPromptChars(value: unknown): number {
   if (typeof value === "string") return value.length;
