@@ -5165,10 +5165,15 @@ export function findUnsupportedDiscoverySectorTerms(
   records: readonly AgenticTrajectoryRecord[],
 ): string[] {
   const queryText = queries.join(" ");
+  const activePivotScopeKey = discoveryPivotScopeKey(objective);
   const authorizedContext = [
     objective,
     ...records
-      .filter((record) => (record.action === "visit" || record.action === "browser_fetch") && record.execution === "success")
+      .filter((record) =>
+        (record.action === "visit" || record.action === "browser_fetch")
+        && record.execution === "success"
+        && (!activePivotScopeKey || record.pivotScopeKey === activePivotScopeKey),
+      )
       .map((record) => typeof record.observation === "string" ? record.observation : ""),
   ].join(" ");
   return DISCOVERY_INDUSTRY_TERMS.filter((term) =>
