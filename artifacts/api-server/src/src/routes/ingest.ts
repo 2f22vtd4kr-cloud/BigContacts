@@ -432,8 +432,7 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   const dedupCount = await getDedupCount();
   const safeJob = job.type === "opensky" ? {
     ...job,
-    message: typeof job.message === "string" ? redactLegacyOpenSkyPositionLog(job.message) : job.message,
-    error: typeof job.error === "string" ? redactLegacyOpenSkyPositionLog(job.error) : job.error,
+    message: redactLegacyOpenSkyPositionLog(job.message),
   } : job;
 
   res.json({ ...safeJob, log: safeLog.slice(0, 20), dedupCount });
