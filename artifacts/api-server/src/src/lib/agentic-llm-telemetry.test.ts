@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
+import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -39,6 +39,24 @@ describe("Investigator LLM telemetry privacy", () => {
       cognitiveTask: "ownership_research",
     });
     expect(line).not.toContain("Alice Example");
+  });
+
+  it("captures provider-reported reasoning tokens without inventing missing usage", () => {
+    expect(readGroqUsageMetrics({
+      prompt_tokens: 3_565,
+      completion_tokens: 509,
+      total_tokens: 4_074,
+      prompt_tokens_details: { cached_tokens: 120 },
+      completion_tokens_details: { reasoning_tokens: 403 },
+    })).toEqual({
+      promptTokens: 3_565,
+      completionTokens: 509,
+      reasoningTokens: 403,
+      totalTokens: 4_074,
+      cachedPromptTokens: 120,
+    });
+    expect(readGroqUsageMetrics({ prompt_tokens: "3565", completion_tokens: -1 })).toEqual({});
+    expect(readGroqUsageMetrics(null)).toEqual({});
   });
 
   it("normalizes only observed Groq token and request quota headers", () => {
