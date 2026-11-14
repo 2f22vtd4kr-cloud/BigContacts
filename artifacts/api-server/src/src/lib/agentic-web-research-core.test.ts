@@ -2849,6 +2849,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryActionAllowlist("target", actions)).toEqual(actions);
   });
 
+  it("lets the global-fetch gate own Groq TPM reservations for nested safe fetches", () => {
+    // safeOutboundFetch ultimately reaches the globally guarded fetch. Passing
+    // groqRequest to runProviderCall as well would reserve the same request twice.
+    expect(agenticCoreSource).not.toContain("groqRequest: getGroqTokenRequest(input, init)");
+    expect(agenticCoreSource).not.toContain("groqRequest }, () =>");
+    expect(agenticCoreSource).toContain("TPM reservation is owned by the installed global-fetch provider gate");
+  });
+
   it("keeps discovery search bounded while allowing mixed-source batches", () => {
     const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS");
     const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {', budgetGuard);
