@@ -10,8 +10,9 @@ import { db, entitiesTable } from "@workspace/db";
 import { enablePermanentRedis } from "../lib/redis";
 import { sql, eq, count } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getJobStrict, getActiveJob, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned,
+  createJob, updateJob, getJob, getJobStrict, getActiveJob, getActiveJobStrict, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, clearActiveJobIfMatches,
 } from "../lib/job-queue";
+import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { entityToEmbedText, embedText, storeEmbedding, getAllEmbeddings, getEmbeddingCacheSize, isModelLoaded } from "../lib/semantic-engine";
 import { logger } from "../lib/logger";
 
@@ -58,12 +59,35 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
   const body = req.body ?? {};
   const batchSize = Math.min(Math.max(Math.trunc(Number(body.batchSize)) || 2000, 1), 50_000);
   const offset = Math.min(Math.max(Math.trunc(Number(body.offset)) || 0, 0), 1_000_000);
-  const force = body.force === true;
-  const existing = await getActiveJob("compute-embeddings");
-  if (existing && !force) { res.status(409).json({ error: "compute-embeddings already running", jobId: existing }); return; }
-  if (existing && force) {
-    await updateJob(existing, { status: "cancelled", message: "Superseded by force restart.", finishedAt: new Date().toISOString() });
-    await clearActiveJobIfOwned("compute-embeddings", existing);
+  const rebuild = body.rebuild === true;
+
+  try {
+    await enablePermanentRedis();
+    const existing = await getActiveJobStrict("compute-embeddings");
+    if (existing) {
+      const existingJob = await getJobStrict(existing);
+      if (!existingJob) {
+        res.status(503).json({ error: "Embedding lane points to a missing job; refusing to clear or replace the lock.", jobId: existing });
+        return;
+      }
+      const laneStatus = classifyActiveJobLaneStatus(existingJob.status);
+      if (laneStatus === "active") {
+        res.status(409).json({ error: "compute-embeddings already has a queued or running job.", jobId: existing, status: existingJob.status });
+        return;
+      }
+      if (laneStatus === "unknown") {
+        res.status(503).json({ error: "Embedding lane job has an unknown status; refusing to replace its lock.", jobId: existing, status: existingJob.status });
+        return;
+      }
+      const released = await clearActiveJobIfMatches("compute-embeddings", existing);
+      if (!released) {
+        res.status(409).json({ error: "Embedding lane ownership changed during terminal-job cleanup; retry after checking job status.", jobId: existing });
+        return;
+      }
+    }
+  } catch (err: any) {
+    res.status(503).json({ error: "Cannot verify the durable compute-embeddings lane.", detail: err?.message ?? "Redis unavailable" });
+    return;
   }
 
   const jobId = await createJob("compute-embeddings");
@@ -74,17 +98,22 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
   } catch (err: any) {
     await clearActiveJobIfOwned("compute-embeddings", jobId).catch(() => false);
     await updateJob(jobId, { status: "failed", message: err?.message ?? "Could not claim embedding job" });
-    res.status(503).json({ error: "Could not claim compute-embeddings job." });
+    let competingJob: string | null = null;
+    try { competingJob = await getActiveJobStrict("compute-embeddings"); } catch { /* report unavailable below */ }
+    res.status(competingJob ? 409 : 503).json({
+      error: competingJob ? "Another compute-embeddings job owns the lane." : "Could not claim the durable compute-embeddings lane.",
+      jobId: competingJob ?? undefined,
+    });
     return;
   }
-  res.status(202).json({ jobId, message: "Semantic embedding computation started." });
+  res.status(202).json({ jobId, message: rebuild ? "Semantic embedding rebuild started." : "Semantic embedding computation started." });
 
   void (async () => {
     try {
       const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, notes: entitiesTable.notes, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata }).from(entitiesTable).offset(offset).limit(batchSize);
       const existingCache = getAllEmbeddings();
-      const toEmbed = force ? rows : rows.filter((e) => !existingCache.has(e.id));
-      await updateJob(jobId, { status: "running", total: toEmbed.length, progress: 0, message: `Embedding ${toEmbed.length} entities (${rows.length - toEmbed.length} already cached)…` });
+      const toEmbed = rebuild ? rows : rows.filter((e) => !existingCache.has(e.id));
+      await updateJob(jobId, { status: "running", total: toEmbed.length, progress: 0, message: `${rebuild ? "Rebuilding" : "Embedding"} ${toEmbed.length} entities (${rows.length - toEmbed.length} already cached)…` });
       let processed = 0; let skipped = 0;
       const CHUNK = 10;
       for (let i = 0; i < toEmbed.length; i += CHUNK) {
@@ -109,13 +138,30 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
 });
 
 router.delete("/ingest/compute-embeddings-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("compute-embeddings");
-  if (!jobId) { res.json({ cleared: false, message: "No active compute-embeddings lock." }); return; }
-  await updateJob(jobId, { status: "cancelled", message: "Cancelled by operator.", finishedAt: new Date().toISOString() });
-  const cleared = await clearActiveJobIfOwned("compute-embeddings", jobId);
-  res.json({ cleared, jobId, message: cleared ? "compute-embeddings job cancelled." : "Ownership changed; job was not cleared." });
+  try {
+    await enablePermanentRedis();
+    const jobId = await getActiveJobStrict("compute-embeddings");
+    if (!jobId) { res.json({ cleared: false, message: "No active compute-embeddings lock." }); return; }
+    const job = await getJobStrict(jobId);
+    if (!job) {
+      res.status(503).json({ cleared: false, jobId, error: "Active embedding lane points to a missing job; refusing to clear it." });
+      return;
+    }
+    const laneStatus = classifyActiveJobLaneStatus(job.status);
+    if (laneStatus === "active") {
+      res.status(409).json({ cleared: false, jobId, status: job.status, error: "The embedding job is still queued or running. This endpoint releases terminal locks only; it does not cancel active work." });
+      return;
+    }
+    if (laneStatus === "unknown") {
+      res.status(503).json({ cleared: false, jobId, status: job.status, error: "Embedding job status is unknown; refusing to clear its lock." });
+      return;
+    }
+    const cleared = await clearActiveJobIfMatches("compute-embeddings", jobId);
+    res.json({ cleared, jobId, message: cleared ? "Released terminal compute-embeddings lock." : "Ownership changed; lock was not cleared." });
+  } catch (err: any) {
+    res.status(503).json({ cleared: false, error: "Cannot verify the durable compute-embeddings lane.", detail: err?.message ?? "Redis unavailable" });
+  }
 });
-
 router.get("/ingest/semantic-engine-status", async (_req: Request, res: Response): Promise<void> => {
   res.json({ cacheSize: getEmbeddingCacheSize(), modelLoaded: isModelLoaded(), semanticActive: getEmbeddingCacheSize() >= 100 });
 });
