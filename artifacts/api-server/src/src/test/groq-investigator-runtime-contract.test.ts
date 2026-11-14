@@ -287,8 +287,9 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
-    expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
-    expect(submitted).toContain("Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
+    expect(submitted).toContain("AUTONOMY: No fixed source itinerary, registry-first rule, query sequence or forced provider.");
+    expect(submitted).toContain("SEMANTIC AUTHORITY: Investigator decides relevance, identity, ownership, relationships, contact attribution, evidence meaning, wealth/materiality and lead priority.");
+    expect(submitted).toContain("Sector, geography, language and source class are signals to reason about, never deterministic rejection rules.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
     expect(submitted).toContain("url may be null when unused");
