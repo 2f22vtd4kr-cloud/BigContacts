@@ -106,9 +106,16 @@ const CAT_COLORS: Record<string, string> = {
 
 function hasPersonalWealthEvidence(entity: any): boolean {
   if (entity?.estimatedNetWorth == null) return false;
+  let metadata: Record<string, any> = {};
   try {
-    const metadata = JSON.parse(entity.metadata ?? "{}");
-    if (metadata?.personalWealthEvidence === false || metadata?.wealthStatus === "not_assessed") return false;
+    const parsed = JSON.parse(entity.metadata ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch {}
+  if (metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed") return false;
+  if (metadata.source === "faa-aircraft-registry") return false;
+  try {
+    const sourceRegistries = JSON.parse(entity.sourceRegistries ?? "[]");
+    if (Array.isArray(sourceRegistries) && sourceRegistries.some((source: unknown) => typeof source === "string" && /FAA Releasable Aircraft Database/i.test(source))) return false;
   } catch {}
   return true;
 }
