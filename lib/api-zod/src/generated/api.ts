@@ -253,6 +253,7 @@ export const CreateAssetResponse = zod.object({
   "description": zod.string().nullish(),
   "lastActivityDate": zod.string().nullish(),
   "sourceRegistry": zod.string().nullish(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "createdAt": zod.string()
@@ -275,6 +276,7 @@ export const GetAssetResponse = zod.object({
   "description": zod.string().nullish(),
   "lastActivityDate": zod.string().nullish(),
   "sourceRegistry": zod.string().nullish(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "createdAt": zod.string()
@@ -311,6 +313,7 @@ export const UpdateAssetResponse = zod.object({
   "description": zod.string().nullish(),
   "lastActivityDate": zod.string().nullish(),
   "sourceRegistry": zod.string().nullish(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "createdAt": zod.string()
