@@ -585,17 +585,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("omissions are unknown, not negative evidence");
   });
 
-  it("routes routine Investigator actions to 20B and adjudication to 120B", () => {
-    expect(selectGroqInvestigatorModel({ cognitiveTask: "discovery" })).toBe("openai/gpt-oss-20b");
-    expect(selectGroqInvestigatorModel({ cognitiveTask: "identity_resolution" })).toBe("openai/gpt-oss-20b");
-    expect(selectGroqInvestigatorModel({ cognitiveTask: "contact_extraction" })).toBe("openai/gpt-oss-20b");
-    expect(selectGroqInvestigatorModel({ cognitiveTask: "contradiction_resolution" })).toBe("openai/gpt-oss-120b");
-    expect(selectGroqInvestigatorModel({ cognitiveTask: "final_adjudication" })).toBe("openai/gpt-oss-120b");
+  it("routes by the Boss-selected capability without silently rotating models", () => {
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-20b" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");
     expect(selectGroqInvestigatorModel({
-      cognitiveTask: "discovery", configuredModel: "custom/explicit-model",
+      capability: "groq-investigator-1", configuredModel: "custom/explicit-model",
     })).toBe("custom/explicit-model");
     expect(selectGroqInvestigatorModel({
-      capability: "groq-investigator-20b", cognitiveTask: "final_adjudication",
+      capability: "groq-investigator-20b", configuredModel: "custom/explicit-model",
     })).toBe("openai/gpt-oss-20b");
   });
 
