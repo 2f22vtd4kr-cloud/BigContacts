@@ -14,7 +14,7 @@ import { getGroqTokenRequest } from "./provider-gate";
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 describe("recent observation compaction recovery", () => {
@@ -3737,6 +3737,11 @@ Choose each next action yourself from the available capabilities and observed ev
     }
     expect(buildActionParseFailureObservation("invalid_action_arguments action=registry_search missing=registry"))
       .toContain("Use the exact ID from the configured choices; do not substitute labels or omit registry");
+  });
+
+  it("passes the selected theHarvester sources through the Investigator execution path", () => {
+    expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
+    expect(agenticCoreSource).toContain("sources: action.sources");
   });
 
   it("lets an attested Investigator choose an explicit theHarvester source subset", () => {
