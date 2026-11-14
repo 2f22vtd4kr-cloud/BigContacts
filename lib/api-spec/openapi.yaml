@@ -1251,6 +1251,7 @@ components:
         description: { type: ["string", "null"] }
         lastActivityDate: { type: ["string", "null"] }
         sourceRegistry: { type: ["string", "null"] }
+        metadata: { type: ["string", "null"] }
         ownerEntityId: { type: ["integer", "null"] }
         ownerName: { type: ["string", "null"] }
         createdAt: { type: string }
@@ -1269,6 +1270,7 @@ components:
         description: { type: string }
         lastActivityDate: { type: string }
         sourceRegistry: { type: string }
+        metadata: { type: ["string", "null"] }
         ownerEntityId: { type: integer }
 
     AssetUpdate:
@@ -1284,6 +1286,7 @@ components:
         description: { type: string }
         lastActivityDate: { type: string }
         sourceRegistry: { type: string }
+        metadata: { type: ["string", "null"] }
         ownerEntityId: { type: integer }
 
     # ── RELATIONSHIP ──────────────────────────────────────────────────────────

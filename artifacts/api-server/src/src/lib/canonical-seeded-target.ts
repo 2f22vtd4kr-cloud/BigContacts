@@ -23,6 +23,52 @@ function parseObject(raw: string | null | undefined): Record<string, unknown> {
   }
 }
 
+function parseRegistryNames(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((value): value is string => typeof value === "string");
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Resolve the same evidence-safe type used in the persisted seeded-target binding. */
+export function resolveCanonicalSeededTargetEntityType(input: {
+  entityType: string;
+  sourceRegistries?: string | null;
+  metadata?: string | null;
+}): string {
+  return resolveSeededTargetEntityType(
+    input.entityType,
+    input.sourceRegistries ?? null,
+    parseObject(input.metadata),
+  ).entityType;
+}
+
+function resolveSeededTargetEntityType(
+  entityType: string,
+  sourceRegistries: unknown,
+  metadata: Record<string, unknown>,
+): { entityType: string; reclassifiedFromFaaRegistrant: boolean } {
+  if (entityType !== "HNWI") return { entityType, reclassifiedFromFaaRegistrant: false };
+  const registryNames = parseRegistryNames(sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registryNames.some((name) => /FAA Releasable Aircraft Database/i.test(name));
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) {
+    return { entityType, reclassifiedFromFaaRegistrant: false };
+  }
+  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
+  if (registrantType === "1") return { entityType: "PersonCandidate", reclassifiedFromFaaRegistrant: true };
+  if (["2", "3", "7", "8"].includes(registrantType)) return { entityType: "Corporation", reclassifiedFromFaaRegistrant: true };
+  return { entityType: "Other", reclassifiedFromFaaRegistrant: true };
+}
+
 const SOURCE_FIELDS = [
   "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId", "sourceName", "sourceSnapshotId", "organizationNumber", "companyRegistryId",
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
@@ -32,6 +78,23 @@ const SOURCE_FIELDS = [
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
 ] as const;
+
+export type CanonicalSeededTargetBinding = Record<string, unknown> & {
+  entityId: number;
+  entityName: string;
+  entityType: string;
+  targetKind: string;
+  sourceMetadata: Record<string, unknown>;
+  linkedAssets: Array<{
+    assetId: number;
+    category: string | null;
+    identifier: string | null;
+    sourceRegistry: string | null;
+    associationType: "REGISTERED_TO";
+    associationSemantics: string;
+    sourceMetadata: Record<string, unknown>;
+  }>;
+};
 
 /** Keep the source binding and exact evidence references; do not copy unrelated personal metadata. */
 export function buildCanonicalSeededTargetBinding(input: {
@@ -56,7 +119,14 @@ export function buildCanonicalSeededTargetBinding(input: {
     confidence: number | null;
     observedAt: Date | string | null;
   }>;
-}): Record<string, unknown> {
+  linkedAssets?: Array<{
+    id: number;
+    category: string | null;
+    identifier: string | null;
+    sourceRegistry: string | null;
+    metadata: string | null;
+  }>;
+}): CanonicalSeededTargetBinding {
   const metadata = parseObject(input.metadata);
   const sourceMetadata: Record<string, unknown> = {};
   for (const field of SOURCE_FIELDS) {
@@ -87,7 +157,64 @@ export function buildCanonicalSeededTargetBinding(input: {
       };
     }
   }
-  const targetKind = classifyCanonicalSeededTargetType(input.entityType);
+  const linkedAssets = (input.linkedAssets ?? []).map((asset) => {
+    const assetMetadata = parseObject(asset.metadata);
+    const assetSourceMetadata: Record<string, unknown> = {};
+    const isFaaAircraftRecord = assetMetadata.source === "faa-aircraft-registry"
+      || assetMetadata.sourceName === "FAA Releasable Aircraft Database"
+      || asset.sourceRegistry === "FAA Releasable Aircraft Database";
+    const assetSourceFields = [
+      "source", "sourceName", "sourceDomain", "sourceClass", "sourceContributor", "sourceMechanism",
+      "verificationLevel", "independentCorroborationStatus", "sourceUrl", "sourceRecordId",
+      "sourceObservedAt", "observedAt", "lastActivityDate", "registrantTypeCode", "registrantTypeLabel",
+      "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
+      "fractionalOwnershipStatus", "registrationStatus", "wealthStatus", "hnwiQualificationStatus",
+      "personalWealthEvidence", "additionalRegistrantNamesRaw", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
+    ] as const;
+    for (const field of assetSourceFields) {
+      if ((field === "additionalRegistrantNamesRaw" || field === "additionalRegistrantNames" || field === "additionalRegistrantNamesFieldSemantics") && !isFaaAircraftRecord) continue;
+      const value = assetMetadata[field];
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+        || (Array.isArray(value) && value.every((item) => typeof item === "string" || typeof item === "number"))) {
+        assetSourceMetadata[field] = value;
+      }
+    }
+    const rawAssetSignal = assetMetadata.assetSignal;
+    if (rawAssetSignal && typeof rawAssetSignal === "object" && !Array.isArray(rawAssetSignal)) {
+      const signal = rawAssetSignal as Record<string, unknown>;
+      if (signal.kind === "aircraft_registry_observation"
+        && ["observed_asset_lead", "material_asset_lead", "strong_asset_lead"].includes(String(signal.strength))
+        && signal.personalWealthEvidence === false) {
+        assetSourceMetadata.assetSignal = {
+          kind: signal.kind,
+          strength: signal.strength,
+          personalWealthEvidence: false,
+        };
+      }
+    }
+    return {
+      assetId: asset.id,
+      category: asset.category,
+      identifier: asset.identifier,
+      sourceRegistry: asset.sourceRegistry,
+      associationType: "REGISTERED_TO" as const,
+      associationSemantics: "A registry registration association is not proof of beneficial ownership, exclusive ownership, control or personal wealth.",
+      sourceMetadata: assetSourceMetadata,
+    };
+  });
+  const resolvedTargetType = resolveSeededTargetEntityType(input.entityType, registries, metadata);
+  if (resolvedTargetType.reclassifiedFromFaaRegistrant) {
+    sourceMetadata.personalWealthEvidence = false;
+    sourceMetadata.wealthStatus = "not_assessed";
+    sourceMetadata.beneficialOwnershipStatus = "unresolved";
+    sourceMetadata.hnwiQualificationStatus = resolvedTargetType.entityType === "PersonCandidate" ? "unverified" : "not_applicable";
+    sourceMetadata.identityStatus = resolvedTargetType.entityType === "PersonCandidate"
+      ? "registry_person_candidate"
+      : resolvedTargetType.entityType === "Corporation" ? "legal_entity_candidate" : "registrant_type_unresolved";
+    sourceMetadata.reviewOnly = true;
+    sourceMetadata.legacyFaaHnwiDowngradeApplied = true;
+  }
+  const targetKind = classifyCanonicalSeededTargetType(resolvedTargetType.entityType);
   if (targetKind === "organization" && input.contactOutcome === "organization_contact"
     && (input.email || input.phone)) {
     sourceMetadata.organizationContact = {
@@ -115,11 +242,12 @@ export function buildCanonicalSeededTargetBinding(input: {
   return {
     entityId: input.entityId,
     entityName: input.entityName,
-    entityType: input.entityType,
+    entityType: resolvedTargetType.entityType,
     targetKind,
     sourceRegistries: registries,
     sourceMetadata,
     sourceNotes: input.notes ?? null,
+    linkedAssets,
     evidence: (input.evidence ?? []).map((item) => ({
       evidenceId: item.id,
       claimType: item.claimType,

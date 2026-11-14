@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries } from "@/lib/utils";
+import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
@@ -19,7 +19,7 @@ import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate";
+type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate" | "Other";
 
 interface AddEntityForm {
   name: string;
@@ -36,7 +36,7 @@ interface AddEntityForm {
 
 interface RegistryResult {
   name: string;
-  type: "Corporation" | "HNWI" | "Gatekeeper" | "Trust" | "PersonCandidate";
+  type: "Corporation" | "HNWI" | "Gatekeeper" | "Trust" | "PersonCandidate" | "Other";
   nationality?: string;
   knownResidences?: string;
   sourceRegistries?: string;
@@ -284,13 +284,17 @@ function MobileEntityCard({
   onToggleHide: (entity: any) => void;
   onDelete: (id: number) => void;
 }) {
-  const typeColor = entityMeta(entity.type).color;
+  const displayType = displayEntityType(entity);
+  const typeColor = entityMeta(displayType).color;
   const registries = parseEntityRegistries(entity.sourceRegistries);
   const workSummary = entityWorkSummary(entity);
   const findingsSummary = entityFindingsSummary(entity);
-  const organizationLike = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+  const organizationLike = displayType === "Corporation" || displayType === "Corp" || displayType === "Trust";
+  const unclassified = displayType === "Other";
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle || (Array.isArray(entity.contacts) && entity.contacts.length > 0));
-  const contactState = organizationLike
+  const contactState = unclassified
+    ? "Review only"
+    : organizationLike
     ? entity.contactOutcome === "organization_contact"
       ? "Organization route"
       : hasPublicVector
@@ -356,9 +360,13 @@ function MobileEntityCard({
               className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-mono font-bold"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
-              <EntityTypeMark type={entity.type} compact />
+              <EntityTypeMark type={displayType} compact />
             </span>
-            {organizationLike ? (
+            {unclassified ? (
+              <span className="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[11px] font-mono uppercase tracking-wide text-muted-foreground" title="Entity type is unresolved; do not infer personal identity or wealth">
+                Review only
+              </span>
+            ) : organizationLike ? (
               <span
                 className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-wide",
@@ -400,8 +408,8 @@ function MobileEntityCard({
               <div className="text-xs"><NationalityCell nationality={entity.nationality} /></div>
             </div>
             <div>
-              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
-              <div className="text-xs text-foreground font-mono">{entity.type === "HNWI" && entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity)}</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(displayType).metricLabel}</div>
+              <div className="text-xs text-foreground font-mono">{displayType === "HNWI" && hasPersonalWealthEvidence(entity) ? formatCurrency(entity.estimatedNetWorth) : entityMetric({ ...entity, type: displayType })}</div>
             </div>
           </div>
           
@@ -1003,7 +1011,7 @@ export default function EntityLedger() {
     catch { regsStr = r.sourceRegistries ?? ""; }
     openAddModal({
       name: r.name,
-      type: r.type === "Corporation" || r.type === "Corp" ? "Corporation" : r.type === "Trust" ? "Trust" : r.type === "Gatekeeper" ? "Gatekeeper" : r.type === "PersonCandidate" ? "PersonCandidate" : "HNWI",
+      type: r.type === "Corporation" || r.type === "Corp" ? "Corporation" : r.type === "Trust" ? "Trust" : r.type === "Gatekeeper" ? "Gatekeeper" : r.type === "PersonCandidate" ? "PersonCandidate" : r.type === "HNWI" ? "HNWI" : "Other",
       nationality: r.nationality ?? "",
       knownResidences: r.knownResidences ?? "",
       notes: r.notes ?? "",
@@ -1475,7 +1483,10 @@ export default function EntityLedger() {
             </thead>
             <tbody className="divide-y divide-border/50">
               {displayEntities?.map((entity: any) => {
-                const typeColor = entityMeta(entity.type).color;
+                const displayType = displayEntityType(entity);
+                const typeColor = entityMeta(displayType).color;
+                const organizationLike = displayType === "Corporation" || displayType === "Corp" || displayType === "Trust";
+                const unclassified = displayType === "Other";
                 const isSelected = selectedIds.has(entity.id);
                 return (
                   <tr key={entity.id} className={cn(
@@ -1530,12 +1541,14 @@ export default function EntityLedger() {
                         className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1.5 w-max whitespace-nowrap"
                         style={{ color: typeColor, backgroundColor: typeColor + "18" }}
                       >
-                        <EntityTypeMark type={entity.type} compact />
+                        <EntityTypeMark type={displayType} compact />
                       </span>
                     </td>
                     <td className="px-4 py-3"><NationalityCell nationality={entity.nationality} /></td>
                     <td className="px-4 py-3">
-                      {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
+                      {unclassified ? (
+                        <span className="text-[11px] font-mono uppercase tracking-wide px-1.5 py-1 rounded border border-border text-muted-foreground whitespace-nowrap" title="Entity type is unresolved; do not infer personal identity or wealth">Review only</span>
+                      ) : organizationLike ? (
                         <span
                           className="text-[11px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10 whitespace-nowrap"
                           title="Organization evidence — this is not a personal contact confidence score"
@@ -1546,7 +1559,7 @@ export default function EntityLedger() {
                         <ConfidenceBadge score={entity.contactConfidence} />
                       )}
                     </td>
-                    <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
+                    <td className="px-4 py-3">{!unclassified && <AccessScoreBadge score={entity.accessScore} />}</td>
                     <td className="px-4 py-3 text-xs max-w-[240px]">
                       <div className="flex flex-col gap-1">
                         {(() => {
@@ -1570,9 +1583,9 @@ export default function EntityLedger() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
-                      {entity.type === "HNWI" && entity.estimatedNetWorth != null
+                      {displayType === "HNWI" && hasPersonalWealthEvidence(entity)
                         ? formatCurrency(entity.estimatedNetWorth)
-                        : entityMetric(entity)}
+                        : entityMetric({ ...entity, type: displayType })}
                     </td>
                     <td className="px-4 py-3 pr-6 sm:pr-8 text-right">
                       <div className="flex items-center justify-end gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -1954,6 +1967,7 @@ export default function EntityLedger() {
                 <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
                   className="w-full bg-background border border-[#9CFF1A]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
                   <option value="HNWI">HNWI — High Net Worth Individual</option>
+                  <option value="Other">Other — Unresolved registrant</option>
                   <option value="Corporation">Corporation — Company / Shell</option>
                   <option value="Trust">Trust — Offshore / Fiduciary</option>
                   <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>

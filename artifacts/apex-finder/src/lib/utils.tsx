@@ -25,14 +25,14 @@ export function formatCurrency(value: number | null | undefined) {
 }
 
 export function ScoreBadge({ score }: { score: number | null | undefined }) {
-  // Registry confidence score — how many independent public registries confirm this person
+  // Source confidence — how many independent public registries support the recorded identity and claims
   if (score == null) return null;
   const colorClasses = getScoreColor(score);
   const pct = Math.round(score * 100);
   const label = pct >= 70 ? "Multi-registry" : pct >= 40 ? "Single-registry" : "Unverified";
   return (
     <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`}
-         title={`Registry confidence ${pct}/100 — strength of public registry verification. Higher means more independent sources confirm this person's wealth profile.`}>
+         title={`Source confidence ${pct}/100 — strength of independent public registry support for the recorded identity and claims. It does not prove beneficial ownership or personal wealth.`}>
       <span className="font-bold tabular-nums">{pct}</span>
       <span className="opacity-50 text-[11px] uppercase tracking-wide leading-none">{label}</span>
     </div>
@@ -227,6 +227,7 @@ type EntityNarrative = {
   estimatedNetWorth?: number | null;
   name?: string | null;
   sourceRegistries?: string | string[] | null;
+  metadata?: string | null;
   signal?: string | null;
   assetCount?: number | null;
   assetCategories?: string[] | null;
@@ -250,6 +251,47 @@ export function parseEntityRegistries(value: EntityNarrative["sourceRegistries"]
     return value.split(",").map((item) => item.trim()).filter(Boolean);
   }
   return [];
+}
+
+function parseEntityMetadata(entity: any): Record<string, any> {
+  try {
+    const parsed = typeof entity?.metadata === "string" ? JSON.parse(entity.metadata) : entity?.metadata;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function hasPersonalWealthEvidence(entity: any): boolean {
+  if (entity?.estimatedNetWorth == null) return false;
+  const metadata = parseEntityMetadata(entity);
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  if (explicitlyNotWealthEvidence) return false;
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (explicitlyQualified) return true;
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  return !hasFaaSource || metadata.personalWealthEvidence === true;
+}
+
+export function displayEntityType(entity: any): string {
+  if (entity?.type !== "HNWI") return entity?.type ?? "Other";
+  const metadata = parseEntityMetadata(entity);
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) return "HNWI";
+  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
+  if (registrantType === "1") return "PersonCandidate";
+  if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
+  return "Other";
 }
 
 function noteField(notes: string | null | undefined, field: string): string | null {
@@ -289,10 +331,10 @@ export function entityWorkSummary(entity: EntityNarrative): string | null {
 
   const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
   if (categories.includes("aviation") || categories.some((c) => c.includes("aircraft"))) {
-    return "Private aircraft on the public register — not a hobby fleet for most people.";
+    return "Aircraft registration records are linked to this profile; the registrant is not necessarily the beneficial owner.";
   }
   if (categories.some((c) => c.includes("real estate") || c.includes("property"))) {
-    return "High-value property sits under their name in public land records.";
+    return "Public property sale or registry records are linked to this profile; current title and beneficial ownership require independent verification.";
   }
   if (categories.length > 0) return `Public records point at ${categories.slice(0, 3).join(", ")}.`;
 
@@ -335,8 +377,8 @@ export function entityFindingsSummary(entity: EntityNarrative): string {
     const cat = categories.slice(0, 2).join(" and ");
     bits.push(
       entity.assetCount === 1
-        ? `one public asset on file${cat ? ` (${cat})` : ""}`
-        : `${entity.assetCount} public assets on file${cat ? ` (${cat})` : ""}`,
+        ? `one public asset or transaction record on file${cat ? ` (${cat})` : ""}`
+        : `${entity.assetCount} public asset or transaction records on file${cat ? ` (${cat})` : ""}`,
     );
   }
   if (entity.personalWebsite) bits.push("a personal site is on the record");
@@ -354,49 +396,68 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
   const company = companyFromNotes(entity.notes);
   const filing = filingLabel(entity.notes);
   const worth = entity.estimatedNetWorth;
+  let metadata: Record<string, any> = {};
+  try {
+    const parsed = entity.metadata ? JSON.parse(entity.metadata) : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch {}
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registry.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  const sourceDisclaimsPersonalWealth = explicitlyNotWealthEvidence
+    || hasFaaSource && !explicitlyQualified;
 
-  if (/faa/i.test(reg) || categories.some((c) => c.includes("aviation") || c.includes("aircraft"))) {
+  if (/faa/i.test(reg) || (!reg && hasFaaSource)) {
     const n = entity.assetCount ?? 0;
-    return n > 1
-      ? `${name} lands here because the FAA list shows ${n} aircraft under their name. Jets are not a lifestyle flex we invent — they are public, expensive, and hard to fake.`
-      : `${name} lands here because the FAA register shows aircraft ownership. That is public, costly to run, and a clean wealth signal.`;
+    return explicitlyQualified && !explicitlyNotWealthEvidence
+      ? `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is a separate asset lead and does not establish the independently assessed wealth qualification.`
+      : `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is an asset-linked review lead, not proof of personal wealth or HNWI status.`;
   }
   if (/edgar|sec/i.test(reg)) {
     if (company) {
-      return `${name} is on the list because SEC filings put them next to ${company} as an owner or senior name. Public markets leave a paper trail.`;
+      return `${name} appears in SEC filings associated with ${company}. Verify the filing type, reported role or position, percentage, date and amendments before drawing ownership or wealth conclusions.`;
     }
-    return `${name} is on the list because SEC EDGAR names them in ownership or board filings. That is the open record, not a rumour.`;
+    return `${name} appears in SEC EDGAR ownership or governance filings. The exact filing, role, reported position and date must be reviewed before qualification.`;
+  }
+  if (/ppd|price.?paid/i.test(reg)) {
+    return `${name} is associated with UK HM Land Registry Price Paid Data sale transaction records. A transaction is not proof of current title, continuing ownership or personal wealth; verify title independently.`;
+  }
+  if (/ocod|overseas companies/i.test(reg)) {
+    return `${name} is associated with an Overseas Companies Ownership of UK Property register entry. This is a company-level property record; it does not by itself establish an individual's beneficial ownership or personal wealth.`;
   }
   if (/land.?reg|hmlr/i.test(reg) || categories.some((c) => c.includes("real estate") || c.includes("property"))) {
-    return `${name} is here because UK land records show high-value property in their name. Property of that class is a durable wealth marker.`;
+    return `${name} is associated with a UK Land Registry property record. Confirm the exact dataset, current title and beneficial-ownership scope before drawing ownership or personal-wealth conclusions.`;
   }
   if (/companies.?house/i.test(reg)) {
     return company
-      ? `${name} shows up as a director or controller around ${company} at Companies House. That is how the UK keeps score on who runs the shop.`
-      : `${name} shows up in Companies House as a director or person with significant control. Official register, not a magazine list.`;
+      ? `${name} appears in a Companies House record associated with ${company}. A director appointment alone does not establish share ownership or personal wealth; verify any PSC filing and its date.`
+      : `${name} appears in Companies House in a recorded company role. Verify whether the cited record is a director appointment or a person-with-significant-control filing before drawing ownership conclusions.`;
   }
   if (/brreg|norway/i.test(reg)) {
-    return `${name} is listed as a director or key officer in Norway's BRREG. We use that plus company scale as the wealth filter.`;
+    return `${name} appears in Norway's BRREG in the role recorded on the source record. Company scale is organization-level context and does not establish this individual's personal wealth or ownership.`;
   }
   if (filing && company) {
     return `${name} is on the desk because a public ${filing} links them to ${company}. Role plus public paper is enough to open a card.`;
   }
-  if (worth != null && worth > 0) {
-    return `${name} carries an estimated wealth signal on file. Treat the number as a lead, not a verdict — the registries and assets are the real story.`;
+  if (worth != null && worth > 0 && !sourceDisclaimsPersonalWealth) {
+    return `${name} has an estimated wealth figure on file. Treat it as an unverified lead until the methodology, date, subject and independent sources are checked.`;
   }
   if (company) {
-    return `${name} is tied to ${company} in public records. That business link is why the card exists.`;
+    return `${name} is tied to ${company} in public records. The business link is a research lead, not proof of personal wealth or ownership.`;
   }
   if (reg) {
-    return `${name} appears in ${reg}, a public register we watch for people with serious assets or control.`;
+    return `${name} appears in ${reg}. This source label is a lead only; role, ownership, objective relevance and personal-wealth qualification require separate evidence.`;
   }
   return `${name} is on a research card. The public case for wealth and role is still being filled in.`;
 }
 
 const INVOLVEMENT_LABELS: Array<[RegExp, string]> = [
   [/edgar|sec/i, "public-company ownership or governance"],
-  [/faa|aviation|aircraft/i, "private aviation"],
-  [/land.?reg|hmlr|property|real.?estate/i, "high-value property"],
+  [/faa|aviation|aircraft/i, "aircraft registration records"],
+  [/land.?reg|hmlr|property|real.?estate/i, "property sale or registry records"],
   [/companies.?house|house.?uk/i, "UK company directorships"],
   [/brreg|norway/i, "Norwegian company directorships"],
   [/bodacc|france/i, "French corporate filings"],

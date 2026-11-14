@@ -12,7 +12,7 @@
  * GET  /ingest/status            — overall ingestion status
  * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
  * POST /ingest/land-registry     — UK HMLR OCOD property ingestion
- * POST /ingest/opensky           — live ADS-B enricher (adsb.lol + OpenSky fallback)
+ * POST /ingest/opensky           — coarse latest ADS-B status only (no positions/history)
  *
  * Sub-routers mounted below:
  *   ingest-migrations  — sync/backfill routes (sync-faa-coordinates, reclassify, etc.)
@@ -31,6 +31,7 @@ import {
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX, resolveRegistryRuntimeMode, resolveRegistryRuntimeNote } from "../lib/registry-matrix";
 import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
+import { redactLegacyOpenSkyPositionLog } from "../lib/opensky-privacy";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
@@ -465,9 +466,14 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   if (!job) { res.status(404).json({ error: "Job not found." }); return; }
 
   const log = await getJobLog(jobId);
+  const safeLog = job.type === "opensky" ? log.map(redactLegacyOpenSkyPositionLog) : log;
   const dedupCount = await getDedupCount();
+  const safeJob = job.type === "opensky" ? {
+    ...job,
+    message: redactLegacyOpenSkyPositionLog(job.message),
+  } : job;
 
-  res.json({ ...job, log: log.slice(0, 20), dedupCount });
+  res.json({ ...safeJob, log: safeLog.slice(0, 20), dedupCount });
 });
 
 // ── GET /ingest/status ────────────────────────────────────────────────────────

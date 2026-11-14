@@ -1,5 +1,5 @@
 /**
- * Live ADS-B — Private Jet Tracking Enricher
+ * Live ADS-B — Privacy-Safe Aircraft Status Enricher
  *
  * Fetches the live aircraft state vectors from the OpenSky Network REST API
  * and matches them against aviation assets already in our database (ingested
@@ -7,8 +7,8 @@
  * lastActivityDate and enriches its metadata with the latest flight position,
  * altitude, and speed.
  *
- * This is a *live enrichment* pass, not a bulk ingest. Run it periodically
- * to keep the "last seen flying" intelligence current.
+ * This is a *latest-status enrichment* pass, not a bulk ingest or tracking history.
+ * Run manually when needed; previous positions and routes are never retained.
  *
  * Primary API: https://api.adsb.lol/v2/point/0/0/25000
  *      Free, public global ADS-B feed; no application key required.
@@ -32,6 +32,7 @@ import { eq, sql } from "drizzle-orm";
 import { updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 import { readsbToStateVector, type ReadsbAircraft, type StateVector } from "./opensky-normalize";
+import { buildPrivacySafeOpenSkyObservation } from "./opensky-privacy";
 
 export interface OpenSkyEnrichParams {
   jobId: string;
@@ -56,14 +57,6 @@ const ADSB_LOL_GLOBAL_URL = "https://api.adsb.lol/v2/point/0/0/25000";
 interface ReadsbResponse {
   ac?: ReadsbAircraft[];
   total?: number;
-}
-
-function mpsToKnots(mps: number | null): number | null {
-  return mps == null ? null : Math.round(mps * 1.944);
-}
-
-function metersToFt(m: number | null): number | null {
-  return m == null ? null : Math.round(m * 3.281);
 }
 
 async function fetchReadsb(url: string): Promise<ReadsbAircraft[]> {
@@ -131,8 +124,8 @@ export async function runOpenSkyEnrichment(
     return { inserted: 0, skipped: 0, errors: 0, liveAircraft: 0, durationMs: Date.now() - startTime };
   }
 
-  await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 10 });
-  await appendJobLog(jobId, "✈️  Fetching live state vectors from adsb.lol (OpenSky compatibility fallback enabled)…");
+  await updateJob(jobId, { message: "Querying free public ADS-B feeds for latest aircraft status…", progress: 10 });
+  await appendJobLog(jobId, "✈️  Fetching public ADS-B state feed; only coarse latest status will be retained (OpenSky fallback enabled)…");
 
   let states: StateVector[] = [];
   let liveSource = "unknown";
@@ -159,7 +152,7 @@ export async function runOpenSkyEnrichment(
 
   await updateJob(jobId, {
     total: assets.length,
-    message: `Cross-referencing ${assets.length} aviation assets against ${callsignMap.size} live registrations…`,
+    message: `Matching ${assets.length} aviation assets against ${callsignMap.size} current public registrations…`,
     progress: 25,
   });
   await appendJobLog(jobId, `🗂  ${assets.length} aviation assets loaded. Matching against live traffic…`);
@@ -173,33 +166,22 @@ export async function runOpenSkyEnrichment(
     if (!sv) { skipped++; continue; }
 
     try {
-      const icao24        = String(sv[0] ?? "");
-      const originCountry = String(sv[2] ?? "");
-      const longitude     = typeof sv[5] === "number" ? sv[5] : null;
-      const latitude      = typeof sv[6] === "number" ? sv[6] : null;
-      const baroAlt       = typeof sv[7] === "number" ? sv[7] : null;
-      const onGround      = Boolean(sv[8]);
-      const velocity      = typeof sv[9] === "number" ? sv[9] : null;
-      const track         = typeof sv[10] === "number" ? sv[10] : null;
-      const squawk        = sv[14] != null ? String(sv[14]) : null;
+      const icao24 = String(sv[0] ?? "");
+      const baroAlt = typeof sv[7] === "number" ? sv[7] : null;
+      const onGround = typeof sv[8] === "boolean" ? sv[8] : null;
+      const velocity = typeof sv[9] === "number" ? sv[9] : null;
+      const flightData = buildPrivacySafeOpenSkyObservation({
+        icao24,
+        onGround,
+        altitudeMeters: baroAlt,
+        speedMetersPerSecond: velocity,
+        observedAt: new Date(),
+        source: liveSource,
+      });
 
       const existingMeta = (() => {
         try { return JSON.parse(asset.metadata ?? "{}"); } catch { return {}; }
       })();
-
-      const flightData = {
-        icao24,
-        originCountry,
-        longitude,
-        latitude,
-        altitudeFt: metersToFt(baroAlt),
-        onGround,
-        speedKnots: mpsToKnots(velocity),
-        trackDeg: track != null ? Math.round(track) : null,
-        squawk,
-        lastSeenAt: new Date().toISOString(),
-        source: liveSource,
-      };
 
       await db
         .update(assetsTable)
@@ -213,7 +195,7 @@ export async function runOpenSkyEnrichment(
 
       await appendJobLog(
         jobId,
-        `✈️  ${identifier} is AIRBORNE — ${latitude?.toFixed(2)}°N ${longitude?.toFixed(2)}°E @ ${metersToFt(baroAlt)?.toLocaleString() ?? "?"}ft / ${mpsToKnots(velocity) ?? "?"}kts`,
+        `✈️  ${identifier} latest public status: ${flightData.status === "on_ground" ? "ON GROUND" : flightData.status === "airborne" ? "AIRBORNE" : "UNKNOWN"} — approx ${flightData.altitudeBandFt?.toLocaleString() ?? "?"}ft / ${flightData.speedBandKnots ?? "?"}kts; no position or route retained.`,
       );
     } catch (err: any) {
       logger.warn({ err: err.message, asset: asset.identifier }, "OpenSky update error");
@@ -227,14 +209,14 @@ export async function runOpenSkyEnrichment(
         inserted: updated,
         skipped,
         errors,
-        message: `Checked ${i + 1}/${assets.length} assets — ${updated} aircraft live right now…`,
+        message: `Checked ${i + 1}/${assets.length} assets — ${updated} latest-status observations recorded…`,
       });
     }
   }
 
   await appendJobLog(
     jobId,
-    `🏁 Live ADS-B enrichment complete: ${updated} jets actively tracked, ${skipped} on ground or not flying, ${errors} errors.`,
+    `🏁 Latest ADS-B status refresh complete: ${updated} matched aircraft statuses recorded, ${skipped} no current match, ${errors} errors. No positions or routes retained.`,
   );
 
   return {

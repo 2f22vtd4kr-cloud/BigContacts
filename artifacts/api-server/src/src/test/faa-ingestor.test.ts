@@ -2,10 +2,17 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   applyFaaRegistryNameValidation,
+  buildLegacyFaaRegistrantRelationshipRepairPairs,
   buildFaaAircraftAsset,
   buildFaaRegistrantEntity,
+  createFaaRegistrationDedupKey,
   createFaaRegistrantEntityKey,
   faaRegistrantEntityKey,
+  mergeFaaAssetMetadata,
+  normalizeFaaAdditionalRegistrantNames,
+  shouldReclassifyLegacyFaaRegistrantLink,
+  isFaaOnlyRegistrantSource,
+  selectFaaOnlyLegacyOwnerLinks,
   normalizeFaaName,
   parseFaaMasterCsvRecord,
 } from "../lib/faa-ingestor";
@@ -25,6 +32,46 @@ const base = {
   country: "US",
   lastActivityDate: "2026/10/01",
 };
+
+describe("FAA refresh preserves independently sourced owner associations", () => {
+  it("clears only owner foreign keys whose provenance is exactly the FAA registry", () => {
+    const faaOnly = {
+      id: 10,
+      ownerEntityId: 101,
+      ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+    };
+    const mixedSource = {
+      id: 11,
+      ownerEntityId: 102,
+      ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database", "Companies House"]),
+    };
+    const unknownSource = {
+      id: 12,
+      ownerEntityId: 103,
+      ownerSourceRegistries: null,
+    };
+    const malformedSource = {
+      id: 13,
+      ownerEntityId: 104,
+      ownerSourceRegistries: "{malformed",
+    };
+
+    expect(isFaaOnlyRegistrantSource(faaOnly.ownerSourceRegistries)).toBe(true);
+    expect(isFaaOnlyRegistrantSource(mixedSource.ownerSourceRegistries)).toBe(false);
+    expect(isFaaOnlyRegistrantSource(unknownSource.ownerSourceRegistries)).toBe(false);
+    expect(isFaaOnlyRegistrantSource(malformedSource.ownerSourceRegistries)).toBe(false);
+    expect(selectFaaOnlyLegacyOwnerLinks([faaOnly, mixedSource, unknownSource, malformedSource]))
+      .toEqual([faaOnly]);
+  });
+
+  it("does not clear an owner foreign key when the owner row is missing or provenance is unreadable", () => {
+    expect(selectFaaOnlyLegacyOwnerLinks([
+      { id: 20, ownerEntityId: 201, ownerSourceRegistries: null },
+      { id: 21, ownerEntityId: 202, ownerSourceRegistries: "not-json" },
+      { id: 22, ownerEntityId: null, ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]) },
+    ])).toEqual([]);
+  });
+});
 
 describe("FAA person registrant model-name gate", () => {
   it("keeps model-rejected names as asset-only records and marks accepted names as name-shape checked", () => {
@@ -63,12 +110,51 @@ describe("FAA MASTER parser and candidate projection", () => {
     fields[20] = "V";
     fields[22] = "Y";
     fields[24] = '"OTHER, OWNER"';
+    fields[25] = '"SECOND OWNER"';
+    fields[26] = "THIRD OWNER";
+    fields[27] = "FOURTH OWNER";
+    fields[28] = "FIFTH OWNER";
     const parsed = parseFaaMasterCsvRecord(fields.join(","));
     expect(parsed[0]).toBe("12345");
     expect(parsed[6]).toBe("SMITH, WALTER");
     expect(parsed[22]).toBe("Y");
-    expect(parsed[24]).toBe("OTHER, OWNER");
+    expect(parsed.slice(24, 29)).toEqual(["OTHER, OWNER", "SECOND OWNER", "THIRD OWNER", "FOURTH OWNER", "FIFTH OWNER"]);
     expect(parsed).toHaveLength(34);
+  });
+
+  it("normalizes only the five public FAA co-registrant fields without inventing identities", () => {
+    expect(normalizeFaaAdditionalRegistrantNames(["  OTHER   OWNER ", "", "PARTNER, INC.", "  ", "FOURTH", "IGNORED SIXTH"]))
+      .toEqual(["OTHER OWNER", "PARTNER, INC.", "FOURTH"]);
+  });
+
+  it("includes published co-registrant names in replay identity while retaining legacy keys for rows with none", () => {
+    const baseKey = createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001" });
+    const coRegistrantKey = createFaaRegistrationDedupKey({
+      ...base,
+      uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER"],
+    });
+    expect(coRegistrantKey).not.toBe(baseKey);
+    const rawVariantKey = createFaaRegistrationDedupKey({
+      ...base,
+      uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER"],
+      additionalRegistrantNamesRaw: ["other owner"],
+    });
+    expect(rawVariantKey).not.toBe(coRegistrantKey);
+    expect(createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001", additionalRegistrantNames: [] })).toBe(baseKey);
+  });
+
+  it("merges updated FAA metadata without dropping independent asset enrichment", () => {
+    const merged = JSON.parse(mergeFaaAssetMetadata(
+      JSON.stringify({ openSky: { lastSeen: "2026-11-01" }, additionalRegistrantNames: ["OLD NAME"] }),
+      JSON.stringify({ additionalRegistrantNames: ["NEW NAME"], registrantName: "CURRENT REGISTRANT" }),
+    ));
+    expect(merged).toMatchObject({
+      openSky: { lastSeen: "2026-11-01" },
+      additionalRegistrantNames: ["NEW NAME"],
+      registrantName: "CURRENT REGISTRANT",
+    });
   });
 
   it("preserves registrant order instead of guessing multi-part surname order", () => {
@@ -160,6 +246,8 @@ describe("FAA MASTER parser and candidate projection", () => {
       engineModelCode: "12345",
       expirationDate: "2027/10/31",
       uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+      additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
     });
     expect(asset.category).toBe("Aviation");
     expect(asset.identifier).toBe("N12345");
@@ -173,8 +261,12 @@ describe("FAA MASTER parser and candidate projection", () => {
       wealthStatus: "not_assessed",
       personalWealthEvidence: false,
       hnwiQualificationStatus: "unverified",
+      additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+      additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
       reviewOnly: true,
     });
+    expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("do not prove");
+    expect(metadata.additionalRegistrantNames).not.toContain("SMITH, WALTER");
     expect(metadata.assetSignal.strength).toBe("strong_asset_lead");
   });
 });
@@ -186,7 +278,7 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(JSON.parse(entity?.metadata ?? "{}").country).toBe("US");
   });
 
-  it("does not persist FAA registrant mailing addresses or additional co-registrant names", () => {
+  it("keeps co-registrant names on their aircraft record and never persists FAA mailing addresses", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     const registrantBuilder = source.slice(
       source.indexOf("export function buildFaaRegistrantEntity"),
@@ -197,8 +289,10 @@ describe("FAA MASTER parser and candidate projection", () => {
       source.indexOf("async function isCacheStale"),
     );
     expect(registrantBuilder).not.toContain("mailingAddress");
-    expect(registrantBuilder).not.toContain("otherRegistrantNames");
-    expect(assetBuilder).not.toContain("otherRegistrantNames");
+    expect(registrantBuilder).not.toContain("additionalRegistrantNames");
+    expect(assetBuilder).toContain("additionalRegistrantNames");
+    expect(assetBuilder).toContain("additionalRegistrantNamesFieldSemantics");
+    expect(assetBuilder).not.toContain("mailingAddress");
     expect(source).not.toContain("registrantMailingAddress");
     expect(source).not.toContain("const street =");
   });
@@ -241,6 +335,13 @@ describe("FAA ingestion scope", () => {
     expect(source).toContain("staleFaaRelations");
     expect(source).toContain("tx.update(relationshipsTable)");
     expect(source).toContain("HISTORICAL_REGISTERED_TO");
+    expect(source).toContain("F_OTHER_NAME_INDICES = [24, 25, 26, 27, 28]");
+    expect(source).toContain("additionalRegistrantNames");
+    expect(source).toContain("mergeFaaAssetMetadata(existing.metadata, row.asset.metadata)");
+    expect(source).toContain("metadata: assetsTable.metadata");
+    expect(source).toContain("const repairAssets = legacyAssets;");
+    expect(source).toContain("await tx.update(assetsTable).set({ ownerEntityId: null })");
+    expect(source).not.toContain("legacyOwnerPairs");
     expect(source).not.toContain("tx.delete(relationshipsTable)");
   });
 });
@@ -266,6 +367,27 @@ describe("FAA dedup replay safety", () => {
 });
 
 describe("legacy FAA registrant repair", () => {
+  it("preserves independent OWNS edges when their source entity differs from the asset FK", () => {
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: 10 })).toBe(true);
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: null })).toBe(true);
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: 11 })).toBe(false);
+  });
+
+  it("repairs only exact FAA registrant-to-asset pairs when an independent owner FK exists", () => {
+    expect(buildLegacyFaaRegistrantRelationshipRepairPairs(
+      [{ id: 500, ownerEntityId: 10 }],
+      [
+        { sourceEntityId: 10, targetId: 500, ownerEntityId: 10 },
+        { sourceEntityId: 11, targetId: 500, ownerEntityId: 10 },
+      ],
+    )).toEqual([{ sourceEntityId: 10, targetId: 500 }]);
+
+    expect(buildLegacyFaaRegistrantRelationshipRepairPairs(
+      [],
+      [{ sourceEntityId: 12, targetId: 501, ownerEntityId: null }],
+    )).toEqual([{ sourceEntityId: 12, targetId: 501 }]);
+  });
+
   it("records FAA source class separately from registry ingestion and corroboration", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).toContain('sourceClass: "registry_adapter_source"');
@@ -286,13 +408,31 @@ describe("legacy FAA registrant repair", () => {
     const start = source.indexOf("async function repairLegacyFaaOwnershipSemantics");
     const end = source.indexOf("async function flushBatch", start);
     const repair = source.slice(start, end);
+    const legacyAssetQuery = repair.slice(0, repair.indexOf("// Historical FAA imports"));
+    expect(legacyAssetQuery).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain("= '1' THEN 'PersonCandidate'");
+    expect(repair).toContain("registrantTypeCode");
     expect(repair).toContain("IN ('2','3','7','8') THEN 'Corporation'");
     expect(repair).toContain("ELSE 'Other' END");
+    expect(repair).toContain('eq(entitiesTable.type, "HNWI")');
+    expect(repair).toContain("legacyFaaOwnershipCorrected");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') = 'true'");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'");
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
-    expect(repair).toContain("legacyOwnerPairs.has");
-    expect(repair).toContain("const repairAssets = legacyAssets.filter");
+    expect(repair).toContain("const legacyFaaOwnedLinks = await tx.select");
+    expect(repair).toContain('eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database")');
+    expect(repair).toContain("const repairAssets = legacyAssets;");
+    expect(repair).toContain("repairableFaaOwnedLinks.map((row) => row.targetId)");
+    expect(repair).toContain("legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink)");
+    expect(repair).toContain("buildLegacyFaaRegistrantRelationshipRepairPairs(repairAssets, repairableFaaOwnedLinks)");
+    expect(repair).toContain("relationshipRepairPairs.map");
+    expect(repair).toContain("or(...relationshipRepairConditions)");
+    expect(repair).toContain("const assetIds = Array.from(new Set");
+    expect(repair).toContain(".filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)");
+    expect(repair).toContain('relationshipType: "REGISTERED_TO"');
     expect(repair).toContain("BTRIM(${entitiesTable.contactMethod})");
     expect(repair).toContain("ELSE ${entitiesTable.contactMethod} END");
     expect(repair).toContain("CASE WHEN ${entitiesTable.estimatedNetWorth} IN");

@@ -20,7 +20,7 @@ import { mkdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
 import { classifyFaaRegistrant, classifyFaaAssetSignal } from "./faa-ownership-classification";
@@ -65,6 +65,7 @@ const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
 const F_STATUS         = 20;
 const F_FRACTIONAL_OWNER = 22;
+const F_OTHER_NAME_INDICES = [24, 25, 26, 27, 28] as const;
 const F_LAST_ACTIVITY = 15;
 const F_MFR_MODEL_CODE = 2;
 const F_ENGINE_MODEL_CODE = 3;
@@ -215,6 +216,77 @@ export function createFaaRegistrantEntityKey(name: string, state: string, countr
   return registrantTypeCode === "1" ? baseKey : baseKey + "|type:" + registrantTypeCode;
 }
 
+export function normalizeFaaAdditionalRegistrantNames(values: readonly string[]): string[] {
+  return values
+    .slice(0, 5)
+    .map((value) => value.trim().replace(/\s+/gu, " "))
+    .filter(Boolean);
+}
+
+/** Only an unambiguous FAA-only source record can justify clearing a legacy registrant FK. */
+export function isFaaOnlyRegistrantSource(sourceRegistries: string | null | undefined): boolean {
+  if (!sourceRegistries) return false;
+  try {
+    const parsed: unknown = JSON.parse(sourceRegistries);
+    return Array.isArray(parsed)
+      && parsed.length === 1
+      && parsed[0] === "FAA Releasable Aircraft Database";
+  } catch {
+    return false;
+  }
+}
+
+export function selectFaaOnlyLegacyOwnerLinks<T extends {
+  id: number;
+  ownerEntityId: number | null;
+  ownerSourceRegistries: string | null;
+}>(rows: readonly T[]): T[] {
+  return rows.filter((row) => row.ownerEntityId != null && isFaaOnlyRegistrantSource(row.ownerSourceRegistries));
+}
+
+export function shouldReclassifyLegacyFaaRegistrantLink(input: {
+  sourceEntityId: number;
+  ownerEntityId: number | null;
+}): boolean {
+  // If the FK is still present, it must identify the same registrant as the
+  // FAA-labelled OWNS edge. A different FK is independent ownership evidence
+  // and must remain untouched. A missing FK can still be repaired from the
+  // exact FAA source label plus the FAA asset source registry.
+  return input.ownerEntityId == null || input.ownerEntityId === input.sourceEntityId;
+}
+
+export function buildLegacyFaaRegistrantRelationshipRepairPairs(
+  assets: readonly { id: number; ownerEntityId: number | null }[],
+  links: readonly { sourceEntityId: number; targetId: number; ownerEntityId: number | null }[],
+): Array<{ sourceEntityId: number; targetId: number }> {
+  const pairs = new Map<string, { sourceEntityId: number; targetId: number }>();
+  for (const asset of assets) {
+    if (asset.ownerEntityId == null) continue;
+    const pair = { sourceEntityId: asset.ownerEntityId, targetId: asset.id };
+    pairs.set(`${pair.sourceEntityId}:${pair.targetId}`, pair);
+  }
+  for (const link of links) {
+    if (!shouldReclassifyLegacyFaaRegistrantLink(link)) continue;
+    const pair = { sourceEntityId: link.sourceEntityId, targetId: link.targetId };
+    pairs.set(`${pair.sourceEntityId}:${pair.targetId}`, pair);
+  }
+  return [...pairs.values()];
+}
+
+/** Merge current FAA-owned fields without discarding enrichment from other sources. */
+export function mergeFaaAssetMetadata(existingRaw: string | null | undefined, incomingRaw: string | null | undefined): string {
+  const parse = (raw: string | null | undefined): Record<string, unknown> => {
+    if (!raw) return {};
+    try {
+      const value: unknown = JSON.parse(raw);
+      return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  };
+  return JSON.stringify({ ...parse(existingRaw), ...parse(incomingRaw) });
+}
+
 export function createFaaRegistrationDedupKey(input: {
   nNumber: string;
   registrantName: string;
@@ -224,6 +296,8 @@ export function createFaaRegistrationDedupKey(input: {
   statusCode: string;
   lastActivityDate: string;
   uniqueId: string;
+  additionalRegistrantNames?: readonly string[];
+  additionalRegistrantNamesRaw?: readonly string[];
 }): string {
   const nNumber = input.nNumber.trim().toUpperCase().replace(/^N?/, "N");
   const registrantKey = createFaaRegistrantEntityKey(
@@ -232,9 +306,19 @@ export function createFaaRegistrationDedupKey(input: {
     input.country,
     input.registrantTypeCode,
   );
-  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId]
-    .map((value) => encodeURIComponent(value.trim()))
-    .join(":");
+  const rawAdditionalNames = input.additionalRegistrantNamesRaw ?? [];
+  const additionalNamesRaw = (rawAdditionalNames.some((value) => value.trim().length > 0)
+    ? rawAdditionalNames
+    : input.additionalRegistrantNames ?? []).slice(0, 5);
+  const additionalNames = normalizeFaaAdditionalRegistrantNames(additionalNamesRaw)
+    .map((value) => value.toLocaleLowerCase("en-US"))
+    .join("|");
+  const rawNamesKey = additionalNamesRaw.join("|");
+  const versionParts = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId];
+  // Preserve the existing v2 key for rows without additional names; rows with
+  // published co-registrants get a distinct key, including raw field changes.
+  if (additionalNames) versionParts.push(additionalNames, rawNamesKey);
+  const version = versionParts.map((value) => encodeURIComponent(value.trim())).join(":");
   return `faa:v2:${nNumber}:${version}`;
 }
 
@@ -342,6 +426,8 @@ export function buildFaaAircraftAsset(input: {
   lastActivityDate: string;
   expirationDate: string;
   uniqueId: string;
+  additionalRegistrantNames?: readonly string[];
+  additionalRegistrantNamesRaw?: readonly string[];
 }): InsertAsset {
   const classification = classifyFaaRegistrant(input.registrantTypeCode, {
     fractionalOwnershipFlag: input.fractionalOwnershipFlag,
@@ -361,6 +447,9 @@ export function buildFaaAircraftAsset(input: {
       source: "faa-aircraft-registry",
       nNumber: tailNumber,
       registrantName: input.registrantName,
+      additionalRegistrantNamesRaw: (input.additionalRegistrantNamesRaw ?? input.additionalRegistrantNames ?? []).slice(0, 5),
+      additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? input.additionalRegistrantNamesRaw ?? []),
+      additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
       registrantKind: classification.registrantKind,
@@ -419,7 +508,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
     await tx.update(entitiesTable).set({
-      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
+      type: sql`CASE WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'PersonCandidate' WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
       estimatedNetWorth: sql`CASE WHEN ${entitiesTable.estimatedNetWorth} IN (180000000, 120000000, 30000000, 15000000, 8000000, 4000000) THEN NULL ELSE ${entitiesTable.estimatedNetWorth} END`,
       bayesianScore: 0.05,
       knownResidences: sql`CASE WHEN EXISTS (SELECT 1 FROM ${assetsTable} WHERE ${assetsTable.ownerEntityId} = ${entitiesTable.id} AND ${assetsTable.sourceRegistry} = 'FAA Releasable Aircraft Database' AND ${assetsTable.address} = ${entitiesTable.knownResidences}) THEN NULL ELSE ${entitiesTable.knownResidences} END`,
@@ -427,18 +516,19 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
         'legacyFaaOwnershipCorrected', true,
         'hnwiQualificationStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'unverified'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'not_applicable'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'unverified'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '5' THEN 'not_applicable'
           ELSE 'not_assessed'
         END,
         'identityStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'registry_person_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'legal_entity_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('4','9') THEN 'co_owned_registrant_unresolved'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'government_registrant'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'registry_person_candidate'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('2','3','7','8') THEN 'legal_entity_candidate'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('4','9') THEN 'co_owned_registrant_unresolved'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '5' THEN 'government_registrant'
           ELSE 'registrant_type_unknown'
         END,
         'wealthStatus', 'not_assessed',
+        'personalWealthEvidence', false,
         'beneficialOwnershipStatus', 'unresolved',
         'reviewOnly', true,
         'bayesianScore', 0.05
@@ -446,34 +536,68 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     }).where(and(
       eq(entitiesTable.type, "HNWI"),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+      sql`COALESCE(${entitiesTable.metadata}::jsonb ->> 'legacyFaaOwnershipCorrected', 'false') <> 'true'`,
+      // Match canonical target routing: an explicit positive independent wealth
+      // assessment must survive the legacy importer repair unless contradictory
+      // metadata explicitly says wealth is not evidenced/not assessed.
+      sql`NOT (
+        (
+          COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') = 'true'
+          OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')
+          OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'
+        )
+        AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') <> 'false'
+        AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'
+      )`,
     ));
-    const candidateAssetIds = legacyAssets.map((row) => row.id);
-    const legacyOwnerLinks = candidateAssetIds.length > 0
-      ? await tx.select({
-          sourceEntityId: relationshipsTable.sourceEntityId,
-          targetId: relationshipsTable.targetId,
-        }).from(relationshipsTable).where(and(
+    const legacyFaaOwnedLinks = await tx.select({
+      sourceEntityId: relationshipsTable.sourceEntityId,
+      targetId: relationshipsTable.targetId,
+      ownerEntityId: assetsTable.ownerEntityId,
+    }).from(relationshipsTable).innerJoin(assetsTable, and(
+      eq(relationshipsTable.targetId, assetsTable.id),
+      eq(relationshipsTable.targetType, "Asset"),
+    )).where(and(
+      eq(relationshipsTable.relationshipType, "OWNS"),
+      eq(relationshipsTable.notes, "FAA aircraft registration"),
+      eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+    ));
+    // Reclassify FAA-labelled links even when the asset FK has since been
+    // removed, but preserve an OWNS edge when its source entity conflicts with
+    // a still-present ownerEntityId (that is independent ownership evidence).
+    const repairableFaaOwnedLinks = legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink);
+    const repairAssets = legacyAssets;
+    const relationshipRepairPairs = buildLegacyFaaRegistrantRelationshipRepairPairs(repairAssets, repairableFaaOwnedLinks);
+    const relationshipRepairConditions = relationshipRepairPairs.map((pair) => and(
+      eq(relationshipsTable.sourceEntityId, pair.sourceEntityId),
+      eq(relationshipsTable.targetId, pair.targetId),
+    ));
+    const assetIds = Array.from(new Set([
+      ...repairAssets.map((row) => row.id),
+      ...repairableFaaOwnedLinks.map((row) => row.targetId),
+    ]));
+    const ownerEntityAssetIds = Array.from(new Set([
+      ...repairAssets.map((row) => row.id),
+      ...repairableFaaOwnedLinks
+        .filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)
+        .map((row) => row.targetId),
+    ]));
+    if (assetIds.length > 0) {
+      if (ownerEntityAssetIds.length > 0) {
+        await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, ownerEntityAssetIds));
+      }
+      if (relationshipRepairConditions.length > 0) {
+        await tx.update(relationshipsTable).set({
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+        }).where(and(
           eq(relationshipsTable.targetType, "Asset"),
           eq(relationshipsTable.relationshipType, "OWNS"),
           eq(relationshipsTable.notes, "FAA aircraft registration"),
-          inArray(relationshipsTable.targetId, candidateAssetIds),
-        ))
-      : [];
-    const legacyOwnerPairs = new Set(legacyOwnerLinks.map((row) => `${row.sourceEntityId}:${row.targetId}`));
-    const repairAssets = legacyAssets.filter((row) => row.ownerEntityId != null && legacyOwnerPairs.has(`${row.ownerEntityId}:${row.id}`));
-    const assetIds = repairAssets.map((row) => row.id);
-    if (assetIds.length > 0) {
-      await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
-      await tx.update(relationshipsTable).set({
-        relationshipType: "REGISTERED_TO",
-        strength: 0.75,
-        notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
-      }).where(and(
-        eq(relationshipsTable.targetType, "Asset"),
-        eq(relationshipsTable.relationshipType, "OWNS"),
-        eq(relationshipsTable.notes, "FAA aircraft registration"),
-        inArray(relationshipsTable.targetId, assetIds),
-      ));
+          or(...relationshipRepairConditions),
+        ));
+      }
       const existing = await tx.select({
         sourceEntityId: relationshipsTable.sourceEntityId,
         targetId: relationshipsTable.targetId,
@@ -523,20 +647,44 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
             id: assetsTable.id,
             identifier: assetsTable.identifier,
             ownerEntityId: assetsTable.ownerEntityId,
-          }).from(assetsTable).where(and(
+            metadata: assetsTable.metadata,
+            ownerSourceRegistries: entitiesTable.sourceRegistries,
+          }).from(assetsTable).leftJoin(
+            entitiesTable,
+            eq(assetsTable.ownerEntityId, entitiesTable.id),
+          ).where(and(
             eq(assetsTable.category, "Aviation"),
             eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
             inArray(assetsTable.identifier, identifiers),
           ))
         : [];
       const assetIdByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row.id]));
+      const existingAssetByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row]));
+      // Refresh FAA-owned fields when the source updates co-registrant/status data,
+      // retaining independent enrichment already attached to the same asset.
+      for (const row of assetRows) {
+        if (!row.asset) continue;
+        const existing = existingAssetByIdentifier.get(row.asset.identifier);
+        if (!existing) continue;
+        const metadata = mergeFaaAssetMetadata(existing.metadata, row.asset.metadata);
+        if (metadata !== existing.metadata) {
+          await tx.update(assetsTable).set({
+            metadata,
+            description: row.asset.description,
+            lastActivityDate: row.asset.lastActivityDate,
+          }).where(eq(assetsTable.id, existing.id));
+        }
+      }
       const freshAssets = assetRows.filter((row) => row.asset && !assetIdByIdentifier.has(row.asset.identifier));
       const insertedAssets = freshAssets.length > 0
         ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset!)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
         : [];
       for (const row of insertedAssets) assetIdByIdentifier.set(row.identifier, row.id);
 
-      const legacyOwnerLinks = existingAssets.filter((row) => row.ownerEntityId != null);
+      // The preflight migration already clears unambiguous FAA-only registrant FKs.
+      // Preserve any remaining mixed-source or unknown-provenance owner association:
+      // it may be independently evidenced beneficial ownership, not an FAA registrant link.
+      const legacyOwnerLinks = selectFaaOnlyLegacyOwnerLinks(existingAssets);
       if (legacyOwnerLinks.length > 0) {
         await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, legacyOwnerLinks.map((row) => row.id)));
       }
@@ -804,6 +952,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
     const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
     const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
+    const additionalRegistrantNamesRaw = F_OTHER_NAME_INDICES.map((index) => fields[index] ?? "");
+    const additionalRegistrantNames = normalizeFaaAdditionalRegistrantNames(additionalRegistrantNamesRaw);
     const manufacturerModelCode = fields[F_MFR_MODEL_CODE]?.trim() ?? "";
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
@@ -827,6 +977,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       statusCode,
       lastActivityDate,
       uniqueId,
+      additionalRegistrantNames,
+      additionalRegistrantNamesRaw,
     });
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
@@ -869,6 +1021,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       lastActivityDate,
       expirationDate,
       uniqueId,
+      additionalRegistrantNames,
+      additionalRegistrantNamesRaw,
     });
     // Preserve every current/pending individual aircraft as an unvalued FAA
     // registry observation. Asset-signal strength is metadata, not an import gate.

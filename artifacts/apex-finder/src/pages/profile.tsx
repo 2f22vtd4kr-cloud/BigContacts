@@ -44,7 +44,7 @@ import {
   Phone,
   Flame,
 } from "lucide-react";
-import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
+import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
@@ -104,11 +104,12 @@ const CAT_COLORS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+
 function computeConfidence(entity: any, assets: any[], relationships: any[]): ConfidenceScores {
   const idFields = [entity.nationality, entity.knownResidences, entity.contactMethod, entity.phone || entity.email, entity.linkedinUrl];
   const identity = Math.round((idFields.filter(Boolean).length / idFields.length) * 100);
 
-  const hasNW = entity.estimatedNetWorth != null;
+  const hasNW = hasPersonalWealthEvidence(entity);
   const assetsWithVal = assets.filter((a) => a.estimatedValue != null).length;
   const financial = Math.min(Math.round((hasNW ? 40 : 0) + Math.min(assetsWithVal * 15, 60)), 100);
 
@@ -157,7 +158,7 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
   if (entity.contactMethod)    entries.push({ id: "cm",    category: "Identity",  dataPoint: "Contact Method",    value: entity.contactMethod,     source: "Internal",   verified: false });
   if (entity.phone)            entries.push({ id: "phone", category: "Identity",  dataPoint: "Phone",             value: entity.phone,             source: "Internal",   verified: false });
   if (entity.email)            entries.push({ id: "email", category: "Identity",  dataPoint: "Email",             value: entity.email,             source: "Internal",   verified: false });
-  if (entity.estimatedNetWorth != null)
+  if (hasPersonalWealthEvidence(entity))
     entries.push({ id: "nw", category: "Financial", dataPoint: entityMeta(entity.type).metricLabel, value: entity.type === "HNWI" ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity), source: primarySrc, verified: hasRegistry });
 
   for (const reg of srcRegs) {
@@ -239,19 +240,20 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
 function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   entity: any; assets: any[]; relationships: any[]; sessions: any[];
 }) {
+  const displayType = displayEntityType(entity);
   const metricEvidenceDone =
-    entity.type === "HNWI"
-      ? entity.estimatedNetWorth != null
-      : entity.type === "Corporation"
+    displayType === "HNWI"
+      ? hasPersonalWealthEvidence(entity)
+      : displayType === "Corporation"
         ? relationships.length >= 1 || !!entity.sourceRegistries
-        : entity.type === "Trust"
+        : displayType === "Trust"
           ? assets.length >= 1 || !!entity.sourceRegistries
           : !!(entity.email || entity.phone || entity.contactOutcome || entity.contactMethod);
   const fields = [
     { key: "name",        label: "Name",         done: !!entity.name },
-    { key: "type",        label: "Type",         done: !!entity.type },
+    { key: "type",        label: "Type",         done: !!displayType },
     { key: "nationality", label: "Nationality",  done: !!entity.nationality },
-    { key: "metric",      label: entityMeta(entity.type).metricLabel,    done: metricEvidenceDone },
+    { key: "metric",      label: entityMeta(displayType).metricLabel,    done: metricEvidenceDone },
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
     { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
     { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
@@ -503,38 +505,66 @@ export default function ApexProfile() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const typeColor  = entityMeta(entity.type).color;
+  const displayType = displayEntityType(entity);
+  const typeColor  = entityMeta(displayType).color;
   let srcRegs: string[] = [];
   try { srcRegs = JSON.parse((entity as any).sourceRegistries ?? "[]"); } catch {}
+  let entityMetadata: Record<string, any> = {};
+  try {
+    const parsed = JSON.parse((entity as any).metadata ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) entityMetadata = parsed;
+  } catch {}
+  const isFaaRegistrantRecord = entityMetadata.source === "faa-aircraft-registry"
+    || srcRegs.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const displayableEstimatedNetWorth = hasPersonalWealthEvidence(entity) ? (entity as any).estimatedNetWorth : null;
+  const faaLinkedAssets = (assets as any[]).filter((asset: any) => {
+    let metadata: Record<string, any> = {};
+    try {
+      const parsed = JSON.parse(asset.metadata ?? "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+    } catch {}
+    return metadata.source === "faa-aircraft-registry"
+      || asset.sourceRegistry === "FAA Releasable Aircraft Database";
+  });
+  const faaLinkedAssetsToDisplay = faaLinkedAssets.slice(0, 20);
 
   const geoAssets  = (assets as any[]).filter((a) => a.latitude != null && a.longitude != null);
   const confidence = computeConfidence(entity, assets as any[], relationships as any[]);
   const ledger     = buildLedger(entity, assets as any[], relationships as any[]);
 
-  // Human-readable primary wealth source for display
-  const primaryWealthSource = (() => {
-    const reg = srcRegs[0] ?? "";
+  // A registry label is source context, not proof of ownership or wealth.
+  const primarySourceContext = (() => {
+    const reg = srcRegs[0] ?? (entityMetadata.source === "faa-aircraft-registry" ? "FAA Releasable Aircraft Database" : "");
     if (/edgar|sec/i.test(reg)) {
-      return reg.toLowerCase().includes("13") ? "SEC EDGAR — beneficial owner (13D/G filing)" : "SEC EDGAR — board director / exec (DEF 14A)";
+      return reg.toLowerCase().includes("13") ? "SEC EDGAR — Schedule 13D/G filing; reported beneficial ownership requires scope review" : "SEC EDGAR — director / executive filing";
     }
     if (/faa/i.test(reg)) {
-      const jets = (assets as any[]).filter((a: any) => a.category === "Aviation");
-      return jets.length > 1 ? `FAA aircraft owner · ${jets.length} aircraft` : "FAA aircraft owner";
+      const aircraftRecords = (assets as any[]).filter((a: any) => a.category === "Aviation");
+      return aircraftRecords.length > 1 ? `FAA registrant record · ${aircraftRecords.length} linked aircraft records`
+        : aircraftRecords.length === 1 ? "FAA registrant record · 1 linked aircraft record"
+        : "FAA source label · no linked aircraft record loaded";
     }
-    if (/land.?reg|hmlr/i.test(reg)) {
-      const props = (assets as any[]).filter((a: any) => a.category === "RealEstate");
-      return props.length > 1 ? `UK Land Registry · ${props.length} properties £1M+` : "UK Land Registry · property £1M+";
+    if (/ppd|price.?paid/i.test(reg)) {
+      const saleRecords = (assets as any[]).filter((a: any) => a.category === "RealEstate");
+      return saleRecords.length > 1 ? `UK Land Registry PPD · ${saleRecords.length} linked sale records`
+        : saleRecords.length === 1 ? "UK Land Registry PPD · 1 linked sale record"
+        : "UK Land Registry PPD source label · no linked sale transaction loaded";
     }
-    if (/brreg/i.test(reg))           return "BRREG — Norwegian company director";
-    if (/companies.?house/i.test(reg)) return "Companies House — UK company director";
-    if (/bodacc|france/i.test(reg))   return "BODACC — French company director";
-    if (/ares|czech/i.test(reg))      return "ARES — Czech company director";
-    // Don't surface internal pipeline labels as a "wealth source"
+    if (/ocod|overseas companies/i.test(reg)) return "UK Land Registry OCOD · overseas entity property record";
+    if (/land.?reg|hmlr/i.test(reg)) return "UK Land Registry source record · dataset and current title require review";
+    if (/brreg/i.test(reg)) return "BRREG — Norwegian company registry record";
+    if (/companies.?house/i.test(reg)) return "Companies House — UK company/officer record";
+    if (/bodacc|france/i.test(reg)) return "BODACC — French company filing";
+    if (/ares|czech/i.test(reg)) return "ARES — Czech company register record";
     if (reg && !/^(web.?discovery|broad.?discovery|ai.?osint|deep.?web|in.?house|web.?enricher|manual)$/i.test(reg)) return reg;
     return null;
   })();
 
-  const profileWorkSummary = entityWorkSummary(entity);
+  const profileWorkSummary = entityWorkSummary({
+    ...entity,
+    assetCount: (assets as any[]).length,
+    assetCategories: (assets as any[]).map((asset: any) => asset.category),
+  });
   const profileFindings = entityFindingsSummary({
     ...entity,
     assetCount: (assets as any[]).length,
@@ -705,7 +735,7 @@ export default function ApexProfile() {
                 className="text-[12px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
                 style={{ color: typeColor, backgroundColor: typeColor + "1A" }}
               >
-                <EntityTypeMark type={entity.type} compact />
+                <EntityTypeMark type={displayType} compact />
               </span>
               {(entity as any).linkedinHeadline && (
                 <span className="text-[12px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
@@ -716,8 +746,8 @@ export default function ApexProfile() {
               {(entity as any).nationality && (
                 <span className="text-xs"><NationalityCell nationality={(entity as any).nationality} /></span>
               )}
-              {(entity as any).estimatedNetWorth && (
-                <span className="text-xs font-mono text-foreground">{formatCurrency((entity as any).estimatedNetWorth)}</span>
+              {displayableEstimatedNetWorth != null && (
+                <span className="text-xs font-mono text-foreground">{formatCurrency(displayableEstimatedNetWorth)}</span>
               )}
               {srcRegs.filter(r => !/^(web[-.]?discovery|broad[-.]?discovery|ai[-.]?osint|deep[-.]?web|in[-.]?house|web[-.]?enricher|manual|live[-.]?source)$/i.test(r)).slice(0, 3).map((r) => (
                 <span key={r} className="text-[11px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
@@ -751,10 +781,10 @@ export default function ApexProfile() {
                 <AccessScoreBadge score={entity.accessScore} />
                 <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Reach</span>
               </div>
-              {primaryWealthSource && (
+              {primarySourceContext && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
-                  <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
-                  <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Primary source</span>
+                  <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primarySourceContext}</span>
                 </div>
               )}
             </div>
@@ -860,18 +890,18 @@ export default function ApexProfile() {
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
-              {(entity as any).estimatedNetWorth != null ? (
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"}</span>
+              {displayableEstimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
-                {entity.type === "HNWI" ? formatCurrency((entity as any).estimatedNetWorth) : entityMetric(entity)}
+                {displayType === "HNWI" ? formatCurrency(displayableEstimatedNetWorth) : entityMetric({ ...entity, type: displayType })}
                 </span>
               ) : (
                 <span className="font-mono text-[12px] font-semibold text-foreground/60 leading-snug mb-1 italic">
-                  {primaryWealthSource ?? "In Discovery"}
+                  {primarySourceContext ?? "In Discovery"}
                 </span>
               )}
-              {(entity as any).estimatedNetWorth != null && primaryWealthSource && (
-                <span className="text-[11px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
+              {displayableEstimatedNetWorth != null && primarySourceContext && (
+                <span className="text-[11px] text-muted-foreground leading-tight">{primarySourceContext}</span>
               )}
             </div>
           </div>
@@ -1108,6 +1138,74 @@ export default function ApexProfile() {
         );
       })()}
 
+      {/* ── FAA registrant evidence: source context, not ownership/wealth ─── */}
+      {isFaaRegistrantRecord && (
+        <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-card/35" data-testid="faa-registrant-evidence">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="text-[12px] font-mono font-bold uppercase tracking-widest text-primary">FAA registry context</div>
+            <span className="rounded border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-mono uppercase text-amber-300">Review only</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground mb-3">
+            The FAA lists a registrant on an aircraft record. Registration does not establish beneficial ownership, an ownership percentage, personal wealth, or a private contact route.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {([
+              ["Registrant type", entityMetadata.registrantTypeLabel],
+              ["Registration status", entityMetadata.registrationStatus],
+              ["Fractional ownership", entityMetadata.fractionalOwnershipStatus],
+              ["Beneficial ownership", entityMetadata.beneficialOwnershipStatus],
+              ["Wealth assessment", entityMetadata.wealthStatus],
+              ["HNWI qualification", entityMetadata.hnwiQualificationStatus],
+            ] as Array<[string, unknown]>).map(([label, value]) => (
+              <div key={label} className="rounded border border-border/60 bg-background/40 px-2.5 py-2 min-w-0">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
+                <div className="mt-1 text-[11px] leading-snug text-foreground break-words">
+                  {typeof value === "string" && value.trim() ? value.replace(/_/g, " ") : "Unknown / not assessed"}
+                </div>
+              </div>
+            ))}
+          </div>
+          {faaLinkedAssetsToDisplay.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {faaLinkedAssetsToDisplay.map((asset: any, assetIndex: number) => {
+                let assetMetadata: Record<string, any> = {};
+                try {
+                  const parsed = JSON.parse(asset.metadata ?? "{}");
+                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) assetMetadata = parsed;
+                } catch {}
+                const names = Array.isArray(assetMetadata.additionalRegistrantNames)
+                  ? assetMetadata.additionalRegistrantNames.filter((name: unknown): name is string => typeof name === "string" && !!name.trim()).slice(0, 5)
+                  : [];
+                return (
+                  <div key={asset.id ?? asset.identifier ?? assetIndex} className="rounded border border-border/60 bg-background/40 px-3 py-2">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+                      {asset.identifier ? `Aircraft ${asset.identifier}` : "FAA aircraft record"} · additional names on this registration · unverified
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground mb-2">
+                      FAA Other Name 1–5 fields are additional names published on the same registration record. They may identify co-registrants or partnership names, but are not independently verified people or proof of beneficial ownership.
+                    </p>
+                    {names.length > 0 ? (
+                      <ul className="space-y-1">
+                        {names.map((name: string, index: number) => <li key={index} className="text-[11px] text-foreground/85 break-words">{name}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">No additional names are present in this releasable record.</p>
+                    )}
+                  </div>
+                );
+              })}
+              {faaLinkedAssets.length > faaLinkedAssetsToDisplay.length && (
+                <p className="text-[10px] text-muted-foreground">
+                  Showing {faaLinkedAssetsToDisplay.length} of {faaLinkedAssets.length} linked FAA aircraft records.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-[10px] text-muted-foreground">No linked FAA aircraft records are loaded for this profile.</p>
+          )}
+        </section>
+      )}
+
       {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
         const e = entity as any;
@@ -1287,7 +1385,7 @@ export default function ApexProfile() {
               try { srcRegs2 = JSON.parse(e2.sourceRegistries ?? "[]"); } catch {}
               const primaryReg = srcRegs2[0] ?? "";
               const registryLabel = (() => {
-                if (/faa/i.test(primaryReg))          return "the FAA Releasable Aircraft Database (a U.S. federal registry of aircraft owners)";
+                if (/faa/i.test(primaryReg))          return "the FAA Releasable Aircraft Database (a public registry of aircraft registration applicants; registration is not proof of beneficial ownership)";
                 if (/edgar|sec/i.test(primaryReg))    return "SEC EDGAR (U.S. securities filings identifying beneficial owners and executives)";
                 if (/land.?reg|hmlr/i.test(primaryReg)) return "the UK Land Registry (property transaction records)";
                 if (/brreg|norway/i.test(primaryReg)) return "Norway's official business registry (BRREG)";
@@ -1618,36 +1716,48 @@ export default function ApexProfile() {
         if (/edgar|sec/i.test(primaryReg)) {
           const is13 = primaryReg.toLowerCase().includes("13");
           lines.push(is13
-            ? `${pName} filed a beneficial ownership disclosure with the U.S. Securities and Exchange Commission (SEC EDGAR Form 13D or 13G). Anyone who controls more than 5% of a publicly traded company is legally required to file this — it's not optional, it's a federal requirement, and it's public record.`
-            : `${pName} appears in executive compensation filings submitted to the U.S. Securities and Exchange Commission (SEC EDGAR DEF 14A). Board directors and named executives of public companies must file these annually — that's how we know they hold a senior role.`);
+            ? `${pName} appears in a U.S. Securities and Exchange Commission Schedule 13D/G filing. These filings report beneficial-ownership positions under applicable thresholds and filing rules; verify the issuer, security class, reported percentage, filing date, and any amendments before treating the position as current.`
+            : `${pName} appears in a company proxy statement filed with the U.S. Securities and Exchange Commission (DEF 14A). Verify the exact role and filing period; a proxy-statement mention is source evidence, not by itself a current employment or control determination.`);
         } else if (/faa/i.test(primaryReg)) {
           const jets = assetArr.filter((a: any) => a.category === "Aviation");
-          lines.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA — the U.S. Federal Aviation Administration. Every private aircraft in the U.S. must be registered with the FAA, and that registry is public. Turbine aircraft (jets and large turboprops) cost millions to own and operate, which is why FAA ownership is one of our strongest wealth signals.`);
-        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+          if (jets.length > 0) {
+            lines.push(`${pName} is named as a registrant on ${jets.length} linked FAA aircraft record(s). The FAA record identifies the registration applicant; it does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth. Any aircraft value or co-registrant name is a separate review lead, not a personal-wealth finding.`);
+          } else {
+            lines.push(`${pName} carries an FAA source-registry label, but no linked aircraft record is loaded. No registration or ownership claim is made from the label alone.`);
+          }
+        } else if (/ppd|price.?paid/i.test(primaryReg)) {
           const props = assetArr.filter((a: any) => a.category === "RealEstate");
-          lines.push(`${pName} shows up in the UK Land Registry as the buyer or registered owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above £1 million. Every property transaction in England and Wales is filed with the Land Registry — it's how the UK tracks real estate ownership, and it's freely accessible.`);
+          if (props.length > 0) {
+            lines.push(`${pName} is associated with ${props.length} linked UK HM Land Registry Price Paid Data transaction record(s). PPD records sale transactions and property characteristics; it does not identify the purchaser or establish current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
+          } else {
+            lines.push(`${pName} carries a UK HM Land Registry Price Paid Data source label, but no linked sale transaction record is loaded. No current-title or ownership claim is made from the label alone.`);
+          }
+        } else if (/ocod|overseas companies/i.test(primaryReg)) {
+          lines.push(`${pName} is associated with an Overseas Companies Ownership of UK Property register entry. This is a company-level registered-property lead; it does not by itself establish the ultimate beneficial owner or an individual's personal wealth.`);
+        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+          lines.push(`${pName} is associated with a UK Land Registry source record. Confirm the exact dataset, record date and current title before drawing ownership or personal-wealth conclusions.`);
         } else if (/brreg/i.test(primaryReg)) {
-          lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
+          lines.push(`${pName} appears in Norway's official business registry (BRREG) in the recorded role shown on the source record. Company turnover is organization-level context; it does not establish the individual's personal wealth, ownership, or control.`);
         } else if (/companies.?house/i.test(primaryReg)) {
-          lines.push(`${pName} appears in UK Companies House as a director or person of significant control. Companies House is the UK's official register of companies and their officers — anyone with >25% ownership or voting control must be listed. That's the statutory basis for their inclusion here.`);
+          lines.push(`${pName} appears in UK Companies House in the role recorded by the cited filing. A director appointment does not by itself establish share ownership or control; any person-with-significant-control status must be checked against the specific filing, applicable statutory criteria, and filing date.`);
          } else if (/^manual$/i.test(primaryReg)) {
            lines.push(`${pName} is a manually created research record. No public registry or asset evidence is recorded yet.`);
          } else if (primaryReg) {
-          lines.push(`${pName} appears in ${primaryReg} — a public registry we monitor for high-net-worth individuals and significant asset holders.`);
+          lines.push(`${pName} appears in ${primaryReg}. This is a source lead only; objective relevance, identity, ownership, and qualification require separate evidence.`);
         }
-        if (e.estimatedNetWorth != null) {
-          lines.push(`Estimated net worth or AUM: ${formatCurrency(e.estimatedNetWorth)}.`);
+        if (displayableEstimatedNetWorth != null) {
+          lines.push(`Estimated net worth or AUM: ${formatCurrency(displayableEstimatedNetWorth)}.`);
         }
         if (assetArr.length > 0) {
           const cats = [...new Set(assetArr.map((a: any) => a.category))];
-          lines.push(`Registered assets on file: ${assetArr.length} (${cats.join(", ")}).`);
+          lines.push(`Asset / transaction records on file: ${assetArr.length} (${cats.join(", ")}).`);
         }
 
         if (!lines.length) return null;
         return (
           <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
             <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
-              Why {pName} is in this database
+              Source context for {pName}
             </div>
             <p className="text-[11px] text-muted-foreground/75 leading-relaxed">
               {lines.join(" ")}

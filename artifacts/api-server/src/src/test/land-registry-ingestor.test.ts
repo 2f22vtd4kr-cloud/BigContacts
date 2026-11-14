@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLandRegistryTransactionAsset, parsePpdCsvRecord } from "../lib/land-registry-ingestor";
+import { buildLandRegistryTransactionAsset, parsePpdCsvRecord, selectLegacyHmlrPlaceholderOwnerAssetIds } from "../lib/land-registry-ingestor";
 
 describe("HMLR PPD CSV parsing", () => {
   it("preserves commas inside quoted address fields", () => {
@@ -8,6 +8,58 @@ describe("HMLR PPD CSV parsing", () => {
     expect(parsed[9]).toBe("King's Road, Chelsea");
     expect(parsed[13]).toBe("Greater London");
     expect(parsed).toHaveLength(16);
+  });
+});
+
+describe("HMLR legacy owner-link repair", () => {
+  it("clears only exact source-only synthetic address placeholders", () => {
+    const placeholder = {
+      assetId: 1,
+      ownerEntityId: 101,
+      ownerSourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
+      ownerName: "UK Property — SW1A 1AA",
+    };
+    const independentlySourcedOwner = {
+      assetId: 2,
+      ownerEntityId: 102,
+      ownerSourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)", "Companies House"]),
+      ownerName: "Example Holdings Ltd",
+    };
+    const nonPlaceholderPerson = {
+      assetId: 3,
+      ownerEntityId: 103,
+      ownerSourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
+      ownerName: "Jane Example",
+    };
+    const unknownProvenance = {
+      assetId: 4,
+      ownerEntityId: 104,
+      ownerSourceRegistries: "{malformed",
+      ownerName: "UK Property — SW1A 1AA",
+    };
+    const missingOwner = {
+      assetId: 5,
+      ownerEntityId: null,
+      ownerSourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
+      ownerName: "UK Property — SW1A 1AA",
+    };
+
+    expect(selectLegacyHmlrPlaceholderOwnerAssetIds([
+      placeholder,
+      independentlySourcedOwner,
+      nonPlaceholderPerson,
+      unknownProvenance,
+      missingOwner,
+    ])).toEqual([1]);
+  });
+
+  it("preserves mixed-source owner links even when a property transaction came from PPD", () => {
+    expect(selectLegacyHmlrPlaceholderOwnerAssetIds([{
+      assetId: 77,
+      ownerEntityId: 707,
+      ownerSourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)", "SEC EDGAR"]),
+      ownerName: "Example Corporation",
+    }])).toEqual([]);
   });
 });
 

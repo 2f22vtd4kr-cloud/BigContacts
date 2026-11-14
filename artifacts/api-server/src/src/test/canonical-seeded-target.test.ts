@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSeededTargetBinding,
   classifyCanonicalSeededTargetType,
+  resolveCanonicalSeededTargetEntityType,
 } from "../lib/canonical-seeded-target";
 import { buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
 
@@ -17,6 +19,35 @@ describe("canonical seeded target binding", () => {
     expect(classifyCanonicalSeededTargetType("Asset")).toBe("asset");
     expect(classifyCanonicalSeededTargetType("UnrecognizedRecord")).toBe("other");
     expect(classifyCanonicalSeededTargetType("InvestmentGroup")).toBe("organization");
+  });
+
+  it("resolves legacy FAA HNWI rows to the published registrant type before case creation", () => {
+    const sourceRegistries = JSON.stringify(["FAA Releasable Aircraft Database"]);
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("PersonCandidate");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "2", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("Corporation");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "5", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("Other");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: true, wealthStatus: "assessed" }),
+    })).toBe("HNWI");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: false, wealthStatus: "assessed" }),
+    })).toBe("PersonCandidate");
   });
 
   it("inherits source identifiers, URLs, registry labels and linked evidence without upgrading verification", () => {
@@ -75,6 +106,54 @@ describe("canonical seeded target binding", () => {
     expect(binding).not.toHaveProperty("sourceMetadata.privatePhone");
   });
 
+  it("loads exact REGISTERED_TO asset records into canonical seeded-target context", () => {
+    const runner = readFileSync(new URL("../lib/canonical-single-target-runner.ts", import.meta.url), "utf8");
+    expect(runner).toContain("const linkedAssetRows = await db.select");
+    expect(runner).toContain('eq(relationshipsTable.relationshipType, "REGISTERED_TO")');
+    expect(runner).toContain("linkedAssets: linkedAssetRows");
+    expect(runner).toContain("resolveCanonicalSeededTargetEntityType({ entityType: targetRow.type, sourceRegistries: targetRow.sourceRegistries, metadata: targetRow.metadata })");
+    expect(runner).toContain("entityType: targetRow.type,");
+    expect(runner).toContain("`Target type: ${target.type}`");
+  });
+
+  it("recognizes FAA co-registrant fields from the asset sourceRegistry even when metadata lacks a source label", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 93,
+      entityName: "Registrant",
+      entityType: "PersonCandidate",
+      linkedAssets: [{
+        id: 903,
+        category: "Aviation",
+        identifier: "N789EF",
+        sourceRegistry: "FAA Releasable Aircraft Database",
+        metadata: JSON.stringify({ additionalRegistrantNamesRaw: [" OTHER NAME "], additionalRegistrantNames: ["OTHER NAME"] }),
+      }],
+    });
+    expect(binding.linkedAssets[0].sourceMetadata).toMatchObject({
+      additionalRegistrantNamesRaw: [" OTHER NAME "],
+      additionalRegistrantNames: ["OTHER NAME"],
+    });
+  });
+
+  it("does not treat similarly named metadata on a non-FAA asset as FAA co-registrant data", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 92,
+      entityName: "Example",
+      entityType: "PersonCandidate",
+      linkedAssets: [{
+        id: 902,
+        category: "Aviation",
+        identifier: "N456CD",
+        sourceRegistry: "Other registry",
+        metadata: JSON.stringify({ source: "other-source", additionalRegistrantNamesRaw: ["UNVERIFIED RAW"], additionalRegistrantNames: ["UNVERIFIED"] }),
+      }],
+    });
+    expect(binding.linkedAssets).toHaveLength(1);
+    expect(binding.linkedAssets[0]).toMatchObject({ assetId: 902 });
+    expect(binding.linkedAssets[0].sourceMetadata).not.toHaveProperty("additionalRegistrantNames");
+    expect(binding.linkedAssets[0].sourceMetadata).not.toHaveProperty("additionalRegistrantNamesRaw");
+  });
+
   it("uses an asset-specific objective instead of person research for an asset target", () => {
     const objective = buildTargetContactInvestigatorObjective({
       targetName: "N123AB",
@@ -122,7 +201,37 @@ describe("canonical seeded target binding", () => {
           personalWealthEvidence: false,
         },
       }),
+      linkedAssets: [{
+        id: 901,
+        category: "Aviation",
+        identifier: "N123AB",
+        sourceRegistry: "FAA Releasable Aircraft Database",
+        metadata: JSON.stringify({
+          source: "faa-aircraft-registry",
+          additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
+          additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+          additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
+          personalWealthEvidence: false,
+          assetSignal: { kind: "aircraft_registry_observation", strength: "strong_asset_lead", personalWealthEvidence: false },
+        }),
+      }],
     });
+    expect(binding.linkedAssets).toEqual([{
+      assetId: 901,
+      category: "Aviation",
+      identifier: "N123AB",
+      sourceRegistry: "FAA Releasable Aircraft Database",
+      associationType: "REGISTERED_TO",
+      associationSemantics: expect.stringContaining("not proof of beneficial ownership"),
+      sourceMetadata: expect.objectContaining({
+        source: "faa-aircraft-registry",
+        additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
+        additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+        additionalRegistrantNamesFieldSemantics: expect.stringContaining("additional names published on the same aircraft registration record"),
+        personalWealthEvidence: false,
+      }),
+    }]);
+    expect(binding.sourceMetadata).not.toHaveProperty("additionalRegistrantNames");
     expect(binding.sourceMetadata).toMatchObject({
       registrantTypeCode: "2",
       registrantTypeLabel: "Partnership",
@@ -143,6 +252,101 @@ describe("canonical seeded target binding", () => {
         personalWealthEvidence: false,
       },
     });
+  });
+
+  it("reclassifies unassessed FAA-only legacy HNWI rows before AI target routing", () => {
+    const person = buildCanonicalSeededTargetBinding({
+      entityId: 95,
+      entityName: "FAA registrant",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+      metadata: JSON.stringify({
+        source: "faa-aircraft-registry",
+        typeRegistrant: "1",
+        estimatedNetWorth: 12_000_000,
+        wealthStatus: "not_assessed",
+        personalWealthEvidence: false,
+      }),
+    });
+    expect(person.entityType).toBe("PersonCandidate");
+    expect(person.targetKind).toBe("person");
+    expect(person.sourceMetadata).toMatchObject({
+      personalWealthEvidence: false,
+      wealthStatus: "not_assessed",
+      beneficialOwnershipStatus: "unresolved",
+      hnwiQualificationStatus: "unverified",
+      identityStatus: "registry_person_candidate",
+      reviewOnly: true,
+      legacyFaaHnwiDowngradeApplied: true,
+    });
+    expect(person.sourceMetadata).not.toHaveProperty("estimatedNetWorth");
+
+    const partnership = buildCanonicalSeededTargetBinding({
+      entityId: 96,
+      entityName: "FAA partnership registrant",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+      metadata: JSON.stringify({ typeRegistrant: "2", wealthStatus: "not_assessed" }),
+    });
+    expect(partnership.entityType).toBe("Corporation");
+    expect(partnership.targetKind).toBe("organization");
+
+    const coOwned = buildCanonicalSeededTargetBinding({
+      entityId: 97,
+      entityName: "Unresolved co-owned registrant",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+      metadata: JSON.stringify({ typeRegistrant: "4", wealthStatus: "not_assessed" }),
+    });
+    expect(coOwned.entityType).toBe("Other");
+    expect(coOwned.targetKind).toBe("other");
+  });
+
+  it("uses the current registrantTypeCode field when reclassifying legacy FAA HNWI records", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 99,
+      entityName: "FAA registrant using current metadata schema",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+      metadata: JSON.stringify({
+        source: "faa-aircraft-registry",
+        registrantTypeCode: "1",
+        estimatedNetWorth: 12_000_000,
+        personalWealthEvidence: false,
+        wealthStatus: "not_assessed",
+      }),
+    });
+    expect(binding.entityType).toBe("PersonCandidate");
+    expect(binding.targetKind).toBe("person");
+    expect(binding.sourceMetadata).not.toHaveProperty("estimatedNetWorth");
+    expect(binding.sourceMetadata).toMatchObject({
+      personalWealthEvidence: false,
+      wealthStatus: "not_assessed",
+      legacyFaaHnwiDowngradeApplied: true,
+    });
+  });
+
+  it("preserves an explicitly qualified HNWI when FAA registration is also among the sources", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 98,
+      entityName: "Independently qualified person",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database", "Independent wealth filing"]),
+      metadata: JSON.stringify({
+        source: "faa-aircraft-registry",
+        typeRegistrant: "1",
+        personalWealthEvidence: true,
+        wealthStatus: "qualified",
+        hnwiQualificationStatus: "qualified",
+      }),
+    });
+    expect(binding.entityType).toBe("HNWI");
+    expect(binding.targetKind).toBe("person");
+    expect(binding.sourceMetadata).toMatchObject({
+      personalWealthEvidence: true,
+      wealthStatus: "qualified",
+    });
+    expect(binding.sourceMetadata).not.toHaveProperty("legacyFaaHnwiDowngradeApplied");
   });
 
   it("preserves one-character and long target names without truncation", () => {

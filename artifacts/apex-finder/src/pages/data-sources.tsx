@@ -86,7 +86,7 @@ const SOURCES: SourceDef[] = [
   {
     id: "faa",
     label: "FAA Aircraft Registry",
-    description: "FAA aircraft registrations: aircraft asset leads plus provisional individual/legal-entity registrant candidates. Registration does not prove beneficial ownership or personal wealth.",
+    description: "FAA aircraft registration records: aircraft asset leads plus provisional individual/legal-entity registrant candidates, fractional-ownership status and published Other Name 1–5 fields. Registration does not prove beneficial ownership or personal wealth.",
     kind: "ingestor",
     Icon: Plane,
     color: "#F59E0B",
@@ -96,7 +96,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/faa",
     jobType: "faa",
     bodyParams: { maxRecords: 30000 },
-    note: "Start and monitor in Mass Seed Operations. Individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only.",
+    note: "Start and monitor in Mass Seed Operations. Other Name 1–5 are preserved per aircraft as unverified additional names; individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only. Optional map coordinates are US state centroids only—not aircraft positions or owner residences.",
   },
   {
     id: "gleif",
@@ -153,8 +153,8 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "land-registry",
-    label: "UK Land Registry (OCOD)",
-    description: "Overseas Companies that Own Property in England & Wales — monthly bulk dataset from HM Land Registry.",
+    label: "HM Land Registry Price Paid Data (PPD)",
+    description: "Historic residential property transactions with price, date, property type, tenure and property address. PPD is not a current title register and does not identify a purchaser’s current residence.",
     kind: "ingestor",
     Icon: Landmark,
     color: "#8B5CF6",
@@ -164,12 +164,12 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/land-registry",
     jobType: "land-registry",
     bodyParams: { maxRecords: 50000 },
-    note: "First run downloads ~300MB CSV. Cached for 30 days.",
+    note: "Transaction-only asset records; no owner relationship is created. Street-level addresses are excluded from canonical Investigator context. Do not treat a purchaser as the current owner or resident.",
   },
   {
     id: "opensky",
-    label: "Live ADS-B (adsb.lol + OpenSky)",
-    description: "Live ADS-B flight tracking — matches airborne jets against FAA-ingested aircraft to detect which private jets are flying right now.",
+    label: "Latest ADS-B Status (adsb.lol + OpenSky)",
+    description: "Latest public aircraft status only — airborne/on-ground with coarse altitude and speed bands. Exact positions, callsigns, track bearings and historical routes are not retained.",
     kind: "enricher",
     Icon: Activity,
     color: "#14B8A6",
@@ -179,11 +179,12 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/opensky",
     jobType: "opensky",
     bodyParams: {},
+    note: "Privacy boundary: latest coarse airborne/on-ground status only; exact coordinates, callsigns, bearings and historical routes are not retained.",
   },
   {
     id: "easa",
     label: "EASA / National Aviation Registers",
-    description: "European national aviation registries (UK CAA, DGAC, LBA, etc.) for non-US private jet ownership.",
+    description: "European national aircraft registries (UK CAA, DGAC, LBA, etc.) for jurisdiction-specific registration and registrant records. Registration is not proof of beneficial ownership.",
     kind: "ingestor",
     Icon: Plane,
     color: "#6B7280",
@@ -194,21 +195,19 @@ const SOURCES: SourceDef[] = [
     note: "No standardised bulk download available across European registries yet.",
   },
 
-  // ── Phase 9: In-House OSINT enrichment (no paid API) ─────────────────────
+  // ── Phase 9: Legacy In-House OSINT enrichment (retired) ───────────────────
   {
     id: "in-house-enrich",
-    label: "In-House OSINT Enricher",
+    label: "Legacy In-House Contact Enricher (retired)",
     description:
-      "Finds emails, LinkedIn URLs, and websites for HNWI and Gatekeeper entities using 6 free public sources: Wikidata SPARQL, GitHub API, email pattern generation verified by Gravatar MD5, DNS MX validation, RDAP domain contacts, and ProPublica 990 filings. No paid API required.",
+      "Legacy deterministic contact harvesting has been retired. No current API route or canonical Investigator capability exposes this pipeline; pattern-derived addresses are not public evidence and are never promoted to verified contact state.",
     kind: "enricher",
     Icon: Mail,
     color: "#10B981",
     bg: "rgba(16,185,129,0.1)",
     phase: 9,
     homepage: "https://query.wikidata.org",
-    jobType: "in-house-enrich",
-    bodyParams: { batchSize: 200 },
-    note: "Fully in-house — no Hunter.io, no Apollo.io, no paid plans. Wikidata covers public figures; GitHub covers founders/tech execs; Gravatar-verified email patterns work for most corporate emails. Run after Web OSINT Enrich for best coverage.",
+    note: "Retired legacy contact-harvesting pipeline. The API endpoint returns HTTP 410; it is not part of the canonical Investigator. Pattern-generated addresses are never evidence and this job must not be run.",
   },
 
   // ── Phase G (10): Semantic Intelligence Layer ─────────────────────────────
@@ -216,7 +215,7 @@ const SOURCES: SourceDef[] = [
     id: "semantic-embeddings",
     label: "Semantic Embedding Engine",
     description:
-      "Generates sentence-level embeddings for all 32,000+ entities using all-MiniLM-L6-v2 (384-dim, ~23 MB ONNX model). Embeddings power true semantic search, cross-registry entity resolution, and Hybrid Research path scoring. Runs fully server-side — no external AI API.",
+      "Optional local all-MiniLM-L6-v2 derived cache for semantic similarity and associate matching. It stores embeddings only; it does not create entities, discover contacts or conduct research.",
     kind: "enricher",
     Icon: Brain,
     color: "#8B5CF6",
@@ -225,8 +224,8 @@ const SOURCES: SourceDef[] = [
     homepage: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
     endpoint: "/api/ingest/compute-embeddings",
     jobType: "compute-embeddings",
-    bodyParams: { batchSize: 5000, force: true },
-    note: "Auto-triggered at 4 min and 32 min after boot. Run manually to force a full recompute.",
+    bodyParams: { batchSize: 50000, rebuild: true },
+    note: "Manual operator-triggered maintenance only; no startup schedule is registered. A single run scans up to 50,000 entities; use an explicit offset for larger datasets. Rebuild requests do not bypass the durable job lock and cannot overlap an active embedding run.",
   },
   {
     id: "osint-tools-directory",
@@ -247,27 +246,27 @@ const SOURCES: SourceDef[] = [
     id: "icij-offshore",
     label: "ICIJ Offshore Leaks",
     description:
-      "Reconciles entity names against the ICIJ Offshore Leaks database — Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks, and FinCEN Files. Runs automatically during in-house enrichment for all corporations.",
+      "Public offshore-leaks dataset covering the Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks and FinCEN Files. A name match is a lead for careful source review, not proof of wrongdoing or beneficial ownership.",
     kind: "enricher",
     Icon: FileSearch,
     color: "#F43F5E",
     bg: "rgba(244,63,94,0.1)",
     phase: 11,
     homepage: "https://offshoreleaks.icij.org",
-    note: "No API key required. Free reconciliation API at offshoreleaks.icij.org/api/v1/reconcile.",
+    note: "No dedicated ICIJ adapter is exposed to the canonical Investigator in this deployment; inspect a specific public record through web.visit when the objective justifies it.",
   },
   {
     id: "openownership",
     label: "OpenOwnership BODS",
     description:
-      "Beneficial ownership data in the Beneficial Ownership Data Standard — covers UK Register of Persons with Significant Control (PSC) and international BODS-format data. Resolves corporate ownership chains.",
+      "Public beneficial-ownership data standard and source catalogue. A specific published record may provide a lead for ownership-chain review, but this deployment has no dedicated adapter and each relationship requires source-level verification.",
     kind: "enricher",
     Icon: Layers,
     color: "#8B5CF6",
     bg: "rgba(139,92,246,0.1)",
     phase: 11,
     homepage: "https://www.openownership.org",
-    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Also queries UK PSC via Companies House.",
+    note: "No dedicated OpenOwnership BODS adapter is currently exposed. Public record URLs may be inspected through web.visit; a registry entry alone does not establish beneficial ownership.",
   },
   {
     id: "whoxy-rdap",
@@ -280,33 +279,33 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(16,185,129,0.1)",
     phase: 11,
     homepage: "https://rdap.org",
-    note: "Free public evidence sources run automatically. Paid reverse-WHOIS is optional and never required.",
+    note: "The model may select domain.lookup for RDAP/WHOIS after a verified domain. Certificate-transparency and archive pages require separately justified retrieval; no automatic domain sweep is performed.",
   },
   {
     id: "equasis-vessels",
     label: "Equasis Vessel Intelligence",
     description:
-      "Yacht and superyacht ownership via Equasis (IMO-linked vessel register) with VesselFinder fallback. Enriches entities with registered vessel names, flags, and ownership trails.",
+      "Equasis and VesselFinder are public reference sites for vessel/registration research. No dedicated vessel-ownership adapter is currently exposed; a registry or vessel match is not proof of beneficial ownership.",
     kind: "enricher",
     Icon: Anchor,
     color: "#0EA5E9",
     bg: "rgba(14,165,233,0.1)",
     phase: 11,
     homepage: "https://www.equasis.org",
-    note: "Requires EQUASIS_SESSION cookie for full data. VesselFinder API used as fallback.",
+    note: "Not a callable canonical Investigator capability in this deployment. Any public record must be independently fetched and its registrant/beneficial-owner limitations preserved.",
   },
   {
     id: "adsb-history",
-    label: "ADS-B Historical Flight Traces",
+    label: "ADS-B Historical Flight Traces (disabled)",
     description:
-      "Retrieves historical flight traces for known aircraft registration numbers using public ADS-B history sources, with OpenSky/ADSBExchange retained only as compatibility fallbacks.",
+      "Historical flight routes and itineraries are intentionally disabled. Apex does not collect or expose historical aircraft movement traces.",
     kind: "enricher",
     Icon: Plane,
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.1)",
     phase: 11,
     homepage: "https://globe.adsbexchange.com",
-    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Reads registration from entity metadata.",
+    note: "Disabled by privacy policy. No historical-flight action or ingestion endpoint is exposed to the canonical Investigator.",
   },
   {
     id: "holehe-maigret",
@@ -319,7 +318,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(236,72,153,0.1)",
     phase: 11,
     homepage: "https://github.com/megadose/holehe",
-    note: "Runs inside the canonical Investigator when model-selected and permitted by the evidence trajectory.",
+    note: "The email/username actions are exposed only after fresh signed worker attestation. Inputs must be publicly observed; results remain account leads, never identity proof or bulk sweeps.",
   },
   {
     id: "theharvester",
@@ -332,7 +331,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(107,114,128,0.1)",
     phase: 11,
     homepage: "https://github.com/laramies/theHarvester",
-    note: "Requires Python ≥3.12. Install status shown in the Phase L tool health panel above.",
+    note: "Not a direct canonical Investigator action in this deployment. An installed binary or health-panel status is not proof of model-visible capability.",
   },
   {
     id: "gliner-ner",
@@ -345,7 +344,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(167,139,250,0.1)",
     phase: 11,
     homepage: "https://github.com/urchade/GLiNER",
-    note: "Start with: python3 scripts/gliner_service.py. Automatically used by web enricher when service is running. Falls back to regex NER when offline.",
+    note: "Legacy local name-extraction helper only; not a network OSINT worker or standalone Investigator capability. It must not perform external lookups.",
   },
 ];
 

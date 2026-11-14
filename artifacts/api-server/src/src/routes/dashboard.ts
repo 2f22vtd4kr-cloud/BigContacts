@@ -11,6 +11,7 @@ import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { visibleRelationshipScope } from "../lib/relationship-visibility";
 import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
+import { qualifiedHnwiCondition } from "../lib/hnwi-qualification";
 
 const router: IRouter = Router();
 
@@ -29,7 +30,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   const entities = await db
     .select()
     .from(entitiesTable)
-    .where(and(eq(entitiesTable.type, "HNWI"), eq(entitiesTable.isHidden, false)))
+    .where(and(qualifiedHnwiCondition(), eq(entitiesTable.isHidden, false)))
     .orderBy(reachabilityOrderExpr())
     .limit(Math.max(limit * 10, 100)); // enough candidates for final ranking
 
@@ -696,7 +697,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db
       .select()
       .from(entitiesTable)
-      .where(and(visibleEntity, eq(entitiesTable.type, "HNWI")))
+      .where(and(visibleEntity, qualifiedHnwiCondition()))
       .orderBy(sql`
         CASE ${entitiesTable.contactOutcome}
           WHEN 'direct_contact_verified'   THEN 6
@@ -737,7 +738,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   const [westernCount] = await db
     .select({ cnt: sql<number>`count(*)::int` })
     .from(entitiesTable)
-    .where(and(visibleEntity, sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`));
+    .where(and(visibleEntity, qualifiedHnwiCondition(), sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`))
 
   // Enrichment coverage + F3 wealth tier segmentation + L2 contact outcome split (parallel queries)
   const [[contactableCount], [anyContactCount], [wealthTiersRow], [contactOutcomeRow]] = await Promise.all([
@@ -755,7 +756,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       veryHnw:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 30000000 and 100000000)::int`,
       hnw:      sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 4000000 and 30000000)::int`,
       unknown:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} is null or ${entitiesTable.estimatedNetWorth} < 4000000)::int`,
-    }).from(entitiesTable).where(visibleEntity),
+    }).from(entitiesTable).where(and(visibleEntity, qualifiedHnwiCondition())),
     // L2: break down the "Reachable" metric by outcome type so the dashboard
     // distinguishes personal contacts from organisational/social signals.
     db.select({
