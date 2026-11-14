@@ -126,10 +126,21 @@ describe("Investigator LLM telemetry privacy", () => {
     );
     await db.delete(agenticLlmDailyUsageTable).where(where);
     try {
-      const reservation = await reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env });
+      const concurrentReservations = await Promise.allSettled([
+        reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }),
+        reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }),
+      ]);
+      const successfulReservations = concurrentReservations.filter(
+        (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof reserveAgenticLlmDailyBudget>>> => result.status === "fulfilled",
+      );
+      const rejectedReservations = concurrentReservations.filter((result) => result.status === "rejected");
+      expect(successfulReservations).toHaveLength(1);
+      expect(rejectedReservations).toHaveLength(1);
+      expect((rejectedReservations[0] as PromiseRejectedResult).reason).toMatchObject({ code: "daily_token_budget_exhausted" });
+      const reservation = successfulReservations[0].value;
       expect(reservation).toMatchObject({ usageDate, reservedTokens: 600, dailyBudgetTokens: 1000 });
-      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 500, env }))
-        .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
+      const [reservedRow] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(reservedRow).toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000, budgetExhausted: true });
 
       const output = vi.spyOn(console, "log").mockImplementation(() => {});
       recordAgenticLlmAttempt({
