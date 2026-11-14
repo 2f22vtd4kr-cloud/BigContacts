@@ -119,7 +119,7 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
     .find((candidate) => candidate !== undefined && candidate !== null);
   const status = typeof rawStatus === "number" && Number.isInteger(rawStatus)
     ? rawStatus
-    : typeof rawStatus === "string" && /^\\d{3}$/.test(rawStatus)
+    : typeof rawStatus === "string" && /^\d{3}$/.test(rawStatus)
       ? Number(rawStatus)
       : null;
   return { name, message, code, status, providerQuotaError: quotaRecord !== undefined };
