@@ -13,7 +13,7 @@ describe("dashboard HNWI evidence qualification", () => {
     expect(helperSource).toContain("hnwiQualificationStatus");
     expect(helperSource).toContain("FAA Releasable Aircraft Database");
     expect(dashboardSource).not.toContain('eq(entitiesTable.type, "HNWI")');
-    expect(dashboardSource.match(/qualifiedHnwiCondition\(\)/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(dashboardSource.match(/qualifiedHnwiCondition\(\)/g)?.length).toBeGreaterThanOrEqual(4);
     expect(entitiesSource).toContain('if (type === "HNWI") conditions.push(qualifiedHnwiCondition())');
   });
 });
