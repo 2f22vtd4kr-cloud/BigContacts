@@ -153,8 +153,8 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "land-registry",
-    label: "UK Land Registry (OCOD)",
-    description: "Overseas Companies that Own Property in England & Wales — monthly bulk dataset from HM Land Registry.",
+    label: "HM Land Registry Price Paid Data (PPD)",
+    description: "Historic residential property transactions with price, date, property type, tenure and property address. PPD is not a current title register and does not identify a purchaser’s current residence.",
     kind: "ingestor",
     Icon: Landmark,
     color: "#8B5CF6",
@@ -164,7 +164,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/land-registry",
     jobType: "land-registry",
     bodyParams: { maxRecords: 50000 },
-    note: "First run downloads ~300MB CSV. Cached for 30 days.",
+    note: "Transaction-only asset records; no owner relationship is created. Street-level addresses are excluded from canonical Investigator context. Do not treat a purchaser as the current owner or resident.",
   },
   {
     id: "opensky",
