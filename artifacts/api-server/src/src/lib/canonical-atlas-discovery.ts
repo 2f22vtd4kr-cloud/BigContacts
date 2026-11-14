@@ -24,7 +24,7 @@ import {
 } from "./canonical-investigator-provider-recovery";
 import { isInvestigatorAuthoredResearchEvent, lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
-import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
@@ -2075,6 +2075,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let repeatedRejectedPivotCount = 0;
     const researchedNames = new Set<string>();
     let latestEpisodeActionExecuted = hasExecutedInvestigatorResearchAction(discovery.trajectoryRecords ?? []);
+    let latestEpisodeHadRecoverableModelFailure = hasRecoverableInvestigatorDecisionFailure(discovery.trajectoryRecords ?? []);
+    let scopePreservingProviderRetryGranted = false;
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
       await assertAtlasJobActive(atlasJobId);
@@ -2410,12 +2412,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         failureStage = "model_action_validation";
+        const retryAlreadyGranted = scopePreservingProviderRetryGranted;
+        if (decision.action === "continue_discovery" && !latestEpisodeActionExecuted
+          && latestEpisodeHadRecoverableModelFailure && !retryAlreadyGranted && decision.direction === null) {
+          scopePreservingProviderRetryGranted = true;
+        }
         const resolvedObjective = resolveBossDirectedDiscoveryObjective({
           action: decision.action,
           baseObjective: discoveryObjective,
           currentObjective: activeDiscoveryObjective,
           direction: decision.direction,
-          requireExplicitDirection: decision.action === "continue_discovery" && !latestEpisodeActionExecuted,
+          requireExplicitDirection: shouldRequireExplicitBossContinueDirection({
+            action: decision.action, episodeExecutedResearch: latestEpisodeActionExecuted,
+            recoverableModelFailure: latestEpisodeHadRecoverableModelFailure,
+            recoveryRetryAlreadyGranted: retryAlreadyGranted, direction: decision.direction,
+          }),
         });
         if (!resolvedObjective.valid) {
           // A malformed Boss pivot is a rejected control decision, not a reason to
@@ -2703,6 +2714,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // previously observed searches/visits from the job result.
         discovery = mergeDiscoveryResults(discovery, nextDiscovery);
         latestEpisodeActionExecuted = hasExecutedInvestigatorResearchAction(nextDiscovery.trajectoryRecords ?? []);
+        latestEpisodeHadRecoverableModelFailure = hasRecoverableInvestigatorDecisionFailure(nextDiscovery.trajectoryRecords ?? []);
         if (selectedInvestigator !== tokenCapacityFailureInvestigator) {
           consecutiveInvestigatorTokenCapacityFailures = 0;
           tokenCapacityFailureInvestigator = selectedInvestigator;

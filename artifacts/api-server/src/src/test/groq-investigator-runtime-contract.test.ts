@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { readFileSync } from "node:fs";
+import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
+import { hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection } from "../lib/investigator-episode-health";
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -279,6 +281,7 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty strings");
     expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
     expect(submitted).toContain("only done may null them");
@@ -291,8 +294,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("url may be null when unused");
     expect(submitted).toContain("Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose");
     expect(submitted).toContain("Parallel registry searches need 1–4 objects, each with query/registry (a configured ID)/provider:null/locale:null/market:null/purpose");
-    expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
-    expect(submitted).toContain("targetType, profile, searches, findings");
+    expect(submitted).toContain("Each finding still needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(messages).toHaveLength(2);
   });
@@ -349,6 +351,68 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages.map((message) => message.content).join("\n")).toContain("Apply objective criteria");
   });
 
+  it("replays the 2026-11-14 captured Investigator request metadata and bounded recovery", () => {
+    const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
+      capturedRequest: {
+        model: string; max_completion_tokens: number; reasoning_effort: string; messages: Array<{ role: string; content: string }>;
+        responseFormat: { type: string; schemaPropertyCount: number; requiredFieldCount: number };
+        responseFormatPayload: { type: string; json_schema: { name: string; strict: boolean; schema: { properties: Record<string, unknown>; required: string[] } } };
+        schemaRequired: number; schemaProperties: number;
+      };
+      capturedProviderError: { status: number; code: string; message: string; failedGenerationPresent: boolean };
+      capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number; action: string; searches: number; findings: number };
+    };
+    expect(replay.capturedRequest).toMatchObject({
+      model: "openai/gpt-oss-120b", max_completion_tokens: 512, reasoning_effort: "medium",
+      schemaRequired: 20, schemaProperties: 20, responseFormat: { type: "json_schema", schemaPropertyCount: 20, requiredFieldCount: 20 },
+    });
+    expect(replay.capturedRequest.messages.map(({ role }) => role)).toEqual(["system", "user"]);
+    expect(replay.capturedRequest.messages.map(({ content }) => content.length)).toEqual([7337, 8700]);
+    expect(replay.capturedRequest.messages[0].content).toContain("INVESTIGATOR CORE");
+    expect(replay.capturedRequest.messages[1].content).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    expect(replay.capturedRequest.responseFormatPayload.json_schema.schema.required).toHaveLength(20);
+    expect(Object.keys(replay.capturedRequest.responseFormatPayload.json_schema.schema.properties)).toHaveLength(20);
+    expect(replay.capturedRequest.responseFormatPayload.json_schema.strict).toBe(true);
+    expect(replay.capturedProviderError).toMatchObject({ status: 400, code: "json_validate_failed", failedGenerationPresent: false });
+    expect(replay.capturedSuccessfulResponse).toMatchObject({ prompt_tokens: 3565, completion_tokens: 509, reasoning_tokens: 403, action: "done", searches: 0, findings: 0 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 3705, promptTokenEstimate: 3565,
+    })).toEqual({ action: "retry_json_object" });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_object", failureDetailsAvailable: false, completionBudgetRetryUsed: true,
+      currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "fail" });
+  });
+  it("withholds discovery done until successful external observation", () => {
+    const failure = [{ action: "investigator_provider_error", execution: "error", observation: "HTTP_400:json_validate_failed", observedUrls: [] }, { action: "done", execution: "blocked", observation: "No evidence", observedUrls: [] }];
+    const emptySearch = [{ action: "web_search", execution: "success", observation: "No usable result returned; no hits", observedUrls: [] }];
+    const fetched = [{ action: "visit", execution: "success", observation: "Official source page", observedUrls: ["https://example.org/about"] }];
+    expect(hasUsableDiscoveryExternalObservation([])).toBe(false);
+    expect(hasUsableDiscoveryExternalObservation(failure)).toBe(false);
+    expect(hasUsableDiscoveryExternalObservation(emptySearch)).toBe(false);
+    expect(hasUsableDiscoveryExternalObservation(fetched)).toBe(true);
+    const allowed = ["web_search", "parallel_web_search", "visit"];
+    const format = structuredActionResponseFormat("openai/gpt-oss-120b", allowed) as { json_schema?: { schema?: { properties?: { action?: { enum?: string[] } } } } };
+    expect(format.json_schema?.schema?.properties?.action?.enum).toEqual(allowed);
+    expect(describeAgentActionParseFailure(JSON.stringify({ action: "done", hypothesis: null, purpose: null, expectedInformationGain: 0 }), allowed)).toBe("unsupported_action action=done");
+  });
+  it("bounds directionless Boss continuation to one recoverable model failure", () => {
+    const failure = [{ action: "investigator_provider_error", failureDomain: "model_provider", failureKind: "invalid_provider_request" }];
+    expect(hasRecoverableInvestigatorDecisionFailure(failure)).toBe(true);
+    expect(shouldRequireExplicitBossContinueDirection({ action: "continue_discovery", episodeExecutedResearch: false, recoverableModelFailure: true, recoveryRetryAlreadyGranted: false, direction: null })).toBe(false);
+    expect(shouldRequireExplicitBossContinueDirection({ action: "continue_discovery", episodeExecutedResearch: false, recoverableModelFailure: true, recoveryRetryAlreadyGranted: true, direction: null })).toBe(true);
+    expect(shouldRequireExplicitBossContinueDirection({ action: "continue_discovery", episodeExecutedResearch: false, recoverableModelFailure: false, recoveryRetryAlreadyGranted: false, direction: null })).toBe(true);
+    expect(shouldRequireExplicitBossContinueDirection({ action: "continue_discovery", episodeExecutedResearch: true, recoverableModelFailure: false, recoveryRetryAlreadyGranted: false, direction: null })).toBe(false);
+    expect(shouldRequireExplicitBossContinueDirection({ action: "pivot_discovery", episodeExecutedResearch: false, recoverableModelFailure: true, recoveryRetryAlreadyGranted: false, direction: null })).toBe(false);
+  });
   it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
@@ -357,13 +421,14 @@ describe("Groq Investigator runtime contract", () => {
     });
     expect(body).toMatchObject({
       model: "openai/gpt-oss-120b",
-      reasoning_effort: "medium",
+      reasoning_effort: "low",
+      max_completion_tokens: 1024,
       include_reasoning: false,
     });
     expect(body).not.toHaveProperty("reasoning_format");
   });
 
-  it("preserves medium reasoning and a full action budget for contact research", () => {
+  it("uses low reasoning and a configurable 1,024-token budget for contact action selection", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
       prompt: completeInvestigatorProviderPrompt + "\\n\\ninvestigate and attribute a realistic public contact route",
@@ -371,8 +436,8 @@ describe("Groq Investigator runtime contract", () => {
     });
     expect(body).toMatchObject({
       model: "openai/gpt-oss-120b",
-      reasoning_effort: "medium",
-      max_completion_tokens: 768,
+      reasoning_effort: "low",
+      max_completion_tokens: 1024,
       include_reasoning: false,
     });
   });
@@ -413,7 +478,7 @@ describe("Groq Investigator runtime contract", () => {
       type: ["string", "null"],
       enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
-    expect(schema?.required).toEqual(expect.arrayContaining(["action", "target", "targetType", "profile", "locale", "market", "provider"]));
+    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
   });
 
   it("reports unavailable research executors as unsupported instead of advertising stale actions", () => {
