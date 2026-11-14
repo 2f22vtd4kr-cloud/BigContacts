@@ -788,16 +788,20 @@ describe("Atlas Right-hand opening review normalization", () => {
 });
 
 describe("Right-hand advisory authority", () => {
-  it("does not veto Boss decisions when Right-hand is unavailable on a later turn", () => {
+  it("keeps Right-hand advisory while making consequential review conditional", () => {
     const source = readFileSync(new URL("./atlas-control-decision.ts", import.meta.url), "utf8");
-    expect(source).toContain("Right-hand is advisory on every turn");
+    expect(source).toContain("Right-hand remains advisory; Boss owns every control decision.");
+    expect(source).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
+    expect(source).toContain('status: "deferred"');
+    expect(source).toContain('reviewDeferred: input.rightHand.status === "deferred"');
     expect(source).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride) return finalize');
     const prompt = buildAtlasBossControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
       compactState: "Durable case state is available.",
       rightHand: { status: "unavailable", decision: null, reason: null, direction: null, confidence: null, model: "none", error: "provider unavailable" },
     });
-    expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
+    expect(prompt).toContain("If status is unavailable, review was attempted but failed");
+    expect(prompt).toContain("make an independent Boss decision");
   });
 });
 

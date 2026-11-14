@@ -16,6 +16,21 @@ export type InvestigatorEpisodeHealthInput = {
  * that was actually attempted. A done/parse/provider record, or a proposal
  * that was merely selected/blocked, is not research execution.
  */
+export function hasRecoverableInvestigatorDecisionFailure(
+  records: readonly { action?: string | null; failureDomain?: string | null; failureKind?: string | null }[],
+): boolean {
+  return records.some((record) =>
+    (record.action === "investigator_provider_error" && record.failureDomain === "model_provider" && record.failureKind === "invalid_provider_request")
+    || (record.action === "parse_failure" && record.failureDomain === "model_action" && record.failureKind === "invalid_contract"),
+  );
+}
+export function shouldRequireExplicitBossContinueDirection(input: {
+  action: string; episodeExecutedResearch: boolean; recoverableModelFailure: boolean;
+  recoveryRetryAlreadyGranted: boolean; direction: string | null;
+}): boolean {
+  if (input.action !== "continue_discovery" || input.episodeExecutedResearch) return false;
+  return !(input.direction === null && input.recoverableModelFailure && !input.recoveryRetryAlreadyGranted);
+}
 export function hasExecutedInvestigatorResearchAction(
   records: readonly { action?: string | null; execution?: string | null }[],
 ): boolean {
