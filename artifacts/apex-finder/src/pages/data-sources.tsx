@@ -168,8 +168,8 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "opensky",
-    label: "Live ADS-B (adsb.lol + OpenSky)",
-    description: "Live ADS-B flight tracking — matches airborne jets against FAA-ingested aircraft to detect which private jets are flying right now.",
+    label: "Latest ADS-B Status (adsb.lol + OpenSky)",
+    description: "Latest public aircraft status only — airborne/on-ground with coarse altitude and speed bands. Exact positions, callsigns, track bearings and historical routes are not retained.",
     kind: "enricher",
     Icon: Activity,
     color: "#14B8A6",
@@ -208,7 +208,7 @@ const SOURCES: SourceDef[] = [
     homepage: "https://query.wikidata.org",
     jobType: "in-house-enrich",
     bodyParams: { batchSize: 200 },
-    note: "Fully in-house — no Hunter.io, no Apollo.io, no paid plans. Wikidata covers public figures; GitHub covers founders/tech execs; Gravatar-verified email patterns work for most corporate emails. Run after Web OSINT Enrich for best coverage.",
+    note: "Retired legacy contact-harvesting pipeline. The API endpoint returns HTTP 410; it is not part of the canonical Investigator. Pattern-generated addresses are never evidence and this job must not be run.",
   },
 
   // ── Phase G (10): Semantic Intelligence Layer ─────────────────────────────
@@ -247,14 +247,14 @@ const SOURCES: SourceDef[] = [
     id: "icij-offshore",
     label: "ICIJ Offshore Leaks",
     description:
-      "Reconciles entity names against the ICIJ Offshore Leaks database — Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks, and FinCEN Files. Runs automatically during in-house enrichment for all corporations.",
+      "Public offshore-leaks dataset covering the Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks and FinCEN Files. A name match is a lead for careful source review, not proof of wrongdoing or beneficial ownership.",
     kind: "enricher",
     Icon: FileSearch,
     color: "#F43F5E",
     bg: "rgba(244,63,94,0.1)",
     phase: 11,
     homepage: "https://offshoreleaks.icij.org",
-    note: "No API key required. Free reconciliation API at offshoreleaks.icij.org/api/v1/reconcile.",
+    note: "No dedicated ICIJ adapter is exposed to the canonical Investigator in this deployment; inspect a specific public record through web.visit when the objective justifies it.",
   },
   {
     id: "openownership",
@@ -267,7 +267,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(139,92,246,0.1)",
     phase: 11,
     homepage: "https://www.openownership.org",
-    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Also queries UK PSC via Companies House.",
+    note: "No dedicated OpenOwnership BODS adapter is currently exposed. Public record URLs may be inspected through web.visit; a registry entry alone does not establish beneficial ownership.",
   },
   {
     id: "whoxy-rdap",
@@ -280,33 +280,33 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(16,185,129,0.1)",
     phase: 11,
     homepage: "https://rdap.org",
-    note: "Free public evidence sources run automatically. Paid reverse-WHOIS is optional and never required.",
+    note: "The model may select domain.lookup for RDAP/WHOIS after a verified domain. Certificate-transparency and archive pages require separately justified retrieval; no automatic domain sweep is performed.",
   },
   {
     id: "equasis-vessels",
     label: "Equasis Vessel Intelligence",
     description:
-      "Yacht and superyacht ownership via Equasis (IMO-linked vessel register) with VesselFinder fallback. Enriches entities with registered vessel names, flags, and ownership trails.",
+      "Equasis and VesselFinder are public reference sites for vessel/registration research. No dedicated vessel-ownership adapter is currently exposed; a registry or vessel match is not proof of beneficial ownership.",
     kind: "enricher",
     Icon: Anchor,
     color: "#0EA5E9",
     bg: "rgba(14,165,233,0.1)",
     phase: 11,
     homepage: "https://www.equasis.org",
-    note: "Requires EQUASIS_SESSION cookie for full data. VesselFinder API used as fallback.",
+    note: "Not a callable canonical Investigator capability in this deployment. Any public record must be independently fetched and its registrant/beneficial-owner limitations preserved.",
   },
   {
     id: "adsb-history",
-    label: "ADS-B Historical Flight Traces",
+    label: "ADS-B Historical Flight Traces (disabled)",
     description:
-      "Retrieves historical flight traces for known aircraft registration numbers using public ADS-B history sources, with OpenSky/ADSBExchange retained only as compatibility fallbacks.",
+      "Historical flight routes and itineraries are intentionally disabled. Apex does not collect or expose historical aircraft movement traces.",
     kind: "enricher",
     Icon: Plane,
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.1)",
     phase: 11,
     homepage: "https://globe.adsbexchange.com",
-    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Reads registration from entity metadata.",
+    note: "Disabled by privacy policy. No historical-flight action or ingestion endpoint is exposed to the canonical Investigator.",
   },
   {
     id: "holehe-maigret",
@@ -319,7 +319,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(236,72,153,0.1)",
     phase: 11,
     homepage: "https://github.com/megadose/holehe",
-    note: "Runs inside the canonical Investigator when model-selected and permitted by the evidence trajectory.",
+    note: "The email/username actions are exposed only after fresh signed worker attestation. Inputs must be publicly observed; results remain account leads, never identity proof or bulk sweeps.",
   },
   {
     id: "theharvester",
@@ -332,7 +332,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(107,114,128,0.1)",
     phase: 11,
     homepage: "https://github.com/laramies/theHarvester",
-    note: "Requires Python ≥3.12. Install status shown in the Phase L tool health panel above.",
+    note: "Not a direct canonical Investigator action in this deployment. An installed binary or health-panel status is not proof of model-visible capability.",
   },
   {
     id: "gliner-ner",
@@ -345,7 +345,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(167,139,250,0.1)",
     phase: 11,
     homepage: "https://github.com/urchade/GLiNER",
-    note: "Start with: python3 scripts/gliner_service.py. Automatically used by web enricher when service is running. Falls back to regex NER when offline.",
+    note: "Legacy local name-extraction helper only; not a network OSINT worker or standalone Investigator capability. It must not perform external lookups.",
   },
 ];
 
