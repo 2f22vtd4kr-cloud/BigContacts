@@ -49,6 +49,16 @@ describe("registry profile evidence semantics", () => {
     expect(dataSourcesSource).toContain("Other Name 1–5 are preserved per aircraft as unverified additional names");
   });
 
+  it("does not display FAA-only legacy registrants as HNWI before the importer migration runs", () => {
+    expect(profileSource).toContain("function profileDisplayEntityType(entity: any)");
+    expect(profileSource).toContain('if (registrantType === "1") return "PersonCandidate"');
+    expect(profileSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
+    expect(profileSource).toContain("const displayType = profileDisplayEntityType(entity)");
+    expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
+    expect(profileSource).toContain("sourceRegistries.length === 1");
+    expect(profileSource).toContain('sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry"');
+  });
+
   it("keeps the registry confidence badge from presenting source confidence as proof of wealth", () => {
     expect(narrativeSource).toContain("does not prove beneficial ownership or personal wealth");
     expect(narrativeSource).not.toContain("confirm this person's wealth profile");
