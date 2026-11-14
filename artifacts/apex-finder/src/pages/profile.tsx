@@ -112,20 +112,19 @@ function hasPersonalWealthEvidence(entity: any): boolean {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
   } catch {}
   if (metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed") return false;
+  let sourceRegistries: string[] = [];
   try {
-    const sourceRegistries = JSON.parse(entity.sourceRegistries ?? "[]");
-    if (Array.isArray(sourceRegistries)) {
-      const registries = sourceRegistries.filter((source: unknown): source is string => typeof source === "string");
-      const faaOnly = registries.length === 1 && /FAA Releasable Aircraft Database/i.test(registries[0]);
-      if (faaOnly) return false;
-      // A merged profile can retain FAA as its original metadata.source while
-      // gaining independent sources; do not hide independently assessed wealth.
-      if (registries.length > 0) return true;
-    }
+    const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
+    if (Array.isArray(parsed)) sourceRegistries = parsed.filter((source: unknown): source is string => typeof source === "string");
   } catch {}
-  return metadata.source !== "faa-aircraft-registry";
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || sourceRegistries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  // FAA registration is not personal-wealth evidence. A mixed-source entity
+  // needs an explicit positive personal-wealth assessment before its amount
+  // can be displayed; the presence of another registry alone is not enough.
+  if (hasFaaSource && metadata.personalWealthEvidence !== true) return false;
+  return true;
 }
-
 function profileDisplayEntityType(entity: any) {
   if (entity?.type !== "HNWI") return entity?.type ?? "Other";
   let metadata: Record<string, any> = {};
