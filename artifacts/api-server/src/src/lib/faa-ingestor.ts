@@ -513,6 +513,18 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       eq(entitiesTable.type, "HNWI"),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
       sql`COALESCE(${entitiesTable.metadata}::jsonb ->> 'legacyFaaOwnershipCorrected', 'false') <> 'true'`,
+      // Match canonical target routing: an explicit positive independent wealth
+      // assessment must survive the legacy importer repair unless contradictory
+      // metadata explicitly says wealth is not evidenced/not assessed.
+      sql`NOT (
+        (
+          ${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence' = 'true'
+          OR ${entitiesTable.metadata}::jsonb ->> 'wealthStatus' IN ('qualified', 'verified', 'assessed')
+          OR ${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus' = 'qualified'
+        )
+        AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') <> 'false'
+        AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'
+      )`,
     ));
     const legacyFaaOwnedLinks = await tx.select({
       sourceEntityId: relationshipsTable.sourceEntityId,
