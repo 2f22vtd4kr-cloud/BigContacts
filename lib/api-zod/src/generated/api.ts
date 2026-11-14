@@ -298,6 +298,7 @@ export const UpdateAssetBody = zod.object({
   "description": zod.string().optional(),
   "lastActivityDate": zod.string().optional(),
   "sourceRegistry": zod.string().optional(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().optional()
 })
 
