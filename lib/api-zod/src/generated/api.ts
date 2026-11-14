@@ -215,6 +215,7 @@ export const ListAssetsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "lastActivityDate": zod.string().nullish(),
   "sourceRegistry": zod.string().nullish(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "createdAt": zod.string()
@@ -236,6 +237,7 @@ export const CreateAssetBody = zod.object({
   "description": zod.string().optional(),
   "lastActivityDate": zod.string().optional(),
   "sourceRegistry": zod.string().optional(),
+  "metadata": zod.string().nullish(),
   "ownerEntityId": zod.number().optional()
 })
 
