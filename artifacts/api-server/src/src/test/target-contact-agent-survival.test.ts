@@ -186,6 +186,8 @@ describe("offline Investigator-to-card survival path", () => {
       note: "Official team profile identifies Jane Example and gives her direct professional email.",
       contactAttribution: "person_specific" as const,
       exactQuote: testState.quote,
+      identityAssessment: "same_person" as const,
+      identityRationale: "The official company profile identifies Jane Example as Managing Director and quotes this direct professional address.",
       promotionDecision: "promote" as const,
       promotionReason: "The fetched profile explicitly identifies this as Jane Example's direct route.",
     };
