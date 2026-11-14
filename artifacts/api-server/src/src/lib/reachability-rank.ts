@@ -16,9 +16,11 @@ import { entitiesTable } from "@workspace/db";
  *  1. Contact outcome tier (verified direct > candidate > org > social > evidence > none)
  *  2. Contact confidence (how trustworthy the contact data is, 0-100)
  *  3. Inline access weight (email/phone/LinkedIn presence → direct channels)
- *  4. Prominence penalty: push ultra-wealthy ($500M+) with zero direct contact
- *     to the bottom of their tier
- *  5. Bayesian ("Signal") score as the final tiebreaker only
+ *  4. Bayesian ("Signal") score as a final contextual tiebreaker.
+ *
+ * Wealth and public prominence are not deterministic reasons to demote a
+ * target. Whether a target is worth further investigation is a mission-level
+ * judgement; this expression orders already-qualified contact outcomes only.
  */
 export function reachabilityOrderExpr(): SQL {
   return sql`
@@ -36,12 +38,6 @@ export function reachabilityOrderExpr(): SQL {
       CASE WHEN ${entitiesTable.phone}       IS NOT NULL AND btrim(${entitiesTable.phone}::text)       <> '' THEN 45 ELSE 0 END +
       CASE WHEN ${entitiesTable.linkedinUrl} IS NOT NULL AND btrim(${entitiesTable.linkedinUrl}::text) <> '' THEN 12 ELSE 0 END
     ) DESC,
-    CASE
-      WHEN COALESCE(${entitiesTable.estimatedNetWorth}, 0) > 500000000
-       AND (${entitiesTable.email} IS NULL OR btrim(${entitiesTable.email}::text) = '')
-       AND (${entitiesTable.phone} IS NULL OR btrim(${entitiesTable.phone}::text) = '')
-      THEN 0 ELSE 1
-    END DESC,
     ${entitiesTable.bayesianScore} DESC
   `;
 }
