@@ -4556,6 +4556,7 @@ describe("restricted community source content boundary", () => {
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [staleFetch])).toEqual(["renewable energy"]);
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: activePivotScopeKey }])).toEqual([]);
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: undefined }])).toEqual(["renewable energy"]);
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: activePivotScopeKey, observedUrls: [] }])).toEqual(["renewable energy"]);
   });
 
   it("blocks unsupported sector narrowing but allows sectors named by the objective or established by a fetched same-case source", () => {
