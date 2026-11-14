@@ -373,8 +373,14 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
     }
     return `${name} appears in SEC EDGAR ownership or governance filings. The exact filing, role, reported position and date must be reviewed before qualification.`;
   }
+  if (/ppd|price.?paid/i.test(reg)) {
+    return `${name} is associated with UK HM Land Registry Price Paid Data sale transaction records. A transaction is not proof of current title, continuing ownership or personal wealth; verify title independently.`;
+  }
+  if (/ocod|overseas companies/i.test(reg)) {
+    return `${name} is associated with an Overseas Companies Ownership of UK Property register entry. This is a company-level property record; it does not by itself establish an individual's beneficial ownership or personal wealth.`;
+  }
   if (/land.?reg|hmlr/i.test(reg) || categories.some((c) => c.includes("real estate") || c.includes("property"))) {
-    return `${name} is associated with UK property sale or registry records. A Price Paid transaction is not proof of current title, continuing ownership or personal wealth; verify title independently.`;
+    return `${name} is associated with a UK Land Registry property record. Confirm the exact dataset, current title and beneficial-ownership scope before drawing ownership or personal-wealth conclusions.`;
   }
   if (/companies.?house/i.test(reg)) {
     return company
