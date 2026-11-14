@@ -12,7 +12,7 @@
  * GET  /ingest/status            — overall ingestion status
  * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
  * POST /ingest/land-registry     — UK HMLR OCOD property ingestion
- * POST /ingest/opensky           — live ADS-B enricher (adsb.lol + OpenSky fallback)
+ * POST /ingest/opensky           — coarse latest ADS-B status only (no positions/history)
  *
  * Sub-routers mounted below:
  *   ingest-migrations  — sync/backfill routes (sync-faa-coordinates, reclassify, etc.)
