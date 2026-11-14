@@ -15,6 +15,8 @@ import {
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
   normalizeAtlasOpeningRightHandApprovalReview,
+  normalizeAtlasOpeningRightHandReview,
+  validateAtlasOpeningRightHandReview,
   validateAtlasOpeningRightHandApprovalReview,
 } from "./atlas-control-decision";
 
@@ -796,6 +798,65 @@ describe("Right-hand advisory authority", () => {
       rightHand: { status: "unavailable", decision: null, reason: null, direction: null, confidence: null, model: "none", error: "provider unavailable" },
     });
     expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
+  });
+});
+
+describe("Atlas opening Right-hand advisory normalization", () => {
+  it("normalizes the observed rationale alias and textual confidence without changing advisory meaning", () => {
+    const normalized = normalizeAtlasOpeningRightHandReview({
+      decision: "proceed",
+      rationale: "The public-web lane is available; no jurisdiction was supplied.",
+      focusLanes: ["public_web"],
+      confidence: "high",
+    });
+
+    expect(normalized).toEqual({
+      decision: "proceed",
+      reason: "The public-web lane is available; no jurisdiction was supplied.",
+      focusLanes: ["public_web"],
+      confidence: 0.75,
+    });
+    expect(validateAtlasOpeningRightHandReview(normalized)).toBe(true);
+  });
+
+  it("preserves a valid numeric confidence and trims harmless whitespace", () => {
+    expect(normalizeAtlasOpeningRightHandReview({
+      decision: " proceed ",
+      reason: "  Continue under the exact human objective. ",
+      focusLanes: [" public_web ", " registry:gleif "],
+      confidence: 0.73,
+    })).toEqual({
+      decision: "proceed",
+      reason: "Continue under the exact human objective.",
+      focusLanes: ["public_web", "registry:gleif"],
+      confidence: 0.73,
+    });
+  });
+
+  it("rejects conflicting aliases, unknown fields, invalid confidence and missing required fields", () => {
+    const base = {
+      decision: "proceed",
+      reason: "Proceed under the exact objective.",
+      focusLanes: ["public_web"],
+      confidence: 0.75,
+    };
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, rationale: "A conflicting rationale." })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, debug: "unexpected" })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, confidence: "certain" })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, confidence: 1.2 })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, focusLanes: [] })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ decision: "proceed", rationale: "No lanes or confidence." })).toBeNull();
+  });
+
+  it("keeps the persisted review schema strict after normalization", () => {
+    const raw = {
+      decision: "proceed",
+      rationale: "The public-web lane is available.",
+      focusLanes: ["public_web"],
+      confidence: "medium",
+    };
+    expect(validateAtlasOpeningRightHandReview(raw)).toBe(false);
+    expect(validateAtlasOpeningRightHandReview(normalizeAtlasOpeningRightHandReview(raw))).toBe(true);
   });
 });
 
