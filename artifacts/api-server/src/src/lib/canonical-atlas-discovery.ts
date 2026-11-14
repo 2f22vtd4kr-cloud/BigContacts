@@ -5,7 +5,7 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
@@ -1775,7 +1775,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Independently review the exact human objective and opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. LIVE RANDOMIZED REGISTRY CATALOG: ${atlasRegistryFeasibilityLaw()}. Recommend a small objective-compatible source mix in focusLanes using only runtime-callable IDs/families from this catalog (for example registry:<id> and public_web). Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead. The human mission and realistic-targetability rules govern. Assess whether a relevant registry/asset-register route should be combined with independent public-web discovery, and explain any concrete reason to omit either. Do not impose a fixed order or itinerary. The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point. You cannot browse and must not treat confidence as evidence. Do not select the Investigator or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start the normal mixed-source discovery phase or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
+        `Independently review the exact human objective and opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. LIVE RANDOMIZED REGISTRY CATALOG: ${atlasRegistryFeasibilityLaw()}. Recommend a small objective-compatible source mix in focusLanes using only runtime-callable IDs/families from this catalog (for example registry:<id> and public_web). Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead. The human mission and realistic-targetability rules govern. Assess whether a relevant registry/asset-register route should be combined with independent public-web discovery, and explain any concrete reason to omit either. Do not impose a fixed order or itinerary. The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point. You cannot browse and must not treat confidence as evidence. Do not select the Investigator or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start the normal mixed-source discovery phase or stop. A disagreement is advice, not a veto. Return exactly one JSON object with exactly these keys: decision (non-empty string), reason (non-empty string; use "reason", not "rationale"), focusLanes (array of at most 8 strings), and confidence (number from 0 to 1; do not use low/medium/high labels).`,
         "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
@@ -1784,7 +1784,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const parsed = value && typeof value === "object" && !Array.isArray(value)
               ? value as Record<string, unknown>
               : null;
-            return validateAtlasOpeningRightHandReview(parsed);
+            return normalizeAtlasOpeningRightHandReview(parsed) !== null;
           } catch {
             return false;
           }
@@ -1831,14 +1831,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const parsed = value && typeof value === "object" && !Array.isArray(value)
           ? value as Record<string, unknown>
           : null;
-        if (validateAtlasOpeningRightHandReview(parsed)) {
+        const normalized = normalizeAtlasOpeningRightHandReview(parsed);
+        if (normalized) {
           rightHand = {
             status: "completed",
             model: rightHandRaw.model,
-            decision: (parsed!.decision as string).trim(),
-            reason: (parsed!.reason as string).trim(),
-            focusLanes: (parsed!.focusLanes as string[]).map((lane) => lane.trim()),
-            confidence: parsed!.confidence as number,
+            decision: normalized.decision as string,
+            reason: normalized.reason as string,
+            focusLanes: normalized.focusLanes as string[],
+            confidence: normalized.confidence as number,
             error: null,
           };
         } else {
