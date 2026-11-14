@@ -4,6 +4,16 @@ import { describe, expect, it } from "vitest";
 const ingestRoutes = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
 
 describe("ingestion route lock lifecycle", () => {
+  it("reconciles terminal stale locks strictly and fails closed on unknown or missing job state", () => {
+    expect(ingestRoutes).toContain("async function ensureIngestionLaneAvailable");
+    expect(ingestRoutes).toContain("const existingJobId = await getActiveJobStrict(type)");
+    expect(ingestRoutes).toContain("const existing = await getJobStrict(existingJobId)");
+    expect(ingestRoutes).toContain('if (laneStatus === "unknown")');
+    expect(ingestRoutes).toContain("clearActiveJobIfMatches(type, existingJobId)");
+    expect(ingestRoutes).toContain("const currentOwner = await getActiveJobStrict(type)");
+    expect(ingestRoutes).not.toMatch(/getActiveJob\\(\s*"(?:western-hnwi|faa|brreg-snapshot|occrp|land-registry|opensky)"\s*\\)/u);
+  });
+
   it("releases each claimed ingestion lane in a finally block after success or failure", () => {
     const laneTypes = [
       "western-hnwi",
