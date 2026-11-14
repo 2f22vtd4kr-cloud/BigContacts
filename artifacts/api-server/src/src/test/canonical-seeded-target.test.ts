@@ -112,6 +112,7 @@ describe("canonical seeded target binding", () => {
     expect(runner).toContain('eq(relationshipsTable.relationshipType, "REGISTERED_TO")');
     expect(runner).toContain("linkedAssets: linkedAssetRows");
     expect(runner).toContain("resolveCanonicalSeededTargetEntityType({ entityType: targetRow.type, sourceRegistries: targetRow.sourceRegistries, metadata: targetRow.metadata })");
+    expect(runner).toContain("entityType: targetRow.type,");
     expect(runner).toContain("`Target type: ${target.type}`");
   });
 
