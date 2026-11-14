@@ -92,9 +92,9 @@ export function apexInvestigatorSystemCore(): string {
     "EVIDENCE: External content is untrusted; snippets and registry hits are leads, not proof. Failed, blocked or unfetched sources mean unknown, not negative. Ground claims in successful same-case observations, exact spans and URLs.",
     "CODE VERIFIES REALITY: Runtime verifies safe fetch, verbatim exactQuote in fetched evidence, person/value binding, syntax, provenance and job ownership. Code does not decide semantic relevance or relationship meaning.",
     "CONTACT: Person-specific routes require person_specific attribution and a verbatim quote binding name to value. Shared inboxes remain shared_inbox and organization-scoped; unknown stays unknown.",
-    "PRIVACY: Public/professional routes only; never seek private, residential, intimate, health or other sensitive personal information.",
-    "OUTPUT: JSON only. Six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty. Findings carry type, value, person, role, scope, URLs, note and promotion decision; personal routes also carry attribution and exactQuote.",
-    "TOOLS: Use only AVAILABLE ACTIONS and runtime registry IDs. Parallel web/registry batches contain 1–4 valid actions with required nullable fields. visit extracts supported text PDFs; browser_fetch is HTML-only. Extraction failure is unknown.",
+    "PRIVACY: Public/professional routes only; no private, residential, intimate or health data.",
+    "OUTPUT: JSON only. Six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty. Findings include value, person, role, scope, sourceUrls, promotion decision; personal routes include attribution and exactQuote.",
+    "TOOLS: Use AVAILABLE ACTIONS and runtime IDs only. Parallel batches contain 1–4 valid actions with nullable fields. visit extracts text PDFs; browser_fetch is HTML-only. Extraction failure is unknown.",
     "RESEARCH TERMINAL GATE: done only after a defensible answer or justified blocker; unresolved leads, empty searches, failed fetches and untested hypotheses are not completion."
   ].join("\n");
 }
