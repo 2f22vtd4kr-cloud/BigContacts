@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
 const narrativeSource = readFileSync(new URL("../lib/utils.tsx", import.meta.url), "utf8");
+const dataSourcesSource = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 
 describe("registry profile evidence semantics", () => {
   it("does not promote FAA registrants or HMLR transaction parties into owners or wealthy people", () => {
@@ -40,6 +41,11 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("assetMetadata.additionalRegistrantNames");
     expect(profileSource).toContain("unverified");
     expect(profileSource).toContain("not independently verified identities or proof of beneficial ownership");
+  });
+
+  it("documents the FAA additional-name fields and their unverified asset-level scope on the source card", () => {
+    expect(dataSourcesSource).toContain("published Other Name 1–5 fields");
+    expect(dataSourcesSource).toContain("Other Name 1–5 are preserved per aircraft as unverified additional names");
   });
 
   it("keeps shared narrative helpers from turning registry records into wealth or ownership claims", () => {
