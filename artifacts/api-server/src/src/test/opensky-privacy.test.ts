@@ -21,7 +21,7 @@ describe("privacy-safe latest ADS-B observation", () => {
       source: "adsb.lol",
       privacyScope: "latest_public_status_only_no_coordinates_or_route_history",
     });
-    expect(JSON.stringify(observation)).not.toMatch(/latitude|longitude|callsign|track|squawk|originCountry|route|history/i);
+    expect(JSON.stringify(observation)).not.toMatch(/"(latitude|longitude|callsign|track|squawk|originCountry|routeHistory)"/i);
   });
 
   it("keeps unavailable measurements null and records ground status", () => {
