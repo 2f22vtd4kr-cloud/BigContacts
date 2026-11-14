@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries } from "@/lib/utils";
+import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
@@ -284,11 +284,13 @@ function MobileEntityCard({
   onToggleHide: (entity: any) => void;
   onDelete: (id: number) => void;
 }) {
-  const typeColor = entityMeta(entity.type).color;
+  const displayType = displayEntityType(entity);
+  const typeColor = entityMeta(displayType).color;
   const registries = parseEntityRegistries(entity.sourceRegistries);
   const workSummary = entityWorkSummary(entity);
   const findingsSummary = entityFindingsSummary(entity);
-  const organizationLike = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+  const organizationLike = displayType === "Corporation" || displayType === "Corp" || displayType === "Trust";
+  const unclassified = displayType === "Other";
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle || (Array.isArray(entity.contacts) && entity.contacts.length > 0));
   const contactState = organizationLike
     ? entity.contactOutcome === "organization_contact"
@@ -356,7 +358,7 @@ function MobileEntityCard({
               className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-mono font-bold"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
-              <EntityTypeMark type={entity.type} compact />
+              <EntityTypeMark type={displayType} compact />
             </span>
             {organizationLike ? (
               <span
@@ -400,8 +402,8 @@ function MobileEntityCard({
               <div className="text-xs"><NationalityCell nationality={entity.nationality} /></div>
             </div>
             <div>
-              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
-              <div className="text-xs text-foreground font-mono">{entity.type === "HNWI" && entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity)}</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(displayType).metricLabel}</div>
+              <div className="text-xs text-foreground font-mono">{displayType === "HNWI" && hasPersonalWealthEvidence(entity) ? formatCurrency(entity.estimatedNetWorth) : entityMetric({ ...entity, type: displayType })}</div>
             </div>
           </div>
           
