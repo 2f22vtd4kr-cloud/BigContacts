@@ -335,7 +335,7 @@ describe("Apex research intelligence", () => {
     engine.recordAction({
       turn: 1, action: "visit", execution: "success", urls: [url],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url], exactQuote: "Jordan Example is director of Alpha" }],
     });
     const evidenceId = engine.buildContext().atomicEvidence[0]?.evidenceId;
     expect(evidenceId).toBeTruthy();
@@ -353,12 +353,12 @@ describe("Apex research intelligence", () => {
     engine.recordAction({
       turn: 1, action: "visit", execution: "success", urls: [firstUrl],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [firstUrl] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [firstUrl], exactQuote: "Jordan Example is director of Alpha" }],
     });
     engine.recordAction({
       turn: 2, action: "visit", execution: "success", urls: [secondUrl],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl], exactQuote: "Jordan Example is director of Alpha" }],
     });
     const evidenceIds = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").map((item) => item.evidenceId);
     expect(evidenceIds).toHaveLength(2);
@@ -414,14 +414,14 @@ describe("Apex research intelligence", () => {
       turn: 1, action: "visit", execution: "success",
       args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
       urls: [alphaUrl], observation: "Alex Example is director of Alpha",
-      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl] }],
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The official registry directly records the Alpha directorship." }],
     });
     const prior = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha")?.score;
     engine.recordAction({
       turn: 2, action: "visit", execution: "success",
       args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the director role" },
       urls: [betaUrl], observation: "Alex Example is director of Beta",
-      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl] }],
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "The independent source reports a different directorship and challenges the Alpha hypothesis." }],
     });
     const state = engine.buildContext();
     const updated = state.hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
