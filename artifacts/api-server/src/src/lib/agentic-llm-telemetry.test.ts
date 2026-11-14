@@ -146,7 +146,7 @@ describe("Investigator LLM telemetry privacy", () => {
         dailyReservationDate: reservation.usageDate,
         dailyReservationTokens: reservation.reservedTokens,
         dailyBudgetTokens: reservation.dailyBudgetTokens,
-        dailyEstimatedTokens: reservation.reservedTokens,
+        estimatedTokens: reservation.reservedTokens,
         providerRequestSent: true,
       });
       await flushAgenticLlmUsageLedger();
