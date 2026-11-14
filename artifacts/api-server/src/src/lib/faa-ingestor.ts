@@ -443,10 +443,14 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     const legacyAssets = await tx.select({
       id: assetsTable.id,
       ownerEntityId: assetsTable.ownerEntityId,
-    }).from(assetsTable).where(and(
+    }).from(assetsTable).innerJoin(
+      entitiesTable,
+      eq(assetsTable.ownerEntityId, entitiesTable.id),
+    ).where(and(
       eq(assetsTable.category, "Aviation"),
       eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
       isNotNull(assetsTable.ownerEntityId),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
@@ -482,6 +486,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     const legacyFaaOwnedLinks = await tx.select({
       sourceEntityId: relationshipsTable.sourceEntityId,
       targetId: relationshipsTable.targetId,
+      ownerEntityId: assetsTable.ownerEntityId,
     }).from(relationshipsTable).innerJoin(assetsTable, and(
       eq(relationshipsTable.targetId, assetsTable.id),
       eq(relationshipsTable.targetType, "Asset"),
@@ -498,8 +503,16 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       ...repairAssets.map((row) => row.id),
       ...legacyFaaOwnedLinks.map((row) => row.targetId),
     ]));
+    const ownerEntityAssetIds = Array.from(new Set([
+      ...repairAssets.map((row) => row.id),
+      ...legacyFaaOwnedLinks
+        .filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)
+        .map((row) => row.targetId),
+    ]));
     if (assetIds.length > 0) {
-      await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
+      if (ownerEntityAssetIds.length > 0) {
+        await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, ownerEntityAssetIds));
+      }
       await tx.update(relationshipsTable).set({
         relationshipType: "REGISTERED_TO",
         strength: 0.75,
