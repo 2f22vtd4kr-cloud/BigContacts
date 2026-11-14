@@ -571,7 +571,7 @@ export default function ApexProfile() {
 
   // A registry label is source context, not proof of ownership or wealth.
   const primarySourceContext = (() => {
-    const reg = srcRegs[0] ?? "";
+    const reg = srcRegs[0] ?? (entityMetadata.source === "faa-aircraft-registry" ? "FAA Releasable Aircraft Database" : "");
     if (/edgar|sec/i.test(reg)) {
       return reg.toLowerCase().includes("13") ? "SEC EDGAR — Schedule 13D/G filing; reported beneficial ownership requires scope review" : "SEC EDGAR — director / executive filing";
     }
