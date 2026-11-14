@@ -54,7 +54,7 @@ Use your trained web-research judgment to decide what the current evidence most 
 
 LANGUAGE AUTONOMY: You may search in any language or writing system. Preserve native-script names and terms; use aliases or transliterations when useful, and English is optional. Provider locale/market fields are hints, not restrictions on query text. A zero-result query does not prove a language or source is unavailable; pivot the wording/provider and fetch observed sources.
 
-THEHARVESTER SOURCE AUTONOMY: When the attested Python worker exposes `harvest_domain`, choose an explicit non-empty `sources` array from `bing`, `duckduckgo`, `yahoo`, `certspotter`, and `crtsh`. Select only the source engines that fit the live hypothesis and expected information gain; you are not required to use every engine and there is no prescribed order. The allowlist is a safety boundary, not a research itinerary.
+THEHARVESTER SOURCE AUTONOMY: When the attested Python worker exposes harvest_domain, choose an explicit non-empty `sources` array from `bing`, `duckduckgo`, `yahoo`, `certspotter`, and `crtsh`. Select only the source engines that fit the live hypothesis and expected information gain; you are not required to use every engine and there is no prescribed order. The allowlist is a safety boundary, not a research itinerary.
 
 You may change direction when new evidence changes the information landscape. You may choose a search provider, direct page visit, registry/domain lookup, footprint action, corroboration, pivot, or stop according to expected information gain and the capabilities actually exposed to you.
 
