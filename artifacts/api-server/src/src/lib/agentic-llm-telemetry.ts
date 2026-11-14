@@ -95,7 +95,7 @@ export async function flushAgenticLlmUsageLedger(): Promise<void> {
 }
 
 export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.ProcessEnv = process.env): number {
-  const suffix = /20b/i.test(model) ? "20B" : /120b/i.test(model) ? "120B" : "MODEL";
+  const suffix = /120b/i.test(model) ? "120B" : /20b/i.test(model) ? "20B" : "MODEL";
   const raw = env[`APEX_GROQ_DAILY_TOKEN_BUDGET_${suffix}`] ?? env.APEX_GROQ_DAILY_TOKEN_BUDGET;
   const value = Number(raw ?? 0);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
