@@ -4,6 +4,7 @@ import {
   resetGroqRightHandRequestGateForTests,
   runGroqRightHandFreeJson,
 } from "./groq-right-hand-reasoning";
+import { installExternalQuotaGuard, resetProviderGateForTests } from "./provider-gate";
 
 const validDecision = {
   decision: "continue_discovery",
@@ -75,6 +76,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
     resetGroqRightHandModelCatalogCacheForTests();
     resetGroqRightHandRequestGateForTests();
+    resetProviderGateForTests();
   });
 
   afterEach(() => {
@@ -119,6 +121,42 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies[0].model).toBe("openai/gpt-oss-20b");
     const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
     expect((chatCall?.[1]?.headers as Record<string, string>)?.Authorization).toBe("Bearer test-right-hand-key");
+  });
+
+  it("preserves local TPM exhaustion as a model-scoped token diagnostic", async () => {
+    vi.stubEnv("APEX_GROQ_TPM_BUDGET", "1000");
+    vi.stubEnv("APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "0");
+    vi.stubEnv("APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE", "100");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-20b" }] });
+      }
+      throw new Error("the over-budget chat request must be rejected before transport");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    resetProviderGateForTests();
+    installExternalQuotaGuard();
+
+    const result = await runGroqRightHandFreeJson(
+      "Preserve the exact human objective, source URLs, observations, uncertainty, and prior actions. ".repeat(20),
+      "Perform only a non-authoritative memory transformation.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-local-tpm-diagnostic", caseId: 47, cognitiveTask: "context_compaction" },
+      {
+        maxCompletionTokens: 1_536,
+        reasoningEffort: "low",
+        maxAttempts: 1,
+        preferredModel: "openai/gpt-oss-20b",
+        allowModelFallback: false,
+      },
+    );
+
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain('"rateLimitKind":"tokens"');
+    expect(result.error).toContain('"providerCode":"budget_exhausted"');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/models");
   });
 
   it("fails closed when the strict preferred Right-hand model is absent from the live catalog", async () => {
