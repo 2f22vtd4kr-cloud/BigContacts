@@ -124,7 +124,7 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
 }
 export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
   return findings
-    .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\\S+$/i.test(String(url))))
+    .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url))))
     .map((finding) => {
       const attribution = finding.contactAttribution ?? "unknown";
       const sharedRoute = attribution === "shared_inbox" || attribution === "organization";
@@ -137,7 +137,7 @@ export function findingsToContacts(findings: Array<{ vectorType: string; value: 
         scope: isCandidate ? "candidate" : "organization",
         personName: isCandidate ? explicitPersonName : null,
         role: isCandidate ? finding.role : null,
-        sourceUrls: finding.sourceUrls.filter((url) => /^https:\/\/\\S+$/i.test(String(url))),
+        sourceUrls: finding.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))),
         note: `target-agent:${finding.note}`,
         contactAttribution: attribution,
         exactQuote: finding.exactQuote ?? null,
