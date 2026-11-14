@@ -5318,6 +5318,22 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     + cues.join(" ")
     + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
 }
+/** Preserve short names only when the exact name and role are co-bound in one fetched source. */
+export function candidateIdentitySourceBound(personName: string, role: string | null | undefined, observation: string): boolean {
+  const normalizedName = normalizeCandidateIdentityName(personName);
+  if (!normalizedName) return false;
+  const identityText = observation
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
+  if (candidateIdentityObserved(personName, identityText)) return true;
+
+  const codePoints = Array.from(normalizedName);
+  if (codePoints.length >= 3 || !role?.trim()) return false;
+  const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+  if (codePoints.length === 1 && !unspacedNameScript.test(personName)) return false;
+  return Boolean(bindExactSourceSpan(observation, role.trim(), personName)?.exact);
+}
+
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
   if (!records.length) return { allowed: false, reason: "Discovery cannot terminate before any Investigator action." };
 
@@ -5396,11 +5412,8 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
         let sourceSupportsClaim = false;
         for (const record of sourceRecords) {
           const observation = record.observation ?? "";
-          const identityText = observation
-            .replace(/https?:\/\/\S+/gi, " ")
-            .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
-          const hasIdentity = candidate && candidateIdentityObserved(personName, identityText);
+          const hasIdentity = candidate && candidateIdentitySourceBound(personName, role, observation);
           const hasRole = promotedCandidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
