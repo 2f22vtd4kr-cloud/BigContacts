@@ -104,11 +104,13 @@ const testState = vi.hoisted(() => {
     };
     return builder;
   };
-  const tx = { select: query, insert, update };
+  const execute = async () => ({ rows: [] });
+  const tx = { select: query, insert, update, execute };
   const db = {
     select: query,
     insert,
     update,
+    execute,
     transaction: async (callback: (tx: any) => Promise<any>) => callback(tx),
   };
   return { db, entitiesTable, researchCasesTable, researchCaseEventsTable, contactEvidenceTable, entity, caseRow, events, quote, sourceUrl, insertedContacts, get cardUpdate() { return cardUpdate; } };
