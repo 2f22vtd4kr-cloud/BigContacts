@@ -91,6 +91,13 @@ describe("FAA MASTER parser and candidate projection", () => {
       additionalRegistrantNames: ["OTHER OWNER"],
     });
     expect(coRegistrantKey).not.toBe(baseKey);
+    const rawVariantKey = createFaaRegistrationDedupKey({
+      ...base,
+      uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER"],
+      additionalRegistrantNamesRaw: [" OTHER OWNER "],
+    });
+    expect(rawVariantKey).not.toBe(coRegistrantKey);
     expect(createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001", additionalRegistrantNames: [] })).toBe(baseKey);
   });
 
