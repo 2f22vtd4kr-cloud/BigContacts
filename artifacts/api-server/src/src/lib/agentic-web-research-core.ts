@@ -2208,9 +2208,12 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * fields and causes malformed model actions. Compact auxiliary prefix first,
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
-  // Preserve the original prompt byte-for-byte when it fits. Trim only section
-  // projections used when actual provider-boundary compaction is necessary.
+export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+  // The provider size is an advisory optimization target, never a validity
+  // ceiling. Upstream context compaction already bounds historical state while
+  // preserving the latest observation. At this final boundary, never truncate
+  // the human objective, Boss direction, callable actions, exact evidence or
+  // schema merely to fit a character count.
   const normalized = typeof prompt === "string" ? prompt : "";
   const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
@@ -2221,59 +2224,9 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   if (!completeSchemaPresent) {
     throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
   }
-  const budget = Math.max(1_800, Math.min(6_000, Math.floor(preferredMaxChars)));
-  if (normalized.length <= budget) return normalized;
-
-  const sections = normalized.split(/\n{2,}/u).map((section) => section.trim()).filter(Boolean);
-  const find = (predicate: (section: string) => boolean): string => sections.find(predicate) ?? "";
-  const assignment = sections[0] ?? "";
-  const objective = find((section) => /^PRIMARY CASE OBJECTIVE:/i.test(section) || /^CASE OBJECTIVE:/i.test(section));
-  const bossScope = find((section) => /^CURRENT BOSS-DIRECTED RESEARCH QUESTION/i.test(section) || /^ACTIVE SCOPE CONSTRAINT:/i.test(section));
-  const availableActions = find((section) => /^AVAILABLE ACTIONS:/i.test(section));
-  const registry = find((section) => /^RUNTIME-AVAILABLE REGISTRY IDS ONLY/i.test(section) || /^REGISTRY COVERAGE:/i.test(section));
-  const capabilityHeading = sections.findIndex((section) => section === "CAPABILITY GUIDANCE:");
-  const capability = capabilityHeading >= 0 ? [sections[capabilityHeading], sections[capabilityHeading + 1] ?? ""].filter(Boolean).join("\n") : "";
-  const cognitiveHeading = sections.findIndex((section) => /^CANONICAL EVIDENCE GRAPH STATE:/i.test(section));
-  const cognitive = cognitiveHeading >= 0 ? [sections[cognitiveHeading], sections[cognitiveHeading + 1] ?? ""].filter(Boolean).join("\n") : "";
-  const terminal = find((section) => /^RESEARCH TERMINAL GATE/i.test(section));
-  const researchContract = find((section) => /^MISSION PRIORITY:.*RESEARCH CONTRACT:/is.test(section));
-  const output = outputSection;
-  const fixed = [assignment, objective, bossScope, availableActions, output].filter(Boolean);
-  const fixedText = fixed.join("\n\n");
-  if (fixedText.length > budget) {
-    // The size target is advisory. If authoritative mission/scope/action/schema
-    // sections alone exceed it, preserve the original prompt intact rather than
-    // drop or truncate any of those required instructions.
-    return normalized;
-  }
-  let remaining = budget - fixedText.length - 160;
-  const optional: string[] = [];
-  const add = (value: string, cap: number, label: string): void => {
-    if (!value || remaining <= 0) return;
-    const allowance = Math.min(cap, remaining);
-    const marker = "[PROMPT COMPACTION: " + label + " detail omitted; full durable case state remains authoritative; omissions are unknown, not negative evidence]";
-    if (allowance <= marker.length) return;
-    const compacted = compactPromptSectionPreservingUrlTokens(value, allowance - marker.length, marker);
-    if (compacted && compacted.length <= allowance) {
-      optional.push(compacted);
-      remaining -= compacted.length + 2;
-    }
-  };
-  add(registry, 520, "registry detail");
-  add(capability, 650, "capability detail");
-  add(researchContract, 360, "research-contract detail");
-  add(terminal, 240, "terminal-contract detail");
-  const outputSectionIndex = sections.findIndex((section) => section.startsWith("OUTPUT CONTRACT:"));
-  const recentSections = sections.slice(Math.max(0, outputSectionIndex - 5), outputSectionIndex)
-    .filter((section) => !fixed.includes(section) && section !== capability && section !== cognitive && section !== registry && section !== terminal && section !== researchContract);
-  add(recentSections.join("\n\n"), Math.max(0, Math.min(1_200, remaining)), "recent working-context detail");
-  add(cognitive, 360, "evidence-state detail");
-  const compacted = [...fixed.slice(0, 4), ...optional, output].filter(Boolean).join("\n\n");
-  if (compacted.length > budget) {
-    throw new Error("Investigator prompt compaction exceeded its configured budget.");
-  }
-  return compacted;
+  return normalized;
 }
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
