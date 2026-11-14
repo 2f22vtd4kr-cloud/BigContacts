@@ -225,7 +225,7 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(JSON.parse(entity?.metadata ?? "{}").country).toBe("US");
   });
 
-  it("does not persist FAA registrant mailing addresses or additional co-registrant names", () => {
+  it("keeps co-registrant names on their aircraft record and never persists FAA mailing addresses", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     const registrantBuilder = source.slice(
       source.indexOf("export function buildFaaRegistrantEntity"),
@@ -236,8 +236,10 @@ describe("FAA MASTER parser and candidate projection", () => {
       source.indexOf("async function isCacheStale"),
     );
     expect(registrantBuilder).not.toContain("mailingAddress");
-    expect(registrantBuilder).not.toContain("otherRegistrantNames");
-    expect(assetBuilder).not.toContain("otherRegistrantNames");
+    expect(registrantBuilder).not.toContain("additionalRegistrantNames");
+    expect(assetBuilder).toContain("additionalRegistrantNames");
+    expect(assetBuilder).toContain("additionalRegistrantNamesFieldSemantics");
+    expect(assetBuilder).not.toContain("mailingAddress");
     expect(source).not.toContain("registrantMailingAddress");
     expect(source).not.toContain("const street =");
   });
