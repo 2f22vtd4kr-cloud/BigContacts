@@ -413,7 +413,7 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("gives the evidence-constrained Boss control decision medium reasoning and enough completion budget", () => {
-    expect(controlSource).toContain('maxOutputTokens: 1024, thinkingLevel: "medium"');
+    expect(controlSource).toContain('maxOutputTokens: input.opening ? 384 : 1024, thinkingLevel: "medium"');
     expect(controlSource).not.toContain('maxOutputTokens: 768, thinkingLevel: "low"');
   });
 
@@ -680,7 +680,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
     expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).toContain("normalizeAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).toContain("const normalized = normalizeAtlasOpeningRightHandReview(parsed);");
     expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
