@@ -295,6 +295,9 @@ describe("FAA ingestion scope", () => {
     expect(source).toContain("additionalRegistrantNames");
     expect(source).toContain("mergeFaaAssetMetadata(existing.metadata, row.asset.metadata)");
     expect(source).toContain("metadata: assetsTable.metadata");
+    expect(source).toContain("const repairAssets = legacyAssets;");
+    expect(source).toContain("await tx.update(assetsTable).set({ ownerEntityId: null })");
+    expect(source).not.toContain("legacyOwnerPairs");
     expect(source).not.toContain("tx.delete(relationshipsTable)");
   });
 });
