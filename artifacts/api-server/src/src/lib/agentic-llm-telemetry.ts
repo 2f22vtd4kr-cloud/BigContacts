@@ -114,7 +114,7 @@ function parseObservedQuotaDurationMs(raw: string | null): number | null {
   if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1_000);
   const timestamp = Date.parse(value);
   if (Number.isFinite(timestamp)) return Math.max(0, timestamp - Date.now());
-  const match = value.match(/^(?:(\\d+(?:\\.\\d+)?)h)?(?:(\\d+(?:\\.\\d+)?)m)?(?:(\\d+(?:\\.\\d+)?)s)?$/i);
+  const match = value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
   if (!match || !match[1] && !match[2] && !match[3]) return null;
   return Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
 }
@@ -192,7 +192,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         budgetExhausted: sql`${table.budgetExhausted} OR ${event.budgetExhausted === true}`,
         lastProviderStatus: String(event.status),
         lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
-        lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
+        lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? table.lastRateLimitRemainingTokens : Math.floor(event.rateLimitRemainingTokens),
         lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? table.lastRateLimitResetTokensMs : Math.floor(event.rateLimitResetTokensMs),
         lastRateLimitRemainingRequests: event.rateLimitRemainingRequests == null ? table.lastRateLimitRemainingRequests : Math.floor(event.rateLimitRemainingRequests),
         lastRateLimitResetRequestsMs: event.rateLimitResetRequestsMs == null ? table.lastRateLimitResetRequestsMs : Math.floor(event.rateLimitResetRequestsMs),
