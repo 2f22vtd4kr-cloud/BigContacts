@@ -96,10 +96,9 @@ describe("canonical seeded target binding", () => {
         metadata: JSON.stringify({ source: "other-source", additionalRegistrantNames: ["UNVERIFIED"] }),
       }],
     });
-    expect(binding.linkedAssets).toEqual([expect.objectContaining({
-      assetId: 902,
-      sourceMetadata: expect.not.objectContaining({ additionalRegistrantNames: ["UNVERIFIED"] }),
-    })]);
+    expect(binding.linkedAssets).toHaveLength(1);
+    expect(binding.linkedAssets[0]).toMatchObject({ assetId: 902 });
+    expect(binding.linkedAssets[0].sourceMetadata).not.toHaveProperty("additionalRegistrantNames");
   });
 
   it("uses an asset-specific objective instead of person research for an asset target", () => {
