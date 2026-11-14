@@ -184,7 +184,7 @@ const SOURCES: SourceDef[] = [
   {
     id: "easa",
     label: "EASA / National Aviation Registers",
-    description: "European national aviation registries (UK CAA, DGAC, LBA, etc.) for non-US private jet ownership.",
+    description: "European national aircraft registries (UK CAA, DGAC, LBA, etc.) for jurisdiction-specific registration and registrant records. Registration is not proof of beneficial ownership.",
     kind: "ingestor",
     Icon: Plane,
     color: "#6B7280",
@@ -259,7 +259,7 @@ const SOURCES: SourceDef[] = [
     id: "openownership",
     label: "OpenOwnership BODS",
     description:
-      "Beneficial ownership data in the Beneficial Ownership Data Standard — covers UK Register of Persons with Significant Control (PSC) and international BODS-format data. Resolves corporate ownership chains.",
+      "Public beneficial-ownership data standard and source catalogue. A specific published record may provide a lead for ownership-chain review, but this deployment has no dedicated adapter and each relationship requires source-level verification.",
     kind: "enricher",
     Icon: Layers,
     color: "#8B5CF6",
