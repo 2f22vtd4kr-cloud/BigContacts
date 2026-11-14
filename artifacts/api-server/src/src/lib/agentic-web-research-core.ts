@@ -5,7 +5,7 @@ import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditC
 import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
-import { AgenticDailyTokenBudgetError, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
+import { AgenticDailyTokenBudgetError, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
 import { GROQ_CHAT_MODELS, GROQ_DEFAULT_MODEL } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
@@ -2725,7 +2725,7 @@ async function callGroqJson(
           break;
         }
 
-        let data: { choices?: Array<{ finish_reason?: string | null; message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
+        let data: { choices?: Array<{ finish_reason?: string | null; message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; reasoning_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; completion_tokens_details?: { reasoning_tokens?: number } } };
         try {
           data = JSON.parse(body) as typeof data;
         } catch {
@@ -2754,6 +2754,7 @@ async function callGroqJson(
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
         const finishReason = data.choices?.[0]?.finish_reason ?? null;
         const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
+        const usageMetrics = readGroqUsageMetrics(data.usage);
         recordAgenticLlmAttempt({
             ...telemetryContext,
             dailyReservationDate,
@@ -2768,10 +2769,7 @@ async function callGroqJson(
             totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           status: response.status,
           success: Boolean(raw) && finishReason !== "length",
-          promptTokens: data.usage?.prompt_tokens,
-          cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens,
-          completionTokens: data.usage?.completion_tokens,
-          totalTokens: data.usage?.total_tokens,
+          ...usageMetrics,
           latencyMs: Date.now() - started,
           retryIndex: attempt,
           reason: finishReason === "length" ? "completion_output_truncated" : raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
