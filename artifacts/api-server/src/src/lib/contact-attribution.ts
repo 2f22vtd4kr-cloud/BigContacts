@@ -104,11 +104,15 @@ export function scoreAttribution(params: {
   isValidPhone:    boolean;
   exactClaimObserved?: boolean;
   targetPersonEvidence?: boolean;
+  contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown";
+  exactQuotePersonValueBound?: boolean;
 }): AttributionResult {
   const {
     email, phone, sources, entityType, resolvedDomain, isValidEmail, isValidPhone,
     exactClaimObserved = false,
     targetPersonEvidence = false,
+    contactAttribution = "unknown",
+    exactQuotePersonValueBound = false,
   } = params;
 
   // 1. Source authority — best single source
@@ -127,7 +131,10 @@ export function scoreAttribution(params: {
   // When the model has explicitly attributed the route to this person and the
   // exact claim is present in the fetched source, preserve that interpretation.
   // The caller still has to enforce fetched-source provenance and quote integrity.
-  const modelBackedPersonRoute = exactClaimObserved && targetPersonEvidence;
+  const modelBackedPersonRoute = exactClaimObserved
+    && targetPersonEvidence
+    && contactAttribution === "person_specific"
+    && exactQuotePersonValueBound;
   if (email && isValidEmail) {
     validation = isGenericLocalPart(email)
       ? (modelBackedPersonRoute ? 0.78 : 0.28)
@@ -219,6 +226,8 @@ export function anyAttributed(
     isValidPhone: boolean;
     exactClaimObserved?: boolean;
     targetPersonEvidence?: boolean;
+    contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown";
+    exactQuotePersonValueBound?: boolean;
   }>,
 ): boolean {
   return candidates.some(c => scoreAttribution(c).attributed);
