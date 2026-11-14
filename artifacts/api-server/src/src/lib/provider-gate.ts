@@ -66,6 +66,19 @@ const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
 const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 60_000, 0, 120_000);
 
+function estimateStructuredPromptChars(value: unknown): number {
+  if (typeof value === "string") return value.length;
+  if (typeof value === "number" || typeof value === "boolean") return String(value).length;
+  if (Array.isArray(value)) return value.reduce((total, item) => total + estimateStructuredPromptChars(item), 0);
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (total, [key, item]) => total + key.length + estimateStructuredPromptChars(item),
+      0,
+    );
+  }
+  return 0;
+}
+
 export function getGroqTokenRequest(input: string | URL | Request, init?: RequestInit): { model: string; reservedTokens: number } | undefined {
   const url = requestUrl(input);
   if (!/api\.groq\.com\/openai\/v1\/chat\/completions(?:[?#]|$)/i.test(url)) return undefined;
@@ -76,13 +89,17 @@ export function getGroqTokenRequest(input: string | URL | Request, init?: Reques
     const model = typeof body.model === "string" ? body.model.trim() : "";
     const messages = Array.isArray(body.messages) ? body.messages : null;
     if (!model || !messages) return undefined;
-    const promptMaterial = JSON.stringify({
+    // Estimate the actual structured prompt strings, not JSON.stringify's
+    // escaped wire representation. Escaped newlines/quotes inflated the old
+    // estimate enough to reject valid Right-hand compaction calls locally
+    // (before Groq could report real usage). Keep a conservative 5% margin.
+    const promptCharacters = estimateStructuredPromptChars({
       messages,
       tools: body.tools,
       response_format: body.response_format,
       tool_choice: body.tool_choice,
     });
-    const promptTokens = Math.ceil(promptMaterial.length / 3.4 * 1.1);
+    const promptTokens = Math.ceil(promptCharacters / 3.6 * 1.05);
     const rawCompletion = body.max_completion_tokens ?? body.max_tokens;
     const completionTokens = typeof rawCompletion === "number" && Number.isFinite(rawCompletion)
       ? Math.max(1, Math.floor(rawCompletion))
