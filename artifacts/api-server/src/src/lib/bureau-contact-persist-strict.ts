@@ -79,8 +79,8 @@ function hasBoundIdentityAndValue(observationText:string,personName:string,clean
   : Boolean(bindExactSourceSpan(segment,cleanValue,personName,320)?.exact));
 }
 function quoteAppearsInObservation(observationText: string, exactQuote: string): boolean {
- const normalizedObservation = observationText.replace(/\\s+/gu, " ").trim();
- const normalizedQuote = exactQuote.replace(/\\s+/gu, " ").trim();
+ const normalizedObservation = observationText.replace(/\s+/gu, " ").trim();
+ const normalizedQuote = exactQuote.replace(/\s+/gu, " ").trim();
  return normalizedQuote.length > 0 && normalizedObservation.includes(normalizedQuote);
 }
 
