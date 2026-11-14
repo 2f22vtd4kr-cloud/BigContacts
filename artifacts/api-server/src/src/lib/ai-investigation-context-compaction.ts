@@ -218,17 +218,14 @@ function summaryContainsUnverifiableNumericClaim(summary: string, source: string
     .split(/(?:[!?;]+|\.(?=\s|$)|\n+)/u)
     .map((clause) => normalize(clause.replace(/^\s*[-*•]\s*/u, "")))
     .filter(Boolean);
+  const numericExpression = /(?:[$€£]\s*)?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|million|billion|thousand|m|bn))?|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|half|quarter|twice|double|triple|first|second|third)\b/iu;
   for (const clause of clauses) {
-    const numericValues = clause.match(/(?:[$€£]\s*)?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|million|billion|thousand|m|bn))?/giu) ?? [];
-    if (!numericValues.length) continue;
+    if (!numericExpression.test(clause)) continue;
     // A numeric paraphrase can silently change the subject, denominator,
     // time period, or whether a figure describes a portfolio or personal
-    // ownership. Require the complete normalized clause verbatim in source.
+    // ownership. Require the complete normalized clause verbatim in source,
+    // including numbers written out as words.
     if (!normalizedSource.includes(clause)) return true;
-    for (const numericValue of numericValues) {
-      const normalizedValue = numericValue.replace(/\s+/g, "").toLocaleLowerCase("en-US");
-      if (!normalizedSource.replace(/\s+/g, "").includes(normalizedValue)) return true;
-    }
   }
   return false;
 }
