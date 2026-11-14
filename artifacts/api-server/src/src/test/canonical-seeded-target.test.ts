@@ -269,6 +269,30 @@ describe("canonical seeded target binding", () => {
     expect(coOwned.targetKind).toBe("other");
   });
 
+  it("uses the current registrantTypeCode field when reclassifying legacy FAA HNWI records", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 99,
+      entityName: "FAA registrant using current metadata schema",
+      entityType: "HNWI",
+      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+      metadata: JSON.stringify({
+        source: "faa-aircraft-registry",
+        registrantTypeCode: "1",
+        estimatedNetWorth: 12_000_000,
+        personalWealthEvidence: false,
+        wealthStatus: "not_assessed",
+      }),
+    });
+    expect(binding.entityType).toBe("PersonCandidate");
+    expect(binding.targetKind).toBe("person");
+    expect(binding.sourceMetadata).not.toHaveProperty("estimatedNetWorth");
+    expect(binding.sourceMetadata).toMatchObject({
+      personalWealthEvidence: false,
+      wealthStatus: "not_assessed",
+      legacyFaaHnwiDowngradeApplied: true,
+    });
+  });
+
   it("preserves an explicitly qualified HNWI when FAA registration is also among the sources", () => {
     const binding = buildCanonicalSeededTargetBinding({
       entityId: 98,
