@@ -34,7 +34,7 @@ import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
+  createJob, updateJob, getJobStrict, getJobLog, getActiveJobs,
   setActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedupPrefix, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
