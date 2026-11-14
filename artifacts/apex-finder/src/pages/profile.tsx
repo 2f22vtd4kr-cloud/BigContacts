@@ -120,7 +120,7 @@ function hasPersonalWealthEvidence(entity: any): boolean {
   return true;
 }
 
-function profileDisplayEntityType(entity: any): string {
+function profileDisplayEntityType(entity: any) {
   if (entity?.type !== "HNWI") return entity?.type ?? "Other";
   let metadata: Record<string, any> = {};
   let sourceRegistries: string[] = [];
