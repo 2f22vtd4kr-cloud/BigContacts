@@ -153,15 +153,14 @@ describe("cross-pivot scope recovery context", () => {
 
   it("reports semantic scope mismatches as advisory and preserves the Investigator-selected query", () => {
     const query = "family-owned engineering firms in Austria ownership filings";
-    const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", {
-      query, provider: "serper",
-    }, []);
+    const args = { query, provider: "serper" };
+    const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", args, []);
     expect(advisory).toContain("SCOPE ADVISORY ONLY");
     expect(advisory).toContain("no action or query was blocked or removed");
     expect(advisory).toContain("Investigator retains semantic judgement");
     // The advisory function is diagnostic only: it returns context and never
     // rewrites the model-selected arguments.
-    expect(query).toBe("family-owned engineering firms in Austria ownership filings");
+    expect(args.query).toBe(query);
   });
 
 });
