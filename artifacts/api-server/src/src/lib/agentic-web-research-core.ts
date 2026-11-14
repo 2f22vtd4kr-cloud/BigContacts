@@ -5004,9 +5004,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // action; otherwise the latest-record envelope can reintroduce the full
     // provider response after the historical carry-forward copy is compacted.
     // Fetched-page observations remain complete.
-    const boundedObservation = searchActions.has(record.action)
-      ? compactDurablePromptObservation(rawObservation)
-      : rawObservation;
+    // Every model-facing observation is bounded. The immutable event ledger
+    // retains the full page; the prompt keeps a URL-preserving excerpt and the
+    // separately serialized model findings/quotes. Omitted text is unknown.
+    const boundedObservation = compactDurablePromptObservation(
+      rawObservation,
+      searchActions.has(record.action) ? 1_600 : 2_400,
+    );
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
     const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
