@@ -265,7 +265,7 @@ describe("FAA MASTER parser and candidate projection", () => {
       additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
       reviewOnly: true,
     });
-    expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("do not establish");
+    expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("do not prove");
     expect(metadata.additionalRegistrantNames).not.toContain("SMITH, WALTER");
     expect(metadata.assetSignal.strength).toBe("strong_asset_lead");
   });
@@ -409,7 +409,7 @@ describe("legacy FAA registrant repair", () => {
     const end = source.indexOf("async function flushBatch", start);
     const repair = source.slice(start, end);
     const legacyAssetQuery = repair.slice(0, repair.indexOf("// Historical FAA imports"));
-    expect(legacyAssetQuery).not.toContain("entitiesTable.sourceRegistries");
+    expect(legacyAssetQuery).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain("= '1' THEN 'PersonCandidate'");
     expect(repair).toContain("registrantTypeCode");
     expect(repair).toContain("IN ('2','3','7','8') THEN 'Corporation'");
