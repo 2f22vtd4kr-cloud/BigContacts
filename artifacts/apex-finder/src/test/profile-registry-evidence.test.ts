@@ -32,7 +32,9 @@ describe("registry profile evidence semantics", () => {
   });
 
   it("preserves and labels the additional FAA co-registrant names as unverified", () => {
-    expect(profileSource).toContain("Additional names on the same registration");
+    expect(profileSource).toContain("Additional names on this registration");
+    expect(profileSource).toContain("faaLinkedAssets");
+    expect(profileSource).toContain("assetMetadata.additionalRegistrantNames");
     expect(profileSource).toContain("unverified");
     expect(profileSource).toContain("not independently verified people or beneficial owners");
   });
