@@ -113,8 +113,6 @@ describe("canonical seeded target binding", () => {
         reviewOnly: true,
         wealthStatus: "not_assessed",
         hnwiQualificationStatus: "not_assessed",
-        additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
-        additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields on the same aircraft registration; they are unverified associated names, not proven beneficial owners, personal relationships, or personal wealth.",
         estimatedNetWorth: null,
         bayesianScore: 0.05,
         isHot: false,
@@ -124,7 +122,35 @@ describe("canonical seeded target binding", () => {
           personalWealthEvidence: false,
         },
       }),
+      linkedAssets: [{
+        id: 901,
+        category: "Aviation",
+        identifier: "N123AB",
+        sourceRegistry: "FAA Releasable Aircraft Database",
+        metadata: JSON.stringify({
+          source: "faa-aircraft-registry",
+          additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+          additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields on the same aircraft registration; they are unverified associated names, not proven beneficial owners, personal relationships, or personal wealth.",
+          personalWealthEvidence: false,
+          assetSignal: { kind: "aircraft_registry_observation", strength: "strong_asset_lead", personalWealthEvidence: false },
+        }),
+      }],
     });
+    expect(binding.linkedAssets).toEqual([{
+      assetId: 901,
+      category: "Aviation",
+      identifier: "N123AB",
+      sourceRegistry: "FAA Releasable Aircraft Database",
+      associationType: "REGISTERED_TO",
+      associationSemantics: expect.stringContaining("not proof of beneficial ownership"),
+      sourceMetadata: expect.objectContaining({
+        source: "faa-aircraft-registry",
+        additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
+        additionalRegistrantNamesFieldSemantics: expect.stringContaining("unverified associated names"),
+        personalWealthEvidence: false,
+      }),
+    }]);
+    expect(binding.sourceMetadata).not.toHaveProperty("additionalRegistrantNames");
     expect(binding.sourceMetadata).toMatchObject({
       registrantTypeCode: "2",
       registrantTypeLabel: "Partnership",
@@ -136,8 +162,6 @@ describe("canonical seeded target binding", () => {
       reviewOnly: true,
       wealthStatus: "not_assessed",
       hnwiQualificationStatus: "not_assessed",
-      additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
-      additionalRegistrantNamesFieldSemantics: expect.stringContaining("unverified associated names"),
       estimatedNetWorth: null,
       bayesianScore: 0.05,
       isHot: false,
