@@ -33,9 +33,9 @@ describe("Western registry mass-seed admission", () => {
     const worker = readFileSync(new URL("../lib/western-hnwi-ingestion.ts", import.meta.url), "utf8");
     expect(route).toContain("GLOBAL_DEDUP_RESET_DISABLED");
     expect(route).toContain("Global dedup reset is disabled for Western registry ingestion");
-    expect(route).not.toMatch(/await\\s+clearDedup\\s*\\(/u);
+    expect(route).not.toMatch(/await\s+clearDedup\s*\(/u);
     expect(worker).not.toContain("clearDedupFirst");
-    expect(worker).not.toMatch(/await\\s+clearDedup\\s*\\(/u);
+    expect(worker).not.toMatch(/await\s+clearDedup\s*\(/u);
   });
 
   it("deduplicates legacy HNWI/Gatekeeper rows against new PersonCandidate rows without cross-type collisions", () => {
