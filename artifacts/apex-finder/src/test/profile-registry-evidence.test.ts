@@ -50,19 +50,20 @@ describe("registry profile evidence semantics", () => {
   });
 
   it("does not display FAA-derived registrants without independent wealth assessment as HNWI", () => {
-    expect(profileSource).toContain("function profileDisplayEntityType(entity: any)");
+    expect(narrativeSource).toContain("export function displayEntityType(entity: any)");
+    expect(narrativeSource).toContain("export function hasPersonalWealthEvidence(entity: any)");
     expect(profileSource).toContain('if (registrantType === "1") return "PersonCandidate"');
     expect(profileSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
-    expect(profileSource).toContain("const displayType = profileDisplayEntityType(entity)");
+    expect(profileSource).toContain("const displayType = displayEntityType(entity)");
     expect(profileSource).toContain('{ key: "type",        label: "Type",         done: !!displayType }');
     expect(profileSource).toContain('displayType === "HNWI"');
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
-    expect(profileSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
-    expect(profileSource).toContain('const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed"');
-    expect(profileSource).toContain("const explicitlyQualified = metadata.personalWealthEvidence === true");
-    expect(profileSource).toContain('["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))');
-    expect(profileSource).toContain("if (hasFaaSource && metadata.personalWealthEvidence !== true) return false;");
-    expect(profileSource).toContain('metadata.typeRegistrant ?? metadata.registrantTypeCode ?? ""');
+    expect(narrativeSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
+    expect(narrativeSource).toContain('const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed"');
+    expect(narrativeSource).toContain("const explicitlyQualified = metadata.personalWealthEvidence === true");
+    expect(narrativeSource).toContain('["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))');
+    expect(narrativeSource).toContain("return !hasFaaSource || metadata.personalWealthEvidence === true;");
+    expect(narrativeSource).toContain('metadata.typeRegistrant ?? metadata.registrantTypeCode ?? ""');
   });
 
   it("keeps the registry confidence badge from presenting source confidence as proof of wealth", () => {
@@ -82,7 +83,7 @@ describe("registry profile evidence semantics", () => {
   });
 
   it("suppresses estimated net worth when source metadata says personal wealth is not evidenced", () => {
-    expect(profileSource).toContain("metadata.personalWealthEvidence === false");
+    expect(narrativeSource).toContain("metadata.personalWealthEvidence === false");
     expect(profileSource).toContain("entityMetadata.wealthStatus === \"not_assessed\"");
     expect(profileSource).toContain("hasPersonalWealthEvidence(entity)");
     expect(profileSource).toContain("const displayableEstimatedNetWorth = hasPersonalWealthEvidence(entity)");
