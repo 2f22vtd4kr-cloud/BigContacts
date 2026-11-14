@@ -795,6 +795,27 @@ describe("provider quota gate", () => {
     expect(second.status).toBe(200);
   });
 
+  it("retains a conservative Groq reservation for a full window after an outbound failure", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "10000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const firstRequest = { model: "openai/gpt-oss-20b", reservedTokens: 3_000 };
+    await expect(runProviderCall({ provider: "groq", account: "investigator", groqRequest: firstRequest }, async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      throw new Error("socket reset after request dispatch");
+    })).rejects.toThrow("socket reset");
+    let secondCalls = 0;
+    await expect(runProviderCall({ provider: "groq", account: "right-hand", groqRequest: { model: "openai/gpt-oss-20b", reservedTokens: 2_000 } }, async () => {
+      secondCalls += 1;
+      return new Response("unexpected");
+    })).rejects.toMatchObject({ code: "cooldown", provider: "groq" });
+    expect(secondCalls).toBe(0);
+  });
+
   it("honors the provider token-reset header across Groq role credentials after a token 429", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
