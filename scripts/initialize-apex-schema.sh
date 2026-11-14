@@ -32,6 +32,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/002-contact-outcome
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/003-atlas-review-candidate-type.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/004-registry-candidate-truth.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/005-agentic-llm-daily-usage.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/006-agentic-llm-rate-limit-headers.sql
 
 echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'
@@ -57,7 +58,20 @@ try {
   const found = new Set(result.rows.map((row) => row.table_name));
   const missing = required.filter((name) => !found.has(name));
   if (missing.length) throw new Error(`Apex schema verification failed; missing: ${missing.join(", ")}`);
-  console.log("[apex-schema] required durable tables present.");
+  const quotaColumns = [
+    "last_rate_limit_remaining_tokens",
+    "last_rate_limit_reset_tokens_ms",
+    "last_rate_limit_remaining_requests",
+    "last_rate_limit_reset_requests_ms",
+  ];
+  const columnResult = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='agentic_llm_daily_usage' AND column_name = ANY($1::text[])",
+    [quotaColumns],
+  );
+  const foundColumns = new Set(columnResult.rows.map((row) => row.column_name));
+  const missingColumns = quotaColumns.filter((name) => !foundColumns.has(name));
+  if (missingColumns.length) throw new Error(`Apex quota ledger verification failed; missing columns: ${missingColumns.join(", ")}`);
+  console.log("[apex-schema] required durable tables and quota columns present.");
 } finally {
   await pool.end();
 }
