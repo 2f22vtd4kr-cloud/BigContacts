@@ -91,7 +91,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
-export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
+export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
 
@@ -2050,15 +2050,24 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         finalValue = phone;
       }
       if (vector === "website" && !isSafeHttpUrl(finalValue)) continue;
+      const rawAttribution = cleanText(f.contactAttribution, 30).toLowerCase();
+      const contactAttribution = (["person_specific", "shared_inbox", "organization", "unknown"].includes(rawAttribution)
+        ? rawAttribution
+        : "unknown") as NonNullable<AgenticFinding["contactAttribution"]>;
+      const exactQuote = cleanText(f.exactQuote, 1_200) || undefined;
+      const sharedRoute = contactAttribution === "shared_inbox" || contactAttribution === "organization";
+      const scope = sharedRoute ? "organization" : f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown";
       findings.push({
         vectorType: vector as AgenticFinding["vectorType"],
         value: finalValue,
-        personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null,
-        role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null,
-        scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown",
+        personName: scope === "candidate" && typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null,
+        role: scope === "candidate" && typeof f.role === "string" ? f.role.trim().slice(0, 120) : null,
+        scope,
         sourceUrls,
         note: cleanText(f.note, 400) || "Investigator-authored finding",
-        promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined,
+        contactAttribution,
+        exactQuote,
+        promotionDecision: scope === "candidate" && contactAttribution === "person_specific" && exactQuote && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
     }
@@ -2976,6 +2985,8 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           scope: { type: "string", enum: ["organization","candidate","unknown"] },
           sourceUrls: { type: "array", items: { type: "string" } },
           note: { type: "string" },
+          contactAttribution: { type: ["string","null"], enum: ["person_specific","shared_inbox","organization","unknown",null] },
+          exactQuote: { type: ["string","null"] },
           promotionDecision: { type: ["string","null"] },
           promotionReason: { type: ["string","null"] }
         },
