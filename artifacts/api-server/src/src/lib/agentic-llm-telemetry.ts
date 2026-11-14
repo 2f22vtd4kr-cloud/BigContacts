@@ -26,6 +26,7 @@ type Attempt = {
   success: boolean;
   promptTokens?: number;
   completionTokens?: number;
+  reasoningTokens?: number;
   totalTokens?: number;
   cachedPromptTokens?: number;
   latencyMs?: number;
@@ -119,6 +120,35 @@ function parseObservedQuotaDurationMs(raw: string | null): number | null {
   return Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
 }
 
+export type AgenticLlmUsageMetrics = {
+  promptTokens?: number;
+  completionTokens?: number;
+  reasoningTokens?: number;
+  totalTokens?: number;
+  cachedPromptTokens?: number;
+};
+
+/** Parse only numeric usage fields; reasoning tokens are a subset of completion tokens. */
+export function readGroqUsageMetrics(usage: unknown): AgenticLlmUsageMetrics {
+  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return {};
+  const value = usage as Record<string, unknown>;
+  const promptDetails = value.prompt_tokens_details && typeof value.prompt_tokens_details === "object"
+    ? value.prompt_tokens_details as Record<string, unknown>
+    : {};
+  const completionDetails = value.completion_tokens_details && typeof value.completion_tokens_details === "object"
+    ? value.completion_tokens_details as Record<string, unknown>
+    : {};
+  const number = (raw: unknown): number | undefined =>
+    typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : undefined;
+  return {
+    promptTokens: number(value.prompt_tokens),
+    completionTokens: number(value.completion_tokens),
+    reasoningTokens: number(completionDetails.reasoning_tokens) ?? number(value.reasoning_tokens),
+    totalTokens: number(value.total_tokens),
+    cachedPromptTokens: number(promptDetails.cached_tokens),
+  };
+}
+
 export type AgenticLlmRateLimitHeaders = {
   rateLimitRemainingTokens: number | null;
   rateLimitResetTokensMs: number | null;
@@ -149,6 +179,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const prompt = Math.max(0, Math.floor(event.promptTokens ?? 0));
     const cached = Math.max(0, Math.floor(event.cachedPromptTokens ?? 0));
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
+    const reasoning = Math.max(0, Math.floor(event.reasoningTokens ?? 0));
     const estimated = Math.max(0, Math.floor(event.estimatedTokens ?? 0));
     const totalFallback = event.success && event.providerRequestSent !== false && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
     const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
@@ -164,6 +195,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       promptTokens: prompt,
       cachedPromptTokens: cached,
       completionTokens: completion,
+      reasoningTokens: reasoning,
       totalTokens: total,
       estimatedTokens: estimated,
       reservedTokens: 0,
@@ -185,6 +217,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         promptTokens: sql`${table.promptTokens} + ${prompt}`,
         cachedPromptTokens: sql`${table.cachedPromptTokens} + ${cached}`,
         completionTokens: sql`${table.completionTokens} + ${completion}`,
+        reasoningTokens: sql`${table.reasoningTokens} + ${reasoning}`,
         totalTokens: sql`${table.totalTokens} + ${total}`,
         estimatedTokens: sql`${table.estimatedTokens} + ${estimated}`,
         reservedTokens: sql`GREATEST(${table.reservedTokens} - ${reservationTokens}, 0)`,
@@ -323,6 +356,7 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     promptTokens: event.promptTokens ?? null,
     cachedPromptTokens: event.cachedPromptTokens ?? null,
     completionTokens: event.completionTokens ?? null,
+    reasoningTokens: event.reasoningTokens ?? null,
     totalTokens: event.totalTokens ?? null,
     latencyMs: event.latencyMs ?? null,
     retryIndex: event.retryIndex,
