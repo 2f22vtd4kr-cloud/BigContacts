@@ -13,27 +13,17 @@ const completeInvestigatorProviderPrompt = [
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
-  it("compacts auxiliary context to the request budget while preserving objective, Boss scope, actions, latest act and schema", () => {
+  it("preserves the full fetched observation and schema at the final provider boundary", () => {
     const latestQuote = "Jane Example — Managing Director can be reached directly at jane@example.org.";
     const prompt = [
-      "DISCOVERY MODE: no entity target is implied.",
-      "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers with public professional routes.",
-      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): Verify relevant candidates in Germany.",
-      "AVAILABLE ACTIONS: web_search | visit | registry_search.",
-      "CAPABILITY GUIDANCE: " + "capability detail ".repeat(500),
-      "AI-COMPACTED HISTORICAL RESEARCH MEMORY: " + "historical summary ".repeat(500),
-      "CANONICAL EVIDENCE GRAPH STATE: " + "old evidence graph ".repeat(300),
-      "LATEST TRAJECTORY RECORD — TURN 3: " + JSON.stringify({ action: "visit", execution: "success", observedUrls: ["https://example.org/team"], observation: latestQuote }),
+      "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
+      "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
       "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
     ].join("\\n\\n");
-    const bounded = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
-    expect(bounded.length).toBeLessThan(4_800);
-    expect(bounded).toContain("CASE OBJECTIVE: Discover evidence-backed operating-company decision makers");
-    expect(bounded).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
-    expect(bounded).toContain("AVAILABLE ACTIONS: web_search | visit | registry_search.");
-    expect(bounded).toContain(latestQuote);
-    expect(bounded).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(bounded).not.toContain("historical summary ".repeat(100));
+    const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
+    expect(preserved).toBe(prompt);
+    expect(preserved).toContain(latestQuote);
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
   });
 
   it("keeps the preferred user prompt within the 7,200-character request envelope", () => {
