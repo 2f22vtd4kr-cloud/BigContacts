@@ -279,7 +279,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const seededBinding = buildCanonicalSeededTargetBinding({
     entityId: target.id,
     entityName: target.name,
-    entityType: target.type,
+    entityType: targetRow.type,
     sourceRegistries: target.sourceRegistries,
     notes: target.notes,
     metadata: target.metadata,
