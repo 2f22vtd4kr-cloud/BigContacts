@@ -5322,12 +5322,12 @@ const DISCOVERY_EXTERNAL_ACTIONS = new Set([
   "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
 ]);
 export function hasUsableDiscoveryExternalObservation(
-  records: readonly Pick<AgenticTrajectoryRecord, "action" | "execution" | "observation" | "observedUrls">[],
+  records: readonly { action: string; execution: string; observation?: string | null; observedUrls?: readonly string[] }[],
 ): boolean {
   return records.some((record) => {
     if (record.execution !== "success" || !DISCOVERY_EXTERNAL_ACTIONS.has(record.action)) return false;
     const observation = String(record.observation ?? "").trim().toLowerCase();
-    return (Array.isArray(record.observedUrls) && record.observedUrls.length > 0)
+    return (record.observedUrls?.length ?? 0) > 0
       || (observation.length > 0 && !/returned no usable result|no registry hits|no platform hits|no hits/.test(observation));
   });
 }
