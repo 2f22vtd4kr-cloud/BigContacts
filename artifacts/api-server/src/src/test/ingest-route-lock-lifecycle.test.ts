@@ -17,7 +17,7 @@ describe("ingestion route lock lifecycle", () => {
     for (const type of laneTypes) {
       const routeStart = ingestRoutes.indexOf(`router.post("/ingest/${type}"`);
       expect(routeStart, `missing route for ${type}`).toBeGreaterThanOrEqual(0);
-      const nextRoute = ingestRoutes.indexOf("\\nrouter.post(", routeStart + 1);
+      const nextRoute = ingestRoutes.indexOf("\nrouter.post(", routeStart + 1);
       const routeBlock = ingestRoutes.slice(routeStart, nextRoute < 0 ? ingestRoutes.length : nextRoute);
       expect(routeBlock, `${type} must release only its own lock in finally`).toMatch(
         new RegExp(`finally\\s*\\{[\\s\\S]*?clearActiveJobIfMatches\\("${type}",\\s*jobId\\)`),
