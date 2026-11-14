@@ -112,12 +112,18 @@ function hasPersonalWealthEvidence(entity: any): boolean {
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
   } catch {}
   if (metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed") return false;
-  if (metadata.source === "faa-aircraft-registry") return false;
   try {
     const sourceRegistries = JSON.parse(entity.sourceRegistries ?? "[]");
-    if (Array.isArray(sourceRegistries) && sourceRegistries.some((source: unknown) => typeof source === "string" && /FAA Releasable Aircraft Database/i.test(source))) return false;
+    if (Array.isArray(sourceRegistries)) {
+      const registries = sourceRegistries.filter((source: unknown): source is string => typeof source === "string");
+      const faaOnly = registries.length === 1 && /FAA Releasable Aircraft Database/i.test(registries[0]);
+      if (faaOnly) return false;
+      // A merged profile can retain FAA as its original metadata.source while
+      // gaining independent sources; do not hide independently assessed wealth.
+      if (registries.length > 0) return true;
+    }
   } catch {}
-  return true;
+  return metadata.source !== "faa-aircraft-registry";
 }
 
 function profileDisplayEntityType(entity: any) {
@@ -136,7 +142,7 @@ function profileDisplayEntityType(entity: any) {
     && /FAA Releasable Aircraft Database/i.test(sourceRegistries[0])
     || sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry";
   if (!faaOnly) return entity.type;
-  const registrantType = String(metadata.typeRegistrant ?? "");
+  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
   if (registrantType === "1") return "PersonCandidate";
   if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
   return "Other";
