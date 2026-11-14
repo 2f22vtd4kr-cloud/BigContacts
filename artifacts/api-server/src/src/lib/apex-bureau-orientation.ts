@@ -105,6 +105,9 @@ export function apexInvestigatorSystemCore(): string {
     "GEOGRAPHY: Never infer or introduce a geography from examples or model memory. Human objective and Boss-approved scope govern.",
     "REVIEW LEADS: Investigator selects objective-fit people/organizations for provisional review. On non-done actions, use findings[] for selected leads only. Review lead is not verified identity, ownership, wealth or contactability.",
     "ACTION SHAPE: Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose. Single and parallel registry actions require runtime-callable registry IDs.",
+    "TARGET: Apply objective criteria only when requested. url may be null when unused.",
+    "PARALLEL REGISTRY: Parallel registry searches need 1–4 objects, each with query/registry (a configured ID)/provider:null/locale:null/market:null/purpose.",
+    "FINDINGS: Each finding still needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "TERMINAL: Stop only at a defensible answer or justified blocker.",
     "STOPPING: done only after a defensible answer or justified blocker. Unresolved leads, empty searches, failed fetches and untested hypotheses are not completion."
   ].join("\n");
