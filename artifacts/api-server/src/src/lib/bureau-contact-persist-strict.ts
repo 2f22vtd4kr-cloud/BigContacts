@@ -113,7 +113,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
   if (identity) identityObserved = true;
   if (value) valueObserved = true;
   // Same-page token presence is insufficient: a large directory can mention many
-  // people and contact points. Require a bounded local co-binding passage.
+  // people and contact points. Require the model-selected exact quote to bind them.
   if (candidate) {
    const exactQuote = item.exactQuote!.trim();
    if (quoteAppearsInObservation(observation.observationText, exactQuote) && hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)) {
