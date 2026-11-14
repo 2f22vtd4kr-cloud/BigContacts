@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrivacySafeOpenSkyObservation } from "../lib/opensky-privacy";
+import { buildPrivacySafeOpenSkyObservation, redactLegacyOpenSkyPositionLog, sanitizeOpenSkyMetadataJson, sanitizeOpenSkyMetadataRecord } from "../lib/opensky-privacy";
 
 describe("privacy-safe latest ADS-B observation", () => {
   it("stores only coarse current status and never coordinates, callsigns, bearings or route history", () => {
@@ -50,5 +50,41 @@ describe("privacy-safe latest ADS-B observation", () => {
       source: "opensky",
     });
     expect(observation.status).toBe("unknown");
+  });
+
+  it("sanitizes legacy persisted ADS-B metadata before it reaches the model or UI", () => {
+    const sanitized = sanitizeOpenSkyMetadataRecord({
+      sourceRegistry: "FAA Releasable Aircraft Database",
+      opensky: {
+        icao24: "ABC123",
+        callsign: "N123AB",
+        latitude: 40.12,
+        longitude: -74.00,
+        altitudeFt: 11_499,
+        onGround: false,
+        speedKnots: 233,
+        trackDeg: 180,
+        squawk: "1234",
+        lastSeenAt: "2026-11-14T12:37:45.000Z",
+        source: "adsb.lol",
+      },
+    });
+    expect(sanitized.sourceRegistry).toBe("FAA Releasable Aircraft Database");
+    expect(sanitized.opensky).toEqual({
+      icao24: "abc123",
+      status: "airborne",
+      altitudeBandFt: 11_000,
+      speedBandKnots: 230,
+      observedAtHour: "2026-11-14T12:00:00.000Z",
+      source: "adsb.lol",
+      privacyScope: "latest_public_status_only_no_coordinates_or_route_history",
+    });
+    expect(JSON.stringify(sanitized)).not.toMatch(/latitude|longitude|callsign|trackDeg|squawk/i);
+  });
+
+  it("fails closed on malformed legacy metadata and redacts old coordinate-bearing logs", () => {
+    expect(sanitizeOpenSkyMetadataJson("{malformed")).toBe("{}");
+    expect(redactLegacyOpenSkyPositionLog("N123AB AIRBORNE — 40.12°N 74.00°W @ 10,000ft"))
+      .toBe("N123AB AIRBORNE — [precise position withheld] @ 10,000ft");
   });
 });
