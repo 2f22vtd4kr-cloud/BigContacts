@@ -78,6 +78,12 @@ function hasBoundIdentityAndValue(observationText:string,personName:string,clean
   ? hasBoundPhoneAndIdentity(segment,personName,cleanValue)
   : Boolean(bindExactSourceSpan(segment,cleanValue,personName,320)?.exact));
 }
+function quoteAppearsInObservation(observationText: string, exactQuote: string): boolean {
+ const normalizedObservation = observationText.replace(/\\s+/gu, " ").trim();
+ const normalizedQuote = exactQuote.replace(/\\s+/gu, " ").trim();
+ return normalizedQuote.length > 0 && normalizedObservation.includes(normalizedQuote);
+}
+
 export function supportsCandidateContactOnSameObservation(observationText:string,item:BureauContactLike,cleanValue:string,vectorType:string):boolean{
  if(!observationText.trim()||!cleanValue.trim())return false;
  if(String(item.scope??"").toLowerCase()==="candidate"){
@@ -87,7 +93,7 @@ export function supportsCandidateContactOnSameObservation(observationText:string
    name
    && item.contactAttribution==="person_specific"
    && quote
-   && observationText.includes(quote)
+   && quoteAppearsInObservation(observationText, quote)
    && hasBoundIdentityAndValue(quote,name,cleanValue,vectorType),
   );
  }
@@ -123,7 +129,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
   // people and contact points. Require a bounded local co-binding passage.
   if (candidate) {
    const exactQuote = item.exactQuote!.trim();
-   if (observation.observationText.includes(exactQuote) && hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)) {
+   if (quoteAppearsInObservation(observation.observationText, exactQuote) && hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)) {
     identityAndValueBoundTogether = true;
     exactQuoteBound = true;
    }
