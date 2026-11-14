@@ -14,6 +14,7 @@ import {
 } from "../lib/job-queue";
 import { entityToEmbedText, embedText, storeEmbedding, getAllEmbeddings, getEmbeddingCacheSize, isModelLoaded } from "../lib/semantic-engine";
 import { logger } from "../lib/logger";
+import { redactLegacyOpenSkyPositionLog } from "../lib/opensky-privacy";
 
 const router = Router();
 const KNOWN_JOB_TYPES = [
@@ -128,7 +129,7 @@ router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> =
       const activeJobId = activeByType.get(def.id) ?? null;
       const state = activeJobId ? await getJobStrict(activeJobId) : null;
       if (activeJobId && !state) throw new Error("Active job lock exists but its job record is missing; state is inconsistent.");
-      return { ...def, jobId: state?.jobId, status: state?.status ?? "idle", progress: state?.progress ?? 0, inserted: state?.inserted ?? 0, skipped: state?.skipped ?? 0, errors: state?.errors ?? 0, message: state?.message ?? "", startedAt: state?.startedAt, finishedAt: state?.finishedAt };
+      return { ...def, jobId: state?.jobId, status: state?.status ?? "idle", progress: state?.progress ?? 0, inserted: state?.inserted ?? 0, skipped: state?.skipped ?? 0, errors: state?.errors ?? 0, message: def.id === "opensky" ? redactLegacyOpenSkyPositionLog(state?.message ?? "") : state?.message ?? "", startedAt: state?.startedAt, finishedAt: state?.finishedAt };
     }));
     res.json({ jobs, generatedAt: new Date().toISOString() });
   } catch (err: any) {
