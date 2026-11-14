@@ -51,7 +51,7 @@ router.post("/ingest/sync-faa-coordinates", async (_req: Request, res: Response)
       }
       updated += ids.length;
     }
-    res.json({ total: rows.length, updated, message: `${updated}/${rows.length} FAA assets now have coordinates.` });
+    res.json({ total: rows.length, updated, message: `${updated}/${rows.length} FAA assets now have coarse US state-centroid coordinates; these are not aircraft positions.` });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Coordinate sync failed" });
   }
