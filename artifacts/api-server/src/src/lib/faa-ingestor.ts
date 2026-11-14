@@ -475,6 +475,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
           ELSE 'registrant_type_unknown'
         END,
         'wealthStatus', 'not_assessed',
+        'personalWealthEvidence', false,
         'beneficialOwnershipStatus', 'unresolved',
         'reviewOnly', true,
         'bayesianScore', 0.05
@@ -482,6 +483,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     }).where(and(
       eq(entitiesTable.type, "HNWI"),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+      sql`COALESCE(${entitiesTable.metadata}::jsonb ->> 'legacyFaaOwnershipCorrected', 'false') <> 'true'`,
     ));
     const legacyFaaOwnedLinks = await tx.select({
       sourceEntityId: relationshipsTable.sourceEntityId,
