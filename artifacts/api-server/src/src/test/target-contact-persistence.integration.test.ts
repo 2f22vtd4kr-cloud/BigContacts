@@ -144,14 +144,14 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
     const rawPersonalFinding = {
       vectorType: "email",
       value: personalEmail,
-      scope: "candidate",
+      scope: "candidate" as const,
       personName: targetName,
       role: "Managing Director",
       sourceUrls: [personalUrl],
       note: "The fetched public team profile explicitly attributes this direct professional route.",
-      contactAttribution: "person_specific",
+      contactAttribution: "person_specific" as const,
       exactQuote,
-      promotionDecision: "promote",
+      promotionDecision: "promote" as const,
       promotionReason: "The exact fetched statement names the person and gives the route.",
     };
     const mappedPersonal = findingsToContacts([rawPersonalFinding], targetName);
@@ -207,8 +207,9 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       },
     });
 
+    const sharedPersonName = `Apex QA Shared Inbox ${runToken.slice(0, 8)}`;
     const [sharedPerson] = await db.insert(entitiesTable).values({
-      name: `Apex QA Shared Inbox ${runToken.slice(0, 8)}`,
+      name: sharedPersonName,
       type: "PersonCandidate",
       metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion" }),
     }).returning({ id: entitiesTable.id });
@@ -236,9 +237,9 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       role: "Office contact",
       sourceUrls: [sharedUrl],
       note: "The website lists the organization inbox.",
-      contactAttribution: "shared_inbox",
+      contactAttribution: "shared_inbox" as const,
       exactQuote: `Contact the office at ${sharedEmail}.`,
-      promotionDecision: "promote",
+      promotionDecision: "promote" as const,
       promotionReason: "Model explicitly classified the route as shared.",
     }], targetName);
     expect(mappedShared[0]).toMatchObject({
@@ -290,7 +291,7 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
     ]));
 
     const sharedResponse = await fetch(
-      `http://127.0.0.1:${address.port}/entities?type=PersonCandidate&search=${encodeURIComponent(String(sharedPerson.name ?? ""))}`,
+      `http://127.0.0.1:${address.port}/entities?type=PersonCandidate&search=${encodeURIComponent(sharedPersonName)}`,
     );
     expect(sharedResponse.status).toBe(200);
     const sharedCards = await sharedResponse.json() as Array<Record<string, any>>;
