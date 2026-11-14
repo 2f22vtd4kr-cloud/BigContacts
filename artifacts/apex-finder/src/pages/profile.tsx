@@ -104,11 +104,20 @@ const CAT_COLORS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function hasPersonalWealthEvidence(entity: any): boolean {
+  if (entity?.estimatedNetWorth == null) return false;
+  try {
+    const metadata = JSON.parse(entity.metadata ?? "{}");
+    if (metadata?.personalWealthEvidence === false || metadata?.wealthStatus === "not_assessed") return false;
+  } catch {}
+  return true;
+}
+
 function computeConfidence(entity: any, assets: any[], relationships: any[]): ConfidenceScores {
   const idFields = [entity.nationality, entity.knownResidences, entity.contactMethod, entity.phone || entity.email, entity.linkedinUrl];
   const identity = Math.round((idFields.filter(Boolean).length / idFields.length) * 100);
 
-  const hasNW = entity.estimatedNetWorth != null;
+  const hasNW = hasPersonalWealthEvidence(entity);
   const assetsWithVal = assets.filter((a) => a.estimatedValue != null).length;
   const financial = Math.min(Math.round((hasNW ? 40 : 0) + Math.min(assetsWithVal * 15, 60)), 100);
 
@@ -157,7 +166,7 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
   if (entity.contactMethod)    entries.push({ id: "cm",    category: "Identity",  dataPoint: "Contact Method",    value: entity.contactMethod,     source: "Internal",   verified: false });
   if (entity.phone)            entries.push({ id: "phone", category: "Identity",  dataPoint: "Phone",             value: entity.phone,             source: "Internal",   verified: false });
   if (entity.email)            entries.push({ id: "email", category: "Identity",  dataPoint: "Email",             value: entity.email,             source: "Internal",   verified: false });
-  if (entity.estimatedNetWorth != null)
+  if (hasPersonalWealthEvidence(entity))
     entries.push({ id: "nw", category: "Financial", dataPoint: entityMeta(entity.type).metricLabel, value: entity.type === "HNWI" ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity), source: primarySrc, verified: hasRegistry });
 
   for (const reg of srcRegs) {
@@ -241,7 +250,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
 }) {
   const metricEvidenceDone =
     entity.type === "HNWI"
-      ? entity.estimatedNetWorth != null
+      ? hasPersonalWealthEvidence(entity)
       : entity.type === "Corporation"
         ? relationships.length >= 1 || !!entity.sourceRegistries
         : entity.type === "Trust"
@@ -513,10 +522,7 @@ export default function ApexProfile() {
   } catch {}
   const isFaaRegistrantRecord = entityMetadata.source === "faa-aircraft-registry"
     || srcRegs.some((source) => /FAA Releasable Aircraft Database/i.test(source));
-  const displayableEstimatedNetWorth = entityMetadata.personalWealthEvidence === false
-    || entityMetadata.wealthStatus === "not_assessed"
-    ? null
-    : (entity as any).estimatedNetWorth;
+  const displayableEstimatedNetWorth = hasPersonalWealthEvidence(entity) ? (entity as any).estimatedNetWorth : null;
   const faaLinkedAssets = (assets as any[]).filter((asset: any) => {
     let metadata: Record<string, any> = {};
     try {
