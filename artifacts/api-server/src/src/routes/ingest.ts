@@ -217,6 +217,8 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err.message }, "Western HNWI ingestion job failed");
       await updateJob(jobId, { status: "failed", message: err.message ?? "Unknown error" });
+    } finally {
+      await clearActiveJobIfMatches("western-hnwi", jobId).catch(() => false);
     }
   })();
 
@@ -363,6 +365,8 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
         message: err?.message ?? "BRREG snapshot ingestion failed",
         finishedAt: new Date().toISOString(),
       });
+    } finally {
+      await clearActiveJobIfMatches("brreg-snapshot", jobId).catch(() => false);
     }
   })();
 
@@ -521,6 +525,8 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err.message }, "OCCRP enrichment job failed");
       await updateJob(jobId, { status: "failed", message: err.message ?? "OCCRP enrichment failed" });
+    } finally {
+      await clearActiveJobIfMatches("occrp", jobId).catch(() => false);
     }
   })();
 
@@ -572,6 +578,8 @@ router.post("/ingest/land-registry", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err.message }, "Land Registry ingestion failed");
       await updateJob(jobId, { status: "failed", message: err.message ?? "Land Registry ingestion failed" });
+    } finally {
+      await clearActiveJobIfMatches("land-registry", jobId).catch(() => false);
     }
   })();
 
@@ -613,6 +621,8 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err.message }, "OpenSky enrichment failed");
       await updateJob(jobId, { status: "failed", message: err.message ?? "OpenSky enrichment failed" });
+    } finally {
+      await clearActiveJobIfMatches("opensky", jobId).catch(() => false);
     }
   })();
 
