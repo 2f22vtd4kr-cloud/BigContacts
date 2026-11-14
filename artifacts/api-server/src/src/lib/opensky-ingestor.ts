@@ -168,7 +168,7 @@ export async function runOpenSkyEnrichment(
     try {
       const icao24 = String(sv[0] ?? "");
       const baroAlt = typeof sv[7] === "number" ? sv[7] : null;
-      const onGround = Boolean(sv[8]);
+      const onGround = typeof sv[8] === "boolean" ? sv[8] : null;
       const velocity = typeof sv[9] === "number" ? sv[9] : null;
       const flightData = buildPrivacySafeOpenSkyObservation({
         icao24,
@@ -195,7 +195,7 @@ export async function runOpenSkyEnrichment(
 
       await appendJobLog(
         jobId,
-        `✈️  ${identifier} latest public status: ${onGround ? "ON GROUND" : "AIRBORNE"} — approx ${flightData.altitudeBandFt?.toLocaleString() ?? "?"}ft / ${flightData.speedBandKnots ?? "?"}kts; no position or route retained.`,
+        `✈️  ${identifier} latest public status: ${flightData.status === "on_ground" ? "ON GROUND" : flightData.status === "airborne" ? "AIRBORNE" : "UNKNOWN"} — approx ${flightData.altitudeBandFt?.toLocaleString() ?? "?"}ft / ${flightData.speedBandKnots ?? "?"}kts; no position or route retained.`,
       );
     } catch (err: any) {
       logger.warn({ err: err.message, asset: asset.identifier }, "OpenSky update error");
