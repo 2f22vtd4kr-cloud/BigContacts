@@ -9,6 +9,7 @@ import {
   faaRegistrantEntityKey,
   mergeFaaAssetMetadata,
   normalizeFaaAdditionalRegistrantNames,
+  shouldReclassifyLegacyFaaRegistrantLink,
   normalizeFaaName,
   parseFaaMasterCsvRecord,
 } from "../lib/faa-ingestor";
@@ -323,6 +324,12 @@ describe("FAA dedup replay safety", () => {
 });
 
 describe("legacy FAA registrant repair", () => {
+  it("preserves independent OWNS edges when their source entity differs from the asset FK", () => {
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: 10 })).toBe(true);
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: null })).toBe(true);
+    expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: 11 })).toBe(false);
+  });
+
   it("records FAA source class separately from registry ingestion and corroboration", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).toContain('sourceClass: "registry_adapter_source"');
@@ -356,7 +363,8 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("const legacyFaaOwnedLinks = await tx.select");
     expect(repair).toContain('eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database")');
     expect(repair).toContain("const repairAssets = legacyAssets;");
-    expect(repair).toContain("legacyFaaOwnedLinks.map((row) => row.targetId)");
+    expect(repair).toContain("repairableFaaOwnedLinks.map((row) => row.targetId)");
+    expect(repair).toContain("legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink)");
     expect(repair).toContain("const assetIds = Array.from(new Set");
     expect(repair).toContain(".filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)");
     expect(repair).toContain('relationshipType: "REGISTERED_TO"');
