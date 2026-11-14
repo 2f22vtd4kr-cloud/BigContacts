@@ -86,7 +86,7 @@ const SOURCES: SourceDef[] = [
   {
     id: "faa",
     label: "FAA Aircraft Registry",
-    description: "FAA aircraft registrations: aircraft asset leads plus provisional individual/legal-entity registrant candidates. Registration does not prove beneficial ownership or personal wealth.",
+    description: "FAA aircraft registration records: aircraft asset leads plus provisional individual/legal-entity registrant candidates, fractional-ownership status and published Other Name 1–5 fields. Registration does not prove beneficial ownership or personal wealth.",
     kind: "ingestor",
     Icon: Plane,
     color: "#F59E0B",
@@ -96,7 +96,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/faa",
     jobType: "faa",
     bodyParams: { maxRecords: 30000 },
-    note: "Start and monitor in Mass Seed Operations. Individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only.",
+    note: "Start and monitor in Mass Seed Operations. Other Name 1–5 are preserved per aircraft as unverified additional names; individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only.",
   },
   {
     id: "gleif",
