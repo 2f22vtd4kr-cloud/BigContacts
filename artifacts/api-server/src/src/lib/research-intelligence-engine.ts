@@ -549,6 +549,25 @@ export class ResearchIntelligenceEngine {
       existing.supports = [...new Set([...existing.supports, ...input.supports])];
       existing.contradicts = [...new Set([...existing.contradicts, ...input.contradicts])];
       existing.attribution = existing.attribution ?? input.attribution ?? null;
+      if (input.hypothesisLabel) {
+        if (existing.hypothesisLabel && normalize(existing.hypothesisLabel) !== normalize(input.hypothesisLabel)) {
+          existing.hypothesisRelation = "ambiguous";
+          existing.hypothesisRationale = "The same observation was interpreted against different hypotheses; preserve both as unresolved context.";
+        } else {
+          existing.hypothesisLabel = input.hypothesisLabel;
+          if (existing.hypothesisRelation && input.hypothesisRelation && existing.hypothesisRelation !== input.hypothesisRelation) {
+            existing.hypothesisRelation = "ambiguous";
+            existing.hypothesisRationale = [existing.hypothesisRationale, input.hypothesisRationale, "Conflicting model interpretations of the same observation are preserved as ambiguous."].filter(Boolean).join(" ").slice(0, 1_200);
+          } else {
+            existing.hypothesisRelation = existing.hypothesisRelation ?? input.hypothesisRelation ?? null;
+            existing.hypothesisRationale = existing.hypothesisRationale ?? input.hypothesisRationale ?? null;
+          }
+        }
+      }
+      existing.relationshipType = existing.relationshipType ?? input.relationshipType ?? null;
+      existing.temporalStatus = existing.temporalStatus ?? input.temporalStatus ?? null;
+      existing.interpretationConfidence = existing.interpretationConfidence ?? input.interpretationConfidence ?? null;
+      existing.ambiguityNotes = existing.ambiguityNotes ?? input.ambiguityNotes ?? null;
       return existing.id;
     }
     const id = `ev_${fingerprint.slice(0, 20)}`;
@@ -618,31 +637,26 @@ export class ResearchIntelligenceEngine {
   private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); const newHosts = new Set(urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host))); return newHosts.size; }
 
   private reconcileContradictions(): void {
-    const grouped = new Map<string, IntelligenceEvidence[]>();
-    for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = grouped.get(key) ?? []; list.push(evidence); grouped.set(key, list); }
-    for (const evidence of this.evidence.values()) evidence.contradicts = [];
-    for (const list of grouped.values()) {
-      const objectById = new Map(list.map((item) => [item.id, normalize(extractPredicate(item.claim).object)]));
-      const distinctObjects = new Set(objectById.values());
-      const parsed = extractPredicate(list[0]?.claim ?? "");
-      if (["email", "phone", "social", "website"].includes(parsed.predicate)) continue;
-      if (distinctObjects.size < 2) continue;
-      // Every observation of one side must link to all conflicting objects,
-      // not only the last representative retained for each distinct value.
-      for (const current of list) {
-        current.contradicts = [...new Set(list
-          .filter((item) => objectById.get(item.id) !== objectById.get(current.id))
-          .map((item) => item.id))];
-      }
+    // The model's explicit hypothesisRelation is the semantic judgement.
+    // Preserve it; do not manufacture contradictions from differing strings
+    // that happen to share a subject and predicate.
+    const knownEvidenceIds = new Set([...this.evidence.values()].map((item) => item.id));
+    for (const evidence of this.evidence.values()) {
+      evidence.contradicts = [...new Set(evidence.contradicts)].filter((id) => knownEvidenceIds.has(id));
     }
-    for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; const predicate = claim.predicate; const key = normalize(`${claim.subject}|${predicate}`); const group = [...this.evidence.values()].filter((item) => { const parsed = extractPredicate(item.claim); return normalize(`${parsed.subject}|${parsed.predicate}`) === key; }); claim.status = group.some((item) => item.contradicts.length > 0) ? "contradicted" : related.length ? "supported" : "unresolved"; }
+    for (const claim of this.claims.values()) {
+      const related = claim.evidenceIds.some((id) => {
+        const evidence = this.evidenceByIdMap.get(id);
+        return evidence && (evidence.kind === "finding" || evidence.kind === "claim");
+      });
+      // A source-backed fact remains supported even when it contradicts a
+      // separate hypothesis; those are different epistemic dimensions.
+      claim.status = related ? "supported" : "unresolved";
+    }
   }
 
   private rankHypotheses(): void {
     for (const hypothesis of this.hypotheses.values()) {
-      const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidenceByIdMap.get(id)?.contradicts ?? []);
-      hypothesis.contradictingEvidenceIds = [...new Set([...hypothesis.contradictingEvidenceIds, ...linkedContradictions])]
-        .filter((id) => this.evidenceByIdMap.has(id));
       // A copied passage may be observed at many URLs, but the source-lineage
       // graph intentionally gives those copies one lineage ID. Keep at most one
       // posterior signal per lineage and direction so duplicate pages cannot
@@ -668,7 +682,9 @@ export class ResearchIntelligenceEngine {
               sourceHosts: evidence.sourceHost ? [evidence.sourceHost] : [],
               sourceClasses: [evidence.sourceClass],
             }),
-            identitySpecificity: overlap(hypothesis.entity, evidence.claim),
+            // Semantic confidence is supplied by the Investigator; absent
+            // interpretation remains neutral rather than inferred by token overlap.
+            identitySpecificity: evidence.interpretationConfidence ?? 0.5,
           };
           const strength = signal.sourceReliability * 0.45
             + signal.sourceIndependence * 0.35
