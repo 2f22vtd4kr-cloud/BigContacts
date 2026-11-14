@@ -10,7 +10,7 @@ import { db, entitiesTable } from "@workspace/db";
 import { enablePermanentRedis } from "../lib/redis";
 import { sql, eq, count } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getJobStrict, getActiveJob, getActiveJobStrict, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, clearActiveJobIfMatches,
+  createJob, updateJob, getJobStrict, getActiveJobStrict, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, clearActiveJobIfMatches,
 } from "../lib/job-queue";
 import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { entityToEmbedText, embedText, storeEmbedding, getAllEmbeddings, getEmbeddingCacheSize, isModelLoaded } from "../lib/semantic-engine";
