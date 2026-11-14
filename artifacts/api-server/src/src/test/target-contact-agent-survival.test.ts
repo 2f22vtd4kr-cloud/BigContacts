@@ -62,8 +62,8 @@ const testState = vi.hoisted(() => {
       : table === researchCaseEventsTable ? events
       : [];
     return rows.filter((row) => conditions(condition).every((entry) => {
-      if (entry.op === "eq") return row[entry.column.field] === entry.value;
-      if (entry.op === "like") return String(row[entry.column.field] ?? "").includes(String(entry.value).replaceAll("%", ""));
+      if (entry.op === "eq") return (row as Record<string, any>)[entry.column.field] === entry.value;
+      if (entry.op === "like") return String((row as Record<string, any>)[entry.column.field] ?? "").includes(String(entry.value).replaceAll("%", ""));
       return true;
     }));
   };
