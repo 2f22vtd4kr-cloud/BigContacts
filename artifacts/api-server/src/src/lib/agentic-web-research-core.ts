@@ -5794,15 +5794,16 @@ if (input.mode === "discovery") {
       continue;
     }
   }
-  if (DISCOVERY_SEARCH_ACTIONS.has(action.action) && countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS) {
+  const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);
+  if (DISCOVERY_SEARCH_ACTIONS.has(action.action) && discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
-    record.observation = "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached across this case. No further search/provider/registry request was sent. Preserve the best objective-relevant lead, inspect its source if still pending, and let Boss choose target-scoped research or stop/park with the remaining gaps.";
+    record.observation = "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached (" + discoverySearchActionsUsed + "/" + MAX_DISCOVERY_SEARCH_ACTIONS + " actions used across this case). No further search/provider/registry request was sent. Decide whether any objective-justified non-search action, target-scoped handoff, or stopping is warranted; the next action remains your decision.";
     lastObservation = record.observation;
     pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_search_budget_exhausted");
     await emitSanitizedTrajectoryRecord(record);
-    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted after two outbound search actions." });
+    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted at the configured ceiling." });
     continue;
   }
   // Mixed-source provider and registry batches are allowed in discovery;
