@@ -465,6 +465,7 @@ const openingCapabilitySelectionOrientation = [
   "Follow the exact human objective and Boss-approved scope; do not impose wealth, ownership, sector or geography requirements the objective did not request.",
   "Boss cannot browse or execute research tools. This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.",
   "Select only from the supplied available capabilities and never select an excluded or unavailable capability.",
+  "MODEL ROUTING: When listed, groq-investigator-20b runs GPT-OSS 20B on the first Investigator credential and is the economical choice for ordinary public-source discovery and action selection. Standard groq-investigator-N capabilities use the configured canonical Investigator model (GPT-OSS 120B by default). Prefer 20B for a routine discovery mission; choose a standard capability when the objective genuinely needs the stronger model. This is an execution-cost decision, not a research sequence. The runtime never silently rotates models after failure.",
 ].join("\n");
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
