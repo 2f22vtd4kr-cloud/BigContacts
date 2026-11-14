@@ -1286,6 +1286,7 @@ components:
         description: { type: string }
         lastActivityDate: { type: string }
         sourceRegistry: { type: string }
+        metadata: { type: ["string", "null"] }
         ownerEntityId: { type: integer }
 
     # ── RELATIONSHIP ──────────────────────────────────────────────────────────
