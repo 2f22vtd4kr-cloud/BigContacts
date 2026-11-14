@@ -506,30 +506,40 @@ export default function ApexProfile() {
   const typeColor  = entityMeta(entity.type).color;
   let srcRegs: string[] = [];
   try { srcRegs = JSON.parse((entity as any).sourceRegistries ?? "[]"); } catch {}
+  let entityMetadata: Record<string, any> = {};
+  try {
+    const parsed = JSON.parse((entity as any).metadata ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) entityMetadata = parsed;
+  } catch {}
+  const isFaaRegistrantRecord = entityMetadata.source === "faa-aircraft-registry"
+    || srcRegs.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const displayableEstimatedNetWorth = entityMetadata.personalWealthEvidence === false
+    || entityMetadata.wealthStatus === "not_assessed"
+    ? null
+    : (entity as any).estimatedNetWorth;
 
   const geoAssets  = (assets as any[]).filter((a) => a.latitude != null && a.longitude != null);
   const confidence = computeConfidence(entity, assets as any[], relationships as any[]);
   const ledger     = buildLedger(entity, assets as any[], relationships as any[]);
 
-  // Human-readable primary wealth source for display
-  const primaryWealthSource = (() => {
+  // A registry label is source context, not proof of ownership or wealth.
+  const primarySourceContext = (() => {
     const reg = srcRegs[0] ?? "";
     if (/edgar|sec/i.test(reg)) {
-      return reg.toLowerCase().includes("13") ? "SEC EDGAR — beneficial owner (13D/G filing)" : "SEC EDGAR — board director / exec (DEF 14A)";
+      return reg.toLowerCase().includes("13") ? "SEC EDGAR — Schedule 13D/G filing; reported beneficial ownership requires scope review" : "SEC EDGAR — director / executive filing";
     }
     if (/faa/i.test(reg)) {
-      const jets = (assets as any[]).filter((a: any) => a.category === "Aviation");
-      return jets.length > 1 ? `FAA aircraft owner · ${jets.length} aircraft` : "FAA aircraft owner";
+      const aircraftRecords = (assets as any[]).filter((a: any) => a.category === "Aviation");
+      return aircraftRecords.length > 1 ? `FAA registrant record · ${aircraftRecords.length} aircraft records` : "FAA registrant record";
     }
     if (/land.?reg|hmlr/i.test(reg)) {
-      const props = (assets as any[]).filter((a: any) => a.category === "RealEstate");
-      return props.length > 1 ? `UK Land Registry · ${props.length} properties £1M+` : "UK Land Registry · property £1M+";
+      const saleRecords = (assets as any[]).filter((a: any) => a.category === "RealEstate");
+      return saleRecords.length > 1 ? `UK Land Registry · ${saleRecords.length} sale records` : "UK Land Registry · property sale record";
     }
-    if (/brreg/i.test(reg))           return "BRREG — Norwegian company director";
-    if (/companies.?house/i.test(reg)) return "Companies House — UK company director";
-    if (/bodacc|france/i.test(reg))   return "BODACC — French company director";
-    if (/ares|czech/i.test(reg))      return "ARES — Czech company director";
-    // Don't surface internal pipeline labels as a "wealth source"
+    if (/brreg/i.test(reg)) return "BRREG — Norwegian company registry record";
+    if (/companies.?house/i.test(reg)) return "Companies House — UK company/officer record";
+    if (/bodacc|france/i.test(reg)) return "BODACC — French company filing";
+    if (/ares|czech/i.test(reg)) return "ARES — Czech company register record";
     if (reg && !/^(web.?discovery|broad.?discovery|ai.?osint|deep.?web|in.?house|web.?enricher|manual)$/i.test(reg)) return reg;
     return null;
   })();
@@ -716,8 +726,8 @@ export default function ApexProfile() {
               {(entity as any).nationality && (
                 <span className="text-xs"><NationalityCell nationality={(entity as any).nationality} /></span>
               )}
-              {(entity as any).estimatedNetWorth && (
-                <span className="text-xs font-mono text-foreground">{formatCurrency((entity as any).estimatedNetWorth)}</span>
+              {displayableEstimatedNetWorth != null && (
+                <span className="text-xs font-mono text-foreground">{formatCurrency(displayableEstimatedNetWorth)}</span>
               )}
               {srcRegs.filter(r => !/^(web[-.]?discovery|broad[-.]?discovery|ai[-.]?osint|deep[-.]?web|in[-.]?house|web[-.]?enricher|manual|live[-.]?source)$/i.test(r)).slice(0, 3).map((r) => (
                 <span key={r} className="text-[11px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
@@ -751,7 +761,7 @@ export default function ApexProfile() {
                 <AccessScoreBadge score={entity.accessScore} />
                 <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Reach</span>
               </div>
-              {primaryWealthSource && (
+              {primarySourceContext && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
                   <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
                   <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
@@ -861,9 +871,9 @@ export default function ApexProfile() {
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
               <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
-              {(entity as any).estimatedNetWorth != null ? (
+              {displayableEstimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
-                {entity.type === "HNWI" ? formatCurrency((entity as any).estimatedNetWorth) : entityMetric(entity)}
+                {entity.type === "HNWI" ? formatCurrency(displayableEstimatedNetWorth) : entityMetric(entity)}
                 </span>
               ) : (
                 <span className="font-mono text-[12px] font-semibold text-foreground/60 leading-snug mb-1 italic">
@@ -1107,6 +1117,53 @@ export default function ApexProfile() {
           </section>
         );
       })()}
+
+      {/* ── FAA registrant evidence: source context, not ownership/wealth ─── */}
+      {isFaaRegistrantRecord && (
+        <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-card/35" data-testid="faa-registrant-evidence">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="text-[12px] font-mono font-bold uppercase tracking-widest text-primary">FAA registry context</div>
+            <span className="rounded border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-mono uppercase text-amber-300">Review only</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground mb-3">
+            The FAA lists a registrant on an aircraft record. Registration does not establish beneficial ownership, an ownership percentage, personal wealth, or a private contact route.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {([
+              ["Registrant type", entityMetadata.registrantTypeLabel],
+              ["Registration status", entityMetadata.registrationStatus],
+              ["Fractional ownership", entityMetadata.fractionalOwnershipStatus],
+              ["Beneficial ownership", entityMetadata.beneficialOwnershipStatus],
+              ["Wealth assessment", entityMetadata.wealthStatus],
+              ["HNWI qualification", entityMetadata.hnwiQualificationStatus],
+            ] as Array<[string, unknown]>).map(([label, value]) => (
+              <div key={label} className="rounded border border-border/60 bg-background/40 px-2.5 py-2 min-w-0">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
+                <div className="mt-1 text-[11px] leading-snug text-foreground break-words">
+                  {typeof value === "string" && value.trim() ? value.replace(/_/g, " ") : "Unknown / not assessed"}
+                </div>
+              </div>
+            ))}
+          </div>
+          {Array.isArray(entityMetadata.additionalRegistrantNames) && entityMetadata.additionalRegistrantNames.length > 0 ? (
+            <div className="mt-3 rounded border border-border/60 bg-background/40 px-3 py-2">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Additional names on the same registration · unverified</div>
+              <p className="text-[10px] leading-relaxed text-muted-foreground mb-2">
+                FAA Other Name 1–5 fields are published co-owner or partnership name fields. They are associated record names, not independently verified people or beneficial owners.
+              </p>
+              <ul className="space-y-1">
+                {entityMetadata.additionalRegistrantNames.slice(0, 5).map((name: unknown, index: number) => (
+                  typeof name === "string" && name.trim()
+                    ? <li key={index} className="text-[11px] text-foreground/85 break-words">{name}</li>
+                    : null
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-3 text-[10px] text-muted-foreground">No additional names are present in this releasable FAA record.</p>
+          )}
+        </section>
+      )}
 
       {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
