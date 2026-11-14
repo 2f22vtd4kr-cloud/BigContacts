@@ -278,14 +278,27 @@ export class ResearchIntelligenceEngine {
         let best: typeof supportedSources[number] | null = null;
         let bestRank = 0;
         for (const source of sourceObservationsByUrl.get(sourceUrl) ?? []) {
-          const combinedSpan = bindExactSourceSpan(source.observation, value, subject, 320);
           const valueSpan = bindExactSourceSpan(source.observation, value);
           const identitySpan = finding.personName ? bindExactSourceSpan(source.observation, finding.personName) : null;
-          const supportsSource = finding.personName ? Boolean(valueSpan?.exact || identitySpan?.exact) : Boolean(valueSpan?.exact);
+          const exactQuote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
+          const quoteSpan = exactQuote ? bindExactSourceSpan(source.observation, exactQuote) : null;
+          const quoteBindsIdentityAndValue = Boolean(
+            finding.personName
+            && quoteSpan?.exact
+            && bindExactSourceSpan(exactQuote, finding.personName)?.exact
+            && bindExactSourceSpan(exactQuote, value)?.exact,
+          );
+          const supportsSource = finding.personName
+            ? Boolean(valueSpan?.exact || identitySpan?.exact || quoteSpan?.exact)
+            : Boolean(valueSpan?.exact);
           if (!supportsSource) continue;
-          const span = combinedSpan?.exact ? combinedSpan : valueSpan?.exact ? valueSpan : identitySpan!;
-          const binding = combinedSpan?.exact ? "identity_and_value" as const : valueSpan?.exact ? "value" as const : "identity" as const;
-          const rank = combinedSpan?.exact ? 3 : valueSpan?.exact && identitySpan?.exact ? 2 : 1;
+          // Semantic attribution comes from the model's explicit quote. The
+          // runtime checks that the whole quote exists on this source and that
+          // it contains the exact identity and value; it applies no proximity
+          // window or English/Latin matching rule.
+          const span = quoteBindsIdentityAndValue ? quoteSpan! : valueSpan?.exact ? valueSpan : identitySpan!;
+          const binding = quoteBindsIdentityAndValue ? "identity_and_value" as const : valueSpan?.exact ? "value" as const : "identity" as const;
+          const rank = quoteBindsIdentityAndValue ? 3 : valueSpan?.exact && identitySpan?.exact ? 2 : 1;
           if (rank > bestRank || (rank === bestRank && best && source.turn > best.turn)) {
             best = { url: sourceUrl, turn: source.turn, action: source.action, span, binding };
             bestRank = rank;
@@ -306,6 +319,13 @@ export class ResearchIntelligenceEngine {
           value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
           turn: source.turn, action: source.action, execution: "success", passage: source.span.text,
           spanStart: source.span.start, spanEnd: source.span.end, spanBindingKind: source.binding,
+          hypothesisLabel: typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() || null : null,
+          hypothesisRelation: wholeClaimSupported ? finding.hypothesisRelation ?? "unresolved" : "unresolved",
+          hypothesisRationale: finding.hypothesisRationale ?? null,
+          relationshipType: finding.relationshipType ?? null,
+          temporalStatus: finding.temporalStatus ?? "unclear",
+          interpretationConfidence: typeof finding.interpretationConfidence === "number" && Number.isFinite(finding.interpretationConfidence) ? clamp(finding.interpretationConfidence) : null,
+          ambiguityNotes: finding.ambiguityNotes ?? null,
           supports: wholeClaimSupported && finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
         });
         if (wholeClaimSupported) admittedFindingEvidenceIds.add(evidenceId);
@@ -350,13 +370,18 @@ export class ResearchIntelligenceEngine {
         ...admittedFindingEvidenceIds,
         ...[...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim")).map((evidence) => evidence.id),
       ])];
-      const supportingEvidenceIds = candidateEvidenceIds.filter((evidenceId) => {
-        const evidence = this.evidenceByIdMap.get(evidenceId);
-        return Boolean(evidence && (evidence.kind === "finding" || evidence.kind === "claim")
-          && supportsHypothesisClaim(modelHypothesis, evidence.claim)
-          && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); }));
-      });
-      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds });
+      const linkedEvidence = candidateEvidenceIds
+        .map((evidenceId) => this.evidenceByIdMap.get(evidenceId))
+        .filter((evidence): evidence is IntelligenceEvidence => Boolean(evidence)
+          && (evidence.kind === "finding" || evidence.kind === "claim")
+          && normalize(evidence.hypothesisLabel ?? "") === normalize(modelHypothesis));
+      const supportingEvidenceIds = linkedEvidence
+        .filter((evidence) => evidence.hypothesisRelation === "supports")
+        .map((evidence) => evidence.id);
+      const contradictingEvidenceIds = linkedEvidence
+        .filter((evidence) => evidence.hypothesisRelation === "contradicts")
+        .map((evidence) => evidence.id);
+      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, contradictingEvidenceIds });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
