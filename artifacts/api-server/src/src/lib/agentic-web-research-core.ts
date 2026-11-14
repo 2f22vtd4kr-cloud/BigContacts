@@ -2230,7 +2230,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
     "RUNTIME-AVAILABLE REGISTRY IDS ONLY:",
     "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD:",
     "DISCOVERY LEAD HANDOFF CONTRACT:",
-  ].some((marker) => section.startsWith(marker) || section.includes("\\n" + marker));
+  ].some((marker) => section.startsWith(marker));
 
   const compactionRules: Array<{ pattern: RegExp; max: number; label: string }> = [
     { pattern: /AI-COMPACTED HISTORICAL RESEARCH MEMORY/u, max: 450, label: "[HISTORICAL MEMORY COMPACTED; omitted context is unknown]" },
