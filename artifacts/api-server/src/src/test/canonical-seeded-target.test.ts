@@ -156,7 +156,7 @@ describe("canonical seeded target binding", () => {
         metadata: JSON.stringify({
           source: "faa-aircraft-registry",
           additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
-          additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields on the same aircraft registration; they are unverified associated names, not proven beneficial owners, personal relationships, or personal wealth.",
+          additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
           personalWealthEvidence: false,
           assetSignal: { kind: "aircraft_registry_observation", strength: "strong_asset_lead", personalWealthEvidence: false },
         }),
