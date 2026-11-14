@@ -137,10 +137,11 @@ function profileDisplayEntityType(entity: any) {
     const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
     if (Array.isArray(parsed)) sourceRegistries = parsed.filter((value): value is string => typeof value === "string");
   } catch {}
-  const faaOnly = sourceRegistries.length === 1
-    && /FAA Releasable Aircraft Database/i.test(sourceRegistries[0])
-    || sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry";
-  if (!faaOnly) return entity.type;
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || sourceRegistries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const lacksIndependentWealthAssessment = metadata.personalWealthEvidence !== true
+    || metadata.wealthStatus === "not_assessed";
+  if (!hasFaaSource || !lacksIndependentWealthAssessment) return entity.type;
   const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
   if (registrantType === "1") return "PersonCandidate";
   if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
