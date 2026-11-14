@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
+const narrativeSource = readFileSync(new URL("../lib/utils.tsx", import.meta.url), "utf8");
 
 describe("registry profile evidence semantics", () => {
   it("does not promote FAA registrants or HMLR transaction parties into owners or wealthy people", () => {
@@ -34,6 +35,16 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("Additional names on the same registration");
     expect(profileSource).toContain("unverified");
     expect(profileSource).toContain("not independently verified people or beneficial owners");
+  });
+
+  it("keeps shared narrative helpers from turning registry records into wealth or ownership claims", () => {
+    expect(narrativeSource).toContain("registrant is not necessarily the beneficial owner");
+    expect(narrativeSource).toContain("not proof of personal wealth or HNWI status");
+    expect(narrativeSource).toContain("not proof of current title, continuing ownership or personal wealth");
+    expect(narrativeSource).not.toContain("FAA register shows aircraft ownership");
+    expect(narrativeSource).not.toContain("clean wealth signal");
+    expect(narrativeSource).not.toContain("durable wealth marker");
+    expect(narrativeSource).toContain("sourceDisclaimsPersonalWealth");
   });
 
   it("suppresses estimated net worth when source metadata says personal wealth is not evidenced", () => {
