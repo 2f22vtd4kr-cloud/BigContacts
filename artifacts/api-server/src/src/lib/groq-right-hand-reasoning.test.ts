@@ -128,6 +128,41 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect((chatCall?.[1]?.headers as Record<string, string>)?.Authorization).toBe("Bearer test-right-hand-key");
   });
 
+  it("retains the full strategic Right-hand orientation outside memory compaction", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }] });
+      }
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Review the current case state and advise whether the Investigator should continue.",
+      "You are the Groq Right-hand Advisor. Review case state only; never browse.",
+      responseFormat,
+      isValidDecision,
+      undefined,
+      {
+        maxCompletionTokens: 1_024,
+        reasoningEffort: "low",
+        maxAttempts: 1,
+        preferredModel: "openai/gpt-oss-120b",
+        allowModelFallback: false,
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+    const body = JSON.parse(String(chatCall?.[1]?.body)) as { messages: Array<{ role: string; content: string }> };
+    const systemMessage = body.messages.find((message) => message.role === "system");
+    expect(systemMessage?.content).toContain("APEX MISSION CONTRACT");
+    expect(systemMessage?.content).toContain("Investigator owns");
+    expect(systemMessage?.content).toContain("DISCOVERY ECONOMY");
+  });
+
   it("preserves local TPM exhaustion as a model-scoped token diagnostic", async () => {
     vi.stubEnv("APEX_GROQ_TPM_BUDGET", "1000");
     vi.stubEnv("APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "0");
