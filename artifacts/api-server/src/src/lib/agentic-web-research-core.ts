@@ -11,7 +11,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
-import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { classifyExternalProvider, getGroqTokenRequest, reconcileGroqTokenResponse, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
@@ -1515,7 +1515,7 @@ async function gatedSafeOutboundFetch(input: RequestInfo | URL, init: RequestIni
   const provider = classifyExternalProvider(rawUrl);
   let account = "operation";
   try { account = new URL(rawUrl).hostname.toLowerCase(); } catch {}
-  return runProviderCall({ provider, account, signal: init.signal ?? undefined }, () => safeOutboundFetch(input, init));
+  return runProviderCall({ provider, account, signal: init.signal ?? undefined, groqRequest: getGroqTokenRequest(input, init) }, () => safeOutboundFetch(input, init));
 }
 
 async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa", locale?: string, market?: string, signal?: AbortSignal): Promise<{ text: string; urls: string[]; provider: string; status: "success" | "empty" | "error"; failureClass?: ProviderFailureClass }> {
@@ -2461,11 +2461,9 @@ async function callGroqJson(
           body: JSON.stringify(requestBody),
           signal,
         };
-        // TPM reservation is owned by the installed global-fetch provider gate.
-        // Do not reserve again in runProviderCall: safeOutboundFetch reaches the
-        // same guarded fetch and would otherwise double-charge every request.
+        const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
+          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
           ),
         );
@@ -2475,6 +2473,7 @@ async function callGroqJson(
         // same text rather than attempting a second read of an already-consumed
         // Response stream.
         const body = await readResponseTextCapped(response, signal);
+        reconcileGroqTokenResponse(response, body);
         modelAuditResponseRecorded = emitModelPromptAuditResponse({
           requestId: modelAuditRequestId,
           provider: "groq",
