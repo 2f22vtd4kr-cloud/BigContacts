@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { buildPrivacySafeOpenSkyObservation, redactLegacyOpenSkyPositionLog, sanitizeOpenSkyMetadataJson, sanitizeOpenSkyMetadataRecord } from "../lib/opensky-privacy";
+
+const assetsRoute = readFileSync(new URL("../routes/assets.ts", import.meta.url), "utf8");
+const ingestRoute = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+const canonicalTarget = readFileSync(new URL("../lib/canonical-seeded-target.ts", import.meta.url), "utf8");
+
+describe("ADS-B privacy boundary wiring", () => {
+  it("sanitizes metadata on asset create, update, list and detail API paths", () => {
+    expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(parsed.data.metadata)");
+    expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(body.data.metadata)");
+    expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(asset.metadata)");
+    expect(assetsRoute).toContain("sanitizeOpenSkyMetadataJson(row.asset.metadata)");
+  });
+
+  it("redacts coordinate-bearing legacy job logs before returning them", () => {
+    expect(ingestRoute).toContain('job.type === "opensky"');
+    expect(ingestRoute).toContain("log.map(redactLegacyOpenSkyPositionLog)");
+  });
+
+  it("does not copy raw ADS-B metadata into canonical Investigator asset context", () => {
+    expect(canonicalTarget).toContain("const assetSourceFields = [");
+    expect(canonicalTarget).not.toContain('"opensky"');
+    expect(canonicalTarget).toContain("sourceMetadata: assetSourceMetadata");
+  });
+});
 
 describe("privacy-safe latest ADS-B observation", () => {
   it("stores only coarse current status and never coordinates, callsigns, bearings or route history", () => {
