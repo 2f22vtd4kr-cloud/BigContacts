@@ -227,8 +227,7 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
     targetCount = 5_000,
     batchSize = 100,
     clearDedup: clearDedupRequested = false,
-    force = false,
-  } = req.body as { targetCount?: number; batchSize?: number; clearDedup?: boolean; force?: boolean };
+  } = req.body as { targetCount?: number; batchSize?: number; clearDedup?: boolean };
 
   if (clearDedupRequested) {
     res.status(400).json({
@@ -240,16 +239,7 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
 
   const safeTarget = Math.min(Math.max(Number(targetCount) || 5_000, 100), 50_000);
 
-  if (!force) {
-    const existingJobId = await getActiveJob("western-hnwi");
-    if (existingJobId) {
-      const existing = await getJob(existingJobId);
-      if (existing && existing.status === "running") {
-        res.status(409).json({ error: "A western-hnwi ingestion job is already running.", jobId: existingJobId });
-        return;
-      }
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("western-hnwi", res))) return;
 
 
   const jobId = await createJob("western-hnwi");
@@ -290,8 +280,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     forceRefresh = false,
     validateNamesWithLlm = false,
     clearDedup: doClean = false,
-    force = false,
-  } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; validateNamesWithLlm?: boolean; clearDedup?: boolean; force?: boolean };
+  } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; validateNamesWithLlm?: boolean; clearDedup?: boolean };
 
   // A complete current FAA pass can exceed 100k qualifying aircraft; keep the operator bound explicit.
   const safeMax = Math.min(Math.max(Number(maxRecords) || 100_000, 100), 200_000);
@@ -300,16 +289,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     return;
   }
 
-  if (!force) {
-    const existingJobId = await getActiveJob("faa");
-    if (existingJobId) {
-      const existing = await getJob(existingJobId);
-      if (existing && existing.status === "running") {
-        res.status(409).json({ error: "An FAA ingestion job is already running.", jobId: existingJobId });
-        return;
-      }
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("faa", res))) return;
 
   const jobId = await createJob("faa");
   if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;
@@ -365,14 +345,7 @@ router.post("/ingest/brreg-snapshot", async (req, res): Promise<void> => {
     return;
   }
 
-  const existingJobId = await getActiveJob("brreg-snapshot");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "A BRREG snapshot ingestion job is already running.", jobId: existingJobId });
-      return;
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("brreg-snapshot", res))) return;
 
   const jobId = await createJob("brreg-snapshot");
   if (!(await claimIngestionJobOrRespond("brreg-snapshot", jobId, res))) return;
@@ -551,14 +524,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
   const { limit = 500 } = req.body as { limit?: number };
   const safeLimit = Math.min(Math.max(Number(limit) || 500, 10), 5_000);
 
-  const existingJobId = await getActiveJob("occrp");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "An OCCRP enrichment job is already running.", jobId: existingJobId });
-      return;
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("occrp", res))) return;
 
   const jobId = await createJob("occrp");
   if (!(await claimIngestionJobOrRespond("occrp", jobId, res))) return;
@@ -593,25 +559,15 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
 
 // ── POST /ingest/land-registry ────────────────────────────────────────────────
 router.post("/ingest/land-registry", async (req, res): Promise<void> => {
-  const { maxRecords = 50_000, forceRefresh = false, downloadUrl, force = false } = (req.body ?? {}) as {
+  const { maxRecords = 50_000, forceRefresh = false, downloadUrl } = (req.body ?? {}) as {
     maxRecords?: number;
     forceRefresh?: boolean;
     downloadUrl?: string;
-    force?: boolean;
   };
 
   const safeMax = Math.min(Math.max(Number(maxRecords) || 50_000, 100), 500_000);
 
-  if (!force) {
-    const existingJobId = await getActiveJob("land-registry");
-    if (existingJobId) {
-      const existing = await getJob(existingJobId);
-      if (existing && existing.status === "running") {
-        res.status(409).json({ error: "A Land Registry ingestion job is already running.", jobId: existingJobId });
-        return;
-      }
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("land-registry", res))) return;
 
   const jobId = await createJob("land-registry");
   if (!(await claimIngestionJobOrRespond("land-registry", jobId, res))) return;
@@ -647,14 +603,7 @@ router.post("/ingest/land-registry", async (req, res): Promise<void> => {
 
 // ── POST /ingest/opensky ──────────────────────────────────────────────────────
 router.post("/ingest/opensky", async (req, res): Promise<void> => {
-  const existingJobId = await getActiveJob("opensky");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "An OpenSky enrichment job is already running.", jobId: existingJobId });
-      return;
-    }
-  }
+  if (!(await ensureIngestionLaneAvailable("opensky", res))) return;
 
   const jobId = await createJob("opensky");
   if (!(await claimIngestionJobOrRespond("opensky", jobId, res))) return;
