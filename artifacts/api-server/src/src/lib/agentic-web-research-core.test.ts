@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchBudgetExhaustionObservation, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchBudgetExhaustionObservation, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -17,6 +17,7 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
@@ -3744,6 +3745,21 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(apexInvestigatorSystemCore).toContain("profile, sources, searches, findings.");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
+  });
+
+  it("preserves one- and two-character names only with exact source-bound role context", () => {
+    expect(candidateIdentitySourceBound("Li", "CEO", "Li is the CEO of Example Holdings.")).toBe(true);
+    expect(candidateIdentitySourceBound("Li", "", "Li is mentioned in an unrelated sentence.")).toBe(false);
+    expect(candidateIdentitySourceBound("李", "董事长", "李董事长出席了公司年度会议。")).toBe(true);
+    expect(candidateIdentitySourceBound("A", "CEO", "A is the CEO of Example Holdings.")).toBe(false);
+    expect(candidateIdentitySourceBound("Li", "CEO", "Liability insurance is required for the CEO.")).toBe(false);
+    expect(candidateIdentitySourceBound("Jane Doe", "", "Jane Doe is listed in the public company leadership page.")).toBe(true);
+  });
+
+  it("does not discard non-empty short names before source-backed identity validation", () => {
+    expect(bureauAgenticPassSource).toContain("hasNonEmptyCandidateName(f.personName)");
+    expect(bureauAgenticPassSource).not.toContain("f.personName.trim().length>=2");
+    expect(bureauAgenticPassSource).toContain('if(mode==="target"&&!name)return');
   });
 
   it("lets an attested Investigator choose an explicit theHarvester source subset", () => {
