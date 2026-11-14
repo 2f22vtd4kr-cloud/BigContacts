@@ -2851,7 +2851,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
   it("keeps discovery search bounded while allowing mixed-source batches", () => {
     const budgetGuard = agenticCoreSource.indexOf("countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]) >= MAX_DISCOVERY_SEARCH_ACTIONS");
-    const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {');
+    const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {', budgetGuard);
     expect(budgetGuard).toBeGreaterThan(-1);
     expect(registryDispatch).toBeGreaterThan(budgetGuard);
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
