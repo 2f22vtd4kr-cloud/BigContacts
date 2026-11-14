@@ -29,7 +29,7 @@ assert(!/SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS/.t
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal, correlation:/.test(source), "email footprint receives cancellation and correlation");
 assert(/runMaigret\(action\.username, \{ signal: runController\.signal, correlation:/.test(source), "Maigret receives cancellation and correlation");
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal, correlation:/.test(source), "Sherlock receives cancellation and correlation");
-assert(/runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal, correlation:/.test(source), "theHarvester receives cancellation and correlation");
+assert(/runTheHarvester\(action\.domain, (?:undefined|action\.sources\.join\(","\)), \{ signal: runController\.signal, correlation:/.test(source), "theHarvester receives model-selected sources, cancellation and correlation");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator has no alternate-provider fallback list");
 assert(/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source) && /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(source), "selected Investigator capability remains a direct provider boundary argument");
