@@ -11,7 +11,7 @@ describe("ingestion route lock lifecycle", () => {
     expect(ingestRoutes).toContain('if (laneStatus === "unknown")');
     expect(ingestRoutes).toContain("clearActiveJobIfMatches(type, existingJobId)");
     expect(ingestRoutes).toContain("const currentOwner = await getActiveJobStrict(type)");
-    expect(ingestRoutes).not.toMatch(/getActiveJob\\(\s*"(?:western-hnwi|faa|brreg-snapshot|occrp|land-registry|opensky)"\s*\\)/u);
+    expect(ingestRoutes).not.toMatch(/getActiveJob\(\s*"(?:western-hnwi|faa|brreg-snapshot|occrp|land-registry|opensky)"\s*\)/u);
   });
 
   it("releases each claimed ingestion lane in a finally block after success or failure", () => {
