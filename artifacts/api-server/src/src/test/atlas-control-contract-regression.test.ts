@@ -414,6 +414,8 @@ describe("Atlas control-plane contract regression", () => {
 
   it("gives the evidence-constrained Boss control decision medium reasoning and enough completion budget", () => {
     expect(controlSource).toContain('maxOutputTokens: input.opening ? 384 : 1024, thinkingLevel: "medium"');
+    expect(controlSource).toContain("bossModel: generated.model");
+    expect(controlSource).toContain("model=${generated.model}");
     expect(controlSource).not.toContain('maxOutputTokens: 768, thinkingLevel: "low"');
   });
 
