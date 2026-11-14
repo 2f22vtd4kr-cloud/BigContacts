@@ -712,7 +712,7 @@ describe("provider quota gate", () => {
       const lines = Array.from({ length: Math.ceil(totalChars / 80) }, (_, index) =>
         prefix + String(index % 10).repeat(79),
       );
-      return lines.join("\\n").slice(0, totalChars);
+      return lines.join("\n").slice(0, totalChars);
     };
     const url = "https://api.groq.com/openai/v1/chat/completions";
     const init: RequestInit = {
