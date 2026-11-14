@@ -795,6 +795,31 @@ describe("provider quota gate", () => {
     expect(second.status).toBe(200);
   });
 
+  it("wakes a waiting Groq role soon after another response reconciles below its reservation", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_WINDOW_MS = "60000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "60000";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const firstBody = JSON.stringify({ usage: { prompt_tokens: 700, completion_tokens: 300, total_tokens: 1_000 } });
+    const firstResponse = new Response(firstBody, { status: 200 });
+    await runProviderCall({ provider: "groq", account: "investigator", groqRequest: { model: "openai/gpt-oss-20b", reservedTokens: 3_000 } }, async () => firstResponse);
+    let secondCalls = 0;
+    const pending = runProviderCall({ provider: "groq", account: "right-hand", groqRequest: { model: "openai/gpt-oss-20b", reservedTokens: 2_500 } }, async () => {
+      secondCalls += 1;
+      return new Response("{}", { status: 200 });
+    });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(secondCalls).toBe(0);
+    reconcileGroqTokenResponse(firstResponse, firstBody);
+    await vi.advanceTimersByTimeAsync(1);
+    const second = await pending;
+    expect(second.status).toBe(200);
+    expect(secondCalls).toBe(1);
+  });
+
   it("retains a conservative Groq reservation for a full window after an outbound failure", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
