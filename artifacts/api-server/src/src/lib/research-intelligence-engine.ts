@@ -376,7 +376,7 @@ export class ResearchIntelligenceEngine {
       ])];
       const linkedEvidence = candidateEvidenceIds
         .map((evidenceId) => this.evidenceByIdMap.get(evidenceId))
-        .filter((evidence): evidence is IntelligenceEvidence => Boolean(evidence)
+        .filter((evidence): evidence is IntelligenceEvidence => evidence !== undefined
           && (evidence.kind === "finding" || evidence.kind === "claim")
           && normalize(evidence.hypothesisLabel ?? "") === normalize(modelHypothesis));
       const supportingEvidenceIds = linkedEvidence
