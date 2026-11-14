@@ -2,28 +2,144 @@ import { describe, it, expect } from "vitest";
 import { assessIdentityCollision, assessGraphNamePairRisk, identityNameTokens, organizationNameTokens } from "../lib/identity-collision";
 import { evaluateIdentityGate } from "../lib/identity-gate";
 
-describe("assessIdentityCollision", () => {
-  it("flags missing surname for multi-token targets", () => { const r = assessIdentityCollision({ targetName: "James C Czirr", companyName: null, personName: null, value: "+1 555 0100", sourceUrls: ["https://www.edwardjones.com/advisor/james"], note: "wealth advisor" }); expect(r.risk).toBe(true); });
-  it("flags unlabelled organization email as non-personal evidence", () => { const r = assessIdentityCollision({ targetName: "Jane Smith", companyName: "Smith Holdings", personName: null, value: "info@smithholdings.com", sourceUrls: ["https://smithholdings.com/contact"] }); expect(r.risk).toBe(true); expect(r.reason).toMatch(/no explicit person attribution/i); });
-  it("flags unlabelled phone as non-personal evidence", () => { const r = assessIdentityCollision({ targetName: "Jane Smith", companyName: "Smith Holdings", personName: null, value: "+1 212 555 0199", sourceUrls: ["https://smithholdings.com/contact"] }); expect(r.risk).toBe(true); expect(r.reason).toMatch(/no explicit person attribution/i); });
-  it("flags personName with different surname", () => { const r = assessIdentityCollision({ targetName: "Robert W Philip", companyName: "Example Corp", personName: "Robert Brauser", value: "rbrauser@example.com", sourceUrls: ["https://example.com/team"], note: "officer" }); expect(r.risk).toBe(true); expect(r.reason).toMatch(/identity|align/i); });
-  it("rejects a wrong first name even when the surname and source URL overlap", () => { const r = assessIdentityCollision({ targetName: "Robert Philip", companyName: "Philip Holdings", personName: "Michael Philip", value: "michael@philip.com", sourceUrls: ["https://philip.com/team/robert-philip"], note: "wrong person on a shared-surname page" }); expect(r.risk).toBe(true); expect(r.identityMatch).toBeLessThan(0.65); });
-  it("allows explicitly attributed matching contact evidence", () => { const r = assessIdentityCollision({ targetName: "Robert W Philip", companyName: "Issuer Inc", personName: "Robert Philip", value: "rphilip@issuer.com", sourceUrls: ["https://issuer.com/team/robert-philip"], note: "reporting person" }); expect(r.risk).toBe(false); });
-  it("allows matching surname evidence", () => { const r = assessIdentityCollision({ targetName: "Robert W Philip", companyName: "Issuer Inc", personName: "Robert Philip", value: "rphilip@issuer.com", sourceUrls: ["https://www.sec.gov/cgi-bin/browse-edgar"], note: "reporting person" }); expect(r.risk).toBe(false); });
-  it("flags school and district mailboxes even when a surname overlaps", () => { const r = assessIdentityCollision({ targetName: "S Joseph Moore", companyName: "Nelson Thomas Inc", personName: "S Joseph Moore", value: "joseph.peake@nelson.kyschools.us", sourceUrls: ["https://www.facebook.com/ThomasNelsonHighSchool"], note: "public contact on school Facebook page" }); expect(r.risk).toBe(true); expect(r.reason).toContain("school/district"); });
-  it("keeps a directly named person on a non-institutional source eligible for high-confidence binding", () => { const r = assessIdentityCollision({ targetName: "Jane Example", companyName: "Example Holdings", personName: "Jane Example", value: "jane@exampleholdings.com", sourceUrls: ["https://exampleholdings.com/team/jane-example"], note: "Jane Example email listed on her company profile" }); expect(r.risk).toBe(false); expect(r.identityMatch).toBeGreaterThanOrEqual(0.65); });
-  it("blocks aggregator-only evidence even when the name and contact look like an exact match", () => { const r = assessIdentityCollision({ targetName: "Jane Example", companyName: "Example Holdings", personName: "Jane Example", value: "jane@exampleholdings.com", sourceUrls: ["https://www.rocketreach.co/jane-example_email_123"], note: "matching person and contact from a people-data aggregator" }); expect(r.risk).toBe(true); expect(r.reason).toMatch(/aggregator-only/i); });
-  it("blocks Thatsthem aggregator evidence by exact hostname", () => { const r = assessIdentityCollision({ targetName: "Jane Example", companyName: "Example Holdings", personName: "Jane Example", value: "jane@exampleholdings.com", sourceUrls: ["https://thatsthem.com/name/jane-example"], note: "matching person and contact from a people-data aggregator" }); expect(r.risk).toBe(true); });
-  it("blocks the remaining people-data aggregator hosts", () => {
-    for (const host of ["peoplefinders.com", "veripages.com", "idcrawl.com", "theorg.com"]) {
-      const r = assessIdentityCollision({ targetName: "Jane Example", companyName: "Example Holdings", personName: "Jane Example", value: "jane@exampleholdings.com", sourceUrls: [`https://${host}/jane-example`] });
-      expect(r.risk, host).toBe(true);
-      expect(r.reason, host).toMatch(/aggregator-only/i);
-    }
+describe("model-authored identity adjudication", () => {
+  const common = {
+    targetName: "Robert W Philip",
+    companyName: "Issuer Inc",
+    personName: "Roberto Felipe",
+    value: "rphilip@issuer.com",
+    sourceUrls: ["https://issuer.com/team/roberto-felipe"],
+  };
+
+  it("keeps identity unresolved when the model has not made a decision", () => {
+    const result = assessIdentityCollision(common);
+    expect(result.assessment).toBe("unresolved");
+    expect(result.risk).toBe(true);
   });
-  it("allows a stronger official source alongside an aggregator lead", () => { const r = assessIdentityCollision({ targetName: "Jane Example", companyName: "Example Holdings", personName: "Jane Example", value: "jane@exampleholdings.com", sourceUrls: ["https://www.rocketreach.co/jane-example_email_123", "https://exampleholdings.com/team/jane-example"], note: "official company profile corroborates the route; aggregator retained as lead context" }); expect(r.risk).toBe(false); expect(r.identityMatch).toBeGreaterThanOrEqual(0.65); });
+
+  it("accepts a model-assessed same person even when transliteration and spelling differ", () => {
+    const result = assessIdentityCollision({
+      ...common,
+      identityAssessment: "same_person",
+      identityRationale: "The fetched biography links Roberto Felipe to the target's documented former name and same board mandate.",
+    });
+    expect(result).toMatchObject({ assessment: "same_person", risk: false, identityMatch: 1 });
+  });
+
+  it("blocks an explicit different-person assessment", () => {
+    const result = assessIdentityCollision({
+      ...common,
+      identityAssessment: "different_people",
+      identityRationale: "The source documents a different individual with a distinct career history.",
+    });
+    expect(result.assessment).toBe("different_people");
+    expect(result.risk).toBe(true);
+  });
+
+  it("does not accept a same-person assertion without a rationale", () => {
+    const result = assessIdentityCollision({ ...common, identityAssessment: "same_person" });
+    expect(result.assessment).toBe("unresolved");
+    expect(result.risk).toBe(true);
+  });
+
+  it("keeps shared inboxes without person attribution unresolved", () => {
+    const result = assessIdentityCollision({
+      ...common,
+      personName: null,
+      value: "info@issuer.com",
+      identityAssessment: "same_person",
+      identityRationale: "The person is named elsewhere on the page.",
+    });
+    expect(result.risk).toBe(true);
+    expect(result.assessment).toBe("unresolved");
+  });
+
+  it("continues to block aggregator-only sources even when the model says same person", () => {
+    const result = assessIdentityCollision({
+      ...common,
+      sourceUrls: ["https://www.rocketreach.co/roberto-felipe_email_123"],
+      identityAssessment: "same_person",
+      identityRationale: "The person appears to match the subject.",
+    });
+    expect(result.risk).toBe(true);
+    expect(result.reason).toMatch(/aggregator-only/i);
+  });
+
+  it("allows an independent public source alongside an aggregator lead", () => {
+    const result = assessIdentityCollision({
+      ...common,
+      sourceUrls: ["https://www.rocketreach.co/roberto-felipe_email_123", "https://issuer.com/team/roberto-felipe"],
+      identityAssessment: "same_person",
+      identityRationale: "The official issuer profile links the same individual and role.",
+    });
+    expect(result.risk).toBe(false);
+  });
+
+  it("retains Unicode-aware name token utilities without using them as identity decisions", () => {
+    expect(identityNameTokens("José Álvarez")).toEqual(["jose", "alvarez"]);
+    expect(identityNameTokens("Володимир Зеленський")).toEqual(["володимир", "зеленський"]);
+    expect(identityNameTokens("Xi Jinping")).toEqual(["xi", "jinping"]);
+    expect(organizationNameTokens("Jane Doe Co")).toEqual(["jane", "doe"]);
+  });
 });
 
-describe("assessGraphNamePairRisk", () => { it("rejects same given name different surname", () => { const r = assessGraphNamePairRisk("James Czirr", "James Mercer"); expect(r.risk).toBe(true); }); it("detects same-given-name collisions for Cyrillic names", () => { const r = assessGraphNamePairRisk("Володимир Зеленський", "Володимир Путін"); expect(r.risk).toBe(true); expect(r.reason).toMatch(/same given name, different surname/i); }); it("normalizes diacritics and preserves accented Latin name tokens", () => { expect(identityNameTokens("José Álvarez")).toEqual(["jose", "alvarez"]); }); it("retains short tokens needed for international name collisions", () => { expect(identityNameTokens("Xi Jinping")).toEqual(["xi", "jinping"]); const r = assessGraphNamePairRisk("Xi Jinping", "Xi Li"); expect(r.risk).toBe(true); expect(r.reason).toMatch(/same given name, different surname/i); }); it("keeps personal surnames that normalize to legal suffixes while stripping suffixes contextually for organizations", () => { expect(identityNameTokens("Xi Jinping")).toEqual(["xi", "jinping"]); expect(identityNameTokens("Sá")).toEqual(["sa"]); expect(organizationNameTokens("Jane Doe Co")).toEqual(["jane", "doe"]); expect(organizationNameTokens("Jane Doe Inc")).toEqual(["jane", "doe"]); expect(organizationNameTokens("Acme Sá Group")).toEqual(["acme", "sa", "group"]); expect(organizationNameTokens("Acme Sá SA")).toEqual(["acme", "sa"]); const personRisk = assessGraphNamePairRisk("Jane Sá", "Jane Rios"); expect(personRisk.risk).toBe(true); expect(personRisk.reason).toMatch(/same given name, different surname/i); }); it("allows shared surname", () => { const r = assessGraphNamePairRisk("Robert Philip", "Robert W Philip"); expect(r.risk).toBe(false); }); });
+describe("name-pair similarity is not identity proof", () => {
+  it("leaves different surnames unresolved rather than inferring different people", () => {
+    const result = assessGraphNamePairRisk("James Czirr", "James Mercer");
+    expect(result.risk).toBe(true);
+    expect(result.assessment).toBe("unresolved");
+  });
 
-describe("evaluateIdentityGate name pair", () => { it("rejects same-first different-surname without stable id", () => { const r = evaluateIdentityGate({ score: 0.8, signals: ["shared_affiliation", "cross_registry"], leftSources: ["SEC EDGAR"], rightSources: ["Companies House UK"], leftName: "James Czirr", rightName: "James Advisor" }); expect(r.decision).toBe("rejected"); }); it("accepts with shared registry id despite name caution", () => { const r = evaluateIdentityGate({ score: 0.9, signals: ["shared_registry_identifier", "cross_registry"], leftSources: ["SEC EDGAR"], rightSources: ["Companies House UK"], leftName: "James Czirr", rightName: "James Czirr Trust" }); expect(r.decision).toBe("accepted"); }); });
+  it("leaves Cyrillic name pairs unresolved without model context", () => {
+    const result = assessGraphNamePairRisk("Володимир Зеленський", "Володимир Путін");
+    expect(result.risk).toBe(true);
+    expect(result.assessment).toBe("unresolved");
+  });
+
+  it("allows exact normalized duplicates but not approximate aliases", () => {
+    expect(assessGraphNamePairRisk("José Álvarez", "José Álvarez").risk).toBe(false);
+    expect(assessGraphNamePairRisk("José Álvarez", "Jose Alvarez").assessment).toBe("unresolved");
+  });
+});
+
+describe("model-guided graph identity gate", () => {
+  const base = {
+    score: 0.9,
+    signals: ["shared_public_profile", "shared_affiliation"],
+    leftSources: ["SEC EDGAR", "Companies House UK"],
+    rightSources: ["Companies House UK", "official company profile"],
+  };
+
+  it("does not make a semantic identity decision from a numeric score or names alone", () => {
+    const result = evaluateIdentityGate({ ...base, leftName: "James Czirr", rightName: "James Advisor" });
+    expect(result.decision).toBe("review");
+  });
+
+  it("rejects an explicit different-person judgement", () => {
+    const result = evaluateIdentityGate({
+      ...base,
+      semanticAssessment: "different_people",
+      semanticRationale: "Distinct employment histories and dates establish separate people.",
+    });
+    expect(result.decision).toBe("rejected");
+  });
+
+  it("accepts a model-assessed same person only with independent corroboration", () => {
+    const result = evaluateIdentityGate({
+      ...base,
+      semanticAssessment: "same_person",
+      semanticRationale: "The same public director identifier and board appointment are attributed to both records.",
+    });
+    expect(result.decision).toBe("accepted");
+  });
+
+  it("keeps same-person judgements under review when sources are not independent", () => {
+    const result = evaluateIdentityGate({
+      ...base,
+      rightSources: ["SEC EDGAR"],
+      semanticAssessment: "same_person",
+      semanticRationale: "Both entries refer to the same person.",
+    });
+    expect(result.decision).toBe("review");
+  });
+});
