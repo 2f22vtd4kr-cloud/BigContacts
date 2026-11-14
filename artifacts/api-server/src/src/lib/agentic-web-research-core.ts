@@ -2231,11 +2231,11 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   add(capability, 650, "capability detail");
   add(researchContract, 360, "research-contract detail");
   add(terminal, 240, "terminal-contract detail");
-  add(cognitive, 420, "evidence-state detail");
   const outputSectionIndex = sections.findIndex((section) => section.startsWith("OUTPUT CONTRACT:"));
   const recentSections = sections.slice(Math.max(0, outputSectionIndex - 5), outputSectionIndex)
     .filter((section) => !fixed.includes(section) && section !== capability && section !== cognitive && section !== registry && section !== terminal && section !== researchContract);
-  add(recentSections.join("\n\n"), Math.max(0, Math.min(1_500, remaining)), "recent working-context detail");
+  add(recentSections.join("\n\n"), Math.max(0, Math.min(1_200, remaining)), "recent working-context detail");
+  add(cognitive, 360, "evidence-state detail");
   const compacted = [...fixed.slice(0, 4), ...optional, output].filter(Boolean).join("\n\n");
   if (compacted.length > budget) {
     throw new Error("Investigator prompt compaction exceeded its configured budget.");
