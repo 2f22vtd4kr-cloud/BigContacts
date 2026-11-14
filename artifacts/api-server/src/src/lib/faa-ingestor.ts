@@ -455,7 +455,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
     await tx.update(entitiesTable).set({
-      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
+      type: sql`CASE WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'PersonCandidate' WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
       estimatedNetWorth: sql`CASE WHEN ${entitiesTable.estimatedNetWorth} IN (180000000, 120000000, 30000000, 15000000, 8000000, 4000000) THEN NULL ELSE ${entitiesTable.estimatedNetWorth} END`,
       bayesianScore: 0.05,
       knownResidences: sql`CASE WHEN EXISTS (SELECT 1 FROM ${assetsTable} WHERE ${assetsTable.ownerEntityId} = ${entitiesTable.id} AND ${assetsTable.sourceRegistry} = 'FAA Releasable Aircraft Database' AND ${assetsTable.address} = ${entitiesTable.knownResidences}) THEN NULL ELSE ${entitiesTable.knownResidences} END`,
@@ -463,15 +463,15 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
         'legacyFaaOwnershipCorrected', true,
         'hnwiQualificationStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'unverified'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'not_applicable'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'unverified'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '5' THEN 'not_applicable'
           ELSE 'not_assessed'
         END,
         'identityStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'registry_person_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'legal_entity_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('4','9') THEN 'co_owned_registrant_unresolved'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'government_registrant'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '1' THEN 'registry_person_candidate'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('2','3','7','8') THEN 'legal_entity_candidate'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') IN ('4','9') THEN 'co_owned_registrant_unresolved'
+          WHEN COALESCE(${entitiesTable.metadata}::jsonb ->> 'typeRegistrant', ${entitiesTable.metadata}::jsonb ->> 'registrantTypeCode') = '5' THEN 'government_registrant'
           ELSE 'registrant_type_unknown'
         END,
         'wealthStatus', 'not_assessed',
