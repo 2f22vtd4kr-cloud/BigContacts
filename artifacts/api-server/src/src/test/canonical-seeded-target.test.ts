@@ -172,7 +172,7 @@ describe("canonical seeded target binding", () => {
       sourceMetadata: expect.objectContaining({
         source: "faa-aircraft-registry",
         additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
-        additionalRegistrantNamesFieldSemantics: expect.stringContaining("unverified associated names"),
+        additionalRegistrantNamesFieldSemantics: expect.stringContaining("additional names published on the same aircraft registration record"),
         personalWealthEvidence: false,
       }),
     }]);
