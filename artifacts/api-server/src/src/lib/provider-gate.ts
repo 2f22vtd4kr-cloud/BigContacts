@@ -61,6 +61,7 @@ function parseRetryAfter(response:Response):number{const value=response.headers.
 type GroqTokenReservation = { createdAt: number; reservedTokens: number };
 type GroqTokenWindowState = { reservations: GroqTokenReservation[]; cooldownUntil: number; providerLimit: number | null };
 const groqTokenWindows = new Map<string, GroqTokenWindowState>();
+const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
 const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
 const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 60_000, 0, 120_000);
@@ -145,7 +146,7 @@ function groqResetDurationMs(raw: string | null): number | null {
   return Math.min(maxResetMs, Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000));
 }
 
-async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
+function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenReservation, response: Response, bodyText: string): void {
   // The provider window continues to include tokens consumed during generation;
   // start the conservative local expiry at response completion, not request start.
   reservation.createdAt = Date.now();
@@ -154,32 +155,44 @@ async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReser
   if (Number.isFinite(providerLimit) && providerLimit > 0) {
     state.providerLimit = state.providerLimit === null ? providerLimit : Math.min(state.providerLimit, providerLimit);
   }
+  let payload: { error?: { type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } } | null = null;
+  try { payload = JSON.parse(bodyText) as typeof payload; } catch {}
   if (response.status === 429) {
-    let tokenLimited = false;
-    try {
-      const payload = await response.clone().json() as { error?: { type?: unknown } };
-      tokenLimited = typeof payload.error?.type === "string" && payload.error.type.toLowerCase() === "tokens";
-    } catch {}
-    if (tokenLimited) {
+    if (typeof payload?.error?.type === "string" && payload.error.type.toLowerCase() === "tokens") {
       const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
       const retryAfterMs = parseRetryAfter(response);
       state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + (resetMs ?? (retryAfterMs > 0 ? retryAfterMs : 5_000)));
     }
     return;
   }
-  if (!response.ok) return;
+  if (!response.ok || !payload) return;
+  const usage = payload.usage;
+  const actual = typeof usage?.total_tokens === "number" && Number.isFinite(usage.total_tokens)
+    ? usage.total_tokens
+    : typeof usage?.prompt_tokens === "number" && typeof usage?.completion_tokens === "number"
+      ? usage.prompt_tokens + usage.completion_tokens
+      : null;
+  if (actual !== null && actual >= 0) reservation.reservedTokens = Math.ceil(actual * 1.1);
+}
+
+async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
   try {
-    const payload = await response.clone().json() as { usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
-    const usage = payload.usage;
-    const actual = typeof usage?.total_tokens === "number" && Number.isFinite(usage.total_tokens)
-      ? usage.total_tokens
-      : typeof usage?.prompt_tokens === "number" && typeof usage?.completion_tokens === "number"
-        ? usage.prompt_tokens + usage.completion_tokens
-        : null;
-    if (actual !== null && actual >= 0) reservation.reservedTokens = Math.ceil(actual * 1.1);
+    const bodyText = await response.clone().text();
+    reconcileGroqTokenWindowFromBody(key, reservation, response, bodyText);
   } catch {
     // Keep the conservative reservation until its rolling window expires.
   }
+}
+
+/**
+ * Complete a runProviderCall reservation after its caller has read the response
+ * body for its own result handling. This preserves the one-read response contract.
+ */
+export function reconcileGroqTokenResponse(response: Response, bodyText: string): void {
+  const pending = pendingGroqTokenResponses.get(response);
+  if (!pending) return;
+  pendingGroqTokenResponses.delete(response);
+  reconcileGroqTokenWindowFromBody(pending.key, pending.reservation, response, bodyText);
 }
  function isQuotaResponse(provider:ExternalProvider,response:Response):boolean{if(provider==="gemini"&&(response.status===403||response.status===429||response.status===503))return false;if(response.status===429||response.status===402)return true;return false;}function requestMethod(input:string|URL|Request,init?:RequestInit):string{return(init?.method??(input instanceof Request?input.method:"GET")).toUpperCase();}function requestUrl(input:string|URL|Request):string{return typeof input==="string"?input:input instanceof URL?input.toString():input.url;}function isLocalUrl(url:string):boolean{try{const host=new URL(url).hostname;return host==="localhost"||host==="127.0.0.1"||host==="::1"||host.endsWith(".local");}catch{return false;}}
 function hostIsOrWithin(host: string, domain: string): boolean {
@@ -346,7 +359,7 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
    state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
    try{
     const result=await fn();
-    if(groqReservation && result instanceof Response) await reconcileGroqTokenWindow(groqWindowKey,groqReservation,result);
+    if(groqReservation && result instanceof Response){groqReservation.createdAt=Date.now();pendingGroqTokenResponses.set(result,{key:groqWindowKey,reservation:groqReservation});}
     if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
      const retryMs=parseRetryAfter(result);
      state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+Math.max(retryMs,result.status===429?5_000:60_000));
