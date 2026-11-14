@@ -5796,7 +5796,7 @@ if (input.mode === "discovery") {
       record.execution = "blocked";
       record.failureDomain = "tool_execution";
       record.failureKind = "request_failure";
-      record.observation = "DISCOVERY SCOPE GUARD: no outbound request was sent because the selected query introduced an industry/sector not present in the human objective or a successful same-case fetched source (" + unsupportedSectors.join(", ") + "). Keep the hypothesis cross-sector unless a concrete same-case fetched observation justifies this narrowing. The next research action and source remain your decision.";
+      record.observation = "DISCOVERY SCOPE GUARD: no outbound request was sent because the selected query introduced an industry/sector not present in the human objective or a successful fetched source within the active Boss pivot (" + unsupportedSectors.join(", ") + "). Keep the hypothesis cross-sector unless a concrete fetched observation within the active Boss pivot justifies this narrowing. The next research action and source remain your decision.";
       lastObservation = record.observation;
       pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=unsupported_discovery_sector");
       await emitSanitizedTrajectoryRecord(record);
