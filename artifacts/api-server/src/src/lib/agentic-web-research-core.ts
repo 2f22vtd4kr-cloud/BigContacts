@@ -401,7 +401,7 @@ type AgentAction = { action: "web_search"; query: string; provider: "serper" | "
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
-export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const PREFERRED_PROVIDER_PROMPT_CHARS = 10_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 8_400; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 6_800; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
+export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const PREFERRED_PROVIDER_PROMPT_CHARS = 8_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 7_200; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_600; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
 /** Return the preferred user-message size target; it is not a prompt validity or mission limit. */
 export function investigatorUserPromptBudget(systemPromptChars: number): number {
   const systemChars = Number.isFinite(systemPromptChars) ? Math.max(0, Math.floor(systemPromptChars)) : PREFERRED_INVESTIGATOR_REQUEST_CHARS;
@@ -2184,29 +2184,63 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * fields and causes malformed model actions. Compact auxiliary prefix first,
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
-function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt.trim() : "";
   const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
-  let completeSchemaPresent = false;
-  for (const match of normalized.matchAll(/OUTPUT CONTRACT:/g)) {
-    const start = match.index ?? -1;
-    if (start < 0) continue;
-    const window = normalized.slice(start, start + 2_400);
-    const fieldsAt = window.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
-    if (fieldsAt < 0) continue;
-    const fields = window.slice(fieldsAt, fieldsAt + 2_000);
-    if (requiredSchemaFields.every((field) => fields.includes(field))) {
-      completeSchemaPresent = true;
-      break;
-    }
-  }
-  if (!completeSchemaPresent) {
+  const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
+  const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
+  const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
+  if (fieldsAt < 0 || !requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field))) {
     throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
   }
-  // Preserve the composed prompt verbatim. Preferred character counts are
-  // advisory optimization hints; they never authorize deterministic evidence,
-  // scope, objective, capability, or observation deletion.
-  return normalized;
+  const budget = Math.max(1_800, Math.min(6_000, Math.floor(preferredMaxChars)));
+  if (normalized.length <= budget) return normalized;
+
+  const sections = normalized.split(/\\n{2,}/u).map((section) => section.trim()).filter(Boolean);
+  const find = (predicate: (section: string) => boolean): string => sections.find(predicate) ?? "";
+  const assignment = sections[0] ?? "";
+  const objective = find((section) => /^PRIMARY CASE OBJECTIVE:/i.test(section) || /^CASE OBJECTIVE:/i.test(section));
+  const bossScope = find((section) => /^CURRENT BOSS-DIRECTED RESEARCH QUESTION/i.test(section) || /^ACTIVE SCOPE CONSTRAINT:/i.test(section));
+  const availableActions = find((section) => /^AVAILABLE ACTIONS:/i.test(section));
+  const registry = find((section) => /^RUNTIME-AVAILABLE REGISTRY IDS ONLY/i.test(section) || /^REGISTRY COVERAGE:/i.test(section));
+  const capabilityHeading = sections.findIndex((section) => section === "CAPABILITY GUIDANCE:");
+  const capability = capabilityHeading >= 0 ? [sections[capabilityHeading], sections[capabilityHeading + 1] ?? ""].filter(Boolean).join("\\n") : "";
+  const cognitiveHeading = sections.findIndex((section) => /^CANONICAL EVIDENCE GRAPH STATE:/i.test(section));
+  const cognitive = cognitiveHeading >= 0 ? [sections[cognitiveHeading], sections[cognitiveHeading + 1] ?? ""].filter(Boolean).join("\\n") : "";
+  const terminal = find((section) => /^RESEARCH TERMINAL GATE/i.test(section));
+  const researchContract = find((section) => /^MISSION PRIORITY:.*RESEARCH CONTRACT:/is.test(section));
+  const output = outputSection;
+  const fixed = [assignment, objective, bossScope, availableActions, output].filter(Boolean);
+  const fixedText = fixed.join("\\n\\n");
+  if (fixedText.length > budget) {
+    throw new Error("Investigator objective, active Boss scope, available actions and output contract exceed the safe prompt budget; refusing to drop authoritative mission content.");
+  }
+  let remaining = budget - fixedText.length - 160;
+  const optional: string[] = [];
+  const add = (value: string, cap: number, label: string): void => {
+    if (!value || remaining <= 0) return;
+    const allowance = Math.min(cap, remaining);
+    const compacted = compactPromptSectionPreservingUrlTokens(value, allowance,
+      "[PROMPT COMPACTION: " + label + " detail omitted; full durable case state remains authoritative; omissions are unknown, not negative evidence]");
+    if (compacted) {
+      optional.push(compacted);
+      remaining -= compacted.length + 2;
+    }
+  };
+  add(registry, 520, "registry detail");
+  add(capability, 650, "capability detail");
+  add(researchContract, 360, "research-contract detail");
+  add(terminal, 240, "terminal-contract detail");
+  add(cognitive, 420, "evidence-state detail");
+  const outputSectionIndex = sections.findIndex((section) => section.startsWith("OUTPUT CONTRACT:"));
+  const recentSections = sections.slice(Math.max(0, outputSectionIndex - 5), outputSectionIndex)
+    .filter((section) => !fixed.includes(section) && section !== capability && section !== cognitive && section !== registry && section !== terminal && section !== researchContract);
+  add(recentSections.join("\\n\\n"), Math.max(0, Math.min(1_500, remaining)), "recent working-context detail");
+  const compacted = [...fixed.slice(0, 4), ...optional, output].filter(Boolean).join("\\n\\n");
+  if (compacted.length > budget) {
+    throw new Error("Investigator prompt compaction exceeded its configured budget.");
+  }
+  return compacted;
 }
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
