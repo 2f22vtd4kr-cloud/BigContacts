@@ -556,12 +556,14 @@ export default function ApexProfile() {
         : aircraftRecords.length === 1 ? "FAA registrant record · 1 linked aircraft record"
         : "FAA source label · no linked aircraft record loaded";
     }
-    if (/land.?reg|hmlr/i.test(reg)) {
+    if (/ppd|price.?paid/i.test(reg)) {
       const saleRecords = (assets as any[]).filter((a: any) => a.category === "RealEstate");
-      return saleRecords.length > 1 ? `UK Land Registry · ${saleRecords.length} linked sale records`
-        : saleRecords.length === 1 ? "UK Land Registry · 1 linked sale record"
-        : "UK Land Registry source label · no linked sale transaction loaded";
+      return saleRecords.length > 1 ? `UK Land Registry PPD · ${saleRecords.length} linked sale records`
+        : saleRecords.length === 1 ? "UK Land Registry PPD · 1 linked sale record"
+        : "UK Land Registry PPD source label · no linked sale transaction loaded";
     }
+    if (/ocod|overseas companies/i.test(reg)) return "UK Land Registry OCOD · overseas entity property record";
+    if (/land.?reg|hmlr/i.test(reg)) return "UK Land Registry source record · dataset and current title require review";
     if (/brreg/i.test(reg)) return "BRREG — Norwegian company registry record";
     if (/companies.?house/i.test(reg)) return "Companies House — UK company/officer record";
     if (/bodacc|france/i.test(reg)) return "BODACC — French company filing";
@@ -1730,13 +1732,17 @@ export default function ApexProfile() {
           } else {
             lines.push(`${pName} carries an FAA source-registry label, but no linked aircraft record is loaded. No registration or ownership claim is made from the label alone.`);
           }
-        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+        } else if (/ppd|price.?paid/i.test(primaryReg)) {
           const props = assetArr.filter((a: any) => a.category === "RealEstate");
           if (props.length > 0) {
-            lines.push(`${pName} is associated with ${props.length} linked UK Land Registry sale transaction record(s). Price Paid Data records a transaction and the named parties where published; it does not prove current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
+            lines.push(`${pName} is associated with ${props.length} linked UK HM Land Registry Price Paid Data transaction record(s). PPD records sale transactions and property characteristics; it does not identify the purchaser or establish current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
           } else {
-            lines.push(`${pName} carries a UK Land Registry source label, but no linked sale transaction record is loaded. No current-title or ownership claim is made from the label alone.`);
+            lines.push(`${pName} carries a UK HM Land Registry Price Paid Data source label, but no linked sale transaction record is loaded. No current-title or ownership claim is made from the label alone.`);
           }
+        } else if (/ocod|overseas companies/i.test(primaryReg)) {
+          lines.push(`${pName} is associated with an Overseas Companies Ownership of UK Property register entry. This is a company-level registered-property lead; it does not by itself establish the ultimate beneficial owner or an individual's personal wealth.`);
+        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+          lines.push(`${pName} is associated with a UK Land Registry source record. Confirm the exact dataset, record date and current title before drawing ownership or personal-wealth conclusions.`);
         } else if (/brreg/i.test(primaryReg)) {
           lines.push(`${pName} appears in Norway's official business registry (BRREG) in the recorded role shown on the source record. Company turnover is organization-level context; it does not establish the individual's personal wealth, ownership, or control.`);
         } else if (/companies.?house/i.test(primaryReg)) {
