@@ -4556,6 +4556,9 @@ describe("restricted community source content boundary", () => {
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [staleFetch])).toEqual(["renewable energy"]);
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: activePivotScopeKey }])).toEqual([]);
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: undefined }])).toEqual(["renewable energy"]);
+    const unscopedObjective = "Discover objective-relevant operating companies across sectors.";
+    expect(findUnsupportedDiscoverySectorTerms(query, unscopedObjective, [staleFetch])).toEqual(["renewable energy"]);
+    expect(findUnsupportedDiscoverySectorTerms(query, unscopedObjective, [{ ...staleFetch, pivotScopeKey: undefined }])).toEqual([]);
     expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: activePivotScopeKey, observedUrls: [] }])).toEqual(["renewable energy"]);
   });
 
