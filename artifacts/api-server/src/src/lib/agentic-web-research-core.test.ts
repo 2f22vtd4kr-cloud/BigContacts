@@ -3750,6 +3750,7 @@ Choose each next action yourself from the available capabilities and observed ev
   it("preserves one- and two-character names only with exact source-bound role context", () => {
     expect(candidateIdentitySourceBound("Li", "CEO", "Li is the CEO of Example Holdings.")).toBe(true);
     expect(candidateIdentitySourceBound("Li", "", "Li is mentioned in an unrelated sentence.")).toBe(false);
+    expect(candidateIdentitySourceBound("Li", "CEO", "Li is mentioned. The CEO is described in a different sentence.")).toBe(false);
     expect(candidateIdentitySourceBound("李", "董事长", "李董事长出席了公司年度会议。")).toBe(true);
     expect(candidateIdentitySourceBound("A", "CEO", "A is the CEO of Example Holdings.")).toBe(false);
     expect(candidateIdentitySourceBound("Li", "CEO", "Liability insurance is required for the CEO.")).toBe(false);
