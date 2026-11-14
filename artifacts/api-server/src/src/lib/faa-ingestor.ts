@@ -484,19 +484,10 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
     const candidateAssetIds = legacyAssets.map((row) => row.id);
-    const legacyOwnerLinks = candidateAssetIds.length > 0
-      ? await tx.select({
-          sourceEntityId: relationshipsTable.sourceEntityId,
-          targetId: relationshipsTable.targetId,
-        }).from(relationshipsTable).where(and(
-          eq(relationshipsTable.targetType, "Asset"),
-          eq(relationshipsTable.relationshipType, "OWNS"),
-          eq(relationshipsTable.notes, "FAA aircraft registration"),
-          inArray(relationshipsTable.targetId, candidateAssetIds),
-        ))
-      : [];
-    const legacyOwnerPairs = new Set(legacyOwnerLinks.map((row) => `${row.sourceEntityId}:${row.targetId}`));
-    const repairAssets = legacyAssets.filter((row) => row.ownerEntityId != null && legacyOwnerPairs.has(`${row.ownerEntityId}:${row.id}`));
+    // The legacy ownerEntityId itself came from the FAA registrant import.
+    // Reclassify every FAA-only association even if an older OWNS relationship
+    // row was never written or has since been lost.
+    const repairAssets = legacyAssets;
     const assetIds = repairAssets.map((row) => row.id);
     if (assetIds.length > 0) {
       await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
