@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -561,4 +561,28 @@ describe("Groq Investigator runtime contract", () => {
     expect(inferResearchCognitiveTask({ nextMovePriority: "verify" })).toBe("identity_resolution");
     expect(inferResearchCognitiveTask({ terminal: true })).toBe("final_adjudication");
   });
+  it("compacts oversized Investigator prompts while preserving mission, scope, actions, evidence URL and output schema", () => {
+    const prompt = [
+      "DISCOVERY MODE: investigate the case objective.",
+      "PRIMARY CASE OBJECTIVE: Find relevant privately held engineering businesses and identify evidence-backed owners.",
+      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): Investigate the DACH region, but follow credible evidence if it leads elsewhere and surface a strategic pivot to Boss.",
+      "AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.",
+      "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): companies_house, handelsregister.",
+      "CAPABILITY GUIDANCE:",
+      "Use available specialist OSINT tools only when attested. " + "capability detail ".repeat(90),
+      "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
+      "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
+      "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
+      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+    ].join("\n\n");
+    const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
+    expect(compacted.length).toBeLessThanOrEqual(2_700);
+    expect(compacted).toContain("Find relevant privately held engineering businesses");
+    expect(compacted).toContain("DACH region");
+    expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
+    expect(compacted).toContain("https://registry.example.test/company/123");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(compacted).toContain("omissions are unknown, not negative evidence");
+  });
+
 });
