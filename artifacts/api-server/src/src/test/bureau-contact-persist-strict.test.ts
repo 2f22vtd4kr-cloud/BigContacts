@@ -223,19 +223,11 @@ describe("same-source identity binding for candidate contact promotion", () => {
     )).toBe(false);
   });
 
-  it("also binds phone promotions to the same identity-bearing observation", () => {
-    expect(supportsCandidateContactOnSameObservation(
-      "Jane Example, direct line +1 (212) 555-0199",
-      candidate,
-      "+1 212 555 0199",
-      "phone",
-    )).toBe(true);
-    expect(supportsCandidateContactOnSameObservation(
-      "Jane Example, direct line not provided",
-      candidate,
-      "+1 212 555 0199",
-      "phone",
-    )).toBe(false);
+  it("also binds phone promotions to an exact person-specific quote", () => {
+    const phoneQuote = "Jane Example, direct line +1 (212) 555-0199";
+    const phoneCandidate = { ...candidate, exactQuote: phoneQuote };
+    expect(supportsCandidateContactOnSameObservation(phoneQuote, phoneCandidate, "+1 212 555 0199", "phone")).toBe(true);
+    expect(supportsCandidateContactOnSameObservation("Jane Example, direct line not provided", phoneCandidate, "+1 212 555 0199", "phone")).toBe(false);
   });
 });
 
