@@ -59,6 +59,7 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
     expect(profileSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
     expect(profileSource).toContain("const lacksIndependentWealthAssessment = metadata.personalWealthEvidence !== true");
+    expect(profileSource).toContain("if (hasFaaSource && metadata.personalWealthEvidence !== true) return false;");
     expect(profileSource).toContain('metadata.typeRegistrant ?? metadata.registrantTypeCode ?? ""');
   });
 
