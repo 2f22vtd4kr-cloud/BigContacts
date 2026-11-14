@@ -2208,23 +2208,70 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * fields and causes malformed model actions. Compact auxiliary prefix first,
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
-  // The provider size is an advisory optimization target, never a validity
-  // ceiling. Upstream context compaction already bounds historical state while
-  // preserving the latest observation. At this final boundary, never truncate
-  // the human objective, Boss direction, callable actions, exact evidence or
-  // schema merely to fit a character count.
-  const normalized = typeof prompt === "string" ? prompt : "";
-  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
-  const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
-  const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
-  const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
-  const completeSchemaPresent = fieldsAt >= 0
-    && requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field));
-  if (!completeSchemaPresent) {
-    throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
+export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+  const normalized = typeof prompt === "string" ? prompt.trim() : "";
+  const maximum = Number.isFinite(preferredMaxChars) ? Math.max(0, Math.floor(preferredMaxChars)) : 0;
+  if (!maximum || normalized.length <= maximum) return normalized;
+
+  // Compact auxiliary context first. The human objective, active Boss direction,
+  // callable actions, output schema and latest durable act are never discarded.
+  const sections = normalized.split(/\n\n+/u);
+  const isMandatory = (section: string): boolean => [
+    "DISCOVERY MODE:",
+    "ASSIGNMENT TARGET:",
+    "CASE OBJECTIVE:",
+    "AUTHORITATIVE CASE OBJECTIVE:",
+    "CURRENT BOSS-DIRECTED RESEARCH QUESTION",
+    "AVAILABLE ACTIONS:",
+    "OUTPUT CONTRACT:",
+    "LATEST TRAJECTORY RECORD",
+    "LATEST OBSERVATION",
+    "SCOPE GUARD BLOCKED ACTION",
+    "RUNTIME-AVAILABLE REGISTRY IDS ONLY:",
+    "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD:",
+    "DISCOVERY LEAD HANDOFF CONTRACT:",
+  ].some((marker) => section.startsWith(marker) || section.includes("\\n" + marker));
+
+  const compactionRules: Array<{ pattern: RegExp; max: number; label: string }> = [
+    { pattern: /AI-COMPACTED HISTORICAL RESEARCH MEMORY/u, max: 450, label: "[HISTORICAL MEMORY COMPACTED; omitted context is unknown]" },
+    { pattern: /CANONICAL EVIDENCE GRAPH STATE/u, max: 500, label: "[EVIDENCE GRAPH SUMMARY COMPACTED; durable ledger remains authoritative]" },
+    { pattern: /CURRENT CONTROL \/ OVERSIGHT CONTEXT/u, max: 300, label: "[OLDER CONTROL CONTEXT COMPACTED; current Boss direction retained]" },
+    { pattern: /CAPABILITY GUIDANCE:/u, max: 650, label: "[CAPABILITY DETAIL COMPACTED; AVAILABLE ACTIONS remains authoritative]" },
+    { pattern: /REGISTRY COVERAGE/u, max: 350, label: "[REGISTRY COVERAGE COMPACTED; callable IDs remain authoritative]" },
+    { pattern: /OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/u, max: 240, label: "[OPTIONAL TRAJECTORY ADVICE OMITTED; Investigator retains action choice]" },
+    { pattern: /CURRENT INVESTIGATOR CONTEXT|INVESTIGATION CONTEXT/u, max: 800, label: "[OLDER INVESTIGATION CONTEXT COMPACTED; omissions are unknown]" },
+    { pattern: /LATEST TRAJECTORY RECORD/u, max: 3_000, label: "[LATEST ACT COMPACTED; full observation and provenance remain in immutable ledger]" },
+    { pattern: /LATEST OBSERVATION/u, max: 1_400, label: "[LATEST OBSERVATION COMPACTED; full source remains in immutable ledger]" },
+  ];
+
+  const compacted = sections.map((section) => {
+    if (!section || isMandatory(section)) return section;
+    const rule = compactionRules.find((candidate) => candidate.pattern.test(section));
+    return rule && section.length > rule.max
+      ? compactPromptSectionPreservingUrlTokens(section, rule.max, rule.label)
+      : section;
+  });
+  let result = compacted.filter(Boolean).join("\n\n");
+
+  // If still over budget, remove low-priority auxiliary blocks in a fixed
+  // information-preservation order. Never trim the objective, Boss scope,
+  // action list, terminal/output contract, or newest durable act.
+  const dropPatterns = [
+    /AI-COMPACTED HISTORICAL RESEARCH MEMORY[\s\S]*?(?=\n\n|$)/u,
+    /CANONICAL EVIDENCE GRAPH STATE:[\s\S]*?(?=\n\n|$)/u,
+    /CAPABILITY GUIDANCE:[\s\S]*?(?=\n\n|$)/u,
+    /REGISTRY COVERAGE:[\s\S]*?(?=\n\n|$)/u,
+    /OPTIONAL DISCOVERY TRAJECTORY GUIDANCE:[\s\S]*?(?=\n\n|$)/u,
+  ];
+  for (const pattern of dropPatterns) {
+    if (result.length <= maximum) break;
+    result = result.replace(pattern, "[AUXILIARY CONTEXT OMITTED FOR TOKEN ECONOMY; omitted information is unknown]").trim();
   }
-  return normalized;
+
+  // The size target is advisory, not a reason to erase decision-critical data.
+  // If mandatory material alone exceeds it, retain that material and let the
+  // provider's real context/quota response govern rather than silently losing it.
+  return result;
 }
 
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
