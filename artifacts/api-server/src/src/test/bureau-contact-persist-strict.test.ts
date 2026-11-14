@@ -10,7 +10,37 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, isImmutablePromotionObservationEventType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { hasCanonicalPromotionJobBinding, isOrganizationContactRoute, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, isImmutablePromotionObservationEventType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+
+describe("model-attributed generic inbox handling", () => {
+  it("preserves a generic-looking address as person-specific only when the model supplies an exact quote", () => {
+    const quote = "Jane Example — direct professional email: info@example.org";
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "person_specific",
+      exactQuote: quote,
+    }, "info@example.org")).toBe(false);
+  });
+
+  it("keeps explicitly shared inboxes organization-only even when a person is named nearby", () => {
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "shared_inbox",
+      exactQuote: "Jane Example — shared team inbox: info@example.org",
+    }, "info@example.org")).toBe(true);
+  });
+
+  it("does not let an un-attributed generic inbox become a personal route", () => {
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "unknown",
+      exactQuote: "Jane Example — info@example.org",
+    }, "info@example.org")).toBe(true);
+  });
+});
 
 describe("contact promotion entity-type eligibility", () => {
   it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
