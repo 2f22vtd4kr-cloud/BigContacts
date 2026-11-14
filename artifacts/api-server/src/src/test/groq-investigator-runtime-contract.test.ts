@@ -353,12 +353,26 @@ describe("Groq Investigator runtime contract", () => {
 
   it("replays the 2026-11-14 captured Investigator request metadata and bounded recovery", () => {
     const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
-      capturedRequest: { model: string; max_completion_tokens: number; reasoning_effort: string; messages: Array<{ role: string; chars: number; sha256: string }>; schemaRequired: number; schemaProperties: number };
+      capturedRequest: {
+        model: string; max_completion_tokens: number; reasoning_effort: string; messages: Array<{ role: string; content: string }>;
+        responseFormat: { type: string; schemaPropertyCount: number; requiredFieldCount: number };
+        responseFormatPayload: { type: string; json_schema: { name: string; strict: boolean; schema: { properties: Record<string, unknown>; required: string[] } } };
+        schemaRequired: number; schemaProperties: number;
+      };
       capturedProviderError: { status: number; code: string; message: string; failedGenerationPresent: boolean };
       capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number; action: string; searches: number; findings: number };
     };
-    expect(replay.capturedRequest).toMatchObject({ model: "openai/gpt-oss-120b", max_completion_tokens: 512, reasoning_effort: "medium", schemaRequired: 20, schemaProperties: 20 });
+    expect(replay.capturedRequest).toMatchObject({
+      model: "openai/gpt-oss-120b", max_completion_tokens: 512, reasoning_effort: "medium",
+      schemaRequired: 20, schemaProperties: 20, responseFormat: { type: "json_schema", schemaPropertyCount: 20, requiredFieldCount: 20 },
+    });
     expect(replay.capturedRequest.messages.map(({ role }) => role)).toEqual(["system", "user"]);
+    expect(replay.capturedRequest.messages.map(({ content }) => content.length)).toEqual([7337, 8700]);
+    expect(replay.capturedRequest.messages[0].content).toContain("INVESTIGATOR CORE");
+    expect(replay.capturedRequest.messages[1].content).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    expect(replay.capturedRequest.responseFormatPayload.json_schema.schema.required).toHaveLength(20);
+    expect(Object.keys(replay.capturedRequest.responseFormatPayload.json_schema.schema.properties)).toHaveLength(20);
+    expect(replay.capturedRequest.responseFormatPayload.json_schema.strict).toBe(true);
     expect(replay.capturedProviderError).toMatchObject({ status: 400, code: "json_validate_failed", failedGenerationPresent: false });
     expect(replay.capturedSuccessfulResponse).toMatchObject({ prompt_tokens: 3565, completion_tokens: 509, reasoning_tokens: 403, action: "done", searches: 0, findings: 0 });
     expect(chooseGroqInvestigatorOutputRecovery({
