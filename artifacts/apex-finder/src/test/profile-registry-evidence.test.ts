@@ -55,5 +55,6 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("entityMetadata.personalWealthEvidence === false");
     expect(profileSource).toContain("entityMetadata.wealthStatus === \"not_assessed\"");
     expect(profileSource).toContain("displayableEstimatedNetWorth");
+    expect(profileSource).toContain('displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"');
   });
 });
