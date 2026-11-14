@@ -159,14 +159,20 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
   try { parsedPayload = JSON.parse(bodyText); } catch { return; }
   if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) return;
   const payload = parsedPayload as { error?: { type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
-  if (response.status === 429) {
-    if (typeof payload?.error?.type === "string" && payload.error.type.toLowerCase() === "tokens") {
-      const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
-      const retryAfterMs = parseRetryAfter(response);
-      state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + (resetMs ?? (retryAfterMs > 0 ? retryAfterMs : 5_000)));
-    }
+  const tokenWindowCapacityRejection = response.status === 413
+    && payload.error?.code === "rate_limit_exceeded"
+    && typeof payload.error?.type === "string"
+    && payload.error.type.toLowerCase() === "tokens";
+  const tokenRateLimitRejection = response.status === 429
+    && typeof payload.error?.type === "string"
+    && payload.error.type.toLowerCase() === "tokens";
+  if (tokenWindowCapacityRejection || tokenRateLimitRejection) {
+    const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
+    const retryAfterMs = parseRetryAfter(response);
+    state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + (resetMs ?? (retryAfterMs > 0 ? retryAfterMs : 5_000)));
     return;
   }
+  if (response.status === 429) return;
   if (!response.ok) return;
   const usage = payload.usage;
   const actual = typeof usage?.total_tokens === "number" && Number.isFinite(usage.total_tokens)
