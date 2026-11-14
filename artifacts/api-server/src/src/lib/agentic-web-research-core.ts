@@ -5331,7 +5331,18 @@ export function candidateIdentitySourceBound(personName: string, role: string | 
   if (codePoints.length >= 3 || !role?.trim()) return false;
   const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
   if (codePoints.length === 1 && !unspacedNameScript.test(personName)) return false;
-  return Boolean(bindExactSourceSpan(observation, role.trim(), personName)?.exact);
+  const span = bindExactSourceSpan(observation, role.trim(), personName);
+  if (!span?.exact) return false;
+  const spanText = span.text.toLowerCase();
+  const normalizedRole = role.trim().toLowerCase();
+  const normalizedPerson = personName.trim().toLowerCase();
+  const roleIndex = spanText.indexOf(normalizedRole);
+  const personIndex = spanText.indexOf(normalizedPerson);
+  if (roleIndex < 0 || personIndex < 0) return false;
+  const roleEnd = roleIndex + normalizedRole.length;
+  const personEnd = personIndex + normalizedPerson.length;
+  const between = spanText.slice(Math.min(roleEnd, personEnd), Math.max(roleIndex, personIndex));
+  return !/[.!?\\n]/.test(between);
 }
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
