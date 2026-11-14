@@ -158,7 +158,7 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
   let parsedPayload: unknown;
   try { parsedPayload = JSON.parse(bodyText); } catch { return; }
   if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) return;
-  const payload = parsedPayload as { error?: { type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
+  const payload = parsedPayload as { error?: { code?: unknown; type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
   const tokenWindowCapacityRejection = response.status === 413
     && payload.error?.code === "rate_limit_exceeded"
     && typeof payload.error?.type === "string"
