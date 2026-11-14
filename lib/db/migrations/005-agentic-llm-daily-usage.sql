@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.agentic_llm_daily_usage (
   cached_prompt_tokens integer NOT NULL DEFAULT 0 CHECK (cached_prompt_tokens >= 0),
   completion_tokens integer NOT NULL DEFAULT 0 CHECK (completion_tokens >= 0),
   total_tokens integer NOT NULL DEFAULT 0 CHECK (total_tokens >= 0),
+  estimated_tokens integer NOT NULL DEFAULT 0 CHECK (estimated_tokens >= 0),
   reserved_tokens integer NOT NULL DEFAULT 0 CHECK (reserved_tokens >= 0),
   daily_budget_tokens integer NOT NULL DEFAULT 0 CHECK (daily_budget_tokens >= 0),
   budget_exhausted boolean NOT NULL DEFAULT false,
