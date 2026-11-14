@@ -155,8 +155,10 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
   if (Number.isFinite(providerLimit) && providerLimit > 0) {
     state.providerLimit = state.providerLimit === null ? providerLimit : Math.min(state.providerLimit, providerLimit);
   }
-  let payload: { error?: { type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } } | null = null;
-  try { payload = JSON.parse(bodyText) as typeof payload; } catch {}
+  let parsedPayload: unknown;
+  try { parsedPayload = JSON.parse(bodyText); } catch { return; }
+  if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) return;
+  const payload = parsedPayload as { error?: { type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
   if (response.status === 429) {
     if (typeof payload?.error?.type === "string" && payload.error.type.toLowerCase() === "tokens") {
       const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
@@ -165,7 +167,7 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
     }
     return;
   }
-  if (!response.ok || !payload) return;
+  if (!response.ok) return;
   const usage = payload.usage;
   const actual = typeof usage?.total_tokens === "number" && Number.isFinite(usage.total_tokens)
     ? usage.total_tokens
