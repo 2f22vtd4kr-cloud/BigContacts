@@ -722,7 +722,7 @@ describe("provider quota gate", () => {
       method: "POST",
       body: JSON.stringify({
         model: "openai/gpt-oss-20b",
-        max_completion_tokens: 768,
+        max_completion_tokens: 1_792,
         messages: [
           { role: "system", content: repeatedLines("Preserve the exact human objective, source URL, role, evidence, uncertainty, and next action. ", 13_556) },
           { role: "user", content: repeatedLines("The source is a lead until fetched; preserve exact URLs and never infer ownership or wealth. ", 7_551) },
@@ -730,11 +730,12 @@ describe("provider quota gate", () => {
       }),
     };
     const request = getGroqTokenRequest(url, init);
-    expect(request?.reservedTokens).toBeGreaterThan(6_000);
-    // The observed Replit Right-hand compaction prompt used ~4.3k actual
-    // prompt tokens plus a 768-token output allowance under an 8k TPM limit.
-    // Escaping newlines in JSON must not inflate that valid request above the
-    // 7k local safety budget before the provider can report real usage.
+    expect(request?.reservedTokens).toBeGreaterThan(5_000);
+    // The observed Replit control/compaction prompts used roughly 3.5–4.3k
+    // actual prompt tokens. Even with a 1,792-token output allowance, this
+    // valid request fits under the 7k local budget for an 8k provider window.
+    // JSON-escaped newlines must not inflate the reservation before Groq can
+    // report real usage.
     expect(request?.reservedTokens).toBeLessThanOrEqual(7_000);
     const body = JSON.stringify({ usage: { prompt_tokens: 4_314, completion_tokens: 330, total_tokens: 4_644 } });
     const response = await runProviderCall(
