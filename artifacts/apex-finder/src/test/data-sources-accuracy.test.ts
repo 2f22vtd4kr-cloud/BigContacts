@@ -33,7 +33,7 @@ describe("data-source catalogue availability and privacy claims", () => {
 
   it("keeps semantic embedding maintenance manual and unable to bypass its job lock", () => {
     expect(sourceCatalog).toContain("Manual operator-triggered maintenance only; no startup schedule is registered");
-    expect(sourceCatalog).toContain("bodyParams: { batchSize: 5000, rebuild: true }");
+    expect(sourceCatalog).toContain("bodyParams: { batchSize: 50000, rebuild: true }");
     expect(sourceCatalog).not.toContain("Auto-triggered at 4 min and 32 min after boot");
     expect(sourceCatalog).not.toContain("force: true");
   });
