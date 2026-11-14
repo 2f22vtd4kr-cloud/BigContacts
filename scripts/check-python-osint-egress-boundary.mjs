@@ -31,7 +31,7 @@ const checks = [
   ["attestor tests redirects to metadata through configured egress", attestor.includes("REDIRECT_TO_METADATA_BLOCKED") && attestor.includes("follow_redirects=True")],
   ["cluster proxy test requires a live listener and explicit CONNECT denial", attestor.includes("default/kubernetes Service on port 443") && attestor.includes("CONNECT ") && attestor.includes("int(fields[1]) in (403, 502, 503, 504)")],
   ["private keys and worker credentials are not baked into the image", dockerfile.includes("USER 10001:10001") && !dockerfile.includes("APEX_PYTHON_SANDBOX_TOKEN=")],
-  ["theHarvester cancellation is threaded through canonical ReAct", pythonSource.includes("runTheHarvester") && fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8").includes('runTheHarvester(action.domain, undefined, { signal: runController.signal, correlation:')],
+  ["theHarvester cancellation is threaded through canonical ReAct", pythonSource.includes("runTheHarvester") && fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8").includes('runTheHarvester(action.domain, action.sources.join(","), { signal: runController.signal, correlation:')],
 ];
 
 let failed = false;
