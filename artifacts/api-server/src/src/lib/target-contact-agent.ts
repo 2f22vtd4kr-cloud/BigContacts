@@ -122,7 +122,31 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
     return graph;
   }).filter((graph): graph is EvidenceGraph => Boolean(graph && graph.edges.length > 0));
 }
-export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] { return findings.filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url)))).map((f) => { const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : ""; const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0; return { vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization", personName: isExplicitCandidate ? explicitPersonName : null, role: f.role, sourceUrls: f.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))), note: `target-agent:${f.note}`, tier: "candidate", state: "review_only", promote: isExplicitCandidate && f.promotionDecision === "promote" }; }); }
+export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\\S+$/i.test(String(url))))
+    .map((finding) => {
+      const attribution = finding.contactAttribution ?? "unknown";
+      const sharedRoute = attribution === "shared_inbox" || attribution === "organization";
+      const explicitPersonName = typeof finding.personName === "string" ? finding.personName.trim() : "";
+      const isCandidate = finding.scope === "candidate" && explicitPersonName.length > 0 && !sharedRoute;
+      const promotionSupported = isCandidate && attribution === "person_specific" && Boolean(finding.exactQuote?.trim());
+      return {
+        vectorType: finding.vectorType,
+        value: finding.value,
+        scope: isCandidate ? "candidate" : "organization",
+        personName: isCandidate ? explicitPersonName : null,
+        role: isCandidate ? finding.role : null,
+        sourceUrls: finding.sourceUrls.filter((url) => /^https:\/\/\\S+$/i.test(String(url))),
+        note: `target-agent:${finding.note}`,
+        contactAttribution: attribution,
+        exactQuote: finding.exactQuote ?? null,
+        tier: "candidate",
+        state: "review_only",
+        promote: promotionSupported && finding.promotionDecision === "promote",
+      };
+    });
+}
 async function validateTargetCaseBinding(caseId: number | undefined, entityId: number, jobId?: string): Promise<Record<string, unknown> | null> { if (caseId == null || !Number.isSafeInteger(caseId) || caseId <= 0 || !jobId?.trim()) return null; const [row] = await db.select({ targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row || row.caseType !== "target" || row.targetEntityId !== entityId || !row.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; if (parsed.atlasJobId === jobId) return parsed; return null; } catch { return null; } }
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
 function compactReachabilityControl(raw: string): string {
