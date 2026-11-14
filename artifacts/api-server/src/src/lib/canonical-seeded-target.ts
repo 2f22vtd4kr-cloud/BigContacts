@@ -34,6 +34,19 @@ function parseRegistryNames(raw: unknown): string[] {
   }
 }
 
+/** Resolve the same evidence-safe type used in the persisted seeded-target binding. */
+export function resolveCanonicalSeededTargetEntityType(input: {
+  entityType: string;
+  sourceRegistries?: string | null;
+  metadata?: string | null;
+}): string {
+  return resolveSeededTargetEntityType(
+    input.entityType,
+    input.sourceRegistries ?? null,
+    parseObject(input.metadata),
+  ).entityType;
+}
+
 function resolveSeededTargetEntityType(
   entityType: string,
   sourceRegistries: unknown,
