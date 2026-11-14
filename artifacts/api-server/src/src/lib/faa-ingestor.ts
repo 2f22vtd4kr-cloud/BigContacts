@@ -65,6 +65,7 @@ const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
 const F_STATUS         = 20;
 const F_FRACTIONAL_OWNER = 22;
+const F_OTHER_NAME_INDICES = [24, 25, 26, 27, 28] as const;
 const F_LAST_ACTIVITY = 15;
 const F_MFR_MODEL_CODE = 2;
 const F_ENGINE_MODEL_CODE = 3;
@@ -215,6 +216,27 @@ export function createFaaRegistrantEntityKey(name: string, state: string, countr
   return registrantTypeCode === "1" ? baseKey : baseKey + "|type:" + registrantTypeCode;
 }
 
+export function normalizeFaaAdditionalRegistrantNames(values: readonly string[]): string[] {
+  return values
+    .map((value) => value.trim().replace(/\s+/gu, " "))
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+/** Merge current FAA-owned fields without discarding enrichment from other sources. */
+export function mergeFaaAssetMetadata(existingRaw: string | null | undefined, incomingRaw: string | null | undefined): string {
+  const parse = (raw: string | null | undefined): Record<string, unknown> => {
+    if (!raw) return {};
+    try {
+      const value: unknown = JSON.parse(raw);
+      return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  };
+  return JSON.stringify({ ...parse(existingRaw), ...parse(incomingRaw) });
+}
+
 export function createFaaRegistrationDedupKey(input: {
   nNumber: string;
   registrantName: string;
@@ -224,6 +246,7 @@ export function createFaaRegistrationDedupKey(input: {
   statusCode: string;
   lastActivityDate: string;
   uniqueId: string;
+  additionalRegistrantNames?: readonly string[];
 }): string {
   const nNumber = input.nNumber.trim().toUpperCase().replace(/^N?/, "N");
   const registrantKey = createFaaRegistrantEntityKey(
@@ -232,7 +255,10 @@ export function createFaaRegistrationDedupKey(input: {
     input.country,
     input.registrantTypeCode,
   );
-  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId]
+  const additionalNames = normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? [])
+    .map((value) => value.toLocaleLowerCase("en-US"))
+    .join("|");
+  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId, additionalNames]
     .map((value) => encodeURIComponent(value.trim()))
     .join(":");
   return `faa:v2:${nNumber}:${version}`;
@@ -342,6 +368,7 @@ export function buildFaaAircraftAsset(input: {
   lastActivityDate: string;
   expirationDate: string;
   uniqueId: string;
+  additionalRegistrantNames?: readonly string[];
 }): InsertAsset {
   const classification = classifyFaaRegistrant(input.registrantTypeCode, {
     fractionalOwnershipFlag: input.fractionalOwnershipFlag,
@@ -361,6 +388,8 @@ export function buildFaaAircraftAsset(input: {
       source: "faa-aircraft-registry",
       nNumber: tailNumber,
       registrantName: input.registrantName,
+      additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? []),
+      additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields; they do not establish an ownership percentage, beneficial-owner identity, or personal wealth.",
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
       registrantKind: classification.registrantKind,
@@ -523,6 +552,7 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
             id: assetsTable.id,
             identifier: assetsTable.identifier,
             ownerEntityId: assetsTable.ownerEntityId,
+            metadata: assetsTable.metadata,
           }).from(assetsTable).where(and(
             eq(assetsTable.category, "Aviation"),
             eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
@@ -530,6 +560,22 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
           ))
         : [];
       const assetIdByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row.id]));
+      const existingAssetByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row]));
+      // Refresh FAA-owned fields when the source updates co-registrant/status data,
+      // retaining independent enrichment already attached to the same asset.
+      for (const row of assetRows) {
+        if (!row.asset) continue;
+        const existing = existingAssetByIdentifier.get(row.asset.identifier);
+        if (!existing) continue;
+        const metadata = mergeFaaAssetMetadata(existing.metadata, row.asset.metadata);
+        if (metadata !== existing.metadata || row.asset.description) {
+          await tx.update(assetsTable).set({
+            metadata,
+            description: row.asset.description,
+            lastActivityDate: row.asset.lastActivityDate,
+          }).where(eq(assetsTable.id, existing.id));
+        }
+      }
       const freshAssets = assetRows.filter((row) => row.asset && !assetIdByIdentifier.has(row.asset.identifier));
       const insertedAssets = freshAssets.length > 0
         ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset!)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
@@ -804,6 +850,9 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
     const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
     const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
+    const additionalRegistrantNames = normalizeFaaAdditionalRegistrantNames(
+      F_OTHER_NAME_INDICES.map((index) => fields[index] ?? ""),
+    );
     const manufacturerModelCode = fields[F_MFR_MODEL_CODE]?.trim() ?? "";
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
@@ -827,6 +876,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       statusCode,
       lastActivityDate,
       uniqueId,
+      additionalRegistrantNames,
     });
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
@@ -869,6 +919,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       lastActivityDate,
       expirationDate,
       uniqueId,
+      additionalRegistrantNames,
     });
     // Preserve every current/pending individual aircraft as an unvalued FAA
     // registry observation. Asset-signal strength is metadata, not an import gate.
