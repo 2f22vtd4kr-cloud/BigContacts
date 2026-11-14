@@ -148,7 +148,7 @@ vi.mock("../lib/identity-collision", () => ({
 }));
 
 import { runAgenticWebResearch } from "../lib/agentic-web-research";
-import { runTargetContactAgent } from "../lib/target-contact-agent";
+import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
 
 describe("offline Investigator-to-card survival path", () => {
   beforeEach(() => {
@@ -200,6 +200,10 @@ describe("offline Investigator-to-card survival path", () => {
       findings: [],
       providerFallback: [],
     };
+    const backed = sourceBackedFindings([finding as any], ["turn1 visit success"], [record as any]);
+    expect(backed).toHaveLength(1);
+    const projected = findingsToContacts(backed, "Jane Example");
+    expect(projected[0]).toMatchObject({ scope: "candidate", contactAttribution: "person_specific", exactQuote: testState.quote, promote: true });
     vi.mocked(runAgenticWebResearch).mockResolvedValue({
       status: "completed",
       model: "openai/gpt-oss-20b",
@@ -228,9 +232,9 @@ describe("offline Investigator-to-card survival path", () => {
 
     expect(result.status).toBe("completed");
     expect(result.findings).toBe(1);
-    expect(result.email).toBe("jane@example.org");
     expect(testState.insertedContacts).toHaveLength(1);
     const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
+    expect(result.email).toBe("jane@example.org");
     expect(evidenceMetadata).toMatchObject({
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
