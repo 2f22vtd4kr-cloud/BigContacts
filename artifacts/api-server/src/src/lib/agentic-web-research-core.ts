@@ -4848,7 +4848,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Tool-specific fields are optional and must match the selected action. Capability arguments such as profile, sources, searches, findings are optional at the root and required when the selected action needs them. Worker actions must be in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Apply objective criteria only when requested. url may be null when unused. Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose; parallel registry searches need 1–4 objects, each with query/registry (configured ID)/provider:null/locale:null/market:null/purpose. Each finding still needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Tool-specific fields are optional and must match the selected action. Capability arguments such as profile, sources, searches, findings are optional at the root and required when the selected action needs them. Worker actions must be in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
