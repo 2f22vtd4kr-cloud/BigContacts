@@ -195,7 +195,7 @@ const SOURCES: SourceDef[] = [
     note: "No standardised bulk download available across European registries yet.",
   },
 
-  // ── Phase 9: In-House OSINT enrichment (no paid API) ─────────────────────
+  // ── Phase 9: Legacy In-House OSINT enrichment (retired) ───────────────────
   {
     id: "in-house-enrich",
     label: "Legacy In-House Contact Enricher (retired)",
