@@ -680,7 +680,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
     expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).toContain("normalizeAtlasOpeningRightHandReview(parsed) !== null");
     expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");

@@ -292,8 +292,8 @@ describe("contact route merge residual", () => {
 describe("Groq Boss transport contract", () => {
   it("uses the bounded production latency budget and reports it consistently", () => {
     expect(getGroqBossLatencyConfig()).toEqual({
-      requestTimeoutMs: 30_000,
-      overallTimeoutMs: 90_000,
+      requestTimeoutMs: 90_000,
+      overallTimeoutMs: 150_000,
       maximumPromptChars: 20_000,
     });
   });

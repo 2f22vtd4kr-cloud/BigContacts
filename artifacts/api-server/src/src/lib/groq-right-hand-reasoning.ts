@@ -3,7 +3,7 @@ import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { ProviderQuotaError, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { ProviderQuotaError, getGroqTokenMaxWaitMs, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import {
   classifyProviderHttpStatus,
@@ -23,8 +23,8 @@ const GROQ_RIGHT_HAND_MODELS_API = "https://api.groq.com/openai/v1/models";
 const GROQ_RIGHT_HAND_CHAT_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_RIGHT_HAND_KEY_ENV = "GROQ_RIGHT_HAND_API_KEY";
 const GROQ_RIGHT_HAND_KEY_NAMES = [GROQ_RIGHT_HAND_KEY_ENV, ...Array.from({ length: 5 }, (_, i) => `${GROQ_RIGHT_HAND_KEY_ENV}_${i + 1}`)];
-const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
-const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 90_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 150_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
 const MAX_MODEL_ATTEMPTS = 4;
 const MAX_503_RETRIES_PER_MODEL = 1;
@@ -97,8 +97,14 @@ function key(){ return keyEntries()[0]?.key || null; }
 function boundedEnv(name:string,fallback:number,min:number,max:number):number {
   const n=Number(process.env[name]); return Number.isFinite(n)?Math.min(max,Math.max(min,Math.floor(n))):fallback;
 }
-function requestTimeoutMs(){ return boundedEnv("APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS",DEFAULT_REQUEST_TIMEOUT_MS,5_000,60_000); }
-function overallTimeoutMs(){ return boundedEnv("APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS",DEFAULT_OVERALL_TIMEOUT_MS,requestTimeoutMs(),180_000); }
+function requestTimeoutMs(){
+ const minimumRequestTimeoutMs=getGroqTokenMaxWaitMs();
+ return boundedEnv("APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS",Math.max(DEFAULT_REQUEST_TIMEOUT_MS,minimumRequestTimeoutMs),minimumRequestTimeoutMs,120_000);
+}
+function overallTimeoutMs(){
+ const requestMs=requestTimeoutMs();
+ return boundedEnv("APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS",Math.max(DEFAULT_OVERALL_TIMEOUT_MS,requestMs+30_000),requestMs,180_000);
+}
 
 export type GroqRightHandLatencyConfig={requestTimeoutMs:number;overallTimeoutMs:number;minimumOverallTimeoutMs:number;overallTimeoutClamped:boolean};
 export function getGroqRightHandLatencyConfig():GroqRightHandLatencyConfig {

@@ -140,6 +140,40 @@ export function validateAtlasOpeningRightHandReview(value: Record<string, unknow
     && value.confidence >= 0 && value.confidence <= 1;
 }
 
+/**
+ * Normalize narrowly-scoped GPT-OSS formatting drift in the opening advisory.
+ * The canonical persisted shape remains strict. "rationale" is accepted only
+ * as an alias for "reason"; confidence labels map to documented advisory
+ * midpoints. Unknown fields and conflicting aliases remain invalid.
+ */
+export function normalizeAtlasOpeningRightHandReview(
+  value: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!value) return null;
+  const allowed = new Set(["decision", "reason", "rationale", "focusLanes", "confidence"]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) return null;
+
+  if (("reason" in value && typeof value.reason !== "string")
+    || ("rationale" in value && typeof value.rationale !== "string")) return null;
+  const decision = typeof value.decision === "string" ? value.decision.trim() : "";
+  const reasonValue = typeof value.reason === "string" ? value.reason.trim() : "";
+  const rationaleValue = typeof value.rationale === "string" ? value.rationale.trim() : "";
+  if (reasonValue && rationaleValue && reasonValue !== rationaleValue) return null;
+  const reason = reasonValue || rationaleValue;
+  const focusLanes = Array.isArray(value.focusLanes) && value.focusLanes.every((lane) => typeof lane === "string")
+    ? value.focusLanes.map((lane) => (lane as string).trim())
+    : null;
+  const confidence = typeof value.confidence === "number"
+    ? value.confidence
+    : typeof value.confidence === "string"
+      ? ({ low: 0.25, medium: 0.5, high: 0.75 } as const)[value.confidence.trim().toLowerCase() as "low" | "medium" | "high"] ?? null
+      : null;
+
+  if (!decision || !reason || focusLanes === null || confidence === null) return null;
+  const normalized: Record<string, unknown> = { decision, reason, focusLanes, confidence };
+  return validateAtlasOpeningRightHandReview(normalized) ? normalized : null;
+}
+
 /** Opening review requires a machine-readable scope authorization in addition to advisory prose. */
 export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["approval", "decision", "reason", "focusLanes", "confidence"])) return false;

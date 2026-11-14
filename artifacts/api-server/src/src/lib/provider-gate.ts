@@ -64,7 +64,15 @@ const groqTokenWindows = new Map<string, GroqTokenWindowState>();
 const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
 const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
-const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 10_000, 0, 120_000);
+/**
+ * Allow one complete provider token-window reset by default. The prior 10s
+ * ceiling caused a valid, cancellation-aware Boss request to fail locally
+ * when Groq reported a ~48s TPM reset after earlier same-model control calls.
+ * Deployments can still lower/raise this bounded wait explicitly.
+ */
+export function getGroqTokenMaxWaitMs(): number {
+  return boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 60_000, 0, 120_000);
+}
 
 function estimateStructuredPromptChars(value: unknown): number {
   if (typeof value === "string") return value.length;
@@ -134,7 +142,7 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
     state.reservations = state.reservations.filter((reservation) => now - reservation.createdAt < windowMs);
     if (state.cooldownUntil > now) {
       const waitMs = state.cooldownUntil - now;
-      if (now - startedAt + waitMs > groqTokenMaxWaitMs()) throw new ProviderQuotaError("cooldown", "groq", waitMs, "tokens");
+      if (now - startedAt + waitMs > getGroqTokenMaxWaitMs()) throw new ProviderQuotaError("cooldown", "groq", waitMs, "tokens");
       await abortableProviderDelay(waitMs, signal);
       continue;
     }
@@ -148,7 +156,7 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
       minimum === null ? reservation.createdAt : Math.min(minimum, reservation.createdAt), null);
     const waitMs = oldest === null ? windowMs : Math.max(1, oldest + windowMs - now);
     const elapsedMs = now - startedAt;
-    const remainingWaitBudgetMs = groqTokenMaxWaitMs() - elapsedMs;
+    const remainingWaitBudgetMs = getGroqTokenMaxWaitMs() - elapsedMs;
     if (remainingWaitBudgetMs <= 0) throw new ProviderQuotaError("cooldown", "groq", waitMs, "tokens");
     // A completed request may reconcile from its conservative reservation to
     // actual usage while this waiter sleeps. Recheck periodically instead of

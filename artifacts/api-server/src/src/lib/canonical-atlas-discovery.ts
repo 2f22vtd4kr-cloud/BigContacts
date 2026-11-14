@@ -5,7 +5,7 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
@@ -1784,7 +1784,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const parsed = value && typeof value === "object" && !Array.isArray(value)
               ? value as Record<string, unknown>
               : null;
-            return validateAtlasOpeningRightHandReview(parsed);
+            return normalizeAtlasOpeningRightHandReview(parsed) !== null;
           } catch {
             return false;
           }
@@ -1831,14 +1831,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const parsed = value && typeof value === "object" && !Array.isArray(value)
           ? value as Record<string, unknown>
           : null;
-        if (validateAtlasOpeningRightHandReview(parsed)) {
+        const normalized = normalizeAtlasOpeningRightHandReview(parsed);
+        if (normalized) {
           rightHand = {
             status: "completed",
             model: rightHandRaw.model,
-            decision: (parsed!.decision as string).trim(),
-            reason: (parsed!.reason as string).trim(),
-            focusLanes: (parsed!.focusLanes as string[]).map((lane) => lane.trim()),
-            confidence: parsed!.confidence as number,
+            decision: normalized.decision as string,
+            reason: normalized.reason as string,
+            focusLanes: normalized.focusLanes as string[],
+            confidence: normalized.confidence as number,
             error: null,
           };
         } else {
