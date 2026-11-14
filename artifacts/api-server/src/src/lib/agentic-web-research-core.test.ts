@@ -187,7 +187,6 @@ describe("Investigator system prompt budget", () => {
 });
 
 
-const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
 const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
