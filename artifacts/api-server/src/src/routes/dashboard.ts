@@ -753,7 +753,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   const [westernCount] = await db
     .select({ cnt: sql<number>`count(*)::int` })
     .from(entitiesTable)
-    .where(and(visibleEntity, sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`));
+    .where(and(visibleEntity, qualifiedHnwiCondition(), sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`))
 
   // Enrichment coverage + F3 wealth tier segmentation + L2 contact outcome split (parallel queries)
   const [[contactableCount], [anyContactCount], [wealthTiersRow], [contactOutcomeRow]] = await Promise.all([
