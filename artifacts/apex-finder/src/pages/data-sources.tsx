@@ -96,7 +96,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/faa",
     jobType: "faa",
     bodyParams: { maxRecords: 30000 },
-    note: "Start and monitor in Mass Seed Operations. Other Name 1–5 are preserved per aircraft as unverified additional names; individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only.",
+    note: "Start and monitor in Mass Seed Operations. Other Name 1–5 are preserved per aircraft as unverified additional names; individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only. Optional map coordinates are US state centroids only—not aircraft positions or owner residences.",
   },
   {
     id: "gleif",
