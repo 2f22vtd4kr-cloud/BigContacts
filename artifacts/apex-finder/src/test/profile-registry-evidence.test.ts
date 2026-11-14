@@ -9,8 +9,9 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("FAA registrant record");
     expect(profileSource).toContain("registration is not proof of beneficial ownership");
     expect(profileSource).toContain("does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth");
-    expect(profileSource).toContain("UK Land Registry sale transaction record(s)");
-    expect(profileSource).toContain("does not prove current title, continuing ownership, or personal wealth");
+    expect(profileSource).toContain("UK HM Land Registry Price Paid Data transaction record(s)");
+    expect(profileSource).toContain("does not identify the purchaser or establish current title, continuing ownership, or personal wealth");
+    expect(profileSource).toContain("UK Land Registry OCOD · overseas entity property record");
     expect(profileSource).not.toContain("FAA aircraft owner");
     expect(profileSource).not.toContain("FAA ownership is one of our strongest wealth signals");
     expect(profileSource).not.toContain("registered owner of");
@@ -44,7 +45,8 @@ describe("registry profile evidence semantics", () => {
   it("keeps shared narrative helpers from turning registry records into wealth or ownership claims", () => {
     expect(narrativeSource).toContain("registrant is not necessarily the beneficial owner");
     expect(narrativeSource).toContain("not proof of personal wealth or HNWI status");
-    expect(narrativeSource).toContain("not proof of current title, continuing ownership or personal wealth");
+    expect(narrativeSource).toContain("A transaction is not proof of current title, continuing ownership or personal wealth");
+    expect(narrativeSource).toContain("company-level property record");
     expect(narrativeSource).not.toContain("FAA register shows aircraft ownership");
     expect(narrativeSource).not.toContain("clean wealth signal");
     expect(narrativeSource).not.toContain("durable wealth marker");
