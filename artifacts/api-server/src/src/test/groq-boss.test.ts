@@ -7,6 +7,7 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 import { buildGroqBossDiscoveryPrompt, parseBossDiscoveryResponse } from "../lib/case-bureau";
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText, runGroqBossMemoryCompaction } from "../lib/groq-boss";
+import { ProviderQuotaError } from "../lib/provider-gate";
 
 describe("Groq Boss discovery prompt grounding", () => {
   it("keeps internal case-memory wording from becoming a false research anchor", () => {
@@ -291,6 +292,38 @@ describe("Groq Boss token-window recovery", () => {
     expect(calls).toBe(2);
     expect(fetchMock.mock.calls[0]?.[1]).toBeTruthy();
     expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
+  });
+  it("falls back to the next same-role Boss model when the local shared TPM gate blocks 120B", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-local-tpm-fallback-key";
+    const chatModels: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      chatModels.push(body.model);
+      if (body.model === "openai/gpt-oss-120b") {
+        throw new ProviderQuotaError("cooldown", "groq", 45_000, "tokens");
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"action":"continue_discovery","confidence":0.8}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 2,
+        candidateModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return the opening control decision.",
+      { cognitiveTask: "control_decision", maxOutputTokens: 384 },
+    );
+
+    expect(result.raw).toBe('{"action":"continue_discovery","confidence":0.8}');
+    expect(result.error).toBeNull();
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
