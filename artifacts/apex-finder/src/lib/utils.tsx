@@ -25,14 +25,14 @@ export function formatCurrency(value: number | null | undefined) {
 }
 
 export function ScoreBadge({ score }: { score: number | null | undefined }) {
-  // Registry confidence score — how many independent public registries confirm this person
+  // Source confidence — how many independent public registries support the recorded identity and claims
   if (score == null) return null;
   const colorClasses = getScoreColor(score);
   const pct = Math.round(score * 100);
   const label = pct >= 70 ? "Multi-registry" : pct >= 40 ? "Single-registry" : "Unverified";
   return (
     <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`}
-         title={`Registry confidence ${pct}/100 — strength of public registry verification. Higher means more independent sources confirm this person's wealth profile.`}>
+         title={`Source confidence ${pct}/100 — strength of independent public registry support for the recorded identity and claims. It does not prove beneficial ownership or personal wealth.`}>
       <span className="font-bold tabular-nums">{pct}</span>
       <span className="opacity-50 text-[11px] uppercase tracking-wide leading-none">{label}</span>
     </div>
