@@ -140,6 +140,41 @@ export function validateAtlasOpeningRightHandReview(value: Record<string, unknow
     && value.confidence >= 0 && value.confidence <= 1;
 }
 
+/**
+ * Normalize the observed, non-semantic GPT-OSS opening-review variants:
+ * "rationale" may stand in for "reason", and confidence may be low/medium/high.
+ * Conflicting aliases, unknown fields, malformed lanes, and invalid numeric
+ * confidence remain rejected before the strict canonical validator.
+ */
+export function normalizeAtlasOpeningRightHandReview(
+  value: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!value) return null;
+  const allowed = new Set(["decision", "reason", "rationale", "focusLanes", "confidence"]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) return null;
+  if (value.reason !== undefined && value.rationale !== undefined
+    && (typeof value.reason !== "string" || typeof value.rationale !== "string"
+      || value.reason.trim() !== value.rationale.trim())) return null;
+  const reason = typeof value.reason === "string"
+    ? value.reason.trim()
+    : typeof value.rationale === "string" ? value.rationale.trim() : "";
+  const rawConfidence = value.confidence;
+  const confidence = typeof rawConfidence === "number"
+    ? rawConfidence
+    : typeof rawConfidence === "string"
+      ? ({ low: 0.25, medium: 0.5, high: 0.75 } as Record<string, number>)[rawConfidence.trim().toLowerCase()]
+      : undefined;
+  const normalized: Record<string, unknown> = {
+    decision: typeof value.decision === "string" ? value.decision.trim() : "",
+    reason,
+    focusLanes: Array.isArray(value.focusLanes)
+      ? value.focusLanes.map((lane) => typeof lane === "string" ? lane.trim() : lane)
+      : value.focusLanes,
+    confidence,
+  };
+  return validateAtlasOpeningRightHandReview(normalized) ? normalized : null;
+}
+
 /** Opening review requires a machine-readable scope authorization in addition to advisory prose. */
 export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["approval", "decision", "reason", "focusLanes", "confidence"])) return false;
