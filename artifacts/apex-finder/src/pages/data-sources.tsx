@@ -224,8 +224,8 @@ const SOURCES: SourceDef[] = [
     homepage: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
     endpoint: "/api/ingest/compute-embeddings",
     jobType: "compute-embeddings",
-    bodyParams: { batchSize: 5000, rebuild: true },
-    note: "Manual operator-triggered maintenance only; no startup schedule is registered. Rebuild requests do not bypass the durable job lock and cannot overlap an active embedding run.",
+    bodyParams: { batchSize: 50000, rebuild: true },
+    note: "Manual operator-triggered maintenance only; no startup schedule is registered. A single run scans up to 50,000 entities; use an explicit offset for larger datasets. Rebuild requests do not bypass the durable job lock and cannot overlap an active embedding run.",
   },
   {
     id: "osint-tools-directory",
