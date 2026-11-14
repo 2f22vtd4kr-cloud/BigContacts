@@ -19,7 +19,7 @@ import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate";
+type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate" | "Other";
 
 interface AddEntityForm {
   name: string;
@@ -36,7 +36,7 @@ interface AddEntityForm {
 
 interface RegistryResult {
   name: string;
-  type: "Corporation" | "HNWI" | "Gatekeeper" | "Trust" | "PersonCandidate";
+  type: "Corporation" | "HNWI" | "Gatekeeper" | "Trust" | "PersonCandidate" | "Other";
   nationality?: string;
   knownResidences?: string;
   sourceRegistries?: string;
@@ -1003,7 +1003,7 @@ export default function EntityLedger() {
     catch { regsStr = r.sourceRegistries ?? ""; }
     openAddModal({
       name: r.name,
-      type: r.type === "Corporation" || r.type === "Corp" ? "Corporation" : r.type === "Trust" ? "Trust" : r.type === "Gatekeeper" ? "Gatekeeper" : r.type === "PersonCandidate" ? "PersonCandidate" : "HNWI",
+      type: r.type === "Corporation" || r.type === "Corp" ? "Corporation" : r.type === "Trust" ? "Trust" : r.type === "Gatekeeper" ? "Gatekeeper" : r.type === "PersonCandidate" ? "PersonCandidate" : r.type === "HNWI" ? "HNWI" : "Other",
       nationality: r.nationality ?? "",
       knownResidences: r.knownResidences ?? "",
       notes: r.notes ?? "",
@@ -1954,6 +1954,7 @@ export default function EntityLedger() {
                 <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
                   className="w-full bg-background border border-[#9CFF1A]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
                   <option value="HNWI">HNWI — High Net Worth Individual</option>
+                  <option value="Other">Other — Unresolved registrant</option>
                   <option value="Corporation">Corporation — Company / Shell</option>
                   <option value="Trust">Trust — Offshore / Fiduciary</option>
                   <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
