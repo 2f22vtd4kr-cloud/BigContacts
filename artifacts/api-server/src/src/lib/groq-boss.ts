@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { AgenticDailyTokenBudgetError, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
+import { AgenticDailyTokenBudgetError, readGroqRateLimitHeaders, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
@@ -422,7 +422,7 @@ async function generateGroqBossTextImpl(
           });
           const responseBody = await response.text();
           const usage = (() => { try { const parsed = JSON.parse(responseBody) as { usage?: Record<string, unknown> }; const u = parsed.usage ?? {}; return { promptTokens: typeof u.prompt_tokens === "number" ? u.prompt_tokens : undefined, completionTokens: typeof u.completion_tokens === "number" ? u.completion_tokens : undefined, totalTokens: typeof u.total_tokens === "number" ? u.total_tokens : undefined, cachedPromptTokens: typeof (u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens === "number" ? (u.prompt_tokens_details as Record<string, number>).cached_tokens : undefined }; } catch { return {}; } })();
-          recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: isTokenPerDayQuotaError(response.status, responseBody), provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
+          recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: isTokenPerDayQuotaError(response.status, responseBody), provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, ...readGroqRateLimitHeaders(response.headers), latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
           attemptTelemetryRecorded = true;
           modelAuditResponseRecorded = emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
