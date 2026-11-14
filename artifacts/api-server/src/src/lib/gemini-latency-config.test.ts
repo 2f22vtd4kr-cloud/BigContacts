@@ -18,10 +18,10 @@ describe("Apex control-plane latency configuration", () => {
     process.env.APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS = "10000";
     process.env.APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
     expect(getGroqRightHandLatencyConfig()).toEqual({
-      requestTimeoutMs: 10000,
-      overallTimeoutMs: 55000,
-      minimumOverallTimeoutMs: 10000,
-      overallTimeoutClamped: false,
+      requestTimeoutMs: 60000,
+      overallTimeoutMs: 60000,
+      minimumOverallTimeoutMs: 60000,
+      overallTimeoutClamped: true,
     });
   });
 
@@ -29,8 +29,8 @@ describe("Apex control-plane latency configuration", () => {
     process.env.APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS = "10000";
     process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "55000";
     expect(getGroqBossLatencyConfig()).toMatchObject({
-      requestTimeoutMs: 10000,
-      overallTimeoutMs: 55000,
+      requestTimeoutMs: 60000,
+      overallTimeoutMs: 60000,
       maximumPromptChars: 20000,
     });
   });
@@ -50,10 +50,10 @@ describe("Apex control-plane latency configuration", () => {
 
     const rightHand = getGroqRightHandLatencyConfig();
     const groq = getGroqBossLatencyConfig();
-    expect(rightHand.requestTimeoutMs).toBe(5000);
-    expect(rightHand.overallTimeoutMs).toBe(5000);
+    expect(rightHand.requestTimeoutMs).toBe(60000);
+    expect(rightHand.overallTimeoutMs).toBe(60000);
     expect(rightHand.overallTimeoutClamped).toBe(true);
-    expect(groq.requestTimeoutMs).toBe(5000);
-    expect(groq.overallTimeoutMs).toBe(30000);
+    expect(groq.requestTimeoutMs).toBe(60000);
+    expect(groq.overallTimeoutMs).toBe(60000);
   });
 });
