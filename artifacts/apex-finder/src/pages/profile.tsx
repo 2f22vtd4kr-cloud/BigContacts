@@ -111,7 +111,12 @@ function hasPersonalWealthEvidence(entity: any): boolean {
     const parsed = JSON.parse(entity.metadata ?? "{}");
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
   } catch {}
-  if (metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed") return false;
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  if (explicitlyNotWealthEvidence) return false;
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (explicitlyQualified) return true;
   let sourceRegistries: string[] = [];
   try {
     const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
@@ -139,9 +144,11 @@ function profileDisplayEntityType(entity: any) {
   } catch {}
   const hasFaaSource = metadata.source === "faa-aircraft-registry"
     || sourceRegistries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
-  const lacksIndependentWealthAssessment = metadata.personalWealthEvidence !== true
-    || metadata.wealthStatus === "not_assessed";
-  if (!hasFaaSource || !lacksIndependentWealthAssessment) return entity.type;
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) return entity.type;
   const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
   if (registrantType === "1") return "PersonCandidate";
   if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
