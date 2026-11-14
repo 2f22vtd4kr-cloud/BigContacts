@@ -371,6 +371,7 @@ export function buildFaaAircraftAsset(input: {
   expirationDate: string;
   uniqueId: string;
   additionalRegistrantNames?: readonly string[];
+  additionalRegistrantNamesRaw?: readonly string[];
 }): InsertAsset {
   const classification = classifyFaaRegistrant(input.registrantTypeCode, {
     fractionalOwnershipFlag: input.fractionalOwnershipFlag,
@@ -390,7 +391,8 @@ export function buildFaaAircraftAsset(input: {
       source: "faa-aircraft-registry",
       nNumber: tailNumber,
       registrantName: input.registrantName,
-      additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? []),
+      additionalRegistrantNamesRaw: (input.additionalRegistrantNamesRaw ?? input.additionalRegistrantNames ?? []).slice(0, 5),
+      additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? input.additionalRegistrantNamesRaw ?? []),
       additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
@@ -852,9 +854,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
     const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
     const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
-    const additionalRegistrantNames = normalizeFaaAdditionalRegistrantNames(
-      F_OTHER_NAME_INDICES.map((index) => fields[index] ?? ""),
-    );
+    const additionalRegistrantNamesRaw = F_OTHER_NAME_INDICES.map((index) => fields[index] ?? "");
+    const additionalRegistrantNames = normalizeFaaAdditionalRegistrantNames(additionalRegistrantNamesRaw);
     const manufacturerModelCode = fields[F_MFR_MODEL_CODE]?.trim() ?? "";
     const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
@@ -922,6 +923,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       expirationDate,
       uniqueId,
       additionalRegistrantNames,
+      additionalRegistrantNamesRaw,
     });
     // Preserve every current/pending individual aircraft as an unvalued FAA
     // registry observation. Asset-signal strength is metadata, not an import gate.
