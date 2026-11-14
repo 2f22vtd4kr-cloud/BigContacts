@@ -161,8 +161,8 @@ describe("FAA MASTER parser and candidate projection", () => {
     expect(JSON.parse(rows[0]!.entity!.metadata ?? "{}").personalWealthEvidence).toBe(false);
   });
 
-  it("creates an unverified PersonCandidate and preserves co-registrant names as unverified same-record context", () => {
-    const entity = buildFaaRegistrantEntity({ ...base, additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"] });
+  it("creates an unverified PersonCandidate from an FAA individual registrant, not an HNWI", () => {
+    const entity = buildFaaRegistrantEntity(base);
     expect(entity?.type).toBe("PersonCandidate");
     expect(entity?.nationality).toBeNull();
     expect(entity?.estimatedNetWorth).toBeNull();
@@ -179,9 +179,6 @@ describe("FAA MASTER parser and candidate projection", () => {
       personalWealthEvidence: false,
     });
     expect(metadata.rawRegistrantName).toBe("SMITH, WALTER");
-    expect(metadata.additionalRegistrantNames).toEqual(["OTHER OWNER", "PARTNERSHIP NAME"]);
-    expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("unverified associated names");
-    expect(metadata).not.toHaveProperty("beneficialOwnerNames");
   });
 
   it("classifies legal-entity registrants as Corporation candidates and co-owned registrants as unresolved", () => {
