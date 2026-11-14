@@ -53,6 +53,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     // Provider-boundary tests validate request routing/retry semantics, not the
     // production TPM ceiling. Dedicated provider-gate tests cover that budget.
     process.env.APEX_GROQ_TPM_BUDGET = "1000000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "50";
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
     mocks.safeOutboundFetch.mockReset();
