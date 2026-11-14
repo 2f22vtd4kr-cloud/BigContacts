@@ -362,13 +362,18 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
   } catch {}
   const hasFaaSource = metadata.source === "faa-aircraft-registry"
     || registry.some((source) => /FAA Releasable Aircraft Database/i.test(source));
-  const sourceDisclaimsPersonalWealth = metadata.personalWealthEvidence === false
-    || metadata.wealthStatus === "not_assessed"
-    || hasFaaSource && metadata.personalWealthEvidence !== true;
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  const sourceDisclaimsPersonalWealth = explicitlyNotWealthEvidence
+    || hasFaaSource && !explicitlyQualified;
 
   if (/faa/i.test(reg) || (!reg && hasFaaSource)) {
     const n = entity.assetCount ?? 0;
-    return `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is an asset-linked review lead, not proof of personal wealth or HNWI status.`;
+    return explicitlyQualified && !explicitlyNotWealthEvidence
+      ? `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is a separate asset lead and does not establish the independently assessed wealth qualification.`
+      : `${name} has ${n} linked FAA aircraft registration record(s). The FAA identifies the registration applicant, not necessarily the beneficial owner; this is an asset-linked review lead, not proof of personal wealth or HNWI status.`;
   }
   if (/edgar|sec/i.test(reg)) {
     if (company) {
