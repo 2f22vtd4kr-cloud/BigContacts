@@ -20,7 +20,7 @@ describe("model-attributed generic inbox handling", () => {
       personName: "Jane Example",
       contactAttribution: "person_specific",
       exactQuote: quote,
-    }, "info@example.org")).toBe(false);
+    })).toBe(false);
   });
 
   it("keeps explicitly shared inboxes organization-only even when a person is named nearby", () => {
@@ -29,16 +29,16 @@ describe("model-attributed generic inbox handling", () => {
       personName: "Jane Example",
       contactAttribution: "shared_inbox",
       exactQuote: "Jane Example — shared team inbox: info@example.org",
-    }, "info@example.org")).toBe(true);
+    })).toBe(true);
   });
 
-  it("does not let an un-attributed generic inbox become a personal route", () => {
+  it("does not infer organization or person attribution from a generic-looking address", () => {
     expect(isOrganizationContactRoute({
       scope: "candidate",
       personName: "Jane Example",
       contactAttribution: "unknown",
       exactQuote: "Jane Example — info@example.org",
-    }, "info@example.org")).toBe(true);
+    })).toBe(false);
   });
 });
 
