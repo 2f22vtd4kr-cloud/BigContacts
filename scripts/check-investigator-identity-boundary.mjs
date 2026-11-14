@@ -41,8 +41,10 @@ assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observ
 // corroboration, ownership/control, materiality and contactability remain separate later judgments.
 const doneRegion = parseStart >= 0 ? source.slice(parseStart, source.indexOf("async function callGroqJson(", parseStart)) : "";
 assert(/action === ["']done["']/.test(doneRegion), "action parser has no explicit done boundary for model-authored findings.");
-assert(/personName:\s*typeof f\.personName/.test(doneRegion), "explicit done parser no longer preserves model-authored person identity.");
-assert(/scope:\s*f\.scope === ["']candidate["']/.test(doneRegion), "explicit done parser no longer preserves model-authored candidate scope.");
+assert(/personName:\s*scope === ["']candidate["'] && typeof f\.personName/.test(doneRegion), "explicit done parser no longer preserves model-authored person identity after shared-inbox normalization.");
+assert(/const scope = sharedRoute \? ["']organization["'] : f\.scope === ["']candidate["']/.test(doneRegion), "explicit done parser no longer preserves model-authored candidate scope or organization-normalizes shared routes.");
+assert(/contactAttribution/.test(doneRegion) && /exactQuote/.test(doneRegion), "explicit done parser drops the model's contact attribution or exact source quote.");
+assert(/contactAttribution === ["']person_specific["'] && exactQuote/.test(doneRegion), "candidate promotion is not gated on explicit person-specific attribution and exact quote.");
 assert(/modelFindings:\s*AgenticFinding\[\]/.test(source), "modelFindings persistence boundary is missing from the canonical result type.");
 const partialStart = source.indexOf("function parsePartialFindings(");
 const partialEnd = partialStart >= 0 ? source.indexOf("function parseAction(", partialStart) : -1;
