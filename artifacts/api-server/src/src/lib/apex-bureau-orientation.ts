@@ -96,7 +96,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: JSON only. Six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty; only done may null them. Findings include vectorType, value, personName, role, scope, sourceUrls, note and promotion decision/reason; personal routes also include contactAttribution and exactQuote.",
     "TOOLS: AVAILABLE ACTIONS and runtime registry IDs are authoritative; use callable adapters only. Parallel web/registry batches contain 1–4 valid actions with required nullable fields. visit extracts supported text PDFs; browser_fetch is HTML-only. Extraction failures are unknown, not negative evidence.",
     "RESEARCH TERMINAL GATE: done only after a defensible answer or justified blocker. Unresolved leads, empty searches, failed fetches and untested hypotheses are not completion."
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
