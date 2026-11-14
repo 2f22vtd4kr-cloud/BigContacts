@@ -4639,6 +4639,9 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
 /**
  * Semantic scope diagnostics are advisory only. They inform the next model
  * decision and preserve an audit trail; they never suppress a selected action.
+ * The runtime safety ceiling is technical (provider availability, outbound
+ * safety, schema/syntax and provenance), not semantic relevance or scope.
+ * Preserve useful review-only findings for Boss; do not silently discard them.
  */
 export function buildDiscoveryScopeAdvisory(
   objective: string,
