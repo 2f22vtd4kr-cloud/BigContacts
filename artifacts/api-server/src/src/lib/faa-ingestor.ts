@@ -223,6 +223,27 @@ export function normalizeFaaAdditionalRegistrantNames(values: readonly string[])
     .filter(Boolean);
 }
 
+/** Only an unambiguous FAA-only source record can justify clearing a legacy registrant FK. */
+export function isFaaOnlyRegistrantSource(sourceRegistries: string | null | undefined): boolean {
+  if (!sourceRegistries) return false;
+  try {
+    const parsed: unknown = JSON.parse(sourceRegistries);
+    return Array.isArray(parsed)
+      && parsed.length === 1
+      && parsed[0] === "FAA Releasable Aircraft Database";
+  } catch {
+    return false;
+  }
+}
+
+export function selectFaaOnlyLegacyOwnerLinks<T extends {
+  id: number;
+  ownerEntityId: number | null;
+  ownerSourceRegistries: string | null;
+}>(rows: readonly T[]): T[] {
+  return rows.filter((row) => row.ownerEntityId != null && isFaaOnlyRegistrantSource(row.ownerSourceRegistries));
+}
+
 export function shouldReclassifyLegacyFaaRegistrantLink(input: {
   sourceEntityId: number;
   ownerEntityId: number | null;
@@ -624,7 +645,11 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
             identifier: assetsTable.identifier,
             ownerEntityId: assetsTable.ownerEntityId,
             metadata: assetsTable.metadata,
-          }).from(assetsTable).where(and(
+            ownerSourceRegistries: entitiesTable.sourceRegistries,
+          }).from(assetsTable).leftJoin(
+            entitiesTable,
+            eq(assetsTable.ownerEntityId, entitiesTable.id),
+          ).where(and(
             eq(assetsTable.category, "Aviation"),
             eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
             inArray(assetsTable.identifier, identifiers),
@@ -653,7 +678,10 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
         : [];
       for (const row of insertedAssets) assetIdByIdentifier.set(row.identifier, row.id);
 
-      const legacyOwnerLinks = existingAssets.filter((row) => row.ownerEntityId != null);
+      // The preflight migration already clears unambiguous FAA-only registrant FKs.
+      // Preserve any remaining mixed-source or unknown-provenance owner association:
+      // it may be independently evidenced beneficial ownership, not an FAA registrant link.
+      const legacyOwnerLinks = selectFaaOnlyLegacyOwnerLinks(existingAssets);
       if (legacyOwnerLinks.length > 0) {
         await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, legacyOwnerLinks.map((row) => row.id)));
       }
