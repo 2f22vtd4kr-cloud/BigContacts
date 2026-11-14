@@ -2990,7 +2990,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           promotionDecision: { type: ["string","null"] },
           promotionReason: { type: ["string","null"] }
         },
-        required: ["vectorType","value","personName","role","scope","sourceUrls","note","promotionDecision","promotionReason"],
+        required: ["vectorType","value","personName","role","scope","sourceUrls","note","contactAttribution","exactQuote","promotionDecision","promotionReason"],
         additionalProperties: false
       }
     }
