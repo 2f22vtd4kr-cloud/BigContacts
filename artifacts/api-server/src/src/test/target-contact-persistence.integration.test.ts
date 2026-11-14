@@ -280,7 +280,7 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
     expect(response.status).toBe(200);
     const cards = await response.json() as Array<Record<string, any>>;
     const personalCard = cards.find((card) => card.id === person.id);
-    expect(personalCard).toBeTruthy();
+    if (!personalCard) throw new Error("PersonCandidate card missing from GET /entities readback");
     expect(personalCard.email).toBe(personalEmail);
     expect(personalCard.contacts).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -296,7 +296,7 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
     expect(sharedResponse.status).toBe(200);
     const sharedCards = await sharedResponse.json() as Array<Record<string, any>>;
     const sharedCard = sharedCards.find((card) => card.id === sharedPerson.id);
-    expect(sharedCard).toBeTruthy();
+    if (!sharedCard) throw new Error("Shared-inbox PersonCandidate card missing from GET /entities readback");
     expect(sharedCard.email).toBeNull();
     expect(sharedCard.contacts).toEqual(expect.arrayContaining([
       expect.objectContaining({
