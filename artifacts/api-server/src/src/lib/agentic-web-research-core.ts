@@ -4569,17 +4569,8 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
-    : "ASSIGNMENT TARGET: " + input.targetName;
+    : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
-  const emergencySelectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
-  const emergencyAvailableActions = input.actionAllowlist ? [...input.actionAllowlist] : emergencyAvailableBrowserProviders.length
-    ? emergencySelectableActions
-    : emergencySelectableActions.filter((action) => action !== "browser_fetch");
-  const emergencyAvailableActionsGuidance = "AVAILABLE ACTIONS: " + emergencyAvailableActions.join(" | ") + ".";
-  const emergencyHasSpecialistAction = emergencyAvailableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const emergencyWorkerCapabilityGuidance = emergencyHasSpecialistAction
-    ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; match an attested capability to a grounded public identifier; never invent identifiers; worker outputs are leads, not proof."
-    : "Conditional specialist OSINT actions: only if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.";
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
@@ -4591,9 +4582,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "MISSION PRIORITY: human objective and Boss scope govern. TARGET NAMES: exact names only from the human brief or same-case observations. Apply objective criteria only as required. WEALTH/INVESTOR: when requested, require sourced ownership/control/equity/investment and credible wealth/capital evidence; never infer wealth from seniority. VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; domain_lookup=rdap|whoisjson. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures; failed extraction is unobserved; do not retry the same binary URL through the other fetch action; snippets remain leads, not evidence.",
     "DISCOVERY LEAD HANDOFF CONTRACT: Investigator selects objective-fit people/organizations for provisional review, not every result. Preserve only selected review-only findings. LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD: exact observed name, stated role or null, associated public HTTPS URL; no ownership/wealth/relationship/HNWI/contact claim. VALID COMPANY REVIEW-LEAD SHAPE: scope=organization; personName=null; role=null. COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation, preserve its exact observed name and associated public HTTPS URL as a review-only organization lead. Do not wait for a fetch, ownership clue, wealth proof or HNWI qualification to preserve a relevant company lead. After fetch, sourceUrls=[that fetched URL only]. Target research verifies role/relationship/materiality, counter-evidence and route before promotion. OUTPUT: required fields remain present; url may be null when unused."
   ] : [];
-  const emergencyAssignment = input.mode === "discovery"
-    ? assignment + " MODEL-OWNED RELEVANCE SELF-CHECK: objective/scope govern; tie query/source to the required entity, role, relationship or materiality. No fixed action sequence. " + emergencyAvailableActionsGuidance + " " + emergencyWorkerCapabilityGuidance
-    : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
