@@ -1194,7 +1194,7 @@ export default function ApexProfile() {
                       {asset.identifier ? `Aircraft ${asset.identifier}` : "FAA aircraft record"} · additional names on this registration · unverified
                     </div>
                     <p className="text-[10px] leading-relaxed text-muted-foreground mb-2">
-                      FAA Other Name 1–5 fields are published co-owner or partnership name fields. They are associated record names, not independently verified people or beneficial owners.
+                      FAA Other Name 1–5 fields are additional names published on the same registration record. They may identify co-registrants or partnership names, but are not independently verified people or proof of beneficial ownership.
                     </p>
                     {names.length > 0 ? (
                       <ul className="space-y-1">
