@@ -111,6 +111,29 @@ export function parsePpdCsvRecord(line: string): string[] {
   return fields;
 }
 
+/** Return only asset links to unmistakable legacy PPD address-placeholder entities. */
+export function selectLegacyHmlrPlaceholderOwnerAssetIds(rows: readonly {
+  assetId: number;
+  ownerEntityId: number | null;
+  ownerSourceRegistries: string | null;
+  ownerName: string | null;
+}[]): number[] {
+  const placeholderIds = new Set<number>();
+  for (const row of rows) {
+    if (row.ownerEntityId == null || !row.ownerName?.startsWith("UK Property — ")) continue;
+    if (!row.ownerSourceRegistries) continue;
+    try {
+      const sources: unknown = JSON.parse(row.ownerSourceRegistries);
+      if (Array.isArray(sources) && sources.length === 1 && sources[0] === "UK HM Land Registry (PPD)") {
+        placeholderIds.add(row.assetId);
+      }
+    } catch {
+      // Unknown provenance is not sufficient authority to delete an owner association.
+    }
+  }
+  return [...placeholderIds];
+}
+
 export function buildLandRegistryTransactionAsset(input: {
   transactionId: string;
   priceGbp: number;
@@ -207,24 +230,37 @@ async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; sk
 
 async function repairLegacyHmlrSyntheticEntities(): Promise<void> {
   await db.transaction(async (tx) => {
-    // Old PPD ingestion linked address-generated placeholder entities to assets.
-    // The source does not disclose the purchaser, so clear that unsupported FK.
-    await tx.update(assetsTable).set({
-      ownerEntityId: null,
-      metadata: sql`COALESCE(${assetsTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
-        'ownerIdentityStatus', 'not_disclosed_by_ppd',
-        'beneficialOwnershipStatus', 'unresolved',
-        'wealthStatus', 'not_assessed',
-        'legacyOwnerLinkCorrected', true
-      )`,
-    }).where(and(
+    // PPD does not disclose a purchaser, but an asset may later gain an
+    // independently sourced owner. Clear only the exact legacy address-placeholder
+    // association; mixed-source, missing and malformed provenance fail closed.
+    const linkedOwners = await tx.select({
+      assetId: assetsTable.id,
+      ownerEntityId: assetsTable.ownerEntityId,
+      ownerSourceRegistries: entitiesTable.sourceRegistries,
+      ownerName: entitiesTable.name,
+    }).from(assetsTable).innerJoin(
+      entitiesTable,
+      eq(assetsTable.ownerEntityId, entitiesTable.id),
+    ).where(and(
       eq(assetsTable.category, "RealEstate"),
       eq(assetsTable.sourceRegistry, "UK HM Land Registry (PPD)"),
       isNotNull(assetsTable.ownerEntityId),
     ));
+    const placeholderAssetIds = selectLegacyHmlrPlaceholderOwnerAssetIds(linkedOwners);
+    if (placeholderAssetIds.length > 0) {
+      await tx.update(assetsTable).set({
+        ownerEntityId: null,
+        metadata: sql`COALESCE(${assetsTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+          'ownerIdentityStatus', 'not_disclosed_by_ppd',
+          'beneficialOwnershipStatus', 'unresolved',
+          'wealthStatus', 'not_assessed',
+          'legacyOwnerLinkCorrected', true
+        )`,
+      }).where(inArray(assetsTable.id, placeholderAssetIds));
+    }
 
-    // Preserve historical rows for audit, but hide them from target/company views
-    // and explicitly mark them as synthetic address-only placeholders.
+    // Preserve historical rows for audit, but hide only the source-only synthetic
+    // address placeholders from target/company views.
     await tx.update(entitiesTable).set({
       isHidden: true,
       isHot: false,
