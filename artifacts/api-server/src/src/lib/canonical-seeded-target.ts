@@ -79,6 +79,23 @@ const SOURCE_FIELDS = [
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
 ] as const;
 
+export type CanonicalSeededTargetBinding = Record<string, unknown> & {
+  entityId: number;
+  entityName: string;
+  entityType: string;
+  targetKind: string;
+  sourceMetadata: Record<string, unknown>;
+  linkedAssets: Array<{
+    assetId: number;
+    category: string | null;
+    identifier: string | null;
+    sourceRegistry: string | null;
+    associationType: "REGISTERED_TO";
+    associationSemantics: string;
+    sourceMetadata: Record<string, unknown>;
+  }>;
+};
+
 /** Keep the source binding and exact evidence references; do not copy unrelated personal metadata. */
 export function buildCanonicalSeededTargetBinding(input: {
   entityId: number;
@@ -109,7 +126,7 @@ export function buildCanonicalSeededTargetBinding(input: {
     sourceRegistry: string | null;
     metadata: string | null;
   }>;
-}): Record<string, unknown> {
+}): CanonicalSeededTargetBinding {
   const metadata = parseObject(input.metadata);
   const sourceMetadata: Record<string, unknown> = {};
   for (const field of SOURCE_FIELDS) {
