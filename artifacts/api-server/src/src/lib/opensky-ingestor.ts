@@ -7,8 +7,8 @@
  * lastActivityDate and enriches its metadata with the latest flight position,
  * altitude, and speed.
  *
- * This is a *live enrichment* pass, not a bulk ingest. Run it periodically
- * to keep the "last seen flying" intelligence current.
+ * This is a *latest-status enrichment* pass, not a bulk ingest or tracking history.
+ * Run manually when needed; previous positions and routes are never retained.
  *
  * Primary API: https://api.adsb.lol/v2/point/0/0/25000
  *      Free, public global ADS-B feed; no application key required.
@@ -152,7 +152,7 @@ export async function runOpenSkyEnrichment(
 
   await updateJob(jobId, {
     total: assets.length,
-    message: `Cross-referencing ${assets.length} aviation assets against ${callsignMap.size} live registrations…`,
+    message: `Matching ${assets.length} aviation assets against ${callsignMap.size} current public registrations…`,
     progress: 25,
   });
   await appendJobLog(jobId, `🗂  ${assets.length} aviation assets loaded. Matching against live traffic…`);
@@ -209,14 +209,14 @@ export async function runOpenSkyEnrichment(
         inserted: updated,
         skipped,
         errors,
-        message: `Checked ${i + 1}/${assets.length} assets — ${updated} aircraft live right now…`,
+        message: `Checked ${i + 1}/${assets.length} assets — ${updated} latest-status observations recorded…`,
       });
     }
   }
 
   await appendJobLog(
     jobId,
-    `🏁 Live ADS-B enrichment complete: ${updated} jets actively tracked, ${skipped} on ground or not flying, ${errors} errors.`,
+    `🏁 Latest ADS-B status refresh complete: ${updated} matched aircraft statuses recorded, ${skipped} no current match, ${errors} errors. No positions or routes retained.`,
   );
 
   return {
