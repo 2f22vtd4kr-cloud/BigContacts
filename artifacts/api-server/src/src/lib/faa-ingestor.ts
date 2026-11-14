@@ -218,9 +218,9 @@ export function createFaaRegistrantEntityKey(name: string, state: string, countr
 
 export function normalizeFaaAdditionalRegistrantNames(values: readonly string[]): string[] {
   return values
+    .slice(0, 5)
     .map((value) => value.trim().replace(/\s+/gu, " "))
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
 }
 
 /** Merge current FAA-owned fields without discarding enrichment from other sources. */
