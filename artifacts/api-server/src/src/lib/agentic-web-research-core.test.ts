@@ -2849,12 +2849,12 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryActionAllowlist("target", actions)).toEqual(actions);
   });
 
-  it("lets the global-fetch gate own Groq TPM reservations for nested safe fetches", () => {
-    // safeOutboundFetch ultimately reaches the globally guarded fetch. Passing
-    // groqRequest to runProviderCall as well would reserve the same request twice.
-    expect(agenticCoreSource).not.toContain("groqRequest: getGroqTokenRequest(input, init)");
-    expect(agenticCoreSource).not.toContain("groqRequest }, () =>");
-    expect(agenticCoreSource).toContain("TPM reservation is owned by the installed global-fetch provider gate");
+  it("reserves Groq TPM at the explicit provider-call boundary around the SSRF-safe Node transport", () => {
+    // safeOutboundFetch uses the pinned Node HTTP(S) transport, not global fetch.
+    // The outer provider call is therefore the only place to reserve model TPM.
+    expect(agenticCoreSource).toContain("groqRequest: getGroqTokenRequest(input, init)");
+    expect(agenticCoreSource).toContain("runProviderCall({ provider: \"groq\", account: quotaAccount, signal, groqRequest }");
+    expect(agenticCoreSource).toContain("reconcileGroqTokenResponse(response, body)");
   });
 
   it("keeps discovery search bounded while allowing mixed-source batches", () => {
