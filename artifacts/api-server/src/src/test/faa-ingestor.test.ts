@@ -346,6 +346,7 @@ describe("legacy FAA registrant repair", () => {
     const legacyAssetQuery = repair.slice(0, repair.indexOf("// Historical FAA imports"));
     expect(legacyAssetQuery).not.toContain("entitiesTable.sourceRegistries");
     expect(repair).toContain("= '1' THEN 'PersonCandidate'");
+    expect(repair).toContain("registrantTypeCode");
     expect(repair).toContain("IN ('2','3','7','8') THEN 'Corporation'");
     expect(repair).toContain("ELSE 'Other' END");
     expect(repair).toContain('eq(entitiesTable.type, "HNWI")');
