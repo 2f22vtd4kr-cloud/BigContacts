@@ -312,7 +312,10 @@ export class ResearchIntelligenceEngine {
       findings.push(finding);
       for (const source of supportedSources) {
         // Separate identity and value mentions are review evidence, not a supported composed claim.
-        const wholeClaimSupported = !finding.personName || source.binding === "identity_and_value";
+        const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
+        const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
+        const wholeClaimSupported = !finding.personName
+          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || finding.contactAttribution === "person_specific"));
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
@@ -334,7 +337,8 @@ export class ResearchIntelligenceEngine {
         .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
-        const locallyBound = supportedSources.some((source) => source.binding === "identity_and_value");
+        const locallyBound = finding.contactAttribution === "person_specific"
+          && supportedSources.some((source) => source.binding === "identity_and_value");
         const attributionUrls = supportedSources.filter((source) => source.binding === "identity_and_value").map((source) => source.url);
         this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
