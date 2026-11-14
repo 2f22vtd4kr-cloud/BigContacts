@@ -6,7 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate";
+export type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate" | "Other";
 
 type EntityLike = {
   type?: string | null;
@@ -78,10 +78,23 @@ const META: Record<EntityType, EntityMeta> = {
     evidenceLabel: "role, contact, and relationship evidence",
     actionLabel: "Trace route",
   },
+  Other: {
+    label: "Unclassified record",
+    shortLabel: "Other",
+    descriptor: "source record with unresolved identity or entity type; not a verified person or organization",
+    color: "#94a3b8",
+    Icon: Shield,
+    metricLabel: "Source record",
+    evidenceLabel: "source record; identity, ownership, and wealth remain unverified",
+    actionLabel: "Review record",
+  },
 };
 
 export function normalizeEntityType(type?: string | null): EntityType {
-  return type === "Corporation" || type === "Trust" || type === "Gatekeeper" || type === "PersonCandidate" ? type : "HNWI";
+  if (type === "Corporation" || type === "Corp") return "Corporation";
+  if (type === "Trust" || type === "Gatekeeper" || type === "HNWI" || type === "Other") return type;
+  if (type === "PersonCandidate" || type === "Person" || type === "Individual") return "PersonCandidate";
+  return "Other";
 }
 
 export function entityMeta(type?: string | null): EntityMeta {
@@ -124,4 +137,4 @@ export function EntityTypeMark({
   );
 }
 
-export const ENTITY_TYPES: EntityType[] = ["HNWI", "Corporation", "Trust", "Gatekeeper", "PersonCandidate"];
+export const ENTITY_TYPES: EntityType[] = ["HNWI", "Corporation", "Trust", "Gatekeeper", "PersonCandidate", "Other"];
