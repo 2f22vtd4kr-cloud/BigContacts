@@ -1,31 +1,122 @@
 /**
- * Shared name/host collision heuristics for card promote and graph bind.
- * Pure functions — safe for unit tests without DB.
+ * Identity adjudication contract for model-led research.
+ *
+ * Semantic identity is not inferred from employer/domain lists, surnames,
+ * transliteration heuristics or token overlap. The Investigator supplies an
+ * explicit same/different/unresolved assessment; deterministic code verifies
+ * its evidence and provenance before any card mutation.
  */
 const NAME_STOP_WORDS = new Set(["the", "and", "for"]);
 const ORGANIZATION_SUFFIXES = new Set(["inc", "llc", "ltd", "company", "corp", "plc", "co", "sa", "ag", "bv", "nv", "oy", "ab", "kg", "srl", "spa", "pte", "pty", "sas", "sarl", "llp", "lp"]);
-export function identityNameTokens(value: string | null | undefined): string[] { return String(value ?? "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).map((t) => t.trim()).filter((t) => Array.from(t).length >= 2 && !NAME_STOP_WORDS.has(t)); }
-export function organizationNameTokens(value: string | null | undefined): string[] { const tokens = identityNameTokens(value); if (tokens.length && ORGANIZATION_SUFFIXES.has(tokens[tokens.length - 1]!)) tokens.pop(); return tokens; }
-const COLLISION_HOSTS = ["edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal", "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs", "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup", "raymondjames", "ameriprise", "northwesternmutual", "prudential", "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor", "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io", "majesco", "bbgigroup", "bbgi.com", "spokeo", "whitepages", "beenverified", "intelius", "truepeoplesearch", "fastpeoplesearch", "thatsthem", "radaris", "peoplefinder", "hunter.io", "clearbit", "lusha", "crunchbase", "pitchbook", "bloomberg.com/profile", "dnb.com", "opencorporates", "bbb.org", "yelp.com", "yellowpages", "superpages", "manta.com", "bizapedia", "prospeo", "adapt.io", "growjo", "theorg.com", "equilar"];
-const AGGREGATOR_HOSTS = ["rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io", "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com", "truepeoplesearch.com", "fastpeoplesearch.com", "thatsthem.com", "radaris.com", "peoplefinder.com", "peoplefinders.com", "hunter.io", "clearbit.com", "lusha.com", "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com", "veripages.com", "idcrawl.com", "theorg.com","jina.ai"];
-function isAggregatorSourceUrl(url: string): boolean { try { const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`)); } catch { return false; } }
-const INSTITUTIONAL_EDUCATION_HOSTS = ["kyschools", "schools", "school", "k12", "district", "isd.", "usd.", "edu."];
-export type IdentityCollisionResult = { risk:boolean; identityMatch:number; reason:string|null };
-export function assessIdentityCollision(input:{targetName:string;companyName?:string|null;personName?:string|null;value:string;sourceUrls:string[];note?:string|null}):IdentityCollisionResult{
-  const targetToks=identityNameTokens(input.targetName),companyToks=organizationNameTokens(input.companyName),identityBlob=[input.personName??"",input.value,input.note??""].join(" ").toLowerCase(),sourceBlob=input.sourceUrls.join(" ").toLowerCase(),overlap=targetToks.filter((t)=>identityBlob.includes(t)),personToks=identityNameTokens(input.personName),personOverlap=targetToks.filter((t)=>personToks.includes(t)),hostBlob=`${identityBlob} ${sourceBlob}`,value=String(input.value??"").trim(),contactLike=/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)||/^(?:\+?\d[\d\s().-]{6,})$/.test(value);
-  if(contactLike&&!input.personName?.trim())return{risk:true,identityMatch:.3,reason:"contact has no explicit person attribution; keep as organization/unknown route"};
-  if(input.sourceUrls.length>0&&input.sourceUrls.every(isAggregatorSourceUrl))return{risk:true,identityMatch:.3,reason:"aggregator-only source; personal contact promotion requires a non-aggregator public source"};
-  if(targetToks.length>=2&&input.personName?.trim()&&(personToks.length<2||personOverlap.length<2))return{risk:true,identityMatch:.18,reason:"explicit personName does not sufficiently align with target identity"};
-  const hostHit=COLLISION_HOSTS.some((h)=>hostBlob.includes(h));
-  const educationHostHit=/^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)?INSTITUTIONAL_EDUCATION_HOSTS.some((marker)=>hostBlob.includes(marker)):false;
-  if(targetToks.length>=2&&personToks.length>=2){const targetSurname=targetToks[targetToks.length-1]!,personSurname=personToks[personToks.length-1]!;if(targetSurname.length>=3&&personSurname.length>=3&&targetSurname!==personSurname)return{risk:true,identityMatch:.18,reason:`personName surname "${personSurname}" ≠ target surname "${targetSurname}"`};}
-  if(contactLike&&educationHostHit)return{risk:true,identityMatch:.2,reason:"institutional school/district contact surface; personal attribution requires stronger evidence"};
-  if(targetToks.length>=2&&personToks.length>=2&&personToks.length===targetToks.length&&personOverlap.length===targetToks.length)return{risk:false,identityMatch:.85,reason:null};
-  if(targetToks.length>=2){const surname=targetToks[targetToks.length-1]!;if(surname.length>=3&&!identityBlob.includes(surname)&&overlap.length<2)return{risk:true,identityMatch:.22,reason:"surname token missing from explicit evidence text; likely name collision"};}
-  if(companyToks.length&&companyToks.some((t)=>identityBlob.includes(t)))return{risk:false,identityMatch:.55,reason:null};
-  if(hostHit&&companyToks.length&&!companyToks.some((t)=>hostBlob.includes(t)))return{risk:true,identityMatch:.15,reason:"source host/org does not match target issuer; likely name collision"};
-  if(targetToks.length>=2&&overlap.length===0)return{risk:true,identityMatch:.2,reason:"no name-token overlap between target and explicit evidence text"};
-  if(targetToks.length>=2&&overlap.length===1&&hostHit)return{risk:true,identityMatch:.25,reason:"weak name overlap with collision-prone host"};
-  return{risk:false,identityMatch:overlap.length>=2?.65:.45,reason:null};
+
+export type IdentitySemanticAssessment = "same_person" | "different_people" | "unresolved";
+export type IdentityCollisionResult = {
+  risk: boolean;
+  identityMatch: number;
+  assessment: IdentitySemanticAssessment;
+  reason: string | null;
+};
+
+export function identityNameTokens(value: string | null | undefined): string[] {
+  return String(value ?? "").normalize("NFKD").toLowerCase().replace(/\\p{M}/gu, "")
+    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ").split(/\\s+/)
+    .map((token) => token.trim())
+    .filter((token) => Array.from(token).length >= 2 && !NAME_STOP_WORDS.has(token));
 }
-export function assessGraphNamePairRisk(leftName:string,rightName:string):IdentityCollisionResult{const left=identityNameTokens(leftName),right=identityNameTokens(rightName);if(left.length<2||right.length<2)return{risk:false,identityMatch:.4,reason:null};const leftSur=left[left.length-1]!,rightSur=right[right.length-1]!;if(leftSur!==rightSur&&left[0]===right[0])return{risk:true,identityMatch:.2,reason:`same given name, different surname (${leftSur} vs ${rightSur})`};if(leftSur!==rightSur&&!left.some((t)=>right.includes(t)))return{risk:true,identityMatch:.15,reason:"no shared name tokens between graph endpoints"};return{risk:false,identityMatch:leftSur===rightSur?.7:.5,reason:null};}
+export function organizationNameTokens(value: string | null | undefined): string[] {
+  const tokens = identityNameTokens(value);
+  if (tokens.length && ORGANIZATION_SUFFIXES.has(tokens[tokens.length - 1]!)) tokens.pop();
+  return tokens;
+}
+
+// These hosts identify source quality, not person identity. Aggregator-only
+// evidence remains insufficient for trusted promotion even when the model says
+// two names refer to the same person.
+const AGGREGATOR_HOSTS = [
+  "rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io",
+  "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com",
+  "truepeoplesearch.com", "fastpeoplesearch.com", "thatsthem.com", "radaris.com",
+  "peoplefinder.com", "peoplefinders.com", "hunter.io", "clearbit.com", "lusha.com",
+  "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com",
+  "veripages.com", "idcrawl.com", "theorg.com", "jina.ai",
+];
+function isAggregatorSourceUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\\./, "");
+    return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+}
+
+export function assessIdentityCollision(input: {
+  targetName: string;
+  companyName?: string | null;
+  personName?: string | null;
+  value: string;
+  sourceUrls: string[];
+  note?: string | null;
+  identityAssessment?: IdentitySemanticAssessment | null;
+  identityRationale?: string | null;
+}): IdentityCollisionResult {
+  const unresolved: IdentityCollisionResult = {
+    risk: true,
+    identityMatch: 0.5,
+    assessment: input.identityAssessment ?? "unresolved",
+    reason: "identity assessment is unresolved; preserve as review evidence and do not merge or promote",
+  };
+  const personName = input.personName?.trim() ?? "";
+  const value = String(input.value ?? "").trim();
+  const contactLike = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
+    || /^(?:\\+?\\d[\\d\\s().-]{6,})$/.test(value);
+
+  if (!personName) {
+    return {
+      risk: true,
+      identityMatch: 0.3,
+      assessment: "unresolved",
+      reason: contactLike
+        ? "contact has no model-attributed person identity; retain as organization/unknown route"
+        : "finding has no model-attributed person identity",
+    };
+  }
+  if (!Array.isArray(input.sourceUrls) || input.sourceUrls.length === 0) {
+    return { risk: true, identityMatch: 0.3, assessment: "unresolved", reason: "identity has no cited source" };
+  }
+  if (input.sourceUrls.every(isAggregatorSourceUrl)) {
+    return { risk: true, identityMatch: 0.3, assessment: "unresolved", reason: "aggregator-only source; require an attributable non-aggregator source" };
+  }
+
+  // Identity interpretation belongs to the model. Missing or uncertain
+  // verdicts do not become a semantic rejection; they remain unresolved and
+  // are simply ineligible for irreversible card promotion.
+  if (input.identityAssessment === "same_person") {
+    if (!input.identityRationale?.trim()) {
+      return { risk: true, identityMatch: 0.5, assessment: "unresolved", reason: "same-person assessment lacks a model-authored rationale" };
+    }
+    return { risk: false, identityMatch: 1, assessment: "same_person", reason: null };
+  }
+  if (input.identityAssessment === "different_people") {
+    return { risk: true, identityMatch: 0, assessment: "different_people", reason: input.identityRationale?.trim() || "Investigator assessed these as different people" };
+  }
+  return unresolved;
+}
+
+/**
+ * Name-pair similarity alone can never authorize a graph merge. Exact
+ * duplicates are handled by deterministic ID/deduplication keys; every other
+ * pair remains unresolved until an Investigator-authored assessment exists.
+ */
+export function assessGraphNamePairRisk(leftName: string, rightName: string): IdentityCollisionResult {
+  const left = leftName.trim().normalize("NFKC").toLocaleLowerCase();
+  const right = rightName.trim().normalize("NFKC").toLocaleLowerCase();
+  if (left && right && left === right) {
+    return { risk: false, identityMatch: 1, assessment: "same_person", reason: null };
+  }
+  return {
+    risk: true,
+    identityMatch: 0.5,
+    assessment: "unresolved",
+    reason: "name similarity alone cannot establish identity; require an Investigator same-person assessment",
+  };
+}
