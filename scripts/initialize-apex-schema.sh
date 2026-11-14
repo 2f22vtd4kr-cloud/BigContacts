@@ -33,6 +33,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/003-atlas-review-ca
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/004-registry-candidate-truth.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/005-agentic-llm-daily-usage.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/006-agentic-llm-rate-limit-headers.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/007-agentic-llm-attempt-context.sql
 
 echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'
@@ -63,6 +64,15 @@ try {
     "last_rate_limit_reset_tokens_ms",
     "last_rate_limit_remaining_requests",
     "last_rate_limit_reset_requests_ms",
+    "reasoning_tokens",
+    "last_job_id",
+    "last_case_id",
+    "last_role",
+    "last_decision_id",
+    "last_cognitive_task",
+    "last_iteration",
+    "last_request_success",
+    "last_request_at",
   ];
   const columnResult = await pool.query(
     "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='agentic_llm_daily_usage' AND column_name = ANY($1::text[])",
