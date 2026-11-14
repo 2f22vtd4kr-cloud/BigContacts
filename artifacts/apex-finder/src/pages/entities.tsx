@@ -292,7 +292,9 @@ function MobileEntityCard({
   const organizationLike = displayType === "Corporation" || displayType === "Corp" || displayType === "Trust";
   const unclassified = displayType === "Other";
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle || (Array.isArray(entity.contacts) && entity.contacts.length > 0));
-  const contactState = organizationLike
+  const contactState = unclassified
+    ? "Review only"
+    : organizationLike
     ? entity.contactOutcome === "organization_contact"
       ? "Organization route"
       : hasPublicVector
@@ -360,7 +362,11 @@ function MobileEntityCard({
             >
               <EntityTypeMark type={displayType} compact />
             </span>
-            {organizationLike ? (
+            {unclassified ? (
+              <span className="inline-flex items-center rounded-md border border-border px-1.5 py-0.5 text-[11px] font-mono uppercase tracking-wide text-muted-foreground" title="Entity type is unresolved; do not infer personal identity or wealth">
+                Review only
+              </span>
+            ) : organizationLike ? (
               <span
                 className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-wide",
