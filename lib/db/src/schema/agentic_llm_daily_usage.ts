@@ -26,6 +26,8 @@ export const agenticLlmDailyUsageTable = pgTable("agentic_llm_daily_usage", {
   lastProviderErrorCode: text("last_provider_error_code"),
   lastRateLimitRemainingTokens: integer("last_rate_limit_remaining_tokens"),
   lastRateLimitResetTokensMs: integer("last_rate_limit_reset_tokens_ms"),
+  lastRateLimitRemainingRequests: integer("last_rate_limit_remaining_requests"),
+  lastRateLimitResetRequestsMs: integer("last_rate_limit_reset_requests_ms"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
