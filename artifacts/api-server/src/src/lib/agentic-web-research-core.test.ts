@@ -4533,6 +4533,31 @@ describe("restricted community source content boundary", () => {
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
   });
 
+  it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover objective-relevant operating companies.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Find operating companies and registered owners in Ohio.",
+    ].join("\n");
+    const query = ["renewable energy company founder equity stake"];
+    const activePivotScopeKey = discoveryPivotScopeKey(objective)!;
+    const staleFetch: AgenticTrajectoryRecord = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "visit",
+      args: { url: "https://example.test/old-pivot" },
+      pivotScopeKey: "superseded-pivot",
+      execution: "success",
+      observation: "The fetched source describes a renewable energy company.",
+      observedUrls: ["https://example.test/old-pivot"],
+      findings: [],
+      providerFallback: [],
+    };
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, [staleFetch])).toEqual(["renewable energy"]);
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: activePivotScopeKey }])).toEqual([]);
+    expect(findUnsupportedDiscoverySectorTerms(query, objective, [{ ...staleFetch, pivotScopeKey: undefined }])).toEqual(["renewable energy"]);
+  });
+
   it("blocks unsupported sector narrowing but allows sectors named by the objective or established by a fetched same-case source", () => {
     const objective = "Discover lesser-known people with credible wealth potential and public/professional routes. Focus on private and mid-market firms, controlling owners and investors.";
     const query = ["private renewable energy company founder equity stake"];
