@@ -66,10 +66,24 @@ export function normalizeAtlasControlAction(value: unknown): AtlasControlAction 
 
 /** Match a model-selected target by both identity and declared entity kind. */
 /**
- * Right-hand is invoked for consequential reviews, not routine empty retries.
- * The first stop proposal is independently challenged; repeated blocked stops
- * with no new observation do not incur an identical call.
+ * Right-hand is invoked for consequential independent reviews, not routine
+ * Investigator observations. The model's own semantic findings trigger review
+ * when they propose promotion, surface contradiction/ambiguity, or make a
+ * consequential identity decision. Ordinary page facts do not trigger another
+ * model call. The first stop proposal and strategic pivots remain reviewable.
  */
+function isConsequentialInvestigatorFinding(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const finding = value as Record<string, unknown>;
+  const promotion = typeof finding.promotionDecision === "string" ? finding.promotionDecision : "";
+  if (promotion === "promote" || promotion === "reject") return true;
+  const relation = typeof finding.hypothesisRelation === "string" ? finding.hypothesisRelation : "";
+  if (relation === "contradicts" || relation === "ambiguous") return true;
+  const identity = typeof finding.identityAssessment === "string" ? finding.identityAssessment : "";
+  const identityRationale = typeof finding.identityRationale === "string" ? finding.identityRationale.trim() : "";
+  return Boolean(identityRationale && (identity === "different_people" || identity === "unresolved"));
+}
+
 export function shouldInvokeAtlasRightHandReview(input: {
   admittedCandidates: readonly AtlasAdmittedTargetInput[];
   discoveryFindings: readonly unknown[];
@@ -84,14 +98,17 @@ export function shouldInvokeAtlasRightHandReview(input: {
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
   const previousName = input.priorCandidate?.trim().toLocaleLowerCase() ?? null;
-  if (input.admittedCandidates.some((candidate) => candidate.name.trim().toLocaleLowerCase() !== previousName)) return true;
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
-  if (latest?.findings?.length) return true;
-  if (input.discoveryFindings.length && !["research_candidate", "revisit_candidate"].includes(input.priorAction ?? "")) return true;
+  const latestFindings = latest?.findings ?? [];
+  if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
+  if (input.discoveryFindings.some(isConsequentialInvestigatorFinding)
+      && !["research_candidate", "revisit_candidate"].includes(input.priorAction ?? "")
+      && latestFindings.length > 0) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
-  return latest?.action === "done" && stopProposalCount === 1;
+  return latest?.action === "done" && stopProposalCount === 1
+    && (!previousName || input.admittedCandidates.some((candidate) => candidate.name.trim().toLocaleLowerCase() !== previousName));
 }
 
 export function matchAtlasAdmittedTarget(
