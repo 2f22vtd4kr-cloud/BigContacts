@@ -443,10 +443,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     const legacyAssets = await tx.select({
       id: assetsTable.id,
       ownerEntityId: assetsTable.ownerEntityId,
-    }).from(assetsTable).innerJoin(
-      entitiesTable,
-      eq(assetsTable.ownerEntityId, entitiesTable.id),
-    ).where(and(
+    }).from(assetsTable).where(and(
       eq(assetsTable.category, "Aviation"),
       eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
       isNotNull(assetsTable.ownerEntityId),
