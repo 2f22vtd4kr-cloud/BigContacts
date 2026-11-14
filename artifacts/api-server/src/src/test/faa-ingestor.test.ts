@@ -374,6 +374,10 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("ELSE 'Other' END");
     expect(repair).toContain('eq(entitiesTable.type, "HNWI")');
     expect(repair).toContain("legacyFaaOwnershipCorrected");
+    expect(repair).toContain("personalWealthEvidence' = 'true'");
+    expect(repair).toContain("wealthStatus' IN ('qualified', 'verified', 'assessed')");
+    expect(repair).toContain("hnwiQualificationStatus' = 'qualified'");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'");
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
     expect(repair).toContain("const legacyFaaOwnedLinks = await tx.select");
