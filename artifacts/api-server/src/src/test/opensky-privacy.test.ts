@@ -5,6 +5,7 @@ import { buildPrivacySafeOpenSkyObservation, redactLegacyOpenSkyPositionLog, san
 const assetsRoute = readFileSync(new URL("../routes/assets.ts", import.meta.url), "utf8");
 const entitiesRoute = readFileSync(new URL("../routes/entities.ts", import.meta.url), "utf8");
 const ingestRoute = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+const ingestPipelineRoute = readFileSync(new URL("../routes/ingest-pipeline.ts", import.meta.url), "utf8");
 const canonicalTarget = readFileSync(new URL("../lib/canonical-seeded-target.ts", import.meta.url), "utf8");
 
 describe("ADS-B privacy boundary wiring", () => {
@@ -23,6 +24,11 @@ describe("ADS-B privacy boundary wiring", () => {
   it("redacts coordinate-bearing legacy job logs before returning them", () => {
     expect(ingestRoute).toContain('job.type === "opensky"');
     expect(ingestRoute).toContain("log.map(redactLegacyOpenSkyPositionLog)");
+  });
+
+  it("redacts legacy ADS-B coordinates from the aggregate active-job summary", () => {
+    expect(ingestPipelineRoute).toContain('import { redactLegacyOpenSkyPositionLog } from "../lib/opensky-privacy";');
+    expect(ingestPipelineRoute).toContain('def.id === "opensky" ? redactLegacyOpenSkyPositionLog(state?.message ?? "")');
   });
 
   it("does not copy raw ADS-B metadata into canonical Investigator asset context", () => {
