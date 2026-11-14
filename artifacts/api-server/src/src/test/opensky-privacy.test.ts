@@ -39,4 +39,16 @@ describe("privacy-safe latest ADS-B observation", () => {
     expect(observation.speedBandKnots).toBeNull();
     expect(observation.observedAtHour).toBe("2026-11-14T00:00:00.000Z");
   });
+
+  it("does not infer airborne status when the source omits the ground flag", () => {
+    const observation = buildPrivacySafeOpenSkyObservation({
+      icao24: "abc123",
+      onGround: null,
+      altitudeMeters: null,
+      speedMetersPerSecond: null,
+      observedAt: new Date("2026-11-14T01:00:00.000Z"),
+      source: "opensky",
+    });
+    expect(observation.status).toBe("unknown");
+  });
 });
