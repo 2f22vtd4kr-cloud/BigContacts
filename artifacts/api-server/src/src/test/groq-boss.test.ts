@@ -322,6 +322,7 @@ describe("Groq Boss token-window recovery", () => {
 
     expect(result.raw).toBe('{"action":"continue_discovery","confidence":0.8}');
     expect(result.error).toBeNull();
+    expect(result.model).toBe("openai/gpt-oss-20b");
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
