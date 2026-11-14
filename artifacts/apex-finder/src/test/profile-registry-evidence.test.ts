@@ -49,7 +49,7 @@ describe("registry profile evidence semantics", () => {
     expect(dataSourcesSource).toContain("Other Name 1–5 are preserved per aircraft as unverified additional names");
   });
 
-  it("does not display FAA-only legacy registrants as HNWI before the importer migration runs", () => {
+  it("does not display FAA-derived registrants without independent wealth assessment as HNWI", () => {
     expect(profileSource).toContain("function profileDisplayEntityType(entity: any)");
     expect(profileSource).toContain('if (registrantType === "1") return "PersonCandidate"');
     expect(profileSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
