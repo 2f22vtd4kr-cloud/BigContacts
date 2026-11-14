@@ -20,7 +20,7 @@ import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
-import { isDuplicate, batchMarkSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
+import { isDuplicate, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
 import { logger } from "./logger";
 import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
@@ -846,7 +846,6 @@ function buildRegistryEntity(
 export interface IngestionOptions {
   targetCount: number;
   batchSize?: number;
-  clearDedupFirst?: boolean;
   jobId?: string;
   /**
    * When true (Atlas single-target / small discovery admission), skip the
@@ -866,21 +865,12 @@ export interface IngestionResult {
 }
 
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
-  const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
+  const { targetCount, batchSize = 100, jobId } = opts;
   // Small Atlas admission budgets must not be burned on random company shells.
   const preferPersons = Boolean(opts.preferPersons);
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
 
-  // Clear stale Upstash dedup set if requested (prevents previous-import entries blocking all ingestion)
-  if (clearDedupFirst) {
-    try {
-      await clearDedup();
-      logger.info("Upstash HNWI dedup set cleared before ingestion");
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, "clearDedup failed (non-fatal)");
-    }
-  }
 
   const log = async (msg: string) => {
     logger.info(msg);
