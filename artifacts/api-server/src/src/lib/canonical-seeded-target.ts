@@ -197,7 +197,7 @@ export function buildCanonicalSeededTargetBinding(input: {
       category: asset.category,
       identifier: asset.identifier,
       sourceRegistry: asset.sourceRegistry,
-      associationType: "REGISTERED_TO",
+      associationType: "REGISTERED_TO" as const,
       associationSemantics: "A registry registration association is not proof of beneficial ownership, exclusive ownership, control or personal wealth.",
       sourceMetadata: assetSourceMetadata,
     };
