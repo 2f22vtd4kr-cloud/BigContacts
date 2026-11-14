@@ -153,6 +153,8 @@ export function normalizeAtlasOpeningRightHandReview(
   const allowed = new Set(["decision", "reason", "rationale", "focusLanes", "confidence"]);
   if (Object.keys(value).some((key) => !allowed.has(key))) return null;
 
+  if (("reason" in value && typeof value.reason !== "string")
+    || ("rationale" in value && typeof value.rationale !== "string")) return null;
   const decision = typeof value.decision === "string" ? value.decision.trim() : "";
   const reasonValue = typeof value.reason === "string" ? value.reason.trim() : "";
   const rationaleValue = typeof value.rationale === "string" ? value.rationale.trim() : "";
