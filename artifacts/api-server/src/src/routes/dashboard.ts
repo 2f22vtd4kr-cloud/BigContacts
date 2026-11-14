@@ -14,6 +14,22 @@ import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/s
 
 const router: IRouter = Router();
 
+function qualifiedHnwiCondition() {
+  return sql`(
+    ${entitiesTable.type} = 'HNWI'
+    AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', 'true') <> 'false'
+    AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'
+    AND (
+      NOT (
+        COALESCE(${entitiesTable.metadata}::jsonb ->> 'source', '') = 'faa-aircraft-registry'
+        OR COALESCE(${entitiesTable.sourceRegistries}, '') LIKE '%FAA Releasable Aircraft Database%'
+      )
+      OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', 'false') = 'true'
+      OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')
+      OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'
+    )
+  )`;
+}
 // GET /dashboard/hot-leads
 router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   const parsed = GetHotLeadsQueryParams.safeParse(req.query);
