@@ -530,11 +530,15 @@ export default function ApexProfile() {
     }
     if (/faa/i.test(reg)) {
       const aircraftRecords = (assets as any[]).filter((a: any) => a.category === "Aviation");
-      return aircraftRecords.length > 1 ? `FAA registrant record · ${aircraftRecords.length} aircraft records` : "FAA registrant record";
+      return aircraftRecords.length > 1 ? `FAA registrant record · ${aircraftRecords.length} linked aircraft records`
+        : aircraftRecords.length === 1 ? "FAA registrant record · 1 linked aircraft record"
+        : "FAA source label · no linked aircraft record loaded";
     }
     if (/land.?reg|hmlr/i.test(reg)) {
       const saleRecords = (assets as any[]).filter((a: any) => a.category === "RealEstate");
-      return saleRecords.length > 1 ? `UK Land Registry · ${saleRecords.length} sale records` : "UK Land Registry · property sale record";
+      return saleRecords.length > 1 ? `UK Land Registry · ${saleRecords.length} linked sale records`
+        : saleRecords.length === 1 ? "UK Land Registry · 1 linked sale record"
+        : "UK Land Registry source label · no linked sale transaction loaded";
     }
     if (/brreg/i.test(reg)) return "BRREG — Norwegian company registry record";
     if (/companies.?house/i.test(reg)) return "Companies House — UK company/officer record";
@@ -1679,10 +1683,18 @@ export default function ApexProfile() {
             : `${pName} appears in a company proxy statement filed with the U.S. Securities and Exchange Commission (DEF 14A). Verify the exact role and filing period; a proxy-statement mention is source evidence, not by itself a current employment or control determination.`);
         } else if (/faa/i.test(primaryReg)) {
           const jets = assetArr.filter((a: any) => a.category === "Aviation");
-          lines.push(`${pName} is named as a registrant on ${jets.length > 1 ? `${jets.length} FAA aircraft records` : "an FAA aircraft record"}. The FAA record identifies the registration applicant; it does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth. Any aircraft value or co-registrant name is a separate review lead, not a personal-wealth finding.`);
+          if (jets.length > 0) {
+            lines.push(`${pName} is named as a registrant on ${jets.length} linked FAA aircraft record(s). The FAA record identifies the registration applicant; it does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth. Any aircraft value or co-registrant name is a separate review lead, not a personal-wealth finding.`);
+          } else {
+            lines.push(`${pName} carries an FAA source-registry label, but no linked aircraft record is loaded. No registration or ownership claim is made from the label alone.`);
+          }
         } else if (/land.?reg|hmlr/i.test(primaryReg)) {
           const props = assetArr.filter((a: any) => a.category === "RealEstate");
-          lines.push(`${pName} is associated with ${props.length > 1 ? `${props.length} UK Land Registry sale transaction records` : "a UK Land Registry sale transaction record"}. Price Paid Data records a transaction and the named parties where published; it does not prove current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
+          if (props.length > 0) {
+            lines.push(`${pName} is associated with ${props.length} linked UK Land Registry sale transaction record(s). Price Paid Data records a transaction and the named parties where published; it does not prove current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
+          } else {
+            lines.push(`${pName} carries a UK Land Registry source label, but no linked sale transaction record is loaded. No current-title or ownership claim is made from the label alone.`);
+          }
         } else if (/brreg/i.test(primaryReg)) {
           lines.push(`${pName} appears in Norway's official business registry (BRREG) in the recorded role shown on the source record. Company turnover is organization-level context; it does not establish the individual's personal wealth, ownership, or control.`);
         } else if (/companies.?house/i.test(primaryReg)) {
