@@ -20,7 +20,7 @@ import { mkdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
 import { classifyFaaRegistrant, classifyFaaAssetSignal } from "./faa-ownership-classification";
@@ -232,6 +232,24 @@ export function shouldReclassifyLegacyFaaRegistrantLink(input: {
   // and must remain untouched. A missing FK can still be repaired from the
   // exact FAA source label plus the FAA asset source registry.
   return input.ownerEntityId == null || input.ownerEntityId === input.sourceEntityId;
+}
+
+export function buildLegacyFaaRegistrantRelationshipRepairPairs(
+  assets: readonly { id: number; ownerEntityId: number | null }[],
+  links: readonly { sourceEntityId: number; targetId: number; ownerEntityId: number | null }[],
+): Array<{ sourceEntityId: number; targetId: number }> {
+  const pairs = new Map<string, { sourceEntityId: number; targetId: number }>();
+  for (const asset of assets) {
+    if (asset.ownerEntityId == null) continue;
+    const pair = { sourceEntityId: asset.ownerEntityId, targetId: asset.id };
+    pairs.set(`${pair.sourceEntityId}:${pair.targetId}`, pair);
+  }
+  for (const link of links) {
+    if (!shouldReclassifyLegacyFaaRegistrantLink(link)) continue;
+    const pair = { sourceEntityId: link.sourceEntityId, targetId: link.targetId };
+    pairs.set(`${pair.sourceEntityId}:${pair.targetId}`, pair);
+  }
+  return [...pairs.values()];
 }
 
 /** Merge current FAA-owned fields without discarding enrichment from other sources. */
@@ -513,13 +531,18 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     // a still-present ownerEntityId (that is independent ownership evidence).
     const repairableFaaOwnedLinks = legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink);
     const repairAssets = legacyAssets;
+    const relationshipRepairPairs = buildLegacyFaaRegistrantRelationshipRepairPairs(repairAssets, repairableFaaOwnedLinks);
+    const relationshipRepairConditions = relationshipRepairPairs.map((pair) => and(
+      eq(relationshipsTable.sourceEntityId, pair.sourceEntityId),
+      eq(relationshipsTable.targetId, pair.targetId),
+    ));
     const assetIds = Array.from(new Set([
       ...repairAssets.map((row) => row.id),
       ...repairableFaaOwnedLinks.map((row) => row.targetId),
     ]));
     const ownerEntityAssetIds = Array.from(new Set([
       ...repairAssets.map((row) => row.id),
-      ...legacyFaaOwnedLinks
+      ...repairableFaaOwnedLinks
         .filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)
         .map((row) => row.targetId),
     ]));
@@ -527,16 +550,18 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       if (ownerEntityAssetIds.length > 0) {
         await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, ownerEntityAssetIds));
       }
-      await tx.update(relationshipsTable).set({
-        relationshipType: "REGISTERED_TO",
-        strength: 0.75,
-        notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
-      }).where(and(
-        eq(relationshipsTable.targetType, "Asset"),
-        eq(relationshipsTable.relationshipType, "OWNS"),
-        eq(relationshipsTable.notes, "FAA aircraft registration"),
-        inArray(relationshipsTable.targetId, assetIds),
-      ));
+      if (relationshipRepairConditions.length > 0) {
+        await tx.update(relationshipsTable).set({
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+        }).where(and(
+          eq(relationshipsTable.targetType, "Asset"),
+          eq(relationshipsTable.relationshipType, "OWNS"),
+          eq(relationshipsTable.notes, "FAA aircraft registration"),
+          or(...relationshipRepairConditions),
+        ));
+      }
       const existing = await tx.select({
         sourceEntityId: relationshipsTable.sourceEntityId,
         targetId: relationshipsTable.targetId,
