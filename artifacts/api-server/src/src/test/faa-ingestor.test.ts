@@ -348,6 +348,7 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("= '1' THEN 'PersonCandidate'");
     expect(repair).toContain("IN ('2','3','7','8') THEN 'Corporation'");
     expect(repair).toContain("ELSE 'Other' END");
+    expect(repair).toContain('eq(entitiesTable.type, "HNWI")');
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
     expect(repair).toContain("const legacyFaaOwnedLinks = await tx.select");
