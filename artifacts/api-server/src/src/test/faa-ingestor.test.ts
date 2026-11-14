@@ -348,8 +348,12 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("ELSE 'Other' END");
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
-    expect(repair).toContain("legacyOwnerPairs.has");
-    expect(repair).toContain("const repairAssets = legacyAssets.filter");
+    expect(repair).toContain("const legacyFaaOwnedLinks = await tx.select");
+    expect(repair).toContain('eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database")');
+    expect(repair).toContain("const repairAssets = legacyAssets;");
+    expect(repair).toContain("legacyFaaOwnedLinks.map((row) => row.targetId)");
+    expect(repair).toContain("const assetIds = Array.from(new Set");
+    expect(repair).toContain('relationshipType: "REGISTERED_TO"');
     expect(repair).toContain("BTRIM(${entitiesTable.contactMethod})");
     expect(repair).toContain("ELSE ${entitiesTable.contactMethod} END");
     expect(repair).toContain("CASE WHEN ${entitiesTable.estimatedNetWorth} IN");
