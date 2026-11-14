@@ -10,6 +10,7 @@ import {
   DeleteEntityParams,
 } from "@workspace/api-zod";
 import { getCache, setCache, delCachePattern } from "../lib/redis";
+import { sanitizeOpenSkyMetadataJson } from "../lib/opensky-privacy";
 import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
 import {
@@ -476,7 +477,9 @@ router.get("/entities/:id/opensky", async (req, res): Promise<void> => {
   const flights = assets
     .map((a) => {
       let meta: Record<string, unknown> = {};
-      try { meta = JSON.parse(a.metadata ?? "{}") as Record<string, unknown>; } catch { /* */ }
+      try {
+        meta = JSON.parse(sanitizeOpenSkyMetadataJson(a.metadata) ?? "{}") as Record<string, unknown>;
+      } catch { /* sanitizer fails closed; malformed metadata yields no observation */ }
       const osky = meta.opensky as Record<string, unknown> | undefined;
       if (!osky) return null;
       return {
