@@ -178,6 +178,7 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
 }
 
 async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
+  reservation.createdAt = Date.now();
   try {
     const bodyText = await response.clone().text();
     reconcileGroqTokenWindowFromBody(key, reservation, response, bodyText);
@@ -311,7 +312,9 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
     ? await reserveGroqTokenWindow(groqWindowKey, groqRequest.reservedTokens, requestSignal)
     : null;
    state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
-   const response=await fetcher();
+   let response: Response;
+   try { response = await fetcher(); }
+   catch (error) { if (groqReservation) groqReservation.createdAt = Date.now(); throw error; }
    if (groqReservation) await reconcileGroqTokenWindow(groqWindowKey, groqReservation, response);
    const retryOwner=retryOwnerStorage.getStore()?.[provider]??"gate";
    if(isQuotaResponse(provider,response)){
@@ -367,7 +370,7 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
      state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+Math.max(retryMs,result.status===429?5_000:60_000));
     }
     return result;
-   }catch(error){if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
+   }catch(error){if(groqReservation)groqReservation.createdAt=Date.now();if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
   }finally{releaseConcurrency(provider);}
  });
 }
