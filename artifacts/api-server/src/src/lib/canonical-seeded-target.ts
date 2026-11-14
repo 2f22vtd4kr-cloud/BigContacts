@@ -28,7 +28,7 @@ const SOURCE_FIELDS = [
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
   "sourceRetrievedAt", "observedAt", "retrievedAt", "sourceTimestamp",
   "role", "roleOriginal", "companyName", "organizationSourceRecordId", "entityNature", "businessOfficeLocation", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
-  "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
+  "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
 ] as const;
