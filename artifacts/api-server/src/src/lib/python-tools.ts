@@ -7,6 +7,7 @@
  * writes Atlas state directly.
  */
 import { sanitizeObservableValue, sanitizeUrlForEvidence } from "./url-privacy";
+import { HARVESTER_SOURCE_IDS, normalizeHarvesterSourceSelection } from "./atlas-capability-registry";
 import {
   executePythonOsintTool,
   refreshPythonOsintToolAvailability,
@@ -77,7 +78,7 @@ export interface SpiderFootResult {
   execution?: PythonToolExecution;
 }
 
-const DEFAULT_HARVESTER_SOURCES = "bing,duckduckgo,yahoo,certspotter,crtsh";
+const DEFAULT_HARVESTER_SOURCES = HARVESTER_SOURCE_IDS.join(",");
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -247,9 +248,8 @@ export async function runTheHarvester(domain: string, sources = DEFAULT_HARVESTE
   const cleanDomain = text(domain, 254).replace(/^https?:\/\//i, "").split("/")[0]!.trim().toLowerCase();
   if (options.signal?.aborted) return { ...base, error: "OSINT execution was cancelled." };
   if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(cleanDomain)) return { ...base, error: "Invalid domain." };
-  const allowedSources = new Set(DEFAULT_HARVESTER_SOURCES.split(","));
-  const normalizedSources = text(sources, 250).split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-  if (!normalizedSources.length || normalizedSources.some((item) => !allowedSources.has(item))) return { ...base, error: "Requested theHarvester source list is outside the canonical allowlist." };
+  const normalizedSources = normalizeHarvesterSourceSelection(text(sources, 250).split(","));
+  if (!normalizedSources) return { ...base, error: "Requested theHarvester source list is outside the canonical allowlist." };
   const response = await executeTool("theharvester", { domain: cleanDomain, sources: [...new Set(normalizedSources)].join(",") }, options.signal, 60_000, options.correlation);
   const data = resultPayload(response);
   const emails = strings(data.emails, 100).filter((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item));
