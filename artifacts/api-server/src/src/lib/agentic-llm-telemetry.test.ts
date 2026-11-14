@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { recordAgenticLlmAttempt, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
+import { getAgenticLlmDailyTokenBudget, recordAgenticLlmAttempt, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -98,4 +98,16 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(record.reason).toMatch(/^opaque:[a-f0-9]{16}$/);
     expect(line.length).toBeLessThan(2000);
   });
+  it("reads explicit per-model daily token budgets without assuming a provider free-tier limit", () => {
+    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-20b", {
+      APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "120000",
+      APEX_GROQ_DAILY_TOKEN_BUDGET: "90000",
+    } as NodeJS.ProcessEnv)).toBe(120000);
+    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", {
+      APEX_GROQ_DAILY_TOKEN_BUDGET_120B: "45000",
+      APEX_GROQ_DAILY_TOKEN_BUDGET: "90000",
+    } as NodeJS.ProcessEnv)).toBe(45000);
+    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", {} as NodeJS.ProcessEnv)).toBe(0);
+  });
+
 });
