@@ -591,7 +591,7 @@ async function generateGroqBossTextImpl(
   }
 
   return {
-    model: selection.model,
+    model: attempts.at(-1)?.model ?? selection.model,
     raw: null,
     error: `Groq Boss unavailable after bounded model/key attempts. ${lastError}. Attempts: ${formatGroqBossAttemptSummary(attempts)}.`,
     attempts,
