@@ -1,0 +1,48 @@
+{
+  "source": "Secret-free metadata/hash replay manifest from the 2026-11-14 active audit for job fb9b36e0. Raw prompt text excluded.",
+  "capturedRequest": {
+    "model": "openai/gpt-oss-120b",
+    "reasoning_effort": "medium",
+    "max_completion_tokens": 512,
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "chars": 7337,
+        "sha256": "5c3df54efe1b7420e2259eb0a8dda3638ff8a4963ed3bda2fa703203fadb0f54"
+      },
+      {
+        "role": "user",
+        "chars": 8700,
+        "sha256": "9c983765822986e69bea2297f240d163d0d23c7a61d94260a27d48cccb24a971"
+      }
+    ],
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "strict": true,
+      "schemaPropertyCount": 20,
+      "requiredFieldCount": 20
+    },
+    "schemaRequired": 20,
+    "schemaProperties": 20
+  },
+  "capturedProviderError": {
+    "status": 400,
+    "code": "json_validate_failed",
+    "type": "invalid_request_error",
+    "message": "Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.",
+    "failedGenerationPresent": false
+  },
+  "capturedSuccessfulResponse": {
+    "prompt_tokens": 3565,
+    "completion_tokens": 509,
+    "reasoning_tokens": 403,
+    "total_tokens": 4074,
+    "finishReason": "stop",
+    "action": "done",
+    "searches": 0,
+    "findings": 0
+  }
+}

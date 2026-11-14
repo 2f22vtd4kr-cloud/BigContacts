@@ -2091,19 +2091,13 @@ export function buildAgenticActionParseFailureRecord(input: {
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
   const configured = (process.env.GROQ_AGENTIC_REASONING_EFFORT || "").trim().toLowerCase();
   const requested = configured === "low" || configured === "medium" || configured === "high" ? configured : "";
-  const defaultEffort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : "medium";
+  const defaultEffort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : "low";
   return (requested || defaultEffort) as "low" | "medium" | "high";
 }
-
 function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   if (task === "contradiction_resolution" || task === "final_adjudication") return 1536;
-  if (task === "contact_extraction") return 768;
-  if (task === "identity_resolution") return 512;
-  // Structured action JSON is compact. Keep ordinary turns to a small
-  // completion allowance so prompt tokens and concurrent role activity fit
-  // inside the shared Groq TPM window. The bounded recovery path can increase
-  // this only when provider headers prove sufficient remaining capacity.
-  return 768;
+  const configured = Number(process.env.APEX_GROQ_INVESTIGATOR_ACTION_COMPLETION_TOKENS);
+  return Number.isFinite(configured) ? Math.min(1536, Math.max(512, Math.floor(configured))) : 1024;
 }
 
 const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 2048;
@@ -2131,53 +2125,33 @@ export type GroqInvestigatorOutputRecoveryDecision =
 
 /** Retry only output-format/completion failures; never alter strategy or capability. */
 export function chooseGroqInvestigatorOutputRecovery(input: {
-  status: number;
-  providerCode: string | null;
-  providerMessage: string;
-  responseFormat: "json_schema" | "json_object";
-  completionBudgetRetryUsed: boolean;
-  currentMaxCompletionTokens: number;
-  /** Provider-reported tokens remaining in the current TPM window, when available. */
-  rateLimitRemainingTokens?: number | null;
-  /** Conservative estimate of tokens consumed by the system + user prompt. */
-  promptTokenEstimate?: number;
-  finishReason?: string | null;
+  status: number; providerCode: string | null; providerMessage: string;
+  responseFormat: "json_schema" | "json_object"; completionBudgetRetryUsed: boolean;
+  currentMaxCompletionTokens: number; failureDetailsAvailable?: boolean;
+  rateLimitRemainingTokens?: number | null; promptTokenEstimate?: number; finishReason?: string | null;
 }): GroqInvestigatorOutputRecoveryDecision {
-  // Groq may successfully return HTTP 200 while the model has exhausted its
-  // completion budget on hidden reasoning. Treat finish_reason=length as
-  // output truncation, not provider/key/quota failure.
-  const successfulResponseTruncated = input.status === 200 && input.finishReason === "length";
-  const validationTruncated = input.status === 400
-    && input.providerCode === "json_validate_failed"
-    && isGroqCompletionTruncationMessage(input.providerMessage);
-  if (successfulResponseTruncated || validationTruncated) {
-    if (input.completionBudgetRetryUsed) return { action: "fail" };
-    const proposedCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
-    if (proposedCompletionTokens === null) return { action: "fail" };
-    // A truncated response is not permission to overrun the remaining TPM
-    // window. If provider headers are available, reserve the full next prompt
-    // first and retry only when the proposed output budget still fits.
-    const promptTokenEstimate = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
-    if (typeof input.rateLimitRemainingTokens !== "number"
-      || !Number.isFinite(input.rateLimitRemainingTokens)
-      || input.rateLimitRemainingTokens - promptTokenEstimate < proposedCompletionTokens) {
-      return { action: "fail" };
+  const successTruncated = input.status === 200 && input.finishReason === "length";
+  const validationFailure = input.status === 400 && input.providerCode === "json_validate_failed";
+  const messageTruncated = validationFailure && isGroqCompletionTruncationMessage(input.providerMessage);
+  const genericValidationFailure = validationFailure && input.failureDetailsAvailable !== true
+    && !/(?:required field|additional propert|schema mismatch|invalid enum|expected type)/i.test(input.providerMessage);
+  if (successTruncated || messageTruncated || genericValidationFailure) {
+    if (!input.completionBudgetRetryUsed) {
+      const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+      const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
+      const headroom = typeof input.rateLimitRemainingTokens === "number" && Number.isFinite(input.rateLimitRemainingTokens)
+        ? input.rateLimitRemainingTokens - promptTokens : -1;
+      if (next !== null && headroom >= next) return { action: "increase_completion_budget", nextMaxCompletionTokens: next };
     }
-    return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
+    return input.responseFormat === "json_schema" ? { action: "retry_json_object" } : { action: "fail" };
   }
-  if (input.status !== 400 || input.providerCode !== "json_validate_failed") return { action: "fail" };
-  if (!input.completionBudgetRetryUsed && input.responseFormat === "json_object") {
-    const proposedCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
-    const promptTokenEstimate = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
-    const remainingHeadroom = typeof input.rateLimitRemainingTokens === "number"
-      && Number.isFinite(input.rateLimitRemainingTokens)
-      ? input.rateLimitRemainingTokens - promptTokenEstimate
-      : 0;
-    if (proposedCompletionTokens !== null && remainingHeadroom >= proposedCompletionTokens) {
-      return { action: "increase_completion_budget", nextMaxCompletionTokens: proposedCompletionTokens };
-    }
+  if (validationFailure && !input.completionBudgetRetryUsed && input.responseFormat === "json_object") {
+    const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
+    const headroom = typeof input.rateLimitRemainingTokens === "number" && Number.isFinite(input.rateLimitRemainingTokens)
+      ? input.rateLimitRemainingTokens - promptTokens : 0;
+    if (next !== null && headroom >= next) return { action: "increase_completion_budget", nextMaxCompletionTokens: next };
   }
-  if (input.responseFormat === "json_schema") return { action: "retry_json_object" };
   return { action: "fail" };
 }
 
@@ -2191,11 +2165,7 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt.trim() : "";
-  const requiredSchemaFields = [
-    "action", "query", "provider", "url", "email", "username", "domain", "registry",
-    "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
-    "target", "targetType", "profile", "searches", "findings",
-  ];
+  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
   let completeSchemaPresent = false;
   for (const match of normalized.matchAll(/OUTPUT CONTRACT:/g)) {
     const start = match.index ?? -1;
@@ -2621,6 +2591,12 @@ async function callGroqJson(
             providerCode,
             providerMessage,
             responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
+            failureDetailsAvailable: (() => {
+              try {
+                const parsed = JSON.parse(body) as { error?: { failed_generation?: unknown } };
+                return parsed.error?.failed_generation !== undefined && parsed.error?.failed_generation !== null;
+              } catch { return false; }
+            })(),
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
             rateLimitRemainingTokens: rateLimits.remainingTokens,
@@ -2896,7 +2872,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
       }
     }
   },
-  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","locale","market","target","targetType","profile","sources","searches","findings"],
+  required: ["action","query","thought","hypothesis","purpose","expectedInformationGain"],
   additionalProperties: false
 } as const;
 
@@ -3367,11 +3343,7 @@ export function appendEmergencyObservationContext(
   }
 
   const result = parts.filter(Boolean).join("\n\n");
-  const requiredFields = [
-    "action", "query", "provider", "url", "email", "username", "domain", "registry",
-    "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
-    "target", "targetType", "profile", "searches", "findings",
-  ];
+  const requiredFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
   const schemaRequired = /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(base);
   if (schemaRequired) {
     const outputAt = result.indexOf("OUTPUT CONTRACT:");
@@ -4742,7 +4714,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Worker actions must be in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null). Tool-specific fields are optional and must match the selected action. Worker actions must be in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
@@ -4991,9 +4963,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
-  const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
-  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "searches", "findings"] as const;
+  const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.";
+  const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.";
+  const requiredFieldNames = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
@@ -5345,12 +5317,25 @@ export function candidateIdentitySourceBound(personName: string, role: string | 
   return !/[.!?\\n]/.test(between);
 }
 
+const DISCOVERY_EXTERNAL_ACTIONS = new Set([
+  "web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search",
+  "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
+]);
+export function hasUsableDiscoveryExternalObservation(
+  records: readonly Pick<AgenticTrajectoryRecord, "action" | "execution" | "observation" | "observedUrls">[],
+): boolean {
+  return records.some((record) => {
+    if (record.execution !== "success" || !DISCOVERY_EXTERNAL_ACTIONS.has(record.action)) return false;
+    const observation = String(record.observation ?? "").trim().toLowerCase();
+    return (Array.isArray(record.observedUrls) && record.observedUrls.length > 0)
+      || (observation.length > 0 && !/returned no usable result|no registry hits|no platform hits|no hits/.test(observation));
+  });
+}
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
   if (!records.length) return { allowed: false, reason: "Discovery cannot terminate before any Investigator action." };
 
   const successfulExternalActions = records.filter((record) =>
-    record.execution === "success" &&
-    ["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action),
+    record.execution === "success" && DISCOVERY_EXTERNAL_ACTIONS.has(record.action),
   );
   const successfulObserved = successfulExternalActions.filter((record) => {
     const observation = String(record.observation ?? "").trim().toLowerCase();
@@ -5498,10 +5483,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   if (input.priorIntelligenceContext) intelligence.restoreContext(sanitizeObservableValue(input.priorIntelligenceContext));
   let intelligenceRecordedTurn = priorTurnOffset;
   const syncIntelligence = () => { const latest = records[records.length - 1]; if (!latest || latest.turn <= intelligenceRecordedTurn) return; intelligence.recordAction({ turn: latest.turn, action: latest.action, args: sanitizeObservableValue(latest.args), execution: latest.execution, observation: sanitizeUrlsInText(latest.observation ?? ""), urls: latest.observedUrls.map((url) => sanitizeUrlForEvidence(url)).filter((url) => !url.startsWith("[")), findings: sanitizeObservableValue(latest.findings), predictedInformationGain: typeof latest.args.expectedInformationGain === "number" ? latest.args.expectedInformationGain : undefined }); intelligenceRecordedTurn = latest.turn; };
-  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, partialFindings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, consecutiveActionParseFailures, ...(aiCompactedHistoricalContext ? { aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn } : {}), ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { runtimeStage = "turn_preparation"; runtimePhase = "loop_guards"; iterationsAttempted = i + 1; if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); runtimePhase = "cancellation_check"; if (await cancellationSupervisor?.checkNow()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); runtimePhase = "worker_availability_refresh"; await refreshPythonOsintToolAvailability(runController.signal); if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); const turnBrowserProviders = getAvailableBrowserFetchProviders(); const actionAllowlistForTurn = discoveryActionAllowlist(
+  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, partialFindings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, consecutiveActionParseFailures, ...(aiCompactedHistoricalContext ? { aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn } : {}), ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { runtimeStage = "turn_preparation"; runtimePhase = "loop_guards"; iterationsAttempted = i + 1; if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); runtimePhase = "cancellation_check"; if (await cancellationSupervisor?.checkNow()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); runtimePhase = "worker_availability_refresh"; await refreshPythonOsintToolAvailability(runController.signal); if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); const turnBrowserProviders = getAvailableBrowserFetchProviders(); const actionsForTurn = discoveryActionAllowlist(
         input.mode,
         getModelSelectableAgentActions().filter((action) => action !== "browser_fetch" || turnBrowserProviders.length > 0),
-      ); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
+      ); const canFinishDiscovery = input.mode !== "discovery"
+        || hasUsableDiscoveryExternalObservation([...priorTrajectoryRecords, ...records]);
+      const actionAllowlistForTurn = canFinishDiscovery ? actionsForTurn : actionsForTurn.filter((action) => action !== "done"); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
       const allPromptRecords = sanitizeObservableValue([...priorTrajectoryRecords, ...records].slice(-MAX_TRAJECTORY_RECORDS)) as AgenticTrajectoryRecord[];
       // The bounded projection is for live action prompts only. Boss memory receives
       // the complete durable prior trajectory before any MAX_TRAJECTORY_RECORDS cut.
