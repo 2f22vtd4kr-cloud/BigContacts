@@ -1,5 +1,5 @@
 import { getEventListeners } from "node:events";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   GROQ_RIGHT_HAND_FALLBACK_MODELS,
@@ -21,6 +21,14 @@ import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Right-hand model policy", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  beforeEach(() => {
+    // Provider behaviour tests use mocked HTTP responses. Keep simulated daily
+    // quota exhaustion out of the shared PostgreSQL ledger; the dedicated
+    // integration test covers durable reservations and exhaustion.
+    process.env.DATABASE_URL = "";
+  });
+
   afterEach(() => {
     vi.clearAllTimers();
     resetGroqRightHandRequestGateForTests();
@@ -32,6 +40,8 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_3;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_4;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
