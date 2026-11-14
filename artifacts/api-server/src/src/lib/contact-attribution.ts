@@ -185,8 +185,13 @@ export function scoreAttribution(params: {
   };
 
   const score = geometricMean(Object.values(dimensions));
+  // Semantic attribution is model-owned. The numeric score remains advisory
+  // quality context; it cannot veto a person-specific route when the model's
+  // exact quotation binds this person and value to the fetched source.
+  // The code gate is limited to valid syntax, exact fetched claim provenance,
+  // person evidence and the model's explicit person-specific classification.
   const attributed =
-    score >= ATTRIBUTION_THRESHOLD &&
+    modelBackedPersonRoute &&
     (isValidEmail || isValidPhone) &&
     exactClaimObserved &&
     targetPersonEvidence;
