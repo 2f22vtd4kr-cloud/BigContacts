@@ -1675,8 +1675,8 @@ export default function ApexProfile() {
         if (/edgar|sec/i.test(primaryReg)) {
           const is13 = primaryReg.toLowerCase().includes("13");
           lines.push(is13
-            ? `${pName} filed a beneficial ownership disclosure with the U.S. Securities and Exchange Commission (SEC EDGAR Form 13D or 13G). Anyone who controls more than 5% of a publicly traded company is legally required to file this — it's not optional, it's a federal requirement, and it's public record.`
-            : `${pName} appears in executive compensation filings submitted to the U.S. Securities and Exchange Commission (SEC EDGAR DEF 14A). Board directors and named executives of public companies must file these annually — that's how we know they hold a senior role.`);
+            ? `${pName} appears in a U.S. Securities and Exchange Commission Schedule 13D/G filing. These filings report beneficial-ownership positions under applicable thresholds and filing rules; verify the issuer, security class, reported percentage, filing date, and any amendments before treating the position as current.`
+            : `${pName} appears in a company proxy statement filed with the U.S. Securities and Exchange Commission (DEF 14A). Verify the exact role and filing period; a proxy-statement mention is source evidence, not by itself a current employment or control determination.`);
         } else if (/faa/i.test(primaryReg)) {
           const jets = assetArr.filter((a: any) => a.category === "Aviation");
           lines.push(`${pName} is named as a registrant on ${jets.length > 1 ? `${jets.length} FAA aircraft records` : "an FAA aircraft record"}. The FAA record identifies the registration applicant; it does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth. Any aircraft value or co-registrant name is a separate review lead, not a personal-wealth finding.`);
@@ -1684,9 +1684,9 @@ export default function ApexProfile() {
           const props = assetArr.filter((a: any) => a.category === "RealEstate");
           lines.push(`${pName} is associated with ${props.length > 1 ? `${props.length} UK Land Registry sale transaction records` : "a UK Land Registry sale transaction record"}. Price Paid Data records a transaction and the named parties where published; it does not prove current title, continuing ownership, or personal wealth. Verify the current title independently before making an ownership claim.`);
         } else if (/brreg/i.test(primaryReg)) {
-          lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
+          lines.push(`${pName} appears in Norway's official business registry (BRREG) in the recorded role shown on the source record. Company turnover is organization-level context; it does not establish the individual's personal wealth, ownership, or control.`);
         } else if (/companies.?house/i.test(primaryReg)) {
-          lines.push(`${pName} appears in UK Companies House as a director or person of significant control. Companies House is the UK's official register of companies and their officers — anyone with >25% ownership or voting control must be listed. That's the statutory basis for their inclusion here.`);
+          lines.push(`${pName} appears in UK Companies House in the role recorded by the cited filing. A director appointment does not by itself establish share ownership or control; any person-with-significant-control status must be checked against the specific filing, applicable statutory criteria, and filing date.`);
          } else if (/^manual$/i.test(primaryReg)) {
            lines.push(`${pName} is a manually created research record. No public registry or asset evidence is recorded yet.`);
          } else if (primaryReg) {
