@@ -436,6 +436,25 @@ async function requestRightHandSummary(
   );
 }
 
+function logPromptBudgetFailure(
+  input: AiInvestigationContextCompactionInput,
+  stage: "primary" | "repair" | "fallback",
+  sourceChars: number,
+  promptChars: number,
+  maximumPromptChars: number,
+): void {
+  logger.warn({
+    role: "apex_memory_compaction",
+    phase: "prompt_budget_exceeded",
+    stage,
+    jobId: input.jobId ?? null,
+    caseId: input.caseId ?? null,
+    sourceChars,
+    promptChars,
+    maximumPromptChars,
+  }, "AI memory compaction prompt exceeded the bounded Right-hand request budget; source was not truncated or sent");
+}
+
 async function requestSummary(
   source: string,
   allowedSource: string,
@@ -446,7 +465,7 @@ async function requestSummary(
   try {
     const maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
     const prompt = buildSummaryPrompt(source, maxChars);
-    if (prompt.length > maximumPromptChars) return null;
+    if (prompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars); return null; }
 
     // Memory compaction is a non-decision transformation. Use the separate
     // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
@@ -469,7 +488,7 @@ async function requestSummary(
         maxChars,
         "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
       );
-      if (fallbackPrompt.length > maximumPromptChars) return null;
+      if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
       const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
       validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
       if (!validation.issues.length) return validation.summary;
@@ -483,7 +502,7 @@ async function requestSummary(
       maxChars,
       validation.issues.join("; "),
     );
-    if (repairPrompt.length > maximumPromptChars) return null;
+    if (repairPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "repair", source.length, repairPrompt.length, maximumPromptChars); return null; }
     const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b", 1);
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
@@ -504,7 +523,7 @@ async function requestSummary(
       maxChars,
       fallbackReason,
     );
-    if (fallbackPrompt.length > maximumPromptChars) return null;
+    if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
     const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
     validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
