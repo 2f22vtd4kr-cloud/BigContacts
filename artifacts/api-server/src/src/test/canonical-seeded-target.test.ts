@@ -83,6 +83,25 @@ describe("canonical seeded target binding", () => {
     expect(runner).toContain("linkedAssets: linkedAssetRows");
   });
 
+  it("recognizes FAA co-registrant fields from the asset sourceRegistry even when metadata lacks a source label", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 93,
+      entityName: "Registrant",
+      entityType: "PersonCandidate",
+      linkedAssets: [{
+        id: 903,
+        category: "Aviation",
+        identifier: "N789EF",
+        sourceRegistry: "FAA Releasable Aircraft Database",
+        metadata: JSON.stringify({ additionalRegistrantNamesRaw: [" OTHER NAME "], additionalRegistrantNames: ["OTHER NAME"] }),
+      }],
+    });
+    expect(binding.linkedAssets[0].sourceMetadata).toMatchObject({
+      additionalRegistrantNamesRaw: [" OTHER NAME "],
+      additionalRegistrantNames: ["OTHER NAME"],
+    });
+  });
+
   it("does not treat similarly named metadata on a non-FAA asset as FAA co-registrant data", () => {
     const binding = buildCanonicalSeededTargetBinding({
       entityId: 92,
@@ -93,12 +112,13 @@ describe("canonical seeded target binding", () => {
         category: "Aviation",
         identifier: "N456CD",
         sourceRegistry: "Other registry",
-        metadata: JSON.stringify({ source: "other-source", additionalRegistrantNames: ["UNVERIFIED"] }),
+        metadata: JSON.stringify({ source: "other-source", additionalRegistrantNamesRaw: ["UNVERIFIED RAW"], additionalRegistrantNames: ["UNVERIFIED"] }),
       }],
     });
     expect(binding.linkedAssets).toHaveLength(1);
     expect(binding.linkedAssets[0]).toMatchObject({ assetId: 902 });
     expect(binding.linkedAssets[0].sourceMetadata).not.toHaveProperty("additionalRegistrantNames");
+    expect(binding.linkedAssets[0].sourceMetadata).not.toHaveProperty("additionalRegistrantNamesRaw");
   });
 
   it("uses an asset-specific objective instead of person research for an asset target", () => {
