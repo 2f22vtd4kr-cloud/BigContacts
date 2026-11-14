@@ -4,8 +4,11 @@ import {
   applyFaaRegistryNameValidation,
   buildFaaAircraftAsset,
   buildFaaRegistrantEntity,
+  createFaaRegistrationDedupKey,
   createFaaRegistrantEntityKey,
   faaRegistrantEntityKey,
+  mergeFaaAssetMetadata,
+  normalizeFaaAdditionalRegistrantNames,
   normalizeFaaName,
   parseFaaMasterCsvRecord,
 } from "../lib/faa-ingestor";
@@ -63,12 +66,44 @@ describe("FAA MASTER parser and candidate projection", () => {
     fields[20] = "V";
     fields[22] = "Y";
     fields[24] = '"OTHER, OWNER"';
+    fields[25] = '"SECOND OWNER"';
+    fields[26] = "THIRD OWNER";
+    fields[27] = "FOURTH OWNER";
+    fields[28] = "FIFTH OWNER";
     const parsed = parseFaaMasterCsvRecord(fields.join(","));
     expect(parsed[0]).toBe("12345");
     expect(parsed[6]).toBe("SMITH, WALTER");
     expect(parsed[22]).toBe("Y");
-    expect(parsed[24]).toBe("OTHER, OWNER");
+    expect(parsed.slice(24, 29)).toEqual(["OTHER, OWNER", "SECOND OWNER", "THIRD OWNER", "FOURTH OWNER", "FIFTH OWNER"]);
     expect(parsed).toHaveLength(34);
+  });
+
+  it("normalizes only the five public FAA co-registrant fields without inventing identities", () => {
+    expect(normalizeFaaAdditionalRegistrantNames(["  OTHER   OWNER ", "", "PARTNER, INC.", "  ", "FOURTH", "IGNORED SIXTH"]))
+      .toEqual(["OTHER OWNER", "PARTNER, INC.", "FOURTH"]);
+  });
+
+  it("includes published co-registrant names in replay identity while retaining legacy keys for rows with none", () => {
+    const baseKey = createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001" });
+    const coRegistrantKey = createFaaRegistrationDedupKey({
+      ...base,
+      uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER"],
+    });
+    expect(coRegistrantKey).not.toBe(baseKey);
+    expect(createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001", additionalRegistrantNames: [] })).toBe(baseKey);
+  });
+
+  it("merges updated FAA metadata without dropping independent asset enrichment", () => {
+    const merged = JSON.parse(mergeFaaAssetMetadata(
+      JSON.stringify({ openSky: { lastSeen: "2026-11-01" }, additionalRegistrantNames: ["OLD NAME"] }),
+      JSON.stringify({ additionalRegistrantNames: ["NEW NAME"], registrantName: "CURRENT REGISTRANT" }),
+    ));
+    expect(merged).toMatchObject({
+      openSky: { lastSeen: "2026-11-01" },
+      additionalRegistrantNames: ["NEW NAME"],
+      registrantName: "CURRENT REGISTRANT",
+    });
   });
 
   it("preserves registrant order instead of guessing multi-part surname order", () => {
@@ -160,6 +195,7 @@ describe("FAA MASTER parser and candidate projection", () => {
       engineModelCode: "12345",
       expirationDate: "2027/10/31",
       uniqueId: "FAA-001",
+      additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
     });
     expect(asset.category).toBe("Aviation");
     expect(asset.identifier).toBe("N12345");
@@ -173,8 +209,11 @@ describe("FAA MASTER parser and candidate projection", () => {
       wealthStatus: "not_assessed",
       personalWealthEvidence: false,
       hnwiQualificationStatus: "unverified",
+      additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
       reviewOnly: true,
     });
+    expect(metadata.additionalRegistrantNamesFieldSemantics).toContain("do not establish");
+    expect(metadata.additionalRegistrantNames).not.toContain("SMITH, WALTER");
     expect(metadata.assetSignal.strength).toBe("strong_asset_lead");
   });
 });
@@ -241,6 +280,10 @@ describe("FAA ingestion scope", () => {
     expect(source).toContain("staleFaaRelations");
     expect(source).toContain("tx.update(relationshipsTable)");
     expect(source).toContain("HISTORICAL_REGISTERED_TO");
+    expect(source).toContain("F_OTHER_NAME_INDICES = [24, 25, 26, 27, 28]");
+    expect(source).toContain("additionalRegistrantNames");
+    expect(source).toContain("mergeFaaAssetMetadata(existing.metadata, row.asset.metadata)");
+    expect(source).toContain("metadata: assetsTable.metadata");
     expect(source).not.toContain("tx.delete(relationshipsTable)");
   });
 });
