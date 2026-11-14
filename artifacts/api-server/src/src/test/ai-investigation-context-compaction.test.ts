@@ -633,6 +633,33 @@ describe("AI investigation context compaction", () => {
     });
   });
 
+  it("recovers a local 20B TPM reservation cooldown on the same-role 120B model", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    const summary = "The source memory remains available for model-led research.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-20b",
+        raw: null,
+        error: 'Groq Right-hand openai/gpt-oss-20b rate_limited: {"httpStatus":null,"providerCode":"cooldown","rateLimitKind":"tokens","retryAfterMs":15000,"failureClass":"rate_limited"}',
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-120b",
+        raw: JSON.stringify({ summary }),
+        error: null,
+        attempts: [],
+      });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-120b",
+      allowModelFallback: false,
+      maxCompletionTokens: 768,
+      maxAttempts: 1,
+    });
+  });
+
   it("recovers a token-classified 20B 429 when Groq omits reset and remaining-quota headers", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
     const summary = "The source memory remains available for model-led research.";
