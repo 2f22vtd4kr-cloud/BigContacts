@@ -3740,6 +3740,8 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("passes the selected theHarvester sources through the Investigator execution path", () => {
+    expect(apexInvestigatorSystemCore).toContain("explicit non-empty sources array chosen from bing, duckduckgo, yahoo, certspotter, and crtsh");
+    expect(apexInvestigatorSystemCore).toContain("profile, sources, searches, findings.");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
