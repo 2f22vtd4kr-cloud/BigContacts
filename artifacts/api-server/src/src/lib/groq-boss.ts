@@ -3,7 +3,7 @@ import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
-import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { getGroqTokenMaxWaitMs, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -53,7 +53,7 @@ export type GroqBossLatencyConfig = {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
-const MAX_REQUEST_TIMEOUT_MS = 60_000;
+const MAX_REQUEST_TIMEOUT_MS = 120_000;
 const MAX_OVERALL_TIMEOUT_MS = 180_000;
 const MAX_PROMPT_CHARS = 20_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
@@ -73,9 +73,24 @@ function boundedEnv(name: string, fallback: number, minimum: number, maximum: nu
 }
 
 export function getGroqBossLatencyConfig(): GroqBossLatencyConfig {
+  // The Boss request signal wraps the shared Groq token-window reservation.
+  // Never let that request timeout expire before the configured provider reset wait.
+  const minimumRequestTimeoutMs = getGroqTokenMaxWaitMs();
+  const requestTimeoutMs = boundedEnv(
+    "APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS",
+    Math.max(DEFAULT_REQUEST_TIMEOUT_MS, minimumRequestTimeoutMs),
+    minimumRequestTimeoutMs,
+    MAX_REQUEST_TIMEOUT_MS,
+  );
+  const overallTimeoutMs = boundedEnv(
+    "APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS",
+    Math.max(DEFAULT_OVERALL_TIMEOUT_MS, requestTimeoutMs + 30_000),
+    requestTimeoutMs,
+    MAX_OVERALL_TIMEOUT_MS,
+  );
   return {
-    requestTimeoutMs: boundedEnv("APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS", DEFAULT_REQUEST_TIMEOUT_MS, 5_000, MAX_REQUEST_TIMEOUT_MS),
-    overallTimeoutMs: boundedEnv("APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS", DEFAULT_OVERALL_TIMEOUT_MS, DEFAULT_REQUEST_TIMEOUT_MS, MAX_OVERALL_TIMEOUT_MS),
+    requestTimeoutMs,
+    overallTimeoutMs,
     maximumPromptChars: boundedEnv("APEX_GROQ_BOSS_MAX_PROMPT_CHARS", MAX_PROMPT_CHARS, 8_000, MAX_PROMPT_CHARS),
   };
 }
