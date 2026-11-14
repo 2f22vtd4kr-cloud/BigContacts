@@ -95,7 +95,7 @@ describe("registry profile evidence semantics", () => {
 
   it("suppresses estimated net worth when source metadata says personal wealth is not evidenced", () => {
     expect(narrativeSource).toContain("metadata.personalWealthEvidence === false");
-    expect(profileSource).toContain("entityMetadata.wealthStatus === \"not_assessed\"");
+    expect(narrativeSource).toContain('metadata.wealthStatus === "not_assessed"');
     expect(profileSource).toContain("hasPersonalWealthEvidence(entity)");
     expect(profileSource).toContain("const displayableEstimatedNetWorth = hasPersonalWealthEvidence(entity)");
     expect(profileSource).toContain('displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"');
