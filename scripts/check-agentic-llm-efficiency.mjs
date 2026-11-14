@@ -13,7 +13,7 @@ const required = [
   'from "./agentic-llm-telemetry"',
   "recordAgenticLlmAttempt({",
   "async function callGroqJson",
-  "rankGroqModelsForTask",
+  "selectGroqInvestigatorModel",
   "if (response.status === 401 || response.status === 403) break;",
   "response.status === 429",
   "investigatorCapabilityKeyName(selectedInvestigatorLlm)",
@@ -47,7 +47,7 @@ for (const marker of ["role?:", "jobId?:", "caseId?:", "targetDigest?:", "iterat
 }
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
-// Routing may choose among Groq models, but it must never change provider role.
+// The Boss-selected capability pins the Groq model; no silent model or provider rotation is allowed.
 if (!/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: direct selected-provider boundary is missing");
 }
