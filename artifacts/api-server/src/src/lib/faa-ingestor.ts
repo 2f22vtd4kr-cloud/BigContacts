@@ -518,9 +518,9 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       // metadata explicitly says wealth is not evidenced/not assessed.
       sql`NOT (
         (
-          ${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence' = 'true'
-          OR ${entitiesTable.metadata}::jsonb ->> 'wealthStatus' IN ('qualified', 'verified', 'assessed')
-          OR ${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus' = 'qualified'
+          COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') = 'true'
+          OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')
+          OR COALESCE(${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'
         )
         AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') <> 'false'
         AND COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'
