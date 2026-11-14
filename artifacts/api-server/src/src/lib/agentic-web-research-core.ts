@@ -5173,7 +5173,7 @@ export function findUnsupportedDiscoverySectorTerms(
         (record.action === "visit" || record.action === "browser_fetch")
         && record.execution === "success"
         && record.observedUrls.length > 0
-        && (!activePivotScopeKey || record.pivotScopeKey === activePivotScopeKey),
+        && (activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey : !record.pivotScopeKey),
       )
       .map((record) => typeof record.observation === "string" ? record.observation : ""),
   ].join(" ");
