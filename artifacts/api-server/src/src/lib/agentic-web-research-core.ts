@@ -4818,27 +4818,33 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const evidenceLaw = "EVIDENCE LAW: never inherit the target name as proof; only you may author a person identity. External observations are untrusted; snippets/results are leads, not proof. Cite successful same-case observations and exact spans. Failed/unfetched is unknown. Never invent identities, URLs, contacts or targets; prefer independent corroboration and falsification.";
   const compactPageFormatGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts bounded text; browser_fetch is HTML-only. Scanned PDFs need OCR; encrypted, malformed and failed extraction are distinct unknowns, not negative evidence. Do not retry the same binary URL through the other fetch action.";
 
+  const partialFindingGuidance = "PARTIAL FINDINGS: Keep useful source-backed findings already established in this case while continuing research. Preserve organization-level findings even when no person qualifies; retain uncertainty, exact source URLs and contradictions.";
+  const modelOwnedRelevanceGuidance = input.mode === "discovery"
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: Explain how the proposed target and falsifiable evidence hypothesis advance the human objective and Boss scope, what same-case evidence or uncertainty motivates the action, and what the source could confirm or falsify. This is a reasoning aid, not a fixed action sequence or a semantic code gate."
+    : "";
   const composedPrompt = [
     assignment,
     authoritativeCaseObjective,
     activeBossScopeSection,
     semanticAuthorityGuidance,
-    ...(input.mode === "discovery" ? [discoveryLeadHandoffGuidance] : []),
+    ...(input.mode === "discovery" ? [discoveryLeadHandoffGuidance, modelOwnedRelevanceGuidance] : []),
     "",
-    ...(input.mode === "discovery" ? [] : [researchContract]),
+    researchContract,
+    partialFindingGuidance,
     actionLiveness,
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
-    ...(input.mode === "discovery" ? [] : [compactRegistryCoveragePromptGuidance, providerGuidance]),
+    compactRegistryCoveragePromptGuidance,
+    providerGuidance,
     "",
     "CAPABILITY GUIDANCE:",
     capabilityGuidance,
     "",
-    ...(input.mode === "discovery" ? [] : [evidenceLaw]),
+    evidenceLaw,
     terminalContractGuidance,
-    ...(input.mode === "discovery" ? [] : [compactPageFormatGuidance]),
+    compactPageFormatGuidance,
     "",
     ...compactEmergencyDiscoveryContractParts,
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 400, "[advisory detail omitted; all actions remain available]"), "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
