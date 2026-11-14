@@ -41,6 +41,19 @@ describe("canonical Atlas nested provider failure classification", () => {
     })).toEqual({ domain: "model_provider", kind: "provider_rate_limited" });
   });
 
+  it("parses a string HTTP status code through a nested wrapper", () => {
+    const wrapped = new Error("Boss control request failed", {
+      cause: new Error("provider adapter failed", {
+        cause: Object.assign(new Error("upstream returned too many requests"), { status: "429" }),
+      }),
+    });
+
+    expect(classifyCanonicalAtlasFailure({
+      stage: "oversight_control_decision",
+      error: wrapped,
+    })).toEqual({ domain: "model_provider", kind: "provider_rate_limited" });
+  });
+
   it("bounds and cycle-protects nested cause traversal", () => {
     const first = new Error("first");
     const second = new Error("second");
