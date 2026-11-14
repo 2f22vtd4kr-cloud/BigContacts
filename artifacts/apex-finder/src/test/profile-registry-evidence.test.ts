@@ -28,6 +28,8 @@ describe("registry profile evidence semantics", () => {
       expect(profileSource).toContain(label);
     }
     expect(profileSource).toContain('data-testid="faa-registrant-evidence"');
+    expect(profileSource).toContain("const profileWorkSummary = entityWorkSummary({");
+    expect(profileSource).toContain("assetCategories: (assets as any[]).map");
     expect(profileSource).toContain("Review only");
   });
 
