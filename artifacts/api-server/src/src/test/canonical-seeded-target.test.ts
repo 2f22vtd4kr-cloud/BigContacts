@@ -83,6 +83,25 @@ describe("canonical seeded target binding", () => {
     expect(runner).toContain("linkedAssets: linkedAssetRows");
   });
 
+  it("does not treat similarly named metadata on a non-FAA asset as FAA co-registrant data", () => {
+    const binding = buildCanonicalSeededTargetBinding({
+      entityId: 92,
+      entityName: "Example",
+      entityType: "PersonCandidate",
+      linkedAssets: [{
+        id: 902,
+        category: "Aviation",
+        identifier: "N456CD",
+        sourceRegistry: "Other registry",
+        metadata: JSON.stringify({ source: "other-source", additionalRegistrantNames: ["UNVERIFIED"] }),
+      }],
+    });
+    expect(binding.linkedAssets).toEqual([expect.objectContaining({
+      assetId: 902,
+      sourceMetadata: expect.not.objectContaining({ additionalRegistrantNames: ["UNVERIFIED"] }),
+    })]);
+  });
+
   it("uses an asset-specific objective instead of person research for an asset target", () => {
     const objective = buildTargetContactInvestigatorObjective({
       targetName: "N123AB",
