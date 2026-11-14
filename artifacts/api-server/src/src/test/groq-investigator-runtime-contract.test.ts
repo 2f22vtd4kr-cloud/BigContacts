@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -583,6 +583,20 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("https://registry.example.test/company/123");
     expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(compacted).toContain("omissions are unknown, not negative evidence");
+  });
+
+  it("routes routine Investigator actions to 20B and adjudication to 120B", () => {
+    expect(selectGroqInvestigatorModel({ cognitiveTask: "discovery" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ cognitiveTask: "identity_resolution" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ cognitiveTask: "contact_extraction" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ cognitiveTask: "contradiction_resolution" })).toBe("openai/gpt-oss-120b");
+    expect(selectGroqInvestigatorModel({ cognitiveTask: "final_adjudication" })).toBe("openai/gpt-oss-120b");
+    expect(selectGroqInvestigatorModel({
+      cognitiveTask: "discovery", configuredModel: "custom/explicit-model",
+    })).toBe("custom/explicit-model");
+    expect(selectGroqInvestigatorModel({
+      capability: "groq-investigator-20b", cognitiveTask: "final_adjudication",
+    })).toBe("openai/gpt-oss-20b");
   });
 
 });
