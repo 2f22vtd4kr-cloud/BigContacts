@@ -707,6 +707,34 @@ describe("provider quota gate", () => {
     });
   });
 
+  it("does not treat JSON-escaped long Right-hand compaction prompts as TPM usage", () => {
+    const repeatedLines = (prefix: string, totalChars: number) => {
+      const lines = Array.from({ length: Math.ceil(totalChars / 80) }, (_, index) =>
+        prefix + String(index % 10).repeat(79),
+      );
+      return lines.join("\\n").slice(0, totalChars);
+    };
+    const url = "https://api.groq.com/openai/v1/chat/completions";
+    const init: RequestInit = {
+      method: "POST",
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        max_completion_tokens: 768,
+        messages: [
+          { role: "system", content: repeatedLines("s", 13_556) },
+          { role: "user", content: repeatedLines("u", 7_551) },
+        ],
+      }),
+    };
+    const request = getGroqTokenRequest(url, init);
+    expect(request?.reservedTokens).toBeGreaterThan(6_000);
+    // The observed Replit Right-hand compaction prompt used ~4.3k actual
+    // prompt tokens plus a 768-token output allowance under an 8k TPM limit.
+    // Escaping newlines in JSON must not inflate that valid request above the
+    // 7k local safety budget before the provider can report real usage.
+    expect(request?.reservedTokens).toBeLessThanOrEqual(7_000);
+  });
+
   it("shares one rolling Groq TPM reservation across roles even when they use different credentials for the same model", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
@@ -751,13 +779,8 @@ describe("provider quota gate", () => {
     const init: RequestInit = { method: "POST", body: JSON.stringify({ model: "openai/gpt-oss-20b", max_completion_tokens: 2_000, messages: [{ role: "user", content: "x".repeat(1_000) }] }) };
     const groqRequest = getGroqTokenRequest(url, init);
     expect(groqRequest).toBeDefined();
-    const promptMaterial = JSON.stringify({
-      messages: [{ role: "user", content: "x".repeat(1_000) }],
-      tools: undefined,
-      response_format: undefined,
-      tool_choice: undefined,
-    });
-    expect(groqRequest?.reservedTokens).toBe(Math.ceil(promptMaterial.length / 3.4 * 1.1) + 2_000);
+    expect(groqRequest?.reservedTokens).toBeGreaterThan(2_000);
+    expect(groqRequest?.reservedTokens).toBeLessThan(2_400);
     let calls = 0;
     const invoke = (account: string) => runProviderCall({ provider: "groq", account, groqRequest }, async () => {
       calls += 1;
