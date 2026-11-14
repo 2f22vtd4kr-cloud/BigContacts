@@ -18,8 +18,8 @@ export type IdentityCollisionResult = {
 };
 
 export function identityNameTokens(value: string | null | undefined): string[] {
-  return String(value ?? "").normalize("NFKD").toLowerCase().replace(/\\p{M}/gu, "")
-    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ").split(/\\s+/)
+  return String(value ?? "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/)
     .map((token) => token.trim())
     .filter((token) => Array.from(token).length >= 2 && !NAME_STOP_WORDS.has(token));
 }
@@ -67,8 +67,8 @@ export function assessIdentityCollision(input: {
   };
   const personName = input.personName?.trim() ?? "";
   const value = String(input.value ?? "").trim();
-  const contactLike = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)
-    || /^(?:\\+?\\d[\\d\\s().-]{6,})$/.test(value);
+  const contactLike = /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(value)
+    || /^(?:\\+?\\d[\\d\s().-]{6,})$/.test(value);
 
   if (!personName) {
     return {
