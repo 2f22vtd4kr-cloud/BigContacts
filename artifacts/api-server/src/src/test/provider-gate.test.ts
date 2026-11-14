@@ -816,6 +816,29 @@ describe("provider quota gate", () => {
     expect(secondCalls).toBe(0);
   });
 
+  it("shares a Groq 413 token-window capacity reset across role credentials", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
+    process.env.APEX_GROQ_TPM_BUDGET = "4000";
+    process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    const request = { model: "openai/gpt-oss-20b", reservedTokens: 1_000 };
+    const body = JSON.stringify({ error: { code: "rate_limit_exceeded", type: "tokens" } });
+    const response = new Response(body, {
+      status: 413,
+      headers: { "x-ratelimit-reset-tokens": "20s" },
+    });
+    await runProviderCall({ provider: "groq", account: "investigator", groqRequest: request }, async () => response);
+    reconcileGroqTokenResponse(response, body);
+    let secondCalls = 0;
+    await expect(runProviderCall({ provider: "groq", account: "right-hand", groqRequest: request }, async () => {
+      secondCalls += 1;
+      return new Response("unexpected");
+    })).rejects.toMatchObject({ code: "cooldown", provider: "groq" });
+    expect(secondCalls).toBe(0);
+  });
+
   it("honors the provider token-reset header across Groq role credentials after a token 429", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
