@@ -2565,6 +2565,7 @@ async function callGroqJson(
             dailyReservationTokens,
             dailyBudgetTokens,
             providerRequestSent,
+            budgetExhausted: tokenDailyQuota,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
