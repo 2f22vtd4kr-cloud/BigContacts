@@ -2209,6 +2209,25 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
 
+/**
+ * Preserve the complete model-authored objective, evidence and output contract.
+ * Prompt-size targets are advisory: source-backed observations and the schema
+ * are never cut by a final character-count reducer.
+ */
+export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+  const normalized = typeof prompt === "string" ? prompt : "";
+  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
+  const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
+  const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
+  const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
+  const completeSchemaPresent = fieldsAt >= 0
+    && requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field));
+  if (!completeSchemaPresent) {
+    throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
+  }
+  return normalized;
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
