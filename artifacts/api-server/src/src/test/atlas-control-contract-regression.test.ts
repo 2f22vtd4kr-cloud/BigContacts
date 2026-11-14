@@ -763,7 +763,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
     expect(controlSource).toContain("if (input.rightHandOverride)");
     expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
-    expect(controlSource).toContain("Right-hand review is invoked for consequential, evidence-bearing");
+    expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
     expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
     expect(controlSource).toContain("status: \"deferred\"");
     expect(controlSource).toContain("reviewDeferred: input.rightHand.status === \"deferred\"");
