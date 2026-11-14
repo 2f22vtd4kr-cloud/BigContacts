@@ -84,7 +84,8 @@ const contactPersistenceSource = fs.readFileSync("artifacts/api-server/src/src/l
 const modelAttributionAndQuoteBinding = contactPersistenceSource.includes('item.contactAttribution==="person_specific"')
   && contactPersistenceSource.includes("quoteAppearsInObservation(observationText, quote)")
   && contactPersistenceSource.includes("hasBoundIdentityAndValue(quote,name,cleanValue,vectorType)")
-  && contactPersistenceSource.includes('const explicitlyPersonAttributed = item.contactAttribution === "person_specific"');
+  && contactPersistenceSource.includes('item.contactAttribution === "shared_inbox"')
+  && !/\b(info|contact|office|press|hello|admin|sales|support)@/i.test(contactPersistenceSource);
 checks.push(["candidate contact evidence requires explicit model attribution and an exact quote containing person plus value in the same fetched observation", modelAttributionAndQuoteBinding]);
 checks.push(["terminal target evidence uses a bounded 320-character identity/value binding",/const combinedSpan = bindExactSourceSpan\(source\.observation, value, subject, 320\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts","utf8"))]);
 checks.push(["discovery checkpoint persistence is deduplicated by run and turn",/existingTrajectoryKeys/.test(fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts","utf8"))&&/:turn:\$\{record\.turn\}:trajectory/.test(fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts","utf8"))]);
