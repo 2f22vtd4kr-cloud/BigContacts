@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   areCompatibleWesternRegistryEntityTypes,
@@ -27,6 +28,16 @@ function candidate(name: string): HarvestedPerson {
 }
 
 describe("Western registry mass-seed admission", () => {
+  it("refuses a global dedup reset and never clears shared dedup state before claiming the lane", () => {
+    const route = readFileSync(new URL("../routes/ingest.ts", import.meta.url), "utf8");
+    const worker = readFileSync(new URL("../lib/western-hnwi-ingestion.ts", import.meta.url), "utf8");
+    expect(route).toContain("GLOBAL_DEDUP_RESET_DISABLED");
+    expect(route).toContain("Global dedup reset is disabled for Western registry ingestion");
+    expect(route).not.toMatch(/await\s+clearDedup\s*\(/u);
+    expect(worker).not.toContain("clearDedupFirst");
+    expect(worker).not.toMatch(/await\s+clearDedup\s*\(/u);
+  });
+
   it("deduplicates legacy HNWI/Gatekeeper rows against new PersonCandidate rows without cross-type collisions", () => {
     expect(areCompatibleWesternRegistryEntityTypes("HNWI", "PersonCandidate")).toBe(true);
     expect(areCompatibleWesternRegistryEntityTypes("Gatekeeper", "PersonCandidate")).toBe(true);
