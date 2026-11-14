@@ -391,7 +391,7 @@ export function buildFaaAircraftAsset(input: {
       nNumber: tailNumber,
       registrantName: input.registrantName,
       additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? []),
-      additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields; they do not establish an ownership percentage, beneficial-owner identity, or personal wealth.",
+      additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
       registrantKind: classification.registrantKind,
