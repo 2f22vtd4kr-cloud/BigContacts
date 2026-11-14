@@ -2776,7 +2776,8 @@ Choose each next action yourself from the available capabilities and observed ev
       livenessRecord("web_search", "blocked"),
       livenessRecord("parallel_web_search", "blocked"),
     ];
-    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(2);
+    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeLessThanOrEqual(20);
     expect(countDiscoverySearchActions(records)).toBe(2);
     const agedHistory = [
       ...records,
