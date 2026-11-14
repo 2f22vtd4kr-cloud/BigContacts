@@ -713,10 +713,8 @@ describe("provider quota gate", () => {
     process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "0";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
-    const repeatedLines = (prefix: string, totalChars: number) => {
-      const lines = Array.from({ length: Math.ceil(totalChars / 80) }, (_, index) =>
-        prefix + String(index % 10).repeat(79),
-      );
+    const repeatedLines = (phrase: string, totalChars: number) => {
+      const lines = Array.from({ length: Math.ceil(totalChars / phrase.length) }, () => phrase);
       return lines.join("\n").slice(0, totalChars);
     };
     const url = "https://api.groq.com/openai/v1/chat/completions";
@@ -726,8 +724,8 @@ describe("provider quota gate", () => {
         model: "openai/gpt-oss-20b",
         max_completion_tokens: 768,
         messages: [
-          { role: "system", content: repeatedLines("s", 13_556) },
-          { role: "user", content: repeatedLines("u", 7_551) },
+          { role: "system", content: repeatedLines("Preserve the exact human objective, source URL, role, evidence, uncertainty, and next action. ", 13_556) },
+          { role: "user", content: repeatedLines("The source is a lead until fetched; preserve exact URLs and never infer ownership or wealth. ", 7_551) },
         ],
       }),
     };
