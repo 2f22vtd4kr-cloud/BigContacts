@@ -94,10 +94,10 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
   try {
     jobId = await createJob("compute-embeddings");
     await setActiveJob("compute-embeddings", jobId);
-    await updateJob(claimedJobId, { status: "running", message: "Loading semantic embedding model (all-MiniLM-L6-v2)…" });
+    await updateJob(jobId, { status: "running", message: "Loading semantic embedding model (all-MiniLM-L6-v2)…" });
   } catch (err: any) {
     if (jobId) {
-      await clearActiveJobIfOwned("compute-embeddings", claimedJobId).catch(() => false);
+      await clearActiveJobIfOwned("compute-embeddings", jobId).catch(() => false);
       await updateJob(jobId, { status: "failed", message: err?.message ?? "Could not claim embedding job" }).catch(() => undefined);
     }
     let competingJob: string | null = null;
@@ -108,6 +108,7 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
     });
     return;
   }
+  if (!jobId) { res.status(503).json({ error: "Embedding job was not created." }); return; }
   const claimedJobId = jobId;
   res.status(202).json({ jobId: claimedJobId, message: rebuild ? "Semantic embedding rebuild started." : "Semantic embedding computation started." });
 
@@ -117,7 +118,7 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
       const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, notes: entitiesTable.notes, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata }).from(entitiesTable).offset(offset).limit(batchSize);
       const existingCache = getAllEmbeddings();
       const toEmbed = rebuild ? rows : rows.filter((e) => !existingCache.has(e.id));
-      await updateJob(jobId, { status: "running", total: toEmbed.length, progress: 0, message: `${rebuild ? "Rebuilding" : "Embedding"} ${toEmbed.length} entities (${rows.length - toEmbed.length} already cached)…` });
+      await updateJob(claimedJobId, { status: "running", total: toEmbed.length, progress: 0, message: `${rebuild ? "Rebuilding" : "Embedding"} ${toEmbed.length} entities (${rows.length - toEmbed.length} already cached)…` });
       let processed = 0; let skipped = 0;
       const CHUNK = 10;
       for (let i = 0; i < toEmbed.length; i += CHUNK) {
@@ -127,15 +128,15 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
           try { await storeEmbedding(entity.id, await embedText(entityToEmbedText(entity))); processed++; }
           catch { skipped++; }
         }));
-        if (i % 200 === 0 || i + CHUNK >= toEmbed.length) await updateJob(jobId, { progress: processed + skipped, inserted: processed, skipped, message: `Embedded ${processed}/${toEmbed.length} (cache: ${getEmbeddingCacheSize()})` });
+        if (i % 200 === 0 || i + CHUNK >= toEmbed.length) await updateJob(claimedJobId, { progress: processed + skipped, inserted: processed, skipped, message: `Embedded ${processed}/${toEmbed.length} (cache: ${getEmbeddingCacheSize()})` });
       }
-      if (!(await ownsActiveJob("compute-embeddings", jobId))) throw new Error("compute-embeddings job ownership lost before completion");
-      await updateJob(jobId, { status: "done", progress: toEmbed.length, total: toEmbed.length, inserted: processed, skipped, finishedAt: new Date().toISOString(), message: `Done — ${processed} embeddings computed, ${skipped} skipped.` });
-      await clearActiveJobIfOwned("compute-embeddings", jobId);
+      if (!(await ownsActiveJob("compute-embeddings", claimedJobId))) throw new Error("compute-embeddings job ownership lost before completion");
+      await updateJob(claimedJobId, { status: "done", progress: toEmbed.length, total: toEmbed.length, inserted: processed, skipped, finishedAt: new Date().toISOString(), message: `Done — ${processed} embeddings computed, ${skipped} skipped.` });
+      await clearActiveJobIfOwned("compute-embeddings", claimedJobId);
       logger.info({ processed, skipped, total: toEmbed.length }, "Semantic embedding computation complete");
     } catch (err: any) {
-      await updateJob(jobId, { status: "failed", message: err?.message ?? "Crashed", finishedAt: new Date().toISOString() });
-      await clearActiveJobIfOwned("compute-embeddings", jobId);
+      await updateJob(claimedJobId, { status: "failed", message: err?.message ?? "Crashed", finishedAt: new Date().toISOString() });
+      await clearActiveJobIfOwned("compute-embeddings", claimedJobId);
       logger.error({ err: err?.message }, "Semantic embedding computation failed");
     }
   })();
