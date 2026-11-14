@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasPinnedControlState, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasPinnedControlState, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, shouldInvokeAtlasRightHandReview, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -15,6 +15,61 @@ const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+
+describe("conditional Right-hand review policy", () => {
+  it("defers repeated empty-cycle reviews but invokes independent challenge for consequential decisions", () => {
+    const noEvidence = {
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery" as const,
+      priorCandidate: null,
+      trajectoryRecords: [
+        { action: "investigator_provider_error", failureDomain: "model_provider", failureKind: "invalid_provider_request" },
+      ],
+    };
+    expect(shouldInvokeAtlasRightHandReview(noEvidence)).toBe(false);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...noEvidence,
+      trajectoryRecords: [{ action: "done" }],
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...noEvidence,
+      trajectoryRecords: [{ action: "done" }, { action: "done" }],
+    })).toBe(false);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...noEvidence,
+      admittedCandidates: [{ name: "Example Person", role: "owner", sourceUrls: ["https://example.org/about"], targetType: "person" }],
+      priorAction: null,
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({ ...noEvidence, priorAction: "pivot_discovery" })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...noEvidence,
+      trajectoryRecords: [{ action: "web_search", failureDomain: "evidence", failureKind: "contradiction" }],
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...noEvidence,
+      trajectoryRecords: [{ action: "browser_fetch", findings: [{ value: "new finding" }] }],
+    })).toBe(true);
+  });
+
+  it("labels a deferred review explicitly instead of reporting a provider outage", () => {
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "Only provider validation failures; no external research executed.",
+      compactState: "No admitted candidates or source-backed findings.",
+      rightHand: {
+        status: "deferred",
+        decision: null,
+        reason: "No high-consequence decision is pending.",
+        direction: null,
+        confidence: null,
+        model: "not-invoked",
+        error: null,
+      },
+    });
+    expect(prompt).toContain('"status":"deferred"');
+    expect(prompt).toContain("No high-consequence decision is pending");
+  });
+});
 
 describe("objective-aligned Boss control decisions", () => {
   it("does not invent a less-public preference for a broad B2B objective", () => {
