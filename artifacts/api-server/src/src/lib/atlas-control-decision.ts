@@ -1038,7 +1038,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // Right-hand is advisory on every turn. Its failure is passed to Boss as context; only Boss unavailability or an invalid Boss contract is fail-closed.
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
+  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: input.opening ? 384 : 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
       const failure = formatAtlasBossGenerationFailure(generated);
