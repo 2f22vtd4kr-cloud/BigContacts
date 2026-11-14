@@ -58,7 +58,9 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain('displayType === "HNWI"');
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
     expect(profileSource).toContain("const hasFaaSource = metadata.source === \"faa-aircraft-registry\"");
-    expect(profileSource).toContain("const lacksIndependentWealthAssessment = metadata.personalWealthEvidence !== true");
+    expect(profileSource).toContain('const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed"');
+    expect(profileSource).toContain("const explicitlyQualified = metadata.personalWealthEvidence === true");
+    expect(profileSource).toContain('["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))');
     expect(profileSource).toContain("if (hasFaaSource && metadata.personalWealthEvidence !== true) return false;");
     expect(profileSource).toContain('metadata.typeRegistrant ?? metadata.registrantTypeCode ?? ""');
   });
