@@ -120,6 +120,28 @@ function hasPersonalWealthEvidence(entity: any): boolean {
   return true;
 }
 
+function profileDisplayEntityType(entity: any): string {
+  if (entity?.type !== "HNWI") return entity?.type ?? "Other";
+  let metadata: Record<string, any> = {};
+  let sourceRegistries: string[] = [];
+  try {
+    const parsed = JSON.parse(entity.metadata ?? "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch {}
+  try {
+    const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
+    if (Array.isArray(parsed)) sourceRegistries = parsed.filter((value): value is string => typeof value === "string");
+  } catch {}
+  const faaOnly = sourceRegistries.length === 1
+    && /FAA Releasable Aircraft Database/i.test(sourceRegistries[0])
+    || sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry";
+  if (!faaOnly) return entity.type;
+  const registrantType = String(metadata.typeRegistrant ?? "");
+  if (registrantType === "1") return "PersonCandidate";
+  if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
+  return "Other";
+}
+
 function computeConfidence(entity: any, assets: any[], relationships: any[]): ConfidenceScores {
   const idFields = [entity.nationality, entity.knownResidences, entity.contactMethod, entity.phone || entity.email, entity.linkedinUrl];
   const identity = Math.round((idFields.filter(Boolean).length / idFields.length) * 100);
@@ -255,6 +277,7 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
 function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   entity: any; assets: any[]; relationships: any[]; sessions: any[];
 }) {
+  const displayType = profileDisplayEntityType(entity);
   const metricEvidenceDone =
     entity.type === "HNWI"
       ? hasPersonalWealthEvidence(entity)
@@ -267,7 +290,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
     { key: "name",        label: "Name",         done: !!entity.name },
     { key: "type",        label: "Type",         done: !!entity.type },
     { key: "nationality", label: "Nationality",  done: !!entity.nationality },
-    { key: "metric",      label: entityMeta(entity.type).metricLabel,    done: metricEvidenceDone },
+    { key: "metric",      label: entityMeta(displayType).metricLabel,    done: metricEvidenceDone },
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
     { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
     { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
@@ -519,7 +542,8 @@ export default function ApexProfile() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const typeColor  = entityMeta(entity.type).color;
+  const displayType = profileDisplayEntityType(entity);
+  const typeColor  = entityMeta(displayType).color;
   let srcRegs: string[] = [];
   try { srcRegs = JSON.parse((entity as any).sourceRegistries ?? "[]"); } catch {}
   let entityMetadata: Record<string, any> = {};
@@ -748,7 +772,7 @@ export default function ApexProfile() {
                 className="text-[12px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
                 style={{ color: typeColor, backgroundColor: typeColor + "1A" }}
               >
-                <EntityTypeMark type={entity.type} compact />
+                <EntityTypeMark type={displayType} compact />
               </span>
               {(entity as any).linkedinHeadline && (
                 <span className="text-[12px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
@@ -906,7 +930,7 @@ export default function ApexProfile() {
               <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"}</span>
               {displayableEstimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
-                {entity.type === "HNWI" ? formatCurrency(displayableEstimatedNetWorth) : entityMetric(entity)}
+                {displayType === "HNWI" ? formatCurrency(displayableEstimatedNetWorth) : entityMetric({ ...entity, type: displayType })}
                 </span>
               ) : (
                 <span className="font-mono text-[12px] font-semibold text-foreground/60 leading-snug mb-1 italic">
