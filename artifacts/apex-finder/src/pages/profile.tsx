@@ -557,7 +557,11 @@ export default function ApexProfile() {
     return null;
   })();
 
-  const profileWorkSummary = entityWorkSummary(entity);
+  const profileWorkSummary = entityWorkSummary({
+    ...entity,
+    assetCount: (assets as any[]).length,
+    assetCategories: (assets as any[]).map((asset: any) => asset.category),
+  });
   const profileFindings = entityFindingsSummary({
     ...entity,
     assetCount: (assets as any[]).length,
