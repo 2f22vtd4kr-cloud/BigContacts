@@ -241,7 +241,7 @@ describe("Groq Investigator runtime contract", () => {
       "invalid_action_arguments action=parallel_registry_search missing=searches",
     );
     expect(repair).toContain("searches");
-    expect(repair).toContain("2–4 objects");
+    expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('"provider":null');
     expect(repair).toContain('"locale":null');
