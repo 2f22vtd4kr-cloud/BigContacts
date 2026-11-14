@@ -245,8 +245,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("source class need not appear in every discovery query");
     expect(modelPrompt).toContain("The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
     expect(modelPrompt).toContain("Public-web and registry routes are neutral options");
-    expect(modelPrompt).toContain("Investigator chooses the next action by expected information gain");
-    expect(modelPrompt).toContain("no registry is preferred; one lead can start target research");
+    expect(modelPrompt).toContain("The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain");
+    expect(modelPrompt).toContain("One source-backed relevant lead starts target research; no registry is preferred");
     expect(modelPrompt).toContain("DISCOVERY TARGETABILITY / REALISM");
     expect(modelPrompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(modelPrompt).toContain("ranking-only mentions are leads, not qualified targets");
