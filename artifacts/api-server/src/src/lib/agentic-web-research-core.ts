@@ -2234,7 +2234,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? (actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(prompt) ? "target" : "discovery");
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
-  const promptSizeGuidance = "PROMPT SIZE TARGET (ADVISORY): aim near " + maxUserPromptChars + " user characters; preserve objective, Boss scope, available actions, latest evidence and schema. Compact auxiliary history first; omitted context is unknown, not negative.";
+  const promptSizeGuidance = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Prefer concise, high-signal context around " + maxUserPromptChars + " characters when practical. Do not omit the human objective, Boss-approved scope, runtime action contract, exact source URLs/claims, or latest decision-relevant evidence merely to meet this target. The Investigator retains research judgement; actual provider context/token limits and execution-integrity checks still apply.";
   const modelPrompt = [promptSizeGuidance, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
@@ -4772,7 +4772,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 1_200 : 1_500,
+        maxChars: input.mode === "discovery" ? 1_200 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
