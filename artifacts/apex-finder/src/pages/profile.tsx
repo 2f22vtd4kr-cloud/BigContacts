@@ -517,6 +517,15 @@ export default function ApexProfile() {
     || entityMetadata.wealthStatus === "not_assessed"
     ? null
     : (entity as any).estimatedNetWorth;
+  const faaLinkedAssets = (assets as any[]).filter((asset: any) => {
+    let metadata: Record<string, any> = {};
+    try {
+      const parsed = JSON.parse(asset.metadata ?? "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+    } catch {}
+    return metadata.source === "faa-aircraft-registry"
+      || asset.sourceRegistry === "FAA Releasable Aircraft Database";
+  });
 
   const geoAssets  = (assets as any[]).filter((a) => a.latitude != null && a.longitude != null);
   const confidence = computeConfidence(entity, assets as any[], relationships as any[]);
@@ -1149,22 +1158,38 @@ export default function ApexProfile() {
               </div>
             ))}
           </div>
-          {Array.isArray(entityMetadata.additionalRegistrantNames) && entityMetadata.additionalRegistrantNames.length > 0 ? (
-            <div className="mt-3 rounded border border-border/60 bg-background/40 px-3 py-2">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Additional names on the same registration · unverified</div>
-              <p className="text-[10px] leading-relaxed text-muted-foreground mb-2">
-                FAA Other Name 1–5 fields are published co-owner or partnership name fields. They are associated record names, not independently verified people or beneficial owners.
-              </p>
-              <ul className="space-y-1">
-                {entityMetadata.additionalRegistrantNames.slice(0, 5).map((name: unknown, index: number) => (
-                  typeof name === "string" && name.trim()
-                    ? <li key={index} className="text-[11px] text-foreground/85 break-words">{name}</li>
-                    : null
-                ))}
-              </ul>
+          {faaLinkedAssets.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {faaLinkedAssets.map((asset: any, assetIndex: number) => {
+                let assetMetadata: Record<string, any> = {};
+                try {
+                  const parsed = JSON.parse(asset.metadata ?? "{}");
+                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) assetMetadata = parsed;
+                } catch {}
+                const names = Array.isArray(assetMetadata.additionalRegistrantNames)
+                  ? assetMetadata.additionalRegistrantNames.filter((name: unknown): name is string => typeof name === "string" && !!name.trim()).slice(0, 5)
+                  : [];
+                return (
+                  <div key={asset.id ?? asset.identifier ?? assetIndex} className="rounded border border-border/60 bg-background/40 px-3 py-2">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+                      {asset.identifier ? `Aircraft ${asset.identifier}` : "FAA aircraft record"} · additional names on this registration · unverified
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground mb-2">
+                      FAA Other Name 1–5 fields are published co-owner or partnership name fields. They are associated record names, not independently verified people or beneficial owners.
+                    </p>
+                    {names.length > 0 ? (
+                      <ul className="space-y-1">
+                        {names.map((name: string, index: number) => <li key={index} className="text-[11px] text-foreground/85 break-words">{name}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">No additional names are present in this releasable record.</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <p className="mt-3 text-[10px] text-muted-foreground">No additional names are present in this releasable FAA record.</p>
+            <p className="mt-3 text-[10px] text-muted-foreground">No linked FAA aircraft records are loaded for this profile.</p>
           )}
         </section>
       )}
