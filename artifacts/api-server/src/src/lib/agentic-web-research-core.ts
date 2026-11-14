@@ -5122,6 +5122,10 @@ export function discoveryLeadInspectionRequirement(
 }
 
 export const MAX_DISCOVERY_SEARCH_ACTIONS = boundedPositiveNumber(process.env.APEX_DISCOVERY_MAX_SEARCH_ACTIONS, 8, 2, 20);
+
+export function discoverySearchBudgetExhaustionObservation(used: number): string {
+  return "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached (" + used + "/" + MAX_DISCOVERY_SEARCH_ACTIONS + " actions used across this case). No further search/provider/registry request was sent. Decide whether any objective-justified non-search action, target-scoped handoff, or stopping is warranted; the next action remains your decision.";
+}
 const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
 
 /** Count only outbound search attempts; runtime-blocked and unexecuted selections do not consume the discovery search budget. */
@@ -5799,7 +5803,7 @@ if (input.mode === "discovery") {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
-    record.observation = "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached (" + discoverySearchActionsUsed + "/" + MAX_DISCOVERY_SEARCH_ACTIONS + " actions used across this case). No further search/provider/registry request was sent. Decide whether any objective-justified non-search action, target-scoped handoff, or stopping is warranted; the next action remains your decision.";
+    record.observation = discoverySearchBudgetExhaustionObservation(discoverySearchActionsUsed);
     lastObservation = record.observation;
     pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_search_budget_exhausted");
     await emitSanitizedTrajectoryRecord(record);
