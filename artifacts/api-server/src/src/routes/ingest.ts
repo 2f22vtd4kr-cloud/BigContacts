@@ -35,7 +35,7 @@ import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
-  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedup, clearDedupPrefix, getDedupCount,
+  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedupPrefix, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
@@ -172,9 +172,17 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   const {
     targetCount = 5_000,
     batchSize = 100,
-    clearDedup: doClean = false,
+    clearDedup: clearDedupRequested = false,
     force = false,
   } = req.body as { targetCount?: number; batchSize?: number; clearDedup?: boolean; force?: boolean };
+
+  if (clearDedupRequested) {
+    res.status(400).json({
+      error: "Global dedup reset is disabled for Western registry ingestion. Existing source keys must be preserved; retry idempotently or use a separately reviewed, lane-scoped migration.",
+      code: "GLOBAL_DEDUP_RESET_DISABLED",
+    });
+    return;
+  }
 
   const safeTarget = Math.min(Math.max(Number(targetCount) || 5_000, 100), 50_000);
 
@@ -189,7 +197,6 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
     }
   }
 
-  if (doClean) await clearDedup();
 
   const jobId = await createJob("western-hnwi");
   if (!(await claimIngestionJobOrRespond("western-hnwi", jobId, res))) return;
