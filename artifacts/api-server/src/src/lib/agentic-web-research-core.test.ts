@@ -3739,6 +3739,39 @@ Choose each next action yourself from the available capabilities and observed ev
       .toContain("Use the exact ID from the configured choices; do not substitute labels or omit registry");
   });
 
+  it("lets an attested Investigator choose an explicit theHarvester source subset", () => {
+    const raw = JSON.stringify({
+      action: "harvest_domain",
+      domain: "example.com",
+      sources: ["crtsh", "bing"],
+      hypothesis: "public subdomains may reveal a source-backed contact route",
+      purpose: "test the domain's certificate and search-index surfaces",
+      expectedInformationGain: 0.7,
+    });
+    expect(describeAgentActionParseFailure(raw, ["harvest_domain"])).toBe("");
+    expect(parseAgentAction(raw, ["harvest_domain"])).toMatchObject({
+      action: "harvest_domain",
+      domain: "example.com",
+      sources: ["crtsh", "bing"],
+    });
+
+    const invalid = JSON.stringify({
+      action: "harvest_domain",
+      domain: "example.com",
+      sources: ["bing", "unapproved-engine"],
+      hypothesis: "test allowlist enforcement",
+      purpose: "reject a worker source outside the attested allowlist",
+      expectedInformationGain: 0.5,
+    });
+    expect(describeAgentActionParseFailure(invalid, ["harvest_domain"]))
+      .toBe("invalid_action_arguments action=harvest_domain invalid=sources");
+    expect(parseAgentAction(invalid, ["harvest_domain"])).toBeNull();
+
+    const schema = structuredActionResponseFormat("qwen/qwen3.8-27b", ["harvest_domain"]) as any;
+    expect(schema.json_schema.schema.properties.sources.items.enum)
+      .toEqual(["bing", "duckduckgo", "yahoo", "certspotter", "crtsh"]);
+  });
+
   it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
     expect(describeAgentActionParseFailure("")).toBe("empty_response");
     expect(describeAgentActionParseFailure("not json")).toMatch(/^no_json_object chars=\d+ digest=/);
