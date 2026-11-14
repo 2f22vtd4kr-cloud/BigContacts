@@ -9,6 +9,10 @@ describe("data-source catalogue availability and privacy claims", () => {
     expect(sourceCatalog).toContain("Exact positions, callsigns, track bearings and historical routes are not retained");
   });
 
+  it("labels FAA map coordinates as state-centroid visualization hints, not aircraft positions", () => {
+    expect(sourceCatalog).toContain("state centroids only—not aircraft positions or owner residences");
+  });
+
   it("keeps historical flight traces explicitly disabled", () => {
     expect(sourceCatalog).toContain('label: "ADS-B Historical Flight Traces (disabled)"');
     expect(sourceCatalog).toContain("Disabled by privacy policy");
