@@ -12,11 +12,13 @@ describe("source-backed contact attribution", () => {
     isValidPhone: false,
   };
 
-  it("does not let a generic local-part heuristic override explicit model attribution backed by an exact source claim", () => {
+  it("allows a generic inbox only when the model labels a personal route and the exact quote binds person to value", () => {
     const result = scoreAttribution({
       ...base,
       exactClaimObserved: true,
       targetPersonEvidence: true,
+      contactAttribution: "person_specific",
+      exactQuotePersonValueBound: true,
     });
 
     expect(result.attributed).toBe(true);
@@ -36,6 +38,19 @@ describe("source-backed contact attribution", () => {
     expect(result.dimensions.directness).toBe(0.28);
   });
 
+  it("never promotes a shared inbox as a person-specific route even when the person appears on the page", () => {
+    const result = scoreAttribution({
+      ...base,
+      exactClaimObserved: true,
+      targetPersonEvidence: true,
+      contactAttribution: "shared_inbox",
+      exactQuotePersonValueBound: false,
+    });
+    expect(result.attributed).toBe(false);
+    expect(result.dimensions.validation).toBe(0.28);
+    expect(result.dimensions.directness).toBe(0.28);
+  });
+
   it("does not let model attribution bypass exact-source or syntax requirements", () => {
     const missingQuote = scoreAttribution({
       ...base,
@@ -47,6 +62,8 @@ describe("source-backed contact attribution", () => {
       isValidEmail: false,
       exactClaimObserved: true,
       targetPersonEvidence: true,
+      contactAttribution: "person_specific",
+      exactQuotePersonValueBound: false,
     });
 
     expect(missingQuote.attributed).toBe(false);
