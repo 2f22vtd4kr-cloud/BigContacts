@@ -176,6 +176,25 @@ describe("same-source identity binding for candidate contact promotion", () => {
     )).toBe(true);
   });
 
+  it("rejects a shared inbox even when the page also names the person", () => {
+    const sharedQuote = "Jane Example — shared company inbox: info@example.org";
+    expect(supportsCandidateContactOnSameObservation(sharedQuote, {
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "shared_inbox",
+      exactQuote: sharedQuote,
+    }, "info@example.org", "email")).toBe(false);
+  });
+
+  it("rejects a person-specific quote that is not present verbatim in the fetched observation", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Example — direct email jane@example.com",
+      { ...candidate, exactQuote: "Jane Example — direct email: jane@example.com" },
+      "jane@example.com",
+      "email",
+    )).toBe(false);
+  });
+
   it("rejects identity and contact details when each appears only on a different source", () => {
     expect(supportsCandidateContactOnSameObservation(
       "Our team: Jane Example",
