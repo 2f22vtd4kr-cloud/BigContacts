@@ -44,7 +44,7 @@ import {
   Phone,
   Flame,
 } from "lucide-react";
-import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
+import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
@@ -104,56 +104,6 @@ const CAT_COLORS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function hasPersonalWealthEvidence(entity: any): boolean {
-  if (entity?.estimatedNetWorth == null) return false;
-  let metadata: Record<string, any> = {};
-  try {
-    const parsed = JSON.parse(entity.metadata ?? "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
-  } catch {}
-  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
-  if (explicitlyNotWealthEvidence) return false;
-  const explicitlyQualified = metadata.personalWealthEvidence === true
-    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
-    || metadata.hnwiQualificationStatus === "qualified";
-  if (explicitlyQualified) return true;
-  let sourceRegistries: string[] = [];
-  try {
-    const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
-    if (Array.isArray(parsed)) sourceRegistries = parsed.filter((source: unknown): source is string => typeof source === "string");
-  } catch {}
-  const hasFaaSource = metadata.source === "faa-aircraft-registry"
-    || sourceRegistries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
-  // FAA registration is not personal-wealth evidence. A mixed-source entity
-  // needs an explicit positive personal-wealth assessment before its amount
-  // can be displayed; the presence of another registry alone is not enough.
-  if (hasFaaSource && metadata.personalWealthEvidence !== true) return false;
-  return true;
-}
-function profileDisplayEntityType(entity: any) {
-  if (entity?.type !== "HNWI") return entity?.type ?? "Other";
-  let metadata: Record<string, any> = {};
-  let sourceRegistries: string[] = [];
-  try {
-    const parsed = JSON.parse(entity.metadata ?? "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
-  } catch {}
-  try {
-    const parsed = JSON.parse(entity.sourceRegistries ?? "[]");
-    if (Array.isArray(parsed)) sourceRegistries = parsed.filter((value): value is string => typeof value === "string");
-  } catch {}
-  const hasFaaSource = metadata.source === "faa-aircraft-registry"
-    || sourceRegistries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
-  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
-  const explicitlyQualified = metadata.personalWealthEvidence === true
-    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
-    || metadata.hnwiQualificationStatus === "qualified";
-  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) return entity.type;
-  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
-  if (registrantType === "1") return "PersonCandidate";
-  if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
-  return "Other";
-}
 
 function computeConfidence(entity: any, assets: any[], relationships: any[]): ConfidenceScores {
   const idFields = [entity.nationality, entity.knownResidences, entity.contactMethod, entity.phone || entity.email, entity.linkedinUrl];
@@ -290,7 +240,7 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
 function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   entity: any; assets: any[]; relationships: any[]; sessions: any[];
 }) {
-  const displayType = profileDisplayEntityType(entity);
+  const displayType = displayEntityType(entity);
   const metricEvidenceDone =
     displayType === "HNWI"
       ? hasPersonalWealthEvidence(entity)
