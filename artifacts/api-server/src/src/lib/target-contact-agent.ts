@@ -122,7 +122,7 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
     return graph;
   }).filter((graph): graph is EvidenceGraph => Boolean(graph && graph.edges.length > 0));
 }
-export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
+export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
   return findings
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url))))
     .map((finding) => {
@@ -141,6 +141,8 @@ export function findingsToContacts(findings: Array<{ vectorType: string; value: 
         note: `target-agent:${finding.note}`,
         contactAttribution: attribution,
         exactQuote: finding.exactQuote ?? null,
+        identityAssessment: finding.identityAssessment ?? null,
+        identityRationale: finding.identityRationale ?? null,
         tier: "candidate",
         state: "review_only",
         promote: promotionSupported && finding.promotionDecision === "promote",
@@ -220,7 +222,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Use public beneficial-owner registries and director registries, filings, investment/deal/property records, trade coverage and local-language reporting, with English corroboration when useful. Follow evidence to exact people and ownership/control links; no fixed checklist.",
     "After identity/role verification, seek public, attributable profiles on relevant platforms such as LinkedIn, Facebook, Instagram, X/Twitter or Telegram, plus personal/business websites and official bios through available search/fetch actions; corroborate each profile by exact name plus role/company/location before attributing it. Follow publicly documented family or associate relationships only when a credible public source explicitly states the tie and it clarifies ownership/control, investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route; a generic inbox, switchboard or social presence alone is not personal access.",
-    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
+    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. For every person-specific route, emit identityAssessment=same_person, different_people or unresolved with an evidence-grounded identityRationale; do not infer identity from employer/domain lists, name proximity, Latin spelling or surname heuristics. Runtime checks the assessment's exact quote, same-observation person/value binding, source provenance and job ownership. Shared inboxes stay organization-scoped. Preserve relationshipType, temporalStatus, hypothesisRelation (supports/contradicts/unrelated/ambiguous/unresolved), rationale and ambiguity where relevant. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
   ];
   const objective = sections.join("\n");
   if (objective.length <= 1_900) return objective;
