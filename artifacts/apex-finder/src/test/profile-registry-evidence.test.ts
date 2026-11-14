@@ -52,9 +52,10 @@ describe("registry profile evidence semantics", () => {
   });
 
   it("suppresses estimated net worth when source metadata says personal wealth is not evidenced", () => {
-    expect(profileSource).toContain("entityMetadata.personalWealthEvidence === false");
+    expect(profileSource).toContain("metadata?.personalWealthEvidence === false");
     expect(profileSource).toContain("entityMetadata.wealthStatus === \"not_assessed\"");
-    expect(profileSource).toContain("displayableEstimatedNetWorth");
+    expect(profileSource).toContain("hasPersonalWealthEvidence(entity)");
+    expect(profileSource).toContain("const displayableEstimatedNetWorth = hasPersonalWealthEvidence(entity)");
     expect(profileSource).toContain('displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"');
   });
 });
