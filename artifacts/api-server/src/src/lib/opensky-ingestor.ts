@@ -124,8 +124,8 @@ export async function runOpenSkyEnrichment(
     return { inserted: 0, skipped: 0, errors: 0, liveAircraft: 0, durationMs: Date.now() - startTime };
   }
 
-  await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 10 });
-  await appendJobLog(jobId, "✈️  Fetching live state vectors from adsb.lol (OpenSky compatibility fallback enabled)…");
+  await updateJob(jobId, { message: "Querying free public ADS-B feeds for latest aircraft status…", progress: 10 });
+  await appendJobLog(jobId, "✈️  Fetching public ADS-B state feed; only coarse latest status will be retained (OpenSky fallback enabled)…");
 
   let states: StateVector[] = [];
   let liveSource = "unknown";
