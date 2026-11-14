@@ -26,8 +26,6 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
   let persistContacts: any;
   let findingsToContacts: any;
   let server: Server | null = null;
-  const entityIds: number[] = [];
-  const caseIds: number[] = [];
   const runToken = randomUUID();
 
   beforeAll(async () => {
@@ -57,21 +55,10 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
     if (server?.listening) {
       await new Promise<void>((resolve) => server!.close(() => resolve()));
     }
-    if (pool) {
-      if (caseIds.length) {
-        await pool.query("DELETE FROM research_case_events WHERE case_id = ANY($1::int[])", [caseIds]);
-      }
-      if (entityIds.length) {
-        await pool.query("DELETE FROM contact_evidence WHERE entity_id = ANY($1::int[])", [entityIds]);
-      }
-      if (caseIds.length) {
-        await pool.query("DELETE FROM research_cases WHERE id = ANY($1::int[])", [caseIds]);
-      }
-      if (entityIds.length) {
-        await pool.query("DELETE FROM entities WHERE id = ANY($1::int[])", [entityIds]);
-      }
-      await pool.end();
-    }
+    // research_case_events is intentionally append-only. Leave the uniquely
+    // namespaced integration fixtures intact rather than issuing forbidden
+    // DELETEs (or cascading deletes) against immutable evidence history.
+    if (pool) await pool.end();
   }, 30_000);
 
   it("persists a model-selected personal route on the canonical card, reads it through GET /entities, and keeps a shared inbox organization-scoped", async () => {
@@ -89,7 +76,6 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion" }),
     }).returning({ id: entitiesTable.id });
     expect(person?.id).toBeGreaterThan(0);
-    entityIds.push(person.id);
 
     const [personalCase] = await db.insert(researchCasesTable).values({
       targetEntityId: person.id,
@@ -101,7 +87,6 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       caseFile: JSON.stringify({ atlasJobId: `job-person-${runToken}` }),
     }).returning({ id: researchCasesTable.id });
     expect(personalCase?.id).toBeGreaterThan(0);
-    caseIds.push(personalCase.id);
 
     const runId = `run-person-${runToken}`;
     const jobId = `job-person-${runToken}`;
@@ -214,7 +199,6 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion" }),
     }).returning({ id: entitiesTable.id });
     expect(sharedPerson?.id).toBeGreaterThan(0);
-    entityIds.push(sharedPerson.id);
 
     const sharedJobId = `job-shared-${runToken}`;
     const [sharedCase] = await db.insert(researchCasesTable).values({
@@ -227,7 +211,6 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       caseFile: JSON.stringify({ atlasJobId: sharedJobId }),
     }).returning({ id: researchCasesTable.id });
     expect(sharedCase?.id).toBeGreaterThan(0);
-    caseIds.push(sharedCase.id);
 
     const mappedShared = findingsToContacts([{
       vectorType: "email",
