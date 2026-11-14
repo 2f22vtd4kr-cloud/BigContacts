@@ -740,7 +740,7 @@ describe("provider quota gate", () => {
     expect(request?.reservedTokens).toBeLessThanOrEqual(7_000);
     const body = JSON.stringify({ usage: { prompt_tokens: 4_314, completion_tokens: 330, total_tokens: 4_644 } });
     const response = await runProviderCall(
-      { provider: "groq", account: "right-hand-compaction-estimate", groqRequest: request },
+      { provider: "groq", account: "right-hand-compaction-estimate", groqRequest: request! },
       async () => new Response(body, { status: 200 }),
     );
     expect(response.status).toBe(200);
