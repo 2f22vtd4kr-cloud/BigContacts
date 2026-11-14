@@ -23,6 +23,39 @@ function parseObject(raw: string | null | undefined): Record<string, unknown> {
   }
 }
 
+function parseRegistryNames(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((value): value is string => typeof value === "string");
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function resolveSeededTargetEntityType(
+  entityType: string,
+  sourceRegistries: unknown,
+  metadata: Record<string, unknown>,
+): { entityType: string; reclassifiedFromFaaRegistrant: boolean } {
+  if (entityType !== "HNWI") return { entityType, reclassifiedFromFaaRegistrant: false };
+  const registryNames = parseRegistryNames(sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registryNames.some((name) => /FAA Releasable Aircraft Database/i.test(name));
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) {
+    return { entityType, reclassifiedFromFaaRegistrant: false };
+  }
+  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
+  if (registrantType === "1") return { entityType: "PersonCandidate", reclassifiedFromFaaRegistrant: true };
+  if (["2", "3", "7", "8"].includes(registrantType)) return { entityType: "Corporation", reclassifiedFromFaaRegistrant: true };
+  return { entityType: "Other", reclassifiedFromFaaRegistrant: true };
+}
+
 const SOURCE_FIELDS = [
   "sourceRegistry", "sourceUrl", "sourceUrls", "sourceRecordId", "registryId", "sourceName", "sourceSnapshotId", "organizationNumber", "companyRegistryId",
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
@@ -139,7 +172,19 @@ export function buildCanonicalSeededTargetBinding(input: {
       sourceMetadata: assetSourceMetadata,
     };
   });
-  const targetKind = classifyCanonicalSeededTargetType(input.entityType);
+  const resolvedTargetType = resolveSeededTargetEntityType(input.entityType, registries, metadata);
+  if (resolvedTargetType.reclassifiedFromFaaRegistrant) {
+    sourceMetadata.personalWealthEvidence = false;
+    sourceMetadata.wealthStatus = "not_assessed";
+    sourceMetadata.beneficialOwnershipStatus = "unresolved";
+    sourceMetadata.hnwiQualificationStatus = resolvedTargetType.entityType === "PersonCandidate" ? "unverified" : "not_applicable";
+    sourceMetadata.identityStatus = resolvedTargetType.entityType === "PersonCandidate"
+      ? "registry_person_candidate"
+      : resolvedTargetType.entityType === "Corporation" ? "legal_entity_candidate" : "registrant_type_unresolved";
+    sourceMetadata.reviewOnly = true;
+    sourceMetadata.legacyFaaHnwiDowngradeApplied = true;
+  }
+  const targetKind = classifyCanonicalSeededTargetType(resolvedTargetType.entityType);
   if (targetKind === "organization" && input.contactOutcome === "organization_contact"
     && (input.email || input.phone)) {
     sourceMetadata.organizationContact = {
@@ -167,7 +212,7 @@ export function buildCanonicalSeededTargetBinding(input: {
   return {
     entityId: input.entityId,
     entityName: input.entityName,
-    entityType: input.entityType,
+    entityType: resolvedTargetType.entityType,
     targetKind,
     sourceRegistries: registries,
     sourceMetadata,
