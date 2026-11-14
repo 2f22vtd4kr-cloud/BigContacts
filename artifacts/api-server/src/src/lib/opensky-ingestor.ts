@@ -59,14 +59,6 @@ interface ReadsbResponse {
   total?: number;
 }
 
-function mpsToKnots(mps: number | null): number | null {
-  return mps == null ? null : Math.round(mps * 1.944);
-}
-
-function metersToFt(m: number | null): number | null {
-  return m == null ? null : Math.round(m * 3.281);
-}
-
 async function fetchReadsb(url: string): Promise<ReadsbAircraft[]> {
   const response = await fetch(url, {
     headers: {
