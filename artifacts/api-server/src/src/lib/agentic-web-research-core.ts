@@ -4674,7 +4674,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = emergencyWorkerCapabilityGuidance;
+  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: only if the exact action appears in AVAILABLE ACTIONS after fresh worker attestation; otherwise unavailable. Worker outputs are leads, not proof.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
     ? "Conditional specialist OSINT actions are available only when the exact action is in this turn's AVAILABLE ACTIONS after fresh worker attestation. They are optional; the Investigator chooses whether their expected information gain justifies use."
     : "";
