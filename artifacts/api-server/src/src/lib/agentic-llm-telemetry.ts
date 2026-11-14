@@ -101,6 +101,36 @@ export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.Process
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+function parseObservedQuotaNumber(raw: string | null): number | null {
+  if (raw == null || !raw.trim()) return null;
+  const value = Number(raw.trim());
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
+}
+
+function parseObservedQuotaDurationMs(raw: string | null): number | null {
+  const value = raw?.trim() ?? "";
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1_000);
+  const timestamp = Date.parse(value);
+  if (Number.isFinite(timestamp)) return Math.max(0, timestamp - Date.now());
+  const match = value.match(/^(?:(\\d+(?:\\.\\d+)?)h)?(?:(\\d+(?:\\.\\d+)?)m)?(?:(\\d+(?:\\.\\d+)?)s)?$/i);
+  if (!match || !match[1] && !match[2] && !match[3]) return null;
+  return Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
+}
+
+/** Capture only allowlisted numeric Groq quota headers; never persist raw header text. */
+export function readGroqRateLimitHeaders(headers: { get(name: string): string | null }): Pick<Attempt,
+  "rateLimitRemainingTokens" | "rateLimitResetTokensMs" | "rateLimitRemainingRequests" | "rateLimitResetRequestsMs"
+> {
+  return {
+    rateLimitRemainingTokens: parseObservedQuotaNumber(headers.get("x-ratelimit-remaining-tokens")),
+    rateLimitResetTokensMs: parseObservedQuotaDurationMs(headers.get("x-ratelimit-reset-tokens")),
+    rateLimitRemainingRequests: parseObservedQuotaNumber(headers.get("x-ratelimit-remaining-requests")),
+    rateLimitResetRequestsMs: parseObservedQuotaDurationMs(headers.get("x-ratelimit-reset-requests")),
+  };
+}
+
 async function persistDailyUsageEvent(event: Attempt): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   try {
@@ -138,6 +168,8 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
       lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
       lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? null : Math.floor(event.rateLimitResetTokensMs),
+      lastRateLimitRemainingRequests: event.rateLimitRemainingRequests == null ? null : Math.floor(event.rateLimitRemainingRequests),
+      lastRateLimitResetRequestsMs: event.rateLimitResetRequestsMs == null ? null : Math.floor(event.rateLimitResetRequestsMs),
       updatedAt: new Date(),
     }).onConflictDoUpdate({
       target: [table.usageDate, table.provider, table.model],
@@ -156,7 +188,9 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         lastProviderStatus: String(event.status),
         lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
         lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
-        lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? null : Math.floor(event.rateLimitResetTokensMs),
+        lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? table.lastRateLimitResetTokensMs : Math.floor(event.rateLimitResetTokensMs),
+        lastRateLimitRemainingRequests: event.rateLimitRemainingRequests == null ? table.lastRateLimitRemainingRequests : Math.floor(event.rateLimitRemainingRequests),
+        lastRateLimitResetRequestsMs: event.rateLimitResetRequestsMs == null ? table.lastRateLimitResetRequestsMs : Math.floor(event.rateLimitResetRequestsMs),
         updatedAt: new Date(),
       },
     });
