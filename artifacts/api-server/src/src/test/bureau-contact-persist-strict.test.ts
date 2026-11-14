@@ -164,11 +164,12 @@ describe("claim-grade observation boundary", () => {
 
 
 describe("same-source identity binding for candidate contact promotion", () => {
-  const candidate = { scope: "candidate", personName: "Jane Example" };
+  const personEmailQuote = "Jane Example — direct email: jane@example.com";
+  const candidate = { scope: "candidate", personName: "Jane Example", contactAttribution: "person_specific" as const, exactQuote: personEmailQuote };
 
   it("accepts an exact person identity and contact value in the same source observation", () => {
     expect(supportsCandidateContactOnSameObservation(
-      "Our team: Jane Example — jane@example.com",
+      `Our team: ${personEmailQuote}`,
       candidate,
       "jane@example.com",
       "email",
@@ -203,7 +204,8 @@ describe("same-source identity binding for candidate contact promotion", () => {
   it("requires a phone number to be locally bound to the same person", () => {
     const noisyPage = "Jane Example — Founder. " + "Other people and their biographies. ".repeat(14) + "Direct line +1 (212) 555-0199";
     expect(supportsCandidateContactOnSameObservation(noisyPage,candidate,"+1 212 555 0199","phone")).toBe(false);
-    expect(supportsCandidateContactOnSameObservation("Jane Example — direct line +1 (212) 555-0199",candidate,"+1 212 555 0199","phone")).toBe(true);
+    const phoneCandidate = { ...candidate, exactQuote: "Jane Example — direct line +1 (212) 555-0199" };
+    expect(supportsCandidateContactOnSameObservation(phoneCandidate.exactQuote,phoneCandidate,"+1 212 555 0199","phone")).toBe(true);
   });
 
   it("requires exact identity and contact token boundaries", () => {
@@ -244,7 +246,9 @@ describe("multi-source candidate contact attribution", () => {
     value: "jane@example.com",
     scope: "candidate",
     personName: "Jane Example",
-    sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
+    contactAttribution: "person_specific" as const,
+    exactQuote: "Jane Example — direct email: jane@example.com",
+    sourceUrls: ["https://example.com/team/jane"],
   };
 
   it("rejects identity and contact value split across separate pages at the trusted promotion boundary", () => {
@@ -256,7 +260,7 @@ describe("multi-source candidate contact attribution", () => {
 
   it("accepts a candidate contact when one observed page binds identity and value exactly", () => {
     expect(supportsContactClaimAcrossObservations([
-      { observationText: "Jane Example — Founder — jane@example.com", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Jane Example — direct email: jane@example.com", sourceUrls: ["https://example.com/team/jane"] },
       { observationText: "Contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
     ], item, "jane@example.com", "email")).toBe(true);
   });
