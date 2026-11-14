@@ -12,7 +12,7 @@ const checks = [
   ["Groq model catalog", source.includes("https://api.groq.com/openai/v1/models")],
   ["provider identity Groq", source.includes('provider: "groq"')],
   ["bounded 429/503 retries", source.includes("MAX_429_RETRIES_PER_MODEL = 1") && source.includes("MAX_503_RETRIES_PER_MODEL = 1")],
-  ["structured thrown diagnostics", source.includes("JSON.stringify(describeThrownProviderError(error))")],
+  ["structured thrown diagnostics", source.includes("thrownError: describeThrownProviderError(error)") && source.includes("describeThrownProviderError")],
   ["20K prompt bound", source.includes("20_000") && source.includes("upstream case-context compaction is required")],
   ["explicit readiness", source.includes("runGroqRightHandReadiness")],
 ];
