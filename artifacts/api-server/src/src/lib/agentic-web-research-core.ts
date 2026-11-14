@@ -11,7 +11,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
-import { classifyExternalProvider, getGroqTokenRequest, reconcileGroqTokenResponse, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
@@ -2476,7 +2476,6 @@ async function callGroqJson(
         // same text rather than attempting a second read of an already-consumed
         // Response stream.
         const body = await readResponseTextCapped(response, signal);
-        reconcileGroqTokenResponse(response, body);
         modelAuditResponseRecorded = emitModelPromptAuditResponse({
           requestId: modelAuditRequestId,
           provider: "groq",
