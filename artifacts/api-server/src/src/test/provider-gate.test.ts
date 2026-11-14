@@ -3,6 +3,7 @@ import {
   ProviderQuotaError,
   classifyExternalProvider,
   getGroqTokenRequest,
+  reconcileGroqTokenResponse,
   resetProviderGateForTests,
   runProviderCall,
   withProviderRetryOwnership,
@@ -783,9 +784,10 @@ describe("provider quota gate", () => {
     process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
     const firstRequest = { model: "openai/gpt-oss-20b", reservedTokens: 3_000 };
     const secondRequest = { model: "openai/gpt-oss-20b", reservedTokens: 2_500 };
-    const first = await runProviderCall({ provider: "groq", account: "investigator", groqRequest: firstRequest }, async () =>
-      new Response(JSON.stringify({ usage: { prompt_tokens: 700, completion_tokens: 300, total_tokens: 1_000 } }), { status: 200 }),
-    );
+    const firstBody = JSON.stringify({ usage: { prompt_tokens: 700, completion_tokens: 300, total_tokens: 1_000 } });
+    const firstResponse = new Response(firstBody, { status: 200 });
+    const first = await runProviderCall({ provider: "groq", account: "investigator", groqRequest: firstRequest }, async () => firstResponse);
+    reconcileGroqTokenResponse(firstResponse, firstBody);
     expect(first.status).toBe(200);
     const second = await runProviderCall({ provider: "groq", account: "right-hand", groqRequest: secondRequest }, async () =>
       new Response(JSON.stringify({ usage: { prompt_tokens: 1_000, completion_tokens: 500, total_tokens: 1_500 } }), { status: 200 }),
@@ -802,14 +804,15 @@ describe("provider quota gate", () => {
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
     const groqRequest = { model: "openai/gpt-oss-20b", reservedTokens: 1_000 };
+    const firstBody = JSON.stringify({ error: { type: "tokens" } });
+    const firstResponse = new Response(firstBody, {
+      status: 429,
+      headers: { "x-ratelimit-reset-tokens": "10s" },
+    });
     const first = await withProviderRetryOwnership("groq", "caller", () =>
-      runProviderCall({ provider: "groq", account: "investigator", groqRequest }, async () =>
-        new Response(JSON.stringify({ error: { type: "tokens" } }), {
-          status: 429,
-          headers: { "x-ratelimit-reset-tokens": "10s" },
-        }),
-      ),
+      runProviderCall({ provider: "groq", account: "investigator", groqRequest }, async () => firstResponse),
     );
+    reconcileGroqTokenResponse(firstResponse, firstBody);
     expect(first.status).toBe(429);
     let calls = 0;
     const pending = withProviderRetryOwnership("groq", "caller", () =>
@@ -834,12 +837,13 @@ describe("provider quota gate", () => {
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
     const request = { model: "openai/gpt-oss-20b", reservedTokens: 1_000 };
-    await runProviderCall({ provider: "groq", account: "long-reset", groqRequest: request }, async () =>
-      new Response(JSON.stringify({ error: { type: "tokens" } }), {
-        status: 429,
-        headers: { "x-ratelimit-reset-tokens": "1h" },
-      }),
-    );
+    const resetBody = JSON.stringify({ error: { type: "tokens" } });
+    const resetResponse = new Response(resetBody, {
+      status: 429,
+      headers: { "x-ratelimit-reset-tokens": "1h" },
+    });
+    await runProviderCall({ provider: "groq", account: "long-reset", groqRequest: request }, async () => resetResponse);
+    reconcileGroqTokenResponse(resetResponse, resetBody);
     let blocked: unknown;
     try {
       await runProviderCall({ provider: "groq", account: "another-role", groqRequest: request }, async () => new Response("unexpected"));
