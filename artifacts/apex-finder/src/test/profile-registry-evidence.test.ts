@@ -9,7 +9,7 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("FAA registrant record");
     expect(profileSource).toContain("registration is not proof of beneficial ownership");
     expect(profileSource).toContain("does not establish beneficial ownership, an ownership percentage, control, current possession, or personal wealth");
-    expect(profileSource).toContain("UK Land Registry sale transaction records");
+    expect(profileSource).toContain("UK Land Registry sale transaction record(s)");
     expect(profileSource).toContain("does not prove current title, continuing ownership, or personal wealth");
     expect(profileSource).not.toContain("FAA aircraft owner");
     expect(profileSource).not.toContain("FAA ownership is one of our strongest wealth signals");
