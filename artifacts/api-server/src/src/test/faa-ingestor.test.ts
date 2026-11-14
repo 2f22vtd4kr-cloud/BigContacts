@@ -139,7 +139,7 @@ describe("FAA MASTER parser and candidate projection", () => {
       ...base,
       uniqueId: "FAA-001",
       additionalRegistrantNames: ["OTHER OWNER"],
-      additionalRegistrantNamesRaw: [" OTHER OWNER "],
+      additionalRegistrantNamesRaw: ["other owner"],
     });
     expect(rawVariantKey).not.toBe(coRegistrantKey);
     expect(createFaaRegistrationDedupKey({ ...base, uniqueId: "FAA-001", additionalRegistrantNames: [] })).toBe(baseKey);
@@ -428,7 +428,7 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("repairableFaaOwnedLinks.map((row) => row.targetId)");
     expect(repair).toContain("legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink)");
     expect(repair).toContain("buildLegacyFaaRegistrantRelationshipRepairPairs(repairAssets, repairableFaaOwnedLinks)");
-    expect(repair).toContain("relationshipRepairConditions.map");
+    expect(repair).toContain("relationshipRepairPairs.map");
     expect(repair).toContain("or(...relationshipRepairConditions)");
     expect(repair).toContain("const assetIds = Array.from(new Set");
     expect(repair).toContain(".filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)");
