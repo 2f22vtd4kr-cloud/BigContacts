@@ -54,8 +54,8 @@ describe("registry profile evidence semantics", () => {
   it("does not display FAA-derived registrants without independent wealth assessment as HNWI", () => {
     expect(narrativeSource).toContain("export function displayEntityType(entity: any)");
     expect(narrativeSource).toContain("export function hasPersonalWealthEvidence(entity: any)");
-    expect(profileSource).toContain('if (registrantType === "1") return "PersonCandidate"');
-    expect(profileSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
+    expect(narrativeSource).toContain('if (registrantType === "1") return "PersonCandidate"');
+    expect(narrativeSource).toContain('if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation"');
     expect(profileSource).toContain("const displayType = displayEntityType(entity)");
     expect(profileSource).toContain('{ key: "type",        label: "Type",         done: !!displayType }');
     expect(profileSource).toContain('displayType === "HNWI"');
