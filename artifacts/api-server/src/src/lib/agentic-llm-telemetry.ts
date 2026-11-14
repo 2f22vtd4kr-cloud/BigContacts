@@ -40,6 +40,7 @@ type Attempt = {
   dailyReservationDate?: string | null;
   dailyReservationTokens?: number;
   dailyBudgetTokens?: number;
+  estimatedTokens?: number;
   budgetExhausted?: boolean;
   providerRequestSent?: boolean;
 };
@@ -86,6 +87,8 @@ export class AgenticDailyTokenBudgetError extends Error {
 }
 
 /** Configure per-model daily ceilings from observed account limits; zero means no local ceiling. */
+let dailyUsagePersistenceChain: Promise<void> = Promise.resolve();
+
 /** Await queued writes before reading/reserving the same model's daily budget. */
 export async function flushAgenticLlmUsageLedger(): Promise<void> {
   await dailyUsagePersistenceChain;
@@ -97,8 +100,6 @@ export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.Process
   const value = Number(raw ?? 0);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
-
-let dailyUsagePersistenceChain: Promise<void> = Promise.resolve();
 
 async function persistDailyUsageEvent(event: Attempt): Promise<void> {
   if (!process.env.DATABASE_URL) return;
@@ -113,7 +114,8 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const prompt = Math.max(0, Math.floor(event.promptTokens ?? 0));
     const cached = Math.max(0, Math.floor(event.cachedPromptTokens ?? 0));
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
-    const total = Math.max(0, Math.floor(event.totalTokens ?? (prompt + completion)));
+    const totalFallback = event.promptTokens == null && event.totalTokens == null ? (event.estimatedTokens ?? prompt + completion) : (prompt + completion);
+    const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
     const budget = Math.max(0, Math.floor(event.dailyBudgetTokens ?? 0));
     const table = agenticLlmDailyUsageTable;
     await db.insert(table).values({
@@ -132,8 +134,8 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       budgetExhausted: event.budgetExhausted === true,
       lastProviderStatus: String(event.status),
       lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
-      lastRateLimitRemainingTokens: event.rateLimitRemainingTokens ?? null,
-      lastRateLimitResetTokensMs: event.rateLimitResetTokensMs ?? null,
+      lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
+      lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? null : Math.floor(event.rateLimitResetTokensMs),
       updatedAt: new Date(),
     }).onConflictDoUpdate({
       target: [table.usageDate, table.provider, table.model],
@@ -150,8 +152,8 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         budgetExhausted: sql`${table.budgetExhausted} OR ${event.budgetExhausted === true}`,
         lastProviderStatus: String(event.status),
         lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
-        lastRateLimitRemainingTokens: event.rateLimitRemainingTokens ?? null,
-        lastRateLimitResetTokensMs: event.rateLimitResetTokensMs ?? null,
+        lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
+        lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? null : Math.floor(event.rateLimitResetTokensMs),
         updatedAt: new Date(),
       },
     });
