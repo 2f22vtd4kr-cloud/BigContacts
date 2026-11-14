@@ -19,7 +19,7 @@ import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 import { sanitizeObservableValue } from "./url-privacy";
 import { delCachePattern } from "./redis";
-import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType } from "./canonical-seeded-target";
+import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType, resolveCanonicalSeededTargetEntityType } from "./canonical-seeded-target";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; objective?: string; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -237,7 +237,7 @@ export type CanonicalSingleTargetResult = { investigatorIterationsUsed: number; 
 export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<CanonicalSingleTargetResult> {
   const manageJobLifecycle = options.manageJobLifecycle !== false;
   const publishJob = async (patch: Parameters<typeof updateJob>[1]) => { if (manageJobLifecycle) await updateJob(atlasJobId, patch); };
-  const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, notes: entitiesTable.notes, email: entitiesTable.email, phone: entitiesTable.phone, contactOutcome: entitiesTable.contactOutcome, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
+  const [targetRow] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, notes: entitiesTable.notes, email: entitiesTable.email, phone: entitiesTable.phone, contactOutcome: entitiesTable.contactOutcome, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!targetRow) throw new Error(`Atlas target entity ${targetId} was not found.`); const target = { ...targetRow, type: resolveCanonicalSeededTargetEntityType({ entityType: targetRow.type, sourceRegistries: targetRow.sourceRegistries, metadata: targetRow.metadata }) };
   const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId, options.objective);
   if (caseRow.status !== "active") {
