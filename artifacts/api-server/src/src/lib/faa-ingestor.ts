@@ -247,6 +247,7 @@ export function createFaaRegistrationDedupKey(input: {
   lastActivityDate: string;
   uniqueId: string;
   additionalRegistrantNames?: readonly string[];
+  additionalRegistrantNamesRaw?: readonly string[];
 }): string {
   const nNumber = input.nNumber.trim().toUpperCase().replace(/^N?/, "N");
   const registrantKey = createFaaRegistrantEntityKey(
@@ -255,13 +256,15 @@ export function createFaaRegistrationDedupKey(input: {
     input.country,
     input.registrantTypeCode,
   );
-  const additionalNames = normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? [])
+  const additionalNamesRaw = (input.additionalRegistrantNamesRaw ?? input.additionalRegistrantNames ?? []).slice(0, 5);
+  const additionalNames = normalizeFaaAdditionalRegistrantNames(additionalNamesRaw)
     .map((value) => value.toLocaleLowerCase("en-US"))
     .join("|");
+  const rawNamesKey = additionalNamesRaw.join("|");
   const versionParts = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId];
   // Preserve the existing v2 key for rows without additional names; rows with
-  // published co-registrants get a distinct key so those fields are refreshed.
-  if (additionalNames) versionParts.push(additionalNames);
+  // published co-registrants get a distinct key, including raw field changes.
+  if (additionalNames) versionParts.push(additionalNames, rawNamesKey);
   const version = versionParts.map((value) => encodeURIComponent(value.trim())).join(":");
   return `faa:v2:${nNumber}:${version}`;
 }
@@ -880,6 +883,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       lastActivityDate,
       uniqueId,
       additionalRegistrantNames,
+      additionalRegistrantNamesRaw,
     });
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
