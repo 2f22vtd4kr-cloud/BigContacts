@@ -15,7 +15,7 @@ const stepPromptEnd = core.indexOf("export function discoveryLeadInspectionRequi
 const stepPromptBuilder = stepPromptStart >= 0 && stepPromptEnd > stepPromptStart
   ? core.slice(stepPromptStart, stepPromptEnd)
   : "";
-const compactInvestigatorOrientation = orientation.match(/const investigatorBase = `([\\s\\S]*?)`;\\s*const controlBase/)?.[1] ?? "";
+const compactInvestigatorOrientation = orientation.match(/const investigatorBase = `([\s\S]*?)`;\s*const controlBase/)?.[1] ?? "";
 const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)")
   && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardRecord)")
   && stepPromptBuilder.includes("serializeDurablePromptRecord(latestSuccessfulFetchRecord)")
