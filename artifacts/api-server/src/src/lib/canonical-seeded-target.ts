@@ -28,7 +28,7 @@ const SOURCE_FIELDS = [
   "recordId", "recordUrl", "sourceClass", "sourceType", "sourceObservedAt",
   "sourceRetrievedAt", "observedAt", "retrievedAt", "sourceTimestamp",
   "role", "roleOriginal", "companyName", "organizationSourceRecordId", "entityNature", "businessOfficeLocation", "legalForm", "businessCity", "employees", "industryCodes", "industryDescriptions", "registeredShareCapitalAmount", "registeredShareCapitalCurrency", "incorporationDate", "businessEmail", "businessPhone", "officialWebsite", "contactScope", "contactabilityStatus", "principalRelationshipStatus", "clientRelationshipStatus", "evidenceLevel", "jurisdiction", "country", "lastObservedAt", "personalWealthEvidence", "sourceMechanism", "sourceClass", "verificationLevel", "independentCorroborationStatus", "assetType", "assetId", "admission", "reviewOnly",
-  "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
+  "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
   "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
 ] as const;
@@ -55,6 +55,13 @@ export function buildCanonicalSeededTargetBinding(input: {
     status: string | null;
     confidence: number | null;
     observedAt: Date | string | null;
+  }>;
+  linkedAssets?: Array<{
+    id: number;
+    category: string | null;
+    identifier: string | null;
+    sourceRegistry: string | null;
+    metadata: string | null;
   }>;
 }): Record<string, unknown> {
   const metadata = parseObject(input.metadata);
@@ -87,6 +94,47 @@ export function buildCanonicalSeededTargetBinding(input: {
       };
     }
   }
+  const linkedAssets = (input.linkedAssets ?? []).map((asset) => {
+    const assetMetadata = parseObject(asset.metadata);
+    const assetSourceMetadata: Record<string, unknown> = {};
+    const assetSourceFields = [
+      "source", "sourceName", "sourceDomain", "sourceClass", "sourceContributor", "sourceMechanism",
+      "verificationLevel", "independentCorroborationStatus", "sourceUrl", "sourceRecordId",
+      "sourceObservedAt", "observedAt", "lastActivityDate", "registrantTypeCode", "registrantTypeLabel",
+      "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
+      "fractionalOwnershipStatus", "registrationStatus", "wealthStatus", "hnwiQualificationStatus",
+      "personalWealthEvidence", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
+    ] as const;
+    for (const field of assetSourceFields) {
+      const value = assetMetadata[field];
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+        || (Array.isArray(value) && value.every((item) => typeof item === "string" || typeof item === "number"))) {
+        assetSourceMetadata[field] = value;
+      }
+    }
+    const rawAssetSignal = assetMetadata.assetSignal;
+    if (rawAssetSignal && typeof rawAssetSignal === "object" && !Array.isArray(rawAssetSignal)) {
+      const signal = rawAssetSignal as Record<string, unknown>;
+      if (signal.kind === "aircraft_registry_observation"
+        && ["observed_asset_lead", "material_asset_lead", "strong_asset_lead"].includes(String(signal.strength))
+        && signal.personalWealthEvidence === false) {
+        assetSourceMetadata.assetSignal = {
+          kind: signal.kind,
+          strength: signal.strength,
+          personalWealthEvidence: false,
+        };
+      }
+    }
+    return {
+      assetId: asset.id,
+      category: asset.category,
+      identifier: asset.identifier,
+      sourceRegistry: asset.sourceRegistry,
+      associationType: "REGISTERED_TO",
+      associationSemantics: "A registry registration association is not proof of beneficial ownership, exclusive ownership, control or personal wealth.",
+      sourceMetadata: assetSourceMetadata,
+    };
+  });
   const targetKind = classifyCanonicalSeededTargetType(input.entityType);
   if (targetKind === "organization" && input.contactOutcome === "organization_contact"
     && (input.email || input.phone)) {
@@ -120,6 +168,7 @@ export function buildCanonicalSeededTargetBinding(input: {
     sourceRegistries: registries,
     sourceMetadata,
     sourceNotes: input.notes ?? null,
+    linkedAssets,
     evidence: (input.evidence ?? []).map((item) => ({
       evidenceId: item.id,
       claimType: item.claimType,
