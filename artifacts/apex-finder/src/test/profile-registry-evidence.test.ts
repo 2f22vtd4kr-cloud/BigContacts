@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
 const narrativeSource = readFileSync(new URL("../lib/utils.tsx", import.meta.url), "utf8");
 const dataSourcesSource = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
+const entitiesSource = readFileSync(new URL("../pages/entities.tsx", import.meta.url), "utf8");
+const taxonomySource = readFileSync(new URL("../lib/entity-taxonomy.tsx", import.meta.url), "utf8");
 
 describe("registry profile evidence semantics", () => {
   it("does not promote FAA registrants or HMLR transaction parties into owners or wealthy people", () => {
@@ -80,6 +82,15 @@ describe("registry profile evidence semantics", () => {
     expect(narrativeSource).not.toContain("clean wealth signal");
     expect(narrativeSource).not.toContain("durable wealth marker");
     expect(narrativeSource).toContain("sourceDisclaimsPersonalWealth");
+  });
+
+  it("renders unresolved FAA registrants safely throughout the entity directory", () => {
+    expect(entitiesSource).toContain("const displayType = displayEntityType(entity)");
+    expect(entitiesSource).toContain('const unclassified = displayType === "Other"');
+    expect(entitiesSource).toContain("<EntityTypeMark type={displayType} compact />");
+    expect(entitiesSource).toContain('r.type === "HNWI" ? "HNWI" : "Other"');
+    expect(taxonomySource).toContain('Other: {');
+    expect(taxonomySource).toContain('return "Other";');
   });
 
   it("suppresses estimated net worth when source metadata says personal wealth is not evidenced", () => {
