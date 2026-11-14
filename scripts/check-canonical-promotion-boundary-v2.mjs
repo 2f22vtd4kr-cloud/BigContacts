@@ -41,10 +41,11 @@ assert(hasAll(target, [
 ]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target contact output requires same-observation candidate attribution after cumulative source grounding; split-page-only claims remain outside target contact output");
 assert(hasAll(strict, [
   "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
-  "hasBoundIdentityAndValue(observation.observationText,personName,cleanValue,vectorType)",
+  "quoteAppearsInObservation(observationText, exactQuote)",
+  "hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)",
   "hasCanonicalPromotionJobBinding(provenance)",
   "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
-]), "trusted candidate promotion independently requires same-observation identity/value binding and live case/job ownership");
+]), "trusted candidate promotion independently requires an exact quoted span in one successful observation, person/value binding within that same quote, and live case/job ownership");
 assert(
   ![target, bureau, atlas, targetRunner, targetContinuation].some((source) =>
     source.includes("expandSecondaryPublicSurface")
@@ -53,7 +54,12 @@ assert(
     || source.includes('from "../lib/bureau-contact-persist"')),
   "canonical research/control paths must not reintroduce deterministic secondary-surface expansion or the legacy contact persistence module",
 );
-assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
+assert(hasAll(target, [
+  'const promotionSupported = isCandidate && attribution === "person_specific" && Boolean(finding.exactQuote?.trim())',
+  'promote: promotionSupported && finding.promotionDecision === "promote"',
+  "state: \"review_only\"",
+  "tier: \"candidate\"",
+]), "target preserves explicit Investigator promotion semantics and requires person-specific attribution plus an exact quote before accepting the model promotion decision");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 const targetOversightIndex = targetRunner.indexOf("lastOversight = await reviewTargetInvestigationAct({");
 const durableOversightReadIndex = targetRunner.indexOf("lastOversight = reviewedCase", targetOversightIndex);
