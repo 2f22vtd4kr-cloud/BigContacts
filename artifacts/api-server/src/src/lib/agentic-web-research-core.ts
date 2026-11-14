@@ -407,8 +407,8 @@ export function investigatorUserPromptBudget(systemPromptChars: number): number 
   const systemChars = Number.isFinite(systemPromptChars) ? Math.max(0, Math.floor(systemPromptChars)) : PREFERRED_INVESTIGATOR_REQUEST_CHARS;
   return Math.max(0, Math.min(
     PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS,
-    PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars,
-    PREFERRED_PROVIDER_PROMPT_CHARS - systemChars,
+    PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - 240,
+    PREFERRED_PROVIDER_PROMPT_CHARS - systemChars - 240,
   ));
 }
 const MIN_GROQ_INFERENCE_BUDGET_MS = 30_000;
@@ -2245,7 +2245,8 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   ];
 
   const compacted = sections.map((section) => {
-    if (!section || isMandatory(section)) return section;
+    const latestEvidenceSection = /LATEST TRAJECTORY RECORD|LATEST OBSERVATION/u.test(section);
+    if (!section || (isMandatory(section) && !latestEvidenceSection)) return section;
     const rule = compactionRules.find((candidate) => candidate.pattern.test(section));
     return rule && section.length > rule.max
       ? compactPromptSectionPreservingUrlTokens(section, rule.max, rule.label)
