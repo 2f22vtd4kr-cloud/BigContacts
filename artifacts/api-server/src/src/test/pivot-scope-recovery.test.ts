@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAtlasScopeRecoveryFeedback } from "../lib/atlas-control-decision";
 import {
+  buildDiscoveryScopeAdvisory,
   discoveryPivotAlignmentReason,
   discoveryPivotScopeKey,
   repeatedPivotBlockedActionReason,
@@ -148,6 +149,19 @@ describe("cross-pivot scope recovery context", () => {
       },
     ];
     expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
+  });
+
+  it("reports semantic scope mismatches as advisory and preserves the Investigator-selected query", () => {
+    const query = "family-owned engineering firms in Austria ownership filings";
+    const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", {
+      query, provider: "serper",
+    }, []);
+    expect(advisory).toContain("SCOPE ADVISORY ONLY");
+    expect(advisory).toContain("no action or query was blocked or removed");
+    expect(advisory).toContain("Investigator retains semantic judgement");
+    // The advisory function is diagnostic only: it returns context and never
+    // rewrites the model-selected arguments.
+    expect(query).toBe("family-owned engineering firms in Austria ownership filings");
   });
 
 });
