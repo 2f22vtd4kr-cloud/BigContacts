@@ -454,8 +454,8 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
       estimatedNetWorth: sql`CASE WHEN ${entitiesTable.estimatedNetWorth} IN (180000000, 120000000, 30000000, 15000000, 8000000, 4000000) THEN NULL ELSE ${entitiesTable.estimatedNetWorth} END`,
       bayesianScore: 0.05,
-      knownResidences: sql`CASE WHEN EXISTS (SELECT 1 FROM ${assetsTable} WHERE ${assetsTable.ownerEntityId} = ${entitiesTable.id} AND ${assetsTable.sourceRegistry} = 'FAA Releasable Aircraft Database' AND ${assetsTable.address} = ${entitiesTable.knownResidences}) THEN NULL ELSE ${entitiesTable.knownResidences} END`,
-      contactMethod: sql`CASE WHEN ${entitiesTable.contactMethod} IS NULL OR BTRIM(${entitiesTable.contactMethod}) = '' THEN 'FAA registrant record — direct professional contact route not verified' ELSE ${entitiesTable.contactMethod} END`,
+      knownResidences: null,
+      contactMethod: "FAA registrant record — direct professional contact route not verified",
       metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
         'legacyFaaOwnershipCorrected', true,
         'hnwiQualificationStatus', CASE
@@ -475,10 +475,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
         'reviewOnly', true,
         'bayesianScore', 0.05
       )`,
-    }).where(and(
-      eq(entitiesTable.type, "HNWI"),
-      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
-    ));
+    }).where(eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])));
     const legacyFaaOwnedLinks = await tx.select({
       sourceEntityId: relationshipsTable.sourceEntityId,
       targetId: relationshipsTable.targetId,
