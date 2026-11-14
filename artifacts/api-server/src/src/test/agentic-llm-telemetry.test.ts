@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AgenticDailyTokenBudgetError,
   flushAgenticLlmUsageLedger,
   getAgenticLlmDailyTokenBudget,
   getAgenticLlmTelemetry,
@@ -36,14 +35,14 @@ describe("Agentic LLM daily token accounting", () => {
     } as NodeJS.ProcessEnv)).toBe(9000);
   });
 
-  it("uses the generic daily ceiling only when a model-specific ceiling is absent", () => {
+  it("uses the generic daily ceiling only when a model-specific ceiling is absent and honors explicit zero", () => {
     expect(getAgenticLlmDailyTokenBudget("some/other-model", {
       APEX_GROQ_DAILY_TOKEN_BUDGET: "5000",
     } as NodeJS.ProcessEnv)).toBe(5000);
     expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-20b", {
       APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "0",
       APEX_GROQ_DAILY_TOKEN_BUDGET: "5000",
-    } as NodeJS.ProcessEnv)).toBe(5000);
+    } as NodeJS.ProcessEnv)).toBe(0);
   });
 
   it("fails closed when a daily ceiling is configured but the durable ledger is unavailable", async () => {
