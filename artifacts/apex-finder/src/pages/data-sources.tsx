@@ -215,7 +215,7 @@ const SOURCES: SourceDef[] = [
     id: "semantic-embeddings",
     label: "Semantic Embedding Engine",
     description:
-      "Generates sentence-level embeddings for all 32,000+ entities using all-MiniLM-L6-v2 (384-dim, ~23 MB ONNX model). Embeddings power true semantic search, cross-registry entity resolution, and Hybrid Research path scoring. Runs fully server-side — no external AI API.",
+      "Optional local all-MiniLM-L6-v2 derived cache for semantic similarity and associate matching. It stores embeddings only; it does not create entities, discover contacts or conduct research.",
     kind: "enricher",
     Icon: Brain,
     color: "#8B5CF6",
@@ -224,8 +224,8 @@ const SOURCES: SourceDef[] = [
     homepage: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
     endpoint: "/api/ingest/compute-embeddings",
     jobType: "compute-embeddings",
-    bodyParams: { batchSize: 5000, force: true },
-    note: "Auto-triggered at 4 min and 32 min after boot. Run manually to force a full recompute.",
+    bodyParams: { batchSize: 5000, rebuild: true },
+    note: "Manual operator-triggered maintenance only; no startup schedule is registered. Rebuild requests do not bypass the durable job lock and cannot overlap an active embedding run.",
   },
   {
     id: "osint-tools-directory",
