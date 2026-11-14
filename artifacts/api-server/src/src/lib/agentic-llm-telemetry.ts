@@ -119,10 +119,15 @@ function parseObservedQuotaDurationMs(raw: string | null): number | null {
   return Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
 }
 
+export type AgenticLlmRateLimitHeaders = {
+  rateLimitRemainingTokens: number | null;
+  rateLimitResetTokensMs: number | null;
+  rateLimitRemainingRequests: number | null;
+  rateLimitResetRequestsMs: number | null;
+};
+
 /** Capture only allowlisted numeric Groq quota headers; never persist raw header text. */
-export function readGroqRateLimitHeaders(headers: { get(name: string): string | null }): Pick<Attempt,
-  "rateLimitRemainingTokens" | "rateLimitResetTokensMs" | "rateLimitRemainingRequests" | "rateLimitResetRequestsMs"
-> {
+export function readGroqRateLimitHeaders(headers: { get(name: string): string | null }): AgenticLlmRateLimitHeaders {
   return {
     rateLimitRemainingTokens: parseObservedQuotaNumber(headers.get("x-ratelimit-remaining-tokens")),
     rateLimitResetTokensMs: parseObservedQuotaDurationMs(headers.get("x-ratelimit-reset-tokens")),
