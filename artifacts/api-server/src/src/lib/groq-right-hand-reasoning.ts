@@ -374,7 +374,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
     const localTokenWindowQuota = error instanceof ProviderQuotaError && error.quotaKind === "tokens";
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof ProviderQuotaError?error.code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof ProviderQuotaError?error.retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:localTokenWindowQuota?"tokens":cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
-    if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${JSON.stringify(describeThrownProviderError(error))}`,model:candidate.model};
+    if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${formatAttemptDiagnostic(failures.at(-1)!)}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
   }
