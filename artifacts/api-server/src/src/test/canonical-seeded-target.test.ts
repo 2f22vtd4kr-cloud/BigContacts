@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSeededTargetBinding,
@@ -73,6 +74,13 @@ describe("canonical seeded target binding", () => {
     });
     expect(binding).not.toHaveProperty("sourceMetadata.estimatedNetWorth");
     expect(binding).not.toHaveProperty("sourceMetadata.privatePhone");
+  });
+
+  it("loads exact REGISTERED_TO asset records into canonical seeded-target context", () => {
+    const runner = readFileSync(new URL("../lib/canonical-single-target-runner.ts", import.meta.url), "utf8");
+    expect(runner).toContain("const linkedAssetRows = await db.select");
+    expect(runner).toContain('eq(relationshipsTable.relationshipType, "REGISTERED_TO")');
+    expect(runner).toContain("linkedAssets: linkedAssetRows");
   });
 
   it("uses an asset-specific objective instead of person research for an asset target", () => {
