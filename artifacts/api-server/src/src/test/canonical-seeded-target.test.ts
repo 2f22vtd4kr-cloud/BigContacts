@@ -155,6 +155,7 @@ describe("canonical seeded target binding", () => {
         sourceRegistry: "FAA Releasable Aircraft Database",
         metadata: JSON.stringify({
           source: "faa-aircraft-registry",
+          additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
           additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
           additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are additional names published on the same aircraft registration record; they may identify co-registrants or partnership names, but the fields alone do not prove beneficial ownership, an ownership percentage, a personal relationship, or personal wealth.",
           personalWealthEvidence: false,
@@ -171,6 +172,7 @@ describe("canonical seeded target binding", () => {
       associationSemantics: expect.stringContaining("not proof of beneficial ownership"),
       sourceMetadata: expect.objectContaining({
         source: "faa-aircraft-registry",
+        additionalRegistrantNamesRaw: [" OTHER OWNER ", "PARTNERSHIP NAME", "", "", ""],
         additionalRegistrantNames: ["OTHER OWNER", "PARTNERSHIP NAME"],
         additionalRegistrantNamesFieldSemantics: expect.stringContaining("additional names published on the same aircraft registration record"),
         personalWealthEvidence: false,
