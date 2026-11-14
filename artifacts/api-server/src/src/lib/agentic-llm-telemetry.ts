@@ -86,12 +86,19 @@ export class AgenticDailyTokenBudgetError extends Error {
 }
 
 /** Configure per-model daily ceilings from observed account limits; zero means no local ceiling. */
+/** Await queued writes before reading/reserving the same model's daily budget. */
+export async function flushAgenticLlmUsageLedger(): Promise<void> {
+  await dailyUsagePersistenceChain;
+}
+
 export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.ProcessEnv = process.env): number {
   const suffix = /20b/i.test(model) ? "20B" : /120b/i.test(model) ? "120B" : "MODEL";
   const raw = env[`APEX_GROQ_DAILY_TOKEN_BUDGET_${suffix}`] ?? env.APEX_GROQ_DAILY_TOKEN_BUDGET;
   const value = Number(raw ?? 0);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
+
+let dailyUsagePersistenceChain: Promise<void> = Promise.resolve();
 
 async function persistDailyUsageEvent(event: Attempt): Promise<void> {
   if (!process.env.DATABASE_URL) return;
@@ -165,6 +172,7 @@ export async function reserveAgenticLlmDailyBudget(input: {
   estimatedTokens: number;
   env?: NodeJS.ProcessEnv;
 }): Promise<AgenticLlmDailyReservation> {
+  await dailyUsagePersistenceChain;
   const usageDate = new Date().toISOString().slice(0, 10);
   const estimatedTokens = Math.max(0, Math.floor(input.estimatedTokens));
   const dailyBudgetTokens = getAgenticLlmDailyTokenBudget(input.model, input.env ?? process.env);
@@ -240,7 +248,7 @@ function safeTelemetryReason(reason: string | undefined): string | null {
 }
 
 export function recordAgenticLlmAttempt(event: Attempt): void {
-  void persistDailyUsageEvent(event);
+  dailyUsagePersistenceChain = dailyUsagePersistenceChain.then(() => persistDailyUsageEvent(event));
   attempts += 1;
   if (event.success) successes += 1;
   else failed += 1;
