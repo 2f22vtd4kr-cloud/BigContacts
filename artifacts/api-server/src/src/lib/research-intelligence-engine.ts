@@ -429,6 +429,13 @@ export class ResearchIntelligenceEngine {
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         spanBindingKind: item.spanBindingKind,
+        hypothesisLabel: item.hypothesisLabel ?? null,
+        hypothesisRelation: item.hypothesisRelation ?? null,
+        hypothesisRationale: item.hypothesisRationale ?? null,
+        relationshipType: item.relationshipType ?? null,
+        temporalStatus: item.temporalStatus ?? null,
+        interpretationConfidence: item.interpretationConfidence ?? null,
+        ambiguityNotes: item.ambiguityNotes ?? null,
         claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
         spanStart: item.spanBound === true && item.passage ? 0 : null, spanEnd: item.spanBound === true && item.passage ? item.passage.length : null, spanBound: item.spanBound === true,
         sourceLineageId: sourceLineage?.sourceId, fingerprint };
@@ -718,7 +725,21 @@ export class ResearchIntelligenceEngine {
     const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
     const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
     const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { if (!["ATTRIBUTED", "CORROBORATED", "VERIFIED"].includes(contact.state)) continue; const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
-    const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
+    const contradictionGroups = new Map<string, IntelligenceEvidence[]>();
+    for (const evidence of this.evidence.values()) {
+      if (!evidence.hypothesisLabel || evidence.hypothesisRelation !== "supports" && evidence.hypothesisRelation !== "contradicts") continue;
+      const key = normalize(evidence.hypothesisLabel);
+      const group = contradictionGroups.get(key) ?? [];
+      group.push(evidence);
+      contradictionGroups.set(key, group);
+    }
+    const contradictions = [...contradictionGroups.entries()]
+      .filter(([, group]) => group.some((evidence) => evidence.hypothesisRelation === "contradicts"))
+      .map(([hypothesis, group]) => ({
+        claim: hypothesis,
+        evidenceIds: [...new Set(group.map((item) => item.id))],
+        sources: [...new Set(group.map((item) => item.sourceHost).filter(Boolean) as string[])],
+      }));
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
     // Search-result URLs are discovery leads. They are retained in atomic
@@ -780,6 +801,13 @@ export class ResearchIntelligenceEngine {
         passage: evidence.passage,
         spanBound: evidence.spanBound === true,
         spanBindingKind: evidence.spanBindingKind,
+        hypothesisLabel: evidence.hypothesisLabel ?? null,
+        hypothesisRelation: evidence.hypothesisRelation ?? null,
+        hypothesisRationale: evidence.hypothesisRationale ?? null,
+        relationshipType: evidence.relationshipType ?? null,
+        temporalStatus: evidence.temporalStatus ?? null,
+        interpretationConfidence: evidence.interpretationConfidence ?? null,
+        ambiguityNotes: evidence.ambiguityNotes ?? null,
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = rankLearnedActionYield(this.actionYield);
