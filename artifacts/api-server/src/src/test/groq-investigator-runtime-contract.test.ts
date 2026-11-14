@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -13,6 +13,34 @@ const completeInvestigatorProviderPrompt = [
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
+  it("compacts auxiliary context to the request budget while preserving objective, Boss scope, actions, latest act and schema", () => {
+    const latestQuote = "Jane Example — Managing Director can be reached directly at jane@example.org.";
+    const prompt = [
+      "DISCOVERY MODE: no entity target is implied.",
+      "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers with public professional routes.",
+      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): Verify relevant candidates in Germany.",
+      "AVAILABLE ACTIONS: web_search | visit | registry_search.",
+      "CAPABILITY GUIDANCE: " + "capability detail ".repeat(500),
+      "AI-COMPACTED HISTORICAL RESEARCH MEMORY: " + "historical summary ".repeat(500),
+      "CANONICAL EVIDENCE GRAPH STATE: " + "old evidence graph ".repeat(300),
+      "LATEST TRAJECTORY RECORD — TURN 3: " + JSON.stringify({ action: "visit", execution: "success", observedUrls: ["https://example.org/team"], observation: latestQuote }),
+      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+    ].join("\\n\\n");
+    const bounded = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
+    expect(bounded.length).toBeLessThan(4_800);
+    expect(bounded).toContain("CASE OBJECTIVE: Discover evidence-backed operating-company decision makers");
+    expect(bounded).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
+    expect(bounded).toContain("AVAILABLE ACTIONS: web_search | visit | registry_search.");
+    expect(bounded).toContain(latestQuote);
+    expect(bounded).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(bounded).not.toContain("historical summary ".repeat(100));
+  });
+
+  it("keeps the preferred user prompt within the 7,200-character request envelope", () => {
+    expect(investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(4_800);
+    expect(2_000 + investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(7_200);
+    expect(investigatorUserPromptBudget(6_500)).toBe(700);
+  });
   it("downgrades a safe browser fetch with a stale provider label to visit", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "browser_fetch",
