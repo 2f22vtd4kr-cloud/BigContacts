@@ -31,6 +31,7 @@ pnpm --filter @workspace/db run harden
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/002-contact-outcome.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/003-atlas-review-candidate-type.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/004-registry-candidate-truth.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/005-agentic-llm-daily-usage.sql
 
 echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'
@@ -47,6 +48,7 @@ try {
     "research_run_events",
     "research_evidence",
     "contact_evidence",
+    "agentic_llm_daily_usage",
   ];
   const result = await pool.query(
     "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY($1::text[])",
