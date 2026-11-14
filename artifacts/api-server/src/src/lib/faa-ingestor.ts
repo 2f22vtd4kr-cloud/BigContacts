@@ -258,9 +258,11 @@ export function createFaaRegistrationDedupKey(input: {
   const additionalNames = normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? [])
     .map((value) => value.toLocaleLowerCase("en-US"))
     .join("|");
-  const version = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId, additionalNames]
-    .map((value) => encodeURIComponent(value.trim()))
-    .join(":");
+  const versionParts = [registrantKey, input.statusCode, input.lastActivityDate, input.uniqueId];
+  // Preserve the existing v2 key for rows without additional names; rows with
+  // published co-registrants get a distinct key so those fields are refreshed.
+  if (additionalNames) versionParts.push(additionalNames);
+  const version = versionParts.map((value) => encodeURIComponent(value.trim())).join(":");
   return `faa:v2:${nNumber}:${version}`;
 }
 
@@ -568,7 +570,7 @@ async function flushBatch(batch: FaaBatchRow[], validateNamesWithLlm: boolean): 
         const existing = existingAssetByIdentifier.get(row.asset.identifier);
         if (!existing) continue;
         const metadata = mergeFaaAssetMetadata(existing.metadata, row.asset.metadata);
-        if (metadata !== existing.metadata || row.asset.description) {
+        if (metadata !== existing.metadata) {
           await tx.update(assetsTable).set({
             metadata,
             description: row.asset.description,
