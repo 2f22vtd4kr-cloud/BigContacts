@@ -5,7 +5,6 @@ import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from ".
 import { assessIdentityCollision } from "./identity-collision";
 import { countIndependentSourceHosts } from "./source-corroboration";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
 export type BureauContactLike = { vectorType?: string | null; value?: string | null; scope?: string | null; personName?: string | null; role?: string | null; sourceUrls?: string[] | null; note?: string | null; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown" | null; exactQuote?: string | null; tier?: string | null; state?: string | null; promote?: boolean | null };
 export type InvestigatorPromotionProvenance = { caseId: number; runId: string; jobId?: string | null };
 
@@ -37,46 +36,21 @@ export function hasExactObservedToken(text:string,value:string):boolean{
  }
  return false;
 }
-function exactTokenOffsets(text:string,value:string):number[]{
- const source=text.toLowerCase(),needle=value.trim().toLowerCase();
- if(!needle)return[];
- const continues=(character:string)=>Boolean(character)&&/[\p{L}\p{N}_@+-]/u.test(character);
- const offsets:number[]=[];let index=source.indexOf(needle);
- while(index>=0){
-  const afterIndex=index+needle.length,before=source[index-1]??"",after=source[afterIndex]??"";
-  if(!continues(before)&&!continues(after)&&!(after==="."&&/[\p{L}\p{N}]/u.test(source[afterIndex+1]??""))&&!(needle.includes("@")&&before==="."))offsets.push(index);
-  index=source.indexOf(needle,index+1);
- }
- return offsets;
-}
-function hasBoundPhoneAndIdentity(observationText:string,personName:string,cleanValue:string,maxDistance=320):boolean{
- const digits=cleanValue.replace(/\D/g,"");
- if(digits.length<7)return false;
- const identityOffsets=exactTokenOffsets(observationText,personName);
- if(!identityOffsets.length)return false;
- const phonePattern=/\+?\d[\d\s().-]{5,}\d/g;
- for(const match of observationText.matchAll(phonePattern)){
-  if((match[0]??"").replace(/\D/g,"")!==digits)continue;
-  const valueStart=match.index??-1,valueEnd=valueStart+match[0].length;
-  if(identityOffsets.some((identityStart)=>Math.max(0,Math.max(identityStart-valueEnd,valueStart-(identityStart+personName.length)))<=maxDistance))return true;
- }
- return false;
-}
-function contactEntrySegments(observationText:string):string[]{
- const rows=observationText.split(/[\r\n•]+/).map((row)=>row.trim()).filter(Boolean);
- // Semicolon/pipe separators often separate fields belonging to the same
- // person. Split only when the next segment begins with a competing full name.
- const competingPersonBoundary=/(?:[;,|.!?—–]\s+)(?=(?:and\s+)?[A-Z][\p{L}\p{M}'’.-]+\s+[A-Z][\p{L}\p{M}'’.-]+\b)/u;
- return rows.flatMap((row)=>row.split(competingPersonBoundary).map((segment)=>segment.trim()).filter(Boolean));
-}
-function hasBoundIdentityAndValue(observationText:string,personName:string,cleanValue:string,vectorType:string):boolean{
- if(!observationText.trim()||!personName.trim()||!cleanValue.trim())return false;
- // A length-bounded span is not enough: it can bridge adjacent people in a
- // directory or contact list. Trusted candidate attribution must bind within
- // one extracted entry/line; otherwise retain only reviewable evidence.
- return contactEntrySegments(observationText).some((segment)=>vectorType==="phone"
-  ? hasBoundPhoneAndIdentity(segment,personName,cleanValue)
-  : Boolean(bindExactSourceSpan(segment,cleanValue,personName,320)?.exact));
+function hasBoundIdentityAndValue(quote:string,personName:string,cleanValue:string,vectorType:string):boolean{
+ if(!quote.trim()||!personName.trim()||!cleanValue.trim())return false;
+ // The Investigator owns the semantic attribution. Runtime verifies the
+ // model-selected exact quote exists verbatim in fetched evidence and that
+ // the exact person/value tokens are both present; it does not impose a
+ // character-distance or line-layout heuristic on the relationship.
+ const identityPresent = hasExactObservedToken(quote,personName);
+ const valuePresent = vectorType === "phone"
+  ? (() => {
+    const digits = cleanValue.replace(/\D/g,"");
+    const tokens = quote.match(/\+?\d[\d\s().-]{5,}\d/g) ?? [];
+    return digits.length >= 7 && tokens.some((token) => token.replace(/\D/g,"") === digits);
+  })()
+  : hasExactObservedToken(quote,cleanValue);
+ return identityPresent && valuePresent;
 }
 export function isOrganizationContactRoute(item: BureauContactLike, value: string): boolean {
  const explicitlyPersonAttributed = item.contactAttribution === "person_specific"
