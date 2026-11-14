@@ -171,7 +171,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       budgetExhausted: event.budgetExhausted === true,
       lastProviderStatus: String(event.status),
       lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
-      lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? table.lastRateLimitRemainingTokens : Math.floor(event.rateLimitRemainingTokens),
+      lastRateLimitRemainingTokens: event.rateLimitRemainingTokens == null ? null : Math.floor(event.rateLimitRemainingTokens),
       lastRateLimitResetTokensMs: event.rateLimitResetTokensMs == null ? null : Math.floor(event.rateLimitResetTokensMs),
       lastRateLimitRemainingRequests: event.rateLimitRemainingRequests == null ? null : Math.floor(event.rateLimitRemainingRequests),
       lastRateLimitResetRequestsMs: event.rateLimitResetRequestsMs == null ? null : Math.floor(event.rateLimitResetRequestsMs),
