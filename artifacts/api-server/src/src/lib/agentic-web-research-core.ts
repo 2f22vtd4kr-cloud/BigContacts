@@ -2184,7 +2184,7 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * fields and causes malformed model actions. Compact auxiliary prefix first,
  * then only compact the newest trajectory tail if it alone consumes the budget.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, promptMode: "discovery" | "target" = "discovery"): string {
+export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt.trim() : "";
   const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
@@ -2196,7 +2196,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   const budget = Math.max(1_800, Math.min(6_000, Math.floor(preferredMaxChars)));
   if (normalized.length <= budget) return normalized;
 
-  const sections = normalized.split(/\\n{2,}/u).map((section) => section.trim()).filter(Boolean);
+  const sections = normalized.split(/\n{2,}/u).map((section) => section.trim()).filter(Boolean);
   const find = (predicate: (section: string) => boolean): string => sections.find(predicate) ?? "";
   const assignment = sections[0] ?? "";
   const objective = find((section) => /^PRIMARY CASE OBJECTIVE:/i.test(section) || /^CASE OBJECTIVE:/i.test(section));
@@ -2204,14 +2204,14 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   const availableActions = find((section) => /^AVAILABLE ACTIONS:/i.test(section));
   const registry = find((section) => /^RUNTIME-AVAILABLE REGISTRY IDS ONLY/i.test(section) || /^REGISTRY COVERAGE:/i.test(section));
   const capabilityHeading = sections.findIndex((section) => section === "CAPABILITY GUIDANCE:");
-  const capability = capabilityHeading >= 0 ? [sections[capabilityHeading], sections[capabilityHeading + 1] ?? ""].filter(Boolean).join("\\n") : "";
+  const capability = capabilityHeading >= 0 ? [sections[capabilityHeading], sections[capabilityHeading + 1] ?? ""].filter(Boolean).join("\n") : "";
   const cognitiveHeading = sections.findIndex((section) => /^CANONICAL EVIDENCE GRAPH STATE:/i.test(section));
-  const cognitive = cognitiveHeading >= 0 ? [sections[cognitiveHeading], sections[cognitiveHeading + 1] ?? ""].filter(Boolean).join("\\n") : "";
+  const cognitive = cognitiveHeading >= 0 ? [sections[cognitiveHeading], sections[cognitiveHeading + 1] ?? ""].filter(Boolean).join("\n") : "";
   const terminal = find((section) => /^RESEARCH TERMINAL GATE/i.test(section));
   const researchContract = find((section) => /^MISSION PRIORITY:.*RESEARCH CONTRACT:/is.test(section));
   const output = outputSection;
   const fixed = [assignment, objective, bossScope, availableActions, output].filter(Boolean);
-  const fixedText = fixed.join("\\n\\n");
+  const fixedText = fixed.join("\n\n");
   if (fixedText.length > budget) {
     throw new Error("Investigator objective, active Boss scope, available actions and output contract exceed the safe prompt budget; refusing to drop authoritative mission content.");
   }
@@ -2235,8 +2235,8 @@ export function boundInvestigatorProviderPrompt(prompt: string, preferredMaxChar
   const outputSectionIndex = sections.findIndex((section) => section.startsWith("OUTPUT CONTRACT:"));
   const recentSections = sections.slice(Math.max(0, outputSectionIndex - 5), outputSectionIndex)
     .filter((section) => !fixed.includes(section) && section !== capability && section !== cognitive && section !== registry && section !== terminal && section !== researchContract);
-  add(recentSections.join("\\n\\n"), Math.max(0, Math.min(1_500, remaining)), "recent working-context detail");
-  const compacted = [...fixed.slice(0, 4), ...optional, output].filter(Boolean).join("\\n\\n");
+  add(recentSections.join("\n\n"), Math.max(0, Math.min(1_500, remaining)), "recent working-context detail");
+  const compacted = [...fixed.slice(0, 4), ...optional, output].filter(Boolean).join("\n\n");
   if (compacted.length > budget) {
     throw new Error("Investigator prompt compaction exceeded its configured budget.");
   }
