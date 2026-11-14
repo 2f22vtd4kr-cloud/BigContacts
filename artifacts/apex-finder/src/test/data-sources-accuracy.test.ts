@@ -30,4 +30,11 @@ describe("data-source catalogue availability and privacy claims", () => {
     expect(sourceCatalog).not.toContain("Runs automatically during in-house enrichment");
     expect(sourceCatalog).toContain("No dedicated ICIJ adapter is exposed");
   });
+
+  it("keeps semantic embedding maintenance manual and unable to bypass its job lock", () => {
+    expect(sourceCatalog).toContain("Manual operator-triggered maintenance only; no startup schedule is registered");
+    expect(sourceCatalog).toContain("bodyParams: { batchSize: 5000, rebuild: true }");
+    expect(sourceCatalog).not.toContain("Auto-triggered at 4 min and 32 min after boot");
+    expect(sourceCatalog).not.toContain("force: true");
+  });
 });
