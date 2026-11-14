@@ -227,6 +227,7 @@ type EntityNarrative = {
   estimatedNetWorth?: number | null;
   name?: string | null;
   sourceRegistries?: string | string[] | null;
+  metadata?: string | null;
   signal?: string | null;
   assetCount?: number | null;
   assetCategories?: string[] | null;
@@ -354,6 +355,13 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
   const company = companyFromNotes(entity.notes);
   const filing = filingLabel(entity.notes);
   const worth = entity.estimatedNetWorth;
+  let sourceDisclaimsPersonalWealth = false;
+  try {
+    const metadata = entity.metadata ? JSON.parse(entity.metadata) : {};
+    sourceDisclaimsPersonalWealth = metadata?.personalWealthEvidence === false || metadata?.wealthStatus === "not_assessed";
+  } catch {
+    sourceDisclaimsPersonalWealth = false;
+  }
 
   if (/faa/i.test(reg) || categories.some((c) => c.includes("aviation") || c.includes("aircraft"))) {
     const n = entity.assetCount ?? 0;
@@ -379,7 +387,7 @@ export function entityWhyHnwi(entity: EntityNarrative): string {
   if (filing && company) {
     return `${name} is on the desk because a public ${filing} links them to ${company}. Role plus public paper is enough to open a card.`;
   }
-  if (worth != null && worth > 0) {
+  if (worth != null && worth > 0 && !sourceDisclaimsPersonalWealth) {
     return `${name} has an estimated wealth figure on file. Treat it as an unverified lead until the methodology, date, subject and independent sources are checked.`;
   }
   if (company) {
