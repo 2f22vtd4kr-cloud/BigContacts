@@ -67,7 +67,7 @@ describe("Apex research intelligence", () => {
     const identityUrl = "https://company.example/team";
     const valueUrl = "https://support.example.net/contact";
     const boundUrl = "https://industry.example.org/leadership";
-    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl] };
+    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl], contactAttribution: "person_specific" as const, exactQuote: "Jane Smith — CFO; email: jane.smith@company.example" };
     const history = [
       { turn: 1, action: "visit", execution: "success", observation: "Jane Smith is CFO.", urls: [identityUrl] },
       { turn: 2, action: "visit", execution: "success", observation: "Email: jane.smith@company.example", urls: [valueUrl] },
@@ -111,7 +111,7 @@ describe("Apex research intelligence", () => {
   it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "evidence-span-upgrade", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/leadership";
-    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl] };
+    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl], contactAttribution: "person_specific" as const, exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com" };
     engine.recordAction({
       turn: 1, action: "visit", execution: "success",
       urls: [sourceUrl], observation: "John Smith is CFO of Example Corp.",
@@ -203,8 +203,8 @@ describe("Apex research intelligence", () => {
 
   it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
-    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The registry explicitly attributes the directorship to Alex." }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "This independent source records a different directorship and contradicts the Alpha hypothesis." }] });
     engine.recordAction({ turn: 3, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] });
     const state = engine.buildContext();
     expect(state.evidenceCount).toBeGreaterThan(0);
@@ -235,8 +235,8 @@ describe("Apex research intelligence", () => {
 
   it("does not treat multiple attributable emails as contradictory and refreshes evidence timestamps", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-contact", target: "Example Target", objective: "find public contacts" });
-    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/a"], observation: "Example Target email one@example.com", findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"] }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.org/b"], observation: "Example Target email two@example.com", findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/a"], observation: "Example Target email one@example.com", findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"], contactAttribution: "person_specific", exactQuote: "Example Target email one@example.com" }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.org/b"], observation: "Example Target email two@example.com", findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"], contactAttribution: "person_specific", exactQuote: "Example Target email two@example.com" }] });
     const state = engine.buildContext();
     expect(state.contradictions).toHaveLength(0);
     expect(state.facts.some((fact) => fact.claim.includes("email one@example.com"))).toBe(true);
