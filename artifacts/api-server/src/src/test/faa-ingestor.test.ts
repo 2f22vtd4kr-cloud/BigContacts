@@ -374,9 +374,9 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("ELSE 'Other' END");
     expect(repair).toContain('eq(entitiesTable.type, "HNWI")');
     expect(repair).toContain("legacyFaaOwnershipCorrected");
-    expect(repair).toContain("COALESCE(\${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') = 'true'");
-    expect(repair).toContain("COALESCE(\${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')");
-    expect(repair).toContain("COALESCE(\${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'personalWealthEvidence', '') = 'true'");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') IN ('qualified', 'verified', 'assessed')");
+    expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'hnwiQualificationStatus', '') = 'qualified'");
     expect(repair).toContain("COALESCE(${entitiesTable.metadata}::jsonb ->> 'wealthStatus', '') <> 'not_assessed'");
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
