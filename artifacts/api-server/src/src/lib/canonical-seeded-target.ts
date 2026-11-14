@@ -105,7 +105,7 @@ export function buildCanonicalSeededTargetBinding(input: {
       "sourceObservedAt", "observedAt", "lastActivityDate", "registrantTypeCode", "registrantTypeLabel",
       "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
       "fractionalOwnershipStatus", "registrationStatus", "wealthStatus", "hnwiQualificationStatus",
-      "personalWealthEvidence", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
+      "personalWealthEvidence", "additionalRegistrantNamesRaw", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
     ] as const;
     for (const field of assetSourceFields) {
       if ((field === "additionalRegistrantNames" || field === "additionalRegistrantNamesFieldSemantics") && !isFaaAircraftRecord) continue;
