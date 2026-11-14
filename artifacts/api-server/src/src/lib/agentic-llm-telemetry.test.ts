@@ -160,7 +160,7 @@ describe("Investigator LLM telemetry privacy", () => {
         totalTokens: 550,
         reservedTokens: 0,
         dailyBudgetTokens: 1000,
-        budgetExhausted: false,
+        budgetExhausted: true,
       });
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 451, env }))
         .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
