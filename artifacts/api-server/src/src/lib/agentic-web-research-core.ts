@@ -2455,7 +2455,6 @@ async function callGroqJson(
         if (isModelPromptAuditCaptureEnabled() && !modelAuditRequestId) {
           throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Investigator request");
         }
-        const groqRequestUrl = "https://api.groq.com/openai/v1/chat/completions";
         const groqRequestInit: RequestInit = {
           method: "POST",
           headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
@@ -2467,7 +2466,7 @@ async function callGroqJson(
         // same guarded fetch and would otherwise double-charge every request.
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
-            safeOutboundFetch(groqRequestUrl, groqRequestInit),
+            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
           ),
         );
 
