@@ -5,7 +5,7 @@ import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditC
 import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
-import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
+import { AgenticDailyTokenBudgetError, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
 import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
@@ -2462,6 +2462,10 @@ async function callGroqJson(
       const started = Date.now();
       let modelAuditRequestId: string | null = null;
       let modelAuditResponseRecorded = false;
+      let dailyReservationDate: string | null = null;
+      let dailyReservationTokens = 0;
+      let dailyBudgetTokens = 0;
+      let providerRequestSent = false;
       try {
         const quotaReadiness = await waitForKnownGroqTokenWindow(
           quotaAccount,
@@ -2474,6 +2478,15 @@ async function callGroqJson(
           lastProviderError = "upstream_token_window_wait_exceeded";
           return { model, raw: "", error: lastProviderError };
         }
+        const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
+        const reservation = await reserveAgenticLlmDailyBudget({
+          provider: "groq",
+          model,
+          estimatedTokens: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length) + completionBudgetForReservation,
+        });
+        dailyReservationDate = reservation.usageDate;
+        dailyReservationTokens = reservation.reservedTokens;
+        dailyBudgetTokens = reservation.dailyBudgetTokens;
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
@@ -2507,6 +2520,7 @@ async function callGroqJson(
           signal,
         };
         const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
+        providerRequestSent = true;
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
@@ -2547,6 +2561,10 @@ async function callGroqJson(
           } catch {}
           recordAgenticLlmAttempt({
             ...telemetryContext,
+            dailyReservationDate,
+            dailyReservationTokens,
+            dailyBudgetTokens,
+            providerRequestSent,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2617,6 +2635,10 @@ async function callGroqJson(
           } catch {}
           recordAgenticLlmAttempt({
             ...telemetryContext,
+            dailyReservationDate,
+            dailyReservationTokens,
+            dailyBudgetTokens,
+            providerRequestSent,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2709,6 +2731,10 @@ async function callGroqJson(
         } catch {
           recordAgenticLlmAttempt({
             ...telemetryContext,
+            dailyReservationDate,
+            dailyReservationTokens,
+            dailyBudgetTokens,
+            providerRequestSent,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2730,6 +2756,10 @@ async function callGroqJson(
         const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
         recordAgenticLlmAttempt({
             ...telemetryContext,
+            dailyReservationDate,
+            dailyReservationTokens,
+            dailyBudgetTokens,
+            providerRequestSent,
           provider: "groq",
           model,
           promptChars: workingPrompt.length,
@@ -2803,13 +2833,19 @@ async function callGroqJson(
         const localProviderGateFailure = isLocalProviderQuotaError(error)
           ? (error.code === "cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted")
           : null;
-        const failureClass = localProviderGateFailure ?? classifyThrownProviderError(error);
+        const dailyBudgetFailure = error instanceof AgenticDailyTokenBudgetError ? error : null;
+        const failureClass = dailyBudgetFailure?.code ?? localProviderGateFailure ?? classifyThrownProviderError(error);
         lastProviderError = failureClass;
         recordAgenticLlmAttempt({
-            ...telemetryContext, provider: "groq", model, promptChars: workingPrompt.length,
+            ...telemetryContext,
+            dailyReservationDate,
+            dailyReservationTokens,
+            dailyBudgetTokens,
+            providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
             systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
             userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
+            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
+        if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
         // A local provider-gate quota/cooldown is already a provider-wide stop
         // signal for this role. Do not waste the remaining key/model matrix on
         // calls that the gate will reject before reaching Groq.
