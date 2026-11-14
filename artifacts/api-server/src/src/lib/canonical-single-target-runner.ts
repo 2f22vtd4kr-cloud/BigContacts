@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
@@ -253,6 +253,18 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     return { investigatorIterationsUsed: 0, resourceLimited: false, status: caseRow.status === "cancelled" ? "cancelled" : caseRow.status === "complete" ? "complete" : "review", exhaustedInvestigatorLlm: [], investigatorLlm: null };
   }
   await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
+  const linkedAssetRows = await db.select({
+    id: assetsTable.id,
+    category: assetsTable.category,
+    identifier: assetsTable.identifier,
+    sourceRegistry: assetsTable.sourceRegistry,
+    metadata: assetsTable.metadata,
+  }).from(assetsTable).innerJoin(relationshipsTable, and(
+    eq(relationshipsTable.targetId, assetsTable.id),
+    eq(relationshipsTable.targetType, "Asset"),
+    eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
+    eq(relationshipsTable.sourceEntityId, target.id),
+  )).orderBy(desc(assetsTable.id)).limit(50);
   const seededEvidenceRows = await db.select({
     id: researchEvidenceTable.id,
     claimType: researchEvidenceTable.claimType,
@@ -276,6 +288,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     contactOutcome: target.contactOutcome,
     contactConfidence: target.contactConfidence,
     evidence: seededEvidenceRows,
+    linkedAssets: linkedAssetRows,
   });
   await db.transaction(async (tx) => {
     await lockResearchCaseEventAppendStream(tx, caseRow.id);
