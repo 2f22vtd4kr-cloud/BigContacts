@@ -130,8 +130,13 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
     const oldest = state.reservations.reduce<number | null>((minimum, reservation) =>
       minimum === null ? reservation.createdAt : Math.min(minimum, reservation.createdAt), null);
     const waitMs = oldest === null ? windowMs : Math.max(1, oldest + windowMs - now);
-    if (now - startedAt + waitMs > groqTokenMaxWaitMs()) throw new ProviderQuotaError("cooldown", "groq", waitMs);
-    await abortableProviderDelay(waitMs, signal);
+    const elapsedMs = now - startedAt;
+    const remainingWaitBudgetMs = groqTokenMaxWaitMs() - elapsedMs;
+    if (remainingWaitBudgetMs <= 0) throw new ProviderQuotaError("cooldown", "groq", waitMs);
+    // A completed request may reconcile from its conservative reservation to
+    // actual usage while this waiter sleeps. Recheck periodically instead of
+    // sleeping through the entire rolling window after capacity has been freed.
+    await abortableProviderDelay(Math.min(waitMs, remainingWaitBudgetMs, 1_000), signal);
   }
 }
 
