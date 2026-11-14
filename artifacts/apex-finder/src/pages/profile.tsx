@@ -294,7 +294,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
           : !!(entity.email || entity.phone || entity.contactOutcome || entity.contactMethod);
   const fields = [
     { key: "name",        label: "Name",         done: !!entity.name },
-    { key: "type",        label: "Type",         done: !!entity.type },
+    { key: "type",        label: "Type",         done: !!displayType },
     { key: "nationality", label: "Nationality",  done: !!entity.nationality },
     { key: "metric",      label: entityMeta(displayType).metricLabel,    done: metricEvidenceDone },
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
