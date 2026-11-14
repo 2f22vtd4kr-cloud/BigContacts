@@ -58,6 +58,7 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("<EntityTypeMark type={displayType} compact />");
     expect(profileSource).toContain("sourceRegistries.length === 1");
     expect(profileSource).toContain('sourceRegistries.length === 0 && metadata.source === "faa-aircraft-registry"');
+    expect(profileSource).toContain('entityMetadata.source === "faa-aircraft-registry" ? "FAA Releasable Aircraft Database" : ""');
   });
 
   it("keeps the registry confidence badge from presenting source confidence as proof of wealth", () => {
