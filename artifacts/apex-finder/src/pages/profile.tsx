@@ -505,7 +505,7 @@ export default function ApexProfile() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const displayType = profileDisplayEntityType(entity);
+  const displayType = displayEntityType(entity);
   const typeColor  = entityMeta(displayType).color;
   let srcRegs: string[] = [];
   try { srcRegs = JSON.parse((entity as any).sourceRegistries ?? "[]"); } catch {}
