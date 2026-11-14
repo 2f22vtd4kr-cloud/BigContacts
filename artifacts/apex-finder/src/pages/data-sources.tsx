@@ -179,6 +179,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/opensky",
     jobType: "opensky",
     bodyParams: {},
+    note: "Privacy boundary: latest coarse airborne/on-ground status only; exact coordinates, callsigns, bearings and historical routes are not retained.",
   },
   {
     id: "easa",
@@ -197,17 +198,15 @@ const SOURCES: SourceDef[] = [
   // ── Phase 9: In-House OSINT enrichment (no paid API) ─────────────────────
   {
     id: "in-house-enrich",
-    label: "In-House OSINT Enricher",
+    label: "Legacy In-House Contact Enricher (retired)",
     description:
-      "Finds emails, LinkedIn URLs, and websites for HNWI and Gatekeeper entities using 6 free public sources: Wikidata SPARQL, GitHub API, email pattern generation verified by Gravatar MD5, DNS MX validation, RDAP domain contacts, and ProPublica 990 filings. No paid API required.",
+      "Legacy deterministic contact harvesting has been retired. No current API route or canonical Investigator capability exposes this pipeline; pattern-derived addresses are not public evidence and are never promoted to verified contact state.",
     kind: "enricher",
     Icon: Mail,
     color: "#10B981",
     bg: "rgba(16,185,129,0.1)",
     phase: 9,
     homepage: "https://query.wikidata.org",
-    jobType: "in-house-enrich",
-    bodyParams: { batchSize: 200 },
     note: "Retired legacy contact-harvesting pipeline. The API endpoint returns HTTP 410; it is not part of the canonical Investigator. Pattern-generated addresses are never evidence and this job must not be run.",
   },
 
