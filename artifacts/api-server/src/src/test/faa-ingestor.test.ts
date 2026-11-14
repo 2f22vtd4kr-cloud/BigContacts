@@ -11,6 +11,8 @@ import {
   mergeFaaAssetMetadata,
   normalizeFaaAdditionalRegistrantNames,
   shouldReclassifyLegacyFaaRegistrantLink,
+  isFaaOnlyRegistrantSource,
+  selectFaaOnlyLegacyOwnerLinks,
   normalizeFaaName,
   parseFaaMasterCsvRecord,
 } from "../lib/faa-ingestor";
@@ -30,6 +32,46 @@ const base = {
   country: "US",
   lastActivityDate: "2026/10/01",
 };
+
+describe("FAA refresh preserves independently sourced owner associations", () => {
+  it("clears only owner foreign keys whose provenance is exactly the FAA registry", () => {
+    const faaOnly = {
+      id: 10,
+      ownerEntityId: 101,
+      ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+    };
+    const mixedSource = {
+      id: 11,
+      ownerEntityId: 102,
+      ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database", "Companies House"]),
+    };
+    const unknownSource = {
+      id: 12,
+      ownerEntityId: 103,
+      ownerSourceRegistries: null,
+    };
+    const malformedSource = {
+      id: 13,
+      ownerEntityId: 104,
+      ownerSourceRegistries: "{malformed",
+    };
+
+    expect(isFaaOnlyRegistrantSource(faaOnly.ownerSourceRegistries)).toBe(true);
+    expect(isFaaOnlyRegistrantSource(mixedSource.ownerSourceRegistries)).toBe(false);
+    expect(isFaaOnlyRegistrantSource(unknownSource.ownerSourceRegistries)).toBe(false);
+    expect(isFaaOnlyRegistrantSource(malformedSource.ownerSourceRegistries)).toBe(false);
+    expect(selectFaaOnlyLegacyOwnerLinks([faaOnly, mixedSource, unknownSource, malformedSource]))
+      .toEqual([faaOnly]);
+  });
+
+  it("does not clear an owner foreign key when the owner row is missing or provenance is unreadable", () => {
+    expect(selectFaaOnlyLegacyOwnerLinks([
+      { id: 20, ownerEntityId: 201, ownerSourceRegistries: null },
+      { id: 21, ownerEntityId: 202, ownerSourceRegistries: "not-json" },
+      { id: 22, ownerEntityId: null, ownerSourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]) },
+    ])).toEqual([]);
+  });
+});
 
 describe("FAA person registrant model-name gate", () => {
   it("keeps model-rejected names as asset-only records and marks accepted names as name-shape checked", () => {
