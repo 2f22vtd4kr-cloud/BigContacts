@@ -845,4 +845,18 @@ describe("AI investigation context compaction", () => {
     expect(result?.text).toContain(sourceFact);
     expect(result?.text).not.toContain("100% of the company's portfolio");
   });
+
+  it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
+    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
+    const source = "CASE MEMORY " + "context. ".repeat(50) + sourceFact + " " + "more context. ".repeat(50);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "One hundred percent of the company's portfolio was fossil-fuel companies." }),
+      error: null,
+    });
+    const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-words", caseId: 93 });
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).not.toContain("One hundred percent of the company's portfolio");
+  });
 });
