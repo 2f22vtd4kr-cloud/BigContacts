@@ -21,6 +21,8 @@ const finding = (overrides: Partial<AgenticFinding> = {}): AgenticFinding => ({
   scope: "candidate",
   sourceUrls: ["https://example.com/team/jane"],
   note: "named on the team page",
+  contactAttribution: "person_specific",
+  exactQuote: "Jane Example — Founder — jane@example.com",
   ...overrides,
 });
 
