@@ -101,14 +101,10 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
   const latestFindings = latest?.findings ?? [];
   if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
-  if (input.discoveryFindings.some(isConsequentialInvestigatorFinding)
-      && !["research_candidate", "revisit_candidate"].includes(input.priorAction ?? "")
-      && latestFindings.length > 0) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
-  return latest?.action === "done" && stopProposalCount === 1
-    && (!previousName || input.admittedCandidates.some((candidate) => candidate.name.trim().toLocaleLowerCase() !== previousName));
+  return latest?.action === "done" && stopProposalCount === 1;
 }
 
 export function matchAtlasAdmittedTarget(
