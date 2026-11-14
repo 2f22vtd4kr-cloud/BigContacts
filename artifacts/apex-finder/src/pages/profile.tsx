@@ -1692,8 +1692,8 @@ export default function ApexProfile() {
          } else if (primaryReg) {
           lines.push(`${pName} appears in ${primaryReg}. This is a source lead only; objective relevance, identity, ownership, and qualification require separate evidence.`);
         }
-        if (e.estimatedNetWorth != null) {
-          lines.push(`Estimated net worth or AUM: ${formatCurrency(e.estimatedNetWorth)}.`);
+        if (displayableEstimatedNetWorth != null) {
+          lines.push(`Estimated net worth or AUM: ${formatCurrency(displayableEstimatedNetWorth)}.`);
         }
         if (assetArr.length > 0) {
           const cats = [...new Set(assetArr.map((a: any) => a.category))];
