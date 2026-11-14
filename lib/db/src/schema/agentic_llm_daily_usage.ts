@@ -18,6 +18,7 @@ export const agenticLlmDailyUsageTable = pgTable("agentic_llm_daily_usage", {
   cachedPromptTokens: integer("cached_prompt_tokens").notNull().default(0),
   completionTokens: integer("completion_tokens").notNull().default(0),
   totalTokens: integer("total_tokens").notNull().default(0),
+  estimatedTokens: integer("estimated_tokens").notNull().default(0),
   reservedTokens: integer("reserved_tokens").notNull().default(0),
   dailyBudgetTokens: integer("daily_budget_tokens").notNull().default(0),
   budgetExhausted: boolean("budget_exhausted").notNull().default(false),
@@ -32,6 +33,6 @@ export const agenticLlmDailyUsageTable = pgTable("agentic_llm_daily_usage", {
   usageDateIdx: index("agentic_llm_daily_usage_date_idx").on(table.usageDate),
   nonNegativeTokens: check(
     "agentic_llm_daily_usage_nonnegative_tokens_ck",
-    sql`${table.promptTokens} >= 0 AND ${table.completionTokens} >= 0 AND ${table.totalTokens} >= 0 AND ${table.reservedTokens} >= 0 AND ${table.dailyBudgetTokens} >= 0`,
+    sql`${table.promptTokens} >= 0 AND ${table.completionTokens} >= 0 AND ${table.totalTokens} >= 0 AND ${table.estimatedTokens} >= 0 AND ${table.reservedTokens} >= 0 AND ${table.dailyBudgetTokens} >= 0`,
   ),
 }));
