@@ -3760,6 +3760,8 @@ Choose each next action yourself from the available capabilities and observed ev
   it("does not discard non-empty short names before source-backed identity validation", () => {
     expect(bureauAgenticPassSource).toContain("hasNonEmptyCandidateName(f.personName)");
     expect(bureauAgenticPassSource).not.toContain("f.personName.trim().length>=2");
+    expect(bureauAgenticPassSource).not.toContain("finding.personName.trim().length>=2");
+    expect(bureauAgenticPassSource).not.toContain("name.length<2");
     expect(bureauAgenticPassSource).toContain('if(mode==="target"&&!name)return');
   });
 
