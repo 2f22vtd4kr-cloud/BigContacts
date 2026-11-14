@@ -110,5 +110,5 @@ export function sanitizeOpenSkyMetadataJson(raw: string | null | undefined): str
 
 /** Older OpenSky job logs may contain a single precise coordinate pair. */
 export function redactLegacyOpenSkyPositionLog(message: string): string {
-  return message.replace(/-?\\d{1,3}(?:\\.\\d+)?°\\s*[NS]\\s+-?\\d{1,3}(?:\\.\\d+)?°\\s*[EW]/giu, "[precise position withheld]");
+  return message.replace(/-?\d{1,3}(?:\.\d+)?°\s*[NS]\s+-?\d{1,3}(?:\.\d+)?°\s*[EW]/giu, "[precise position withheld]");
 }
