@@ -279,11 +279,11 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
 }) {
   const displayType = profileDisplayEntityType(entity);
   const metricEvidenceDone =
-    entity.type === "HNWI"
+    displayType === "HNWI"
       ? hasPersonalWealthEvidence(entity)
-      : entity.type === "Corporation"
+      : displayType === "Corporation"
         ? relationships.length >= 1 || !!entity.sourceRegistries
-        : entity.type === "Trust"
+        : displayType === "Trust"
           ? assets.length >= 1 || !!entity.sourceRegistries
           : !!(entity.email || entity.phone || entity.contactOutcome || entity.contactMethod);
   const fields = [
