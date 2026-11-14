@@ -155,8 +155,8 @@ describe("Investigator live discovery budget context", () => {
 
 describe("Investigator provider envelope budget", () => {
   it("uses a single system-aware user-message budget", () => {
-    expect(investigatorUserPromptBudget(1_600)).toBe(6_800);
-    expect(investigatorUserPromptBudget(4_000)).toBe(4_400);
+    expect(investigatorUserPromptBudget(1_600)).toBe(4_800);
+    expect(investigatorUserPromptBudget(4_000)).toBe(2_960);
     expect(investigatorUserPromptBudget(8_401)).toBe(0);
   });
 });
