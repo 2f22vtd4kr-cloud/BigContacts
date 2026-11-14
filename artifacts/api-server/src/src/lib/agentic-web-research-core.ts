@@ -2133,9 +2133,28 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
   const successTruncated = input.status === 200 && input.finishReason === "length";
   const validationFailure = input.status === 400 && input.providerCode === "json_validate_failed";
   const messageTruncated = validationFailure && isGroqCompletionTruncationMessage(input.providerMessage);
+  const explicitTruncation = successTruncated || messageTruncated;
   const genericValidationFailure = validationFailure && input.failureDetailsAvailable !== true
-    && !/(?:required field|additional propert|schema mismatch|invalid enum|expected type)/i.test(input.providerMessage);
-  if (successTruncated || messageTruncated || genericValidationFailure) {
+    && !/(?:required field|additional propert|schema mismatch|does not match .*schema|expected schema|invalid enum|expected type)/i.test(input.providerMessage);
+
+  // A known truncation is not a schema error: once its bounded budget retry is
+  // spent, fail instead of changing response format.
+  if (explicitTruncation) {
+    if (input.completionBudgetRetryUsed) return { action: "fail" };
+    const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
+    const headroom = typeof input.rateLimitRemainingTokens === "number" && Number.isFinite(input.rateLimitRemainingTokens)
+      ? input.rateLimitRemainingTokens - promptTokens : -1;
+    return next !== null && headroom >= next
+      ? { action: "increase_completion_budget", nextMaxCompletionTokens: next }
+      : { action: "fail" };
+  }
+
+  // A generic validation envelope without failed_generation is ambiguous.
+  // Use observed TPM headroom for one cap increase; otherwise use one schema
+  // compatibility fallback. Explicit schema-mismatch diagnostics go directly
+  // to JSON-object mode and are not mislabeled as truncation.
+  if (genericValidationFailure) {
     if (!input.completionBudgetRetryUsed) {
       const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
       const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
@@ -2145,6 +2164,8 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
     }
     return input.responseFormat === "json_schema" ? { action: "retry_json_object" } : { action: "fail" };
   }
+
+  if (validationFailure && input.responseFormat === "json_schema") return { action: "retry_json_object" };
   if (validationFailure && !input.completionBudgetRetryUsed && input.responseFormat === "json_object") {
     const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
     const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
@@ -4714,7 +4735,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null). Tool-specific fields are optional and must match the selected action. Worker actions must be in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Tool-specific fields are optional and must match the selected action. Capability arguments such as profile, sources, searches, findings are optional at the root and required when the selected action needs them. Worker actions must be in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
@@ -4963,7 +4984,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.";
+  const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Capability-specific root arguments such as profile, sources, searches and findings are optional unless needed by the selected action.";
   const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.";
   const requiredFieldNames = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"] as const;
   const hasCompleteSchema = (value: string): boolean => {

@@ -1615,7 +1615,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
+    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(modelPrompt).toContain("Apply only requested criteria");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
@@ -3131,9 +3131,10 @@ Choose each next action yourself from the available capabilities and observed ev
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
-    expect(request.max_completion_tokens).toBe(512);
+    expect(request.max_completion_tokens).toBe(1024);
     // Keep a conservative tokenization margin below the local 7,000 TPM
-    // reservation budget, leaving capacity for other roles in the same window.
+    // reservation budget, including the 1,024-token completion cap, leaving
+    // capacity for other roles in the same window.
 
     expect(Math.ceil(requestChars / 3.4 * 1.1) + request.max_completion_tokens).toBeLessThan(7_000);
     const reservation = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", {
