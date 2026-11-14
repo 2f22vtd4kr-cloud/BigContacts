@@ -162,27 +162,21 @@ describe("Investigator provider envelope budget", () => {
 });
 
 describe("Investigator system prompt budget", () => {
-  it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
+  it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
-    expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(systemCore).toContain("MISSION: Follow the active case objective and Boss-approved scope. Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence. No extra wealth or ownership criteria unless requested.");
-    expect(systemCore).toContain("source class must match the objective");
-    expect(systemCore).toContain("Virtual Globetrotting");
-    expect(systemCore).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
-    expect(systemCore).toContain("TARGET: Apply only requested criteria.");
-    expect(systemCore).toContain("B2B needs fetched role/company evidence");
-    expect(systemCore).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
-    expect(systemCore).not.toContain("casinos in Slovenia");
-    expect(systemCore).toContain("Never infer or introduce a geography from examples or model memory");
-    expect(systemCore).not.toContain("before another search");
-    expect(systemCore).not.toContain("no provider fan-out");
-    expect(systemCore).toContain("No extra wealth or ownership criteria unless requested.");
-    expect(systemCore).toContain("Investigator selects objective-fit people/organizations for provisional review");
-    expect(systemCore).toContain("On non-done actions, use findings[] for selected leads only");
-    expect(systemCore).toContain("Review lead is not verified identity, ownership, wealth or contactability");
-    expect(systemCore).toContain("Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose");
-    expect(systemCore).toContain("Single and parallel registry actions require runtime-callable registry IDs");
-    expect(systemCore).toContain("Stop only at a defensible answer or justified blocker");
+    const roleOrientation = apexOrientationFor("investigator");
+    expect(systemCore.length).toBeLessThan(2_800);
+    expect(systemCore).toContain("SEMANTIC AUTHORITY");
+    expect(systemCore).toContain("CODE VERIFIES REALITY");
+    expect(systemCore).toContain("CONTACT:");
+    expect(systemCore).toContain("Six required root fields");
+    expect(systemCore).toContain("RESEARCH TERMINAL");
+    expect(systemCore).toContain("No fixed source itinerary");
+    expect(systemCore).not.toContain("Virtual Globetrotting");
+    expect(systemCore).not.toContain("PERSON REALISM");
+    expect(roleOrientation).toContain("YOUR ROLE — INVESTIGATOR");
+    expect(roleOrientation).toContain("own the relevance judgment");
+    expect(roleOrientation).toContain("For B2B assignments");
   });
 });
 
