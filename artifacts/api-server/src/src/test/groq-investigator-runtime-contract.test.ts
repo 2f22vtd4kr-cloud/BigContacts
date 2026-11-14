@@ -561,7 +561,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(inferResearchCognitiveTask({ nextMovePriority: "verify" })).toBe("identity_resolution");
     expect(inferResearchCognitiveTask({ terminal: true })).toBe("final_adjudication");
   });
-  it("compacts oversized Investigator prompts while preserving mission, scope, actions, evidence URL and output schema", () => {
+  it("preserves oversized Investigator prompts verbatim when the mandatory contract exceeds the advisory target", () => {
     const prompt = [
       "DISCOVERY MODE: investigate the case objective.",
       "PRIMARY CASE OBJECTIVE: Find relevant privately held engineering businesses and identify evidence-backed owners.",
@@ -576,13 +576,14 @@ describe("Groq Investigator runtime contract", () => {
       "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
     ].join("\n\n");
     const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
-    expect(compacted.length).toBeLessThanOrEqual(2_700);
+    expect(compacted).toBe(prompt);
+    expect(compacted.length).toBeGreaterThan(2_700);
     expect(compacted).toContain("Find relevant privately held engineering businesses");
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
     expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(compacted).toContain("omissions are unknown, not negative evidence");
+
   });
 
   it("routes by the Boss-selected capability without silently rotating models", () => {
