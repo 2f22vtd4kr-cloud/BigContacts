@@ -1483,7 +1483,10 @@ export default function EntityLedger() {
             </thead>
             <tbody className="divide-y divide-border/50">
               {displayEntities?.map((entity: any) => {
-                const typeColor = entityMeta(entity.type).color;
+                const displayType = displayEntityType(entity);
+                const typeColor = entityMeta(displayType).color;
+                const organizationLike = displayType === "Corporation" || displayType === "Corp" || displayType === "Trust";
+                const unclassified = displayType === "Other";
                 const isSelected = selectedIds.has(entity.id);
                 return (
                   <tr key={entity.id} className={cn(
@@ -1538,12 +1541,14 @@ export default function EntityLedger() {
                         className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1.5 w-max whitespace-nowrap"
                         style={{ color: typeColor, backgroundColor: typeColor + "18" }}
                       >
-                        <EntityTypeMark type={entity.type} compact />
+                        <EntityTypeMark type={displayType} compact />
                       </span>
                     </td>
                     <td className="px-4 py-3"><NationalityCell nationality={entity.nationality} /></td>
                     <td className="px-4 py-3">
-                      {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
+                      {unclassified ? (
+                        <span className="text-[11px] font-mono uppercase tracking-wide px-1.5 py-1 rounded border border-border text-muted-foreground whitespace-nowrap" title="Entity type is unresolved; do not infer personal identity or wealth">Review only</span>
+                      ) : organizationLike ? (
                         <span
                           className="text-[11px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10 whitespace-nowrap"
                           title="Organization evidence — this is not a personal contact confidence score"
@@ -1554,7 +1559,7 @@ export default function EntityLedger() {
                         <ConfidenceBadge score={entity.contactConfidence} />
                       )}
                     </td>
-                    <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
+                    <td className="px-4 py-3">{!unclassified && <AccessScoreBadge score={entity.accessScore} />}</td>
                     <td className="px-4 py-3 text-xs max-w-[240px]">
                       <div className="flex flex-col gap-1">
                         {(() => {
@@ -1578,9 +1583,9 @@ export default function EntityLedger() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
-                      {entity.type === "HNWI" && entity.estimatedNetWorth != null
+                      {displayType === "HNWI" && hasPersonalWealthEvidence(entity)
                         ? formatCurrency(entity.estimatedNetWorth)
-                        : entityMetric(entity)}
+                        : entityMetric({ ...entity, type: displayType })}
                     </td>
                     <td className="px-4 py-3 pr-6 sm:pr-8 text-right">
                       <div className="flex items-center justify-end gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
