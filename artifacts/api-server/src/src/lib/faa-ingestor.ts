@@ -287,6 +287,7 @@ export function buildFaaRegistrantEntity(input: {
   state: string;
   country: string;
   lastActivityDate: string;
+  additionalRegistrantNames?: readonly string[];
 }): InsertEntity | null {
   const classification = classifyFaaRegistrant(input.registrantTypeCode, {
     fractionalOwnershipFlag: input.fractionalOwnershipFlag,
@@ -339,6 +340,8 @@ export function buildFaaRegistrantEntity(input: {
       nameValidationStatus: "pending_investigator_resolution",
       nameNormalizationStatus: "title_case_only_raw_order_preserved",
       rawRegistrantName: input.registrantName,
+      additionalRegistrantNames: normalizeFaaAdditionalRegistrantNames(input.additionalRegistrantNames ?? []),
+      additionalRegistrantNamesFieldSemantics: "FAA Other Name 1–5 are published co-owner or partnership name fields on the same aircraft registration; they are unverified associated names, not proven beneficial owners, personal relationships, or personal wealth.",
       registrantState: input.state || null,
       country: input.country || "US",
       typeAircraft: input.typeAircraft,
@@ -899,6 +902,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       state,
       country,
       lastActivityDate,
+      additionalRegistrantNames,
     });
     if (entity) {
       const groupKey = faaRegistrantEntityKey(entity);
