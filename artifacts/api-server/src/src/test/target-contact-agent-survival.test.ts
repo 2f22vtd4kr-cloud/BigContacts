@@ -28,15 +28,15 @@ const testState = vi.hoisted(() => {
     id: 1, targetEntityId: 2, caseType: "target", status: "active", currentAction: "target_contact_agent",
     caseFile: JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-1" }),
   };
-  const quote = "Jane Example — Managing Director can be reached directly at jane@example.org.";
-  const sourceUrl = "https://example.org/team/jane-example";
+  const quote = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+  const sourceUrl = "https://acmeengineering.com/team/jane-example";
   const events = [
     {
       id: 11, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
       correlationKey: "run-survival-1:claim:1",
       payload: JSON.stringify({
         runId: "run-survival-1", jobId: "job-1",
-        claim: { vectorType: "email", value: "jane@example.org", personName: "Jane Example" },
+        claim: { vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example" },
         observationEventIds: [12],
       }),
     },
@@ -160,7 +160,7 @@ describe("offline Investigator-to-card survival path", () => {
         correlationKey: "run-survival-1:claim:1",
         payload: JSON.stringify({
           runId: "run-survival-1", jobId: "job-1",
-          claim: { vectorType: "email", value: "jane@example.org", personName: "Jane Example" },
+          claim: { vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example" },
           observationEventIds: [12],
         }),
       },
@@ -178,7 +178,7 @@ describe("offline Investigator-to-card survival path", () => {
   it("persists an explicitly attributed contact and promotes it to the canonical PersonCandidate card", async () => {
     const finding = {
       vectorType: "email" as const,
-      value: "jane@example.org",
+      value: "jane@acmeengineering.com",
       personName: "Jane Example",
       role: "Managing Director",
       scope: "candidate" as const,
@@ -234,13 +234,13 @@ describe("offline Investigator-to-card survival path", () => {
     expect(result.findings).toBe(1);
     expect(testState.insertedContacts).toHaveLength(1);
     const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
-    expect(result.email).toBe("jane@example.org");
+    expect(result.email).toBe("jane@acmeengineering.com");
     expect(evidenceMetadata).toMatchObject({
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
       investigatorSelectedForCard: true,
     });
-    expect(testState.cardUpdate.email).toBe("jane@example.org");
+    expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
     const promotionPayload = testState.cardUpdate.metadata.values.find((value: unknown) =>
       typeof value === "string" && value.includes("exactQuote"),
     );
