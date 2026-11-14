@@ -132,7 +132,7 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
     const waitMs = oldest === null ? windowMs : Math.max(1, oldest + windowMs - now);
     const elapsedMs = now - startedAt;
     const remainingWaitBudgetMs = groqTokenMaxWaitMs() - elapsedMs;
-    if (remainingWaitBudgetMs <= 0) throw new ProviderQuotaError("cooldown", "groq", waitMs);
+    if (remainingWaitBudgetMs <= 0) throw new ProviderQuotaError("cooldown", "groq", waitMs, true);
     // A completed request may reconcile from its conservative reservation to
     // actual usage while this waiter sleeps. Recheck periodically instead of
     // sleeping through the entire rolling window after capacity has been freed.
