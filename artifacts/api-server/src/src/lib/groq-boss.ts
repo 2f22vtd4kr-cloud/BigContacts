@@ -3,7 +3,7 @@ import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
-import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { ProviderQuotaError, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -572,6 +572,14 @@ async function generateGroqBossTextImpl(
               : error instanceof Error ? `Groq Boss ${model} request failed: ${error.message}` : "Groq Boss request failed.";
           logger.warn({ role: "groq_boss", phase: "request_failed", model, keyName: entry.name, failureClass, providerErrorCode: localProviderCode }, "Groq Boss request failed");
           if (isLocalProviderQuotaError(error)) {
+            // Groq's local TPM reservation is model-specific and shared across
+            // Boss/Right-hand credentials. A token-window block on the selected
+            // model may still be recoverable on the next bounded model of the
+            // SAME Boss role; rotating API-key aliases cannot create TPM.
+            if (error instanceof ProviderQuotaError && error.provider === "groq" && error.quotaKind === "tokens") {
+              lastError = `Groq Boss ${model} was blocked by the local shared token-window budget; trying the next bounded Boss model.`;
+              break;
+            }
             return { model, raw: null, error: `Groq Boss local provider gate blocked further attempts (${localProviderCode ?? "unknown"}).`, attempts };
           }
           break;
