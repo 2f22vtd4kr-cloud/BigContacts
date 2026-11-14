@@ -306,7 +306,10 @@ export function createFaaRegistrationDedupKey(input: {
     input.country,
     input.registrantTypeCode,
   );
-  const additionalNamesRaw = (input.additionalRegistrantNamesRaw ?? input.additionalRegistrantNames ?? []).slice(0, 5);
+  const rawAdditionalNames = input.additionalRegistrantNamesRaw ?? [];
+  const additionalNamesRaw = (rawAdditionalNames.some((value) => value.trim().length > 0)
+    ? rawAdditionalNames
+    : input.additionalRegistrantNames ?? []).slice(0, 5);
   const additionalNames = normalizeFaaAdditionalRegistrantNames(additionalNamesRaw)
     .map((value) => value.toLocaleLowerCase("en-US"))
     .join("|");
