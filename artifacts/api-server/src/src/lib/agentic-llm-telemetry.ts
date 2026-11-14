@@ -94,6 +94,7 @@ export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.Process
 }
 
 async function persistDailyUsageEvent(event: Attempt): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
   try {
     const [{ db, agenticLlmDailyUsageTable }, { sql }] = await Promise.all([
       import("@workspace/db"),
@@ -167,6 +168,10 @@ export async function reserveAgenticLlmDailyBudget(input: {
   const usageDate = new Date().toISOString().slice(0, 10);
   const estimatedTokens = Math.max(0, Math.floor(input.estimatedTokens));
   const dailyBudgetTokens = getAgenticLlmDailyTokenBudget(input.model, input.env ?? process.env);
+  if (!process.env.DATABASE_URL) {
+    if (dailyBudgetTokens > 0) throw new AgenticDailyTokenBudgetError("daily_usage_ledger_unavailable");
+    return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
+  }
   try {
     const [{ db, agenticLlmDailyUsageTable }, { sql, and, eq }] = await Promise.all([
       import("@workspace/db"),
