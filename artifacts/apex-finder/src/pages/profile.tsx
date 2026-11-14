@@ -763,8 +763,8 @@ export default function ApexProfile() {
               </div>
               {primarySourceContext && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
-                  <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
-                  <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
+                  <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Primary source</span>
+                  <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primarySourceContext}</span>
                 </div>
               )}
             </div>
@@ -877,11 +877,11 @@ export default function ApexProfile() {
                 </span>
               ) : (
                 <span className="font-mono text-[12px] font-semibold text-foreground/60 leading-snug mb-1 italic">
-                  {primaryWealthSource ?? "In Discovery"}
+                  {primarySourceContext ?? "In Discovery"}
                 </span>
               )}
-              {(entity as any).estimatedNetWorth != null && primaryWealthSource && (
-                <span className="text-[11px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
+              {displayableEstimatedNetWorth != null && primarySourceContext && (
+                <span className="text-[11px] text-muted-foreground leading-tight">{primarySourceContext}</span>
               )}
             </div>
           </div>
