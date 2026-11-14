@@ -97,6 +97,8 @@ export function buildCanonicalSeededTargetBinding(input: {
   const linkedAssets = (input.linkedAssets ?? []).map((asset) => {
     const assetMetadata = parseObject(asset.metadata);
     const assetSourceMetadata: Record<string, unknown> = {};
+    const isFaaAircraftRecord = assetMetadata.source === "faa-aircraft-registry"
+      || assetMetadata.sourceName === "FAA Releasable Aircraft Database";
     const assetSourceFields = [
       "source", "sourceName", "sourceDomain", "sourceClass", "sourceContributor", "sourceMechanism",
       "verificationLevel", "independentCorroborationStatus", "sourceUrl", "sourceRecordId",
@@ -106,6 +108,7 @@ export function buildCanonicalSeededTargetBinding(input: {
       "personalWealthEvidence", "additionalRegistrantNames", "additionalRegistrantNamesFieldSemantics",
     ] as const;
     for (const field of assetSourceFields) {
+      if ((field === "additionalRegistrantNames" || field === "additionalRegistrantNamesFieldSemantics") && !isFaaAircraftRecord) continue;
       const value = assetMetadata[field];
       if (typeof value === "string" || typeof value === "number" || typeof value === "boolean"
         || (Array.isArray(value) && value.every((item) => typeof item === "string" || typeof item === "number"))) {
