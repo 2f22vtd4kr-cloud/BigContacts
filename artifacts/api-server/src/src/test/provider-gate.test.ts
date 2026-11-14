@@ -745,6 +745,22 @@ describe("provider quota gate", () => {
     reconcileGroqTokenResponse(response, body);
   });
 
+  it("labels local Groq token-window capacity separately from request-count exhaustion", async () => {
+    process.env.APEX_GROQ_TPM_BUDGET = "1000";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    await expect(
+      runProviderCall(
+        { provider: "groq", account: "local-token-capacity", groqRequest: { model: "openai/gpt-oss-20b", reservedTokens: 1_500 } },
+        async () => new Response("{}", { status: 200 }),
+      ),
+    ).rejects.toMatchObject({
+      code: "budget_exhausted",
+      provider: "groq",
+      quotaKind: "tokens",
+    });
+  });
+
   it("shares one rolling Groq TPM reservation across roles even when they use different credentials for the same model", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-13T10:00:00.000Z"));
