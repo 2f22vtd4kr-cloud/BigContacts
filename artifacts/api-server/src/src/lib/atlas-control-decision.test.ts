@@ -842,9 +842,10 @@ describe("Atlas opening Right-hand advisory normalization", () => {
     };
     expect(normalizeAtlasOpeningRightHandReview({ ...base, rationale: "A conflicting rationale." })).toBeNull();
     expect(normalizeAtlasOpeningRightHandReview({ ...base, debug: "unexpected" })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, reason: null, rationale: "Valid-looking alias." })).toBeNull();
     expect(normalizeAtlasOpeningRightHandReview({ ...base, confidence: "certain" })).toBeNull();
     expect(normalizeAtlasOpeningRightHandReview({ ...base, confidence: 1.2 })).toBeNull();
-    expect(normalizeAtlasOpeningRightHandReview({ ...base, focusLanes: [] })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandReview({ ...base, focusLanes: [" "] })).toBeNull();
     expect(normalizeAtlasOpeningRightHandReview({ decision: "proceed", rationale: "No lanes or confidence." })).toBeNull();
   });
 
