@@ -39,7 +39,7 @@ describe("registry profile evidence semantics", () => {
     expect(profileSource).toContain("faaLinkedAssets");
     expect(profileSource).toContain("assetMetadata.additionalRegistrantNames");
     expect(profileSource).toContain("unverified");
-    expect(profileSource).toContain("not independently verified people or beneficial owners");
+    expect(profileSource).toContain("not independently verified identities or proof of beneficial ownership");
   });
 
   it("keeps shared narrative helpers from turning registry records into wealth or ownership claims", () => {
