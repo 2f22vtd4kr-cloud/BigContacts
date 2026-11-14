@@ -4631,9 +4631,9 @@ export function buildDiscoveryScopeAdvisory(
     if (unsupported.length) notes.push("possible sector narrowing: " + unsupported.join(", "));
   }
   const geography = discoveryUnscopedGeographyReason(objective, action, args);
-  if (geography) notes.push(geography.replace(/No outbound request was made\\.?/i, ""));
+  if (geography) notes.push(geography.replace(/No outbound request was made\.?/i, ""));
   const pivot = discoveryPivotAlignmentReason(objective, action, args, priorRecords);
-  if (pivot) notes.push(pivot.replace(/No outbound request was made\\.?/i, ""));
+  if (pivot) notes.push(pivot.replace(/No outbound request was made\.?/i, ""));
   if (action === "parallel_web_search") {
     const searches = Array.isArray(args.searches) ? args.searches as Array<{query:string;provider:string}> : [];
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, priorRecords);
