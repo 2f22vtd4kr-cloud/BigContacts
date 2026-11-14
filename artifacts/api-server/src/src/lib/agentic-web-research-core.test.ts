@@ -2881,7 +2881,7 @@ Choose each next action yourself from the available capabilities and observed ev
       objective: "discover an attributable person",
       history: [],
       trajectoryRecords: records,
-      lastObservation: "Search results returned potentially useful leads.",
+      lastObservation: "Search results returned potentially useful leads. ".repeat(100),
       findings: [],
       mode: "discovery",
     });
