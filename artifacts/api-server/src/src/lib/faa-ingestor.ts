@@ -475,7 +475,10 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
         'reviewOnly', true,
         'bayesianScore', 0.05
       )`,
-    }).where(eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])));
+    }).where(and(
+      eq(entitiesTable.type, "HNWI"),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+    ));
     const legacyFaaOwnedLinks = await tx.select({
       sourceEntityId: relationshipsTable.sourceEntityId,
       targetId: relationshipsTable.targetId,
