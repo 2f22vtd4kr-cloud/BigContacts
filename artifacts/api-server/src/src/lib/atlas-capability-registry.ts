@@ -8,6 +8,17 @@
  * tested deterministically, and evolved without coupling provider code to strategy.
  */
 
+export const HARVESTER_SOURCE_IDS = ["bing", "duckduckgo", "yahoo", "certspotter", "crtsh"] as const;
+export type HarvesterSourceId = typeof HARVESTER_SOURCE_IDS[number];
+
+export function normalizeHarvesterSourceSelection(raw: unknown): HarvesterSourceId[] | null {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > HARVESTER_SOURCE_IDS.length) return null;
+  const allowed = new Set<string>(HARVESTER_SOURCE_IDS);
+  const normalized = raw.map((item) => typeof item === "string" ? item.trim().toLowerCase() : "");
+  if (normalized.some((item) => !item || !allowed.has(item))) return null;
+  return [...new Set(normalized)] as HarvesterSourceId[];
+}
+
 export type AtlasCapability = {
   id: string;
   action: string;
