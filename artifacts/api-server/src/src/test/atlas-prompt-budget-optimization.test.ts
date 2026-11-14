@@ -89,7 +89,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
       expect(modelPrompt).toContain("MISSION: Human objective governs. Boss directs priorities");
       expect(modelPrompt).toContain("B2B needs fetched role/company evidence and a professional route");
-      expect(modelPrompt).toContain("wealth objectives need sourced ownership/equity/investment and credible wealth-potential evidence");
+      expect(modelPrompt).toContain("wealth objectives need sourced ownership, equity, investment, assets or transactions");
       expect(prompt).not.toContain("people are the ultimate mission");
       expect(prompt).not.toContain("People—not companies or executive prestige");
       expect(prompt).not.toContain("owner/operator, ownership/investment or transaction signal");
