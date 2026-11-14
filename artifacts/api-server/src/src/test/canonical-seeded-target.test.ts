@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSeededTargetBinding,
   classifyCanonicalSeededTargetType,
+  resolveCanonicalSeededTargetEntityType,
 } from "../lib/canonical-seeded-target";
 import { buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
 
@@ -18,6 +19,35 @@ describe("canonical seeded target binding", () => {
     expect(classifyCanonicalSeededTargetType("Asset")).toBe("asset");
     expect(classifyCanonicalSeededTargetType("UnrecognizedRecord")).toBe("other");
     expect(classifyCanonicalSeededTargetType("InvestmentGroup")).toBe("organization");
+  });
+
+  it("resolves legacy FAA HNWI rows to the published registrant type before case creation", () => {
+    const sourceRegistries = JSON.stringify(["FAA Releasable Aircraft Database"]);
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("PersonCandidate");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "2", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("Corporation");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "5", personalWealthEvidence: false, wealthStatus: "not_assessed" }),
+    })).toBe("Other");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: true, wealthStatus: "assessed" }),
+    })).toBe("HNWI");
+    expect(resolveCanonicalSeededTargetEntityType({
+      entityType: "HNWI",
+      sourceRegistries,
+      metadata: JSON.stringify({ registrantTypeCode: "1", personalWealthEvidence: false, wealthStatus: "assessed" }),
+    })).toBe("PersonCandidate");
   });
 
   it("inherits source identifiers, URLs, registry labels and linked evidence without upgrading verification", () => {
@@ -81,6 +111,8 @@ describe("canonical seeded target binding", () => {
     expect(runner).toContain("const linkedAssetRows = await db.select");
     expect(runner).toContain('eq(relationshipsTable.relationshipType, "REGISTERED_TO")');
     expect(runner).toContain("linkedAssets: linkedAssetRows");
+    expect(runner).toContain("resolveCanonicalSeededTargetEntityType({ entityType: targetRow.type, sourceRegistries: targetRow.sourceRegistries, metadata: targetRow.metadata })");
+    expect(runner).toContain("`Target type: ${target.type}`");
   });
 
   it("recognizes FAA co-registrant fields from the asset sourceRegistry even when metadata lacks a source label", () => {
