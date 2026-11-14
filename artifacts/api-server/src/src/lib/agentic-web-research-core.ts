@@ -459,7 +459,24 @@ export function applyPythonToolExecutionMetadata(record: AgenticTrajectoryRecord
 }
 
 function cleanText(value: unknown, max = 500): string { const limit = Number.isFinite(max) ? Math.max(0, Math.floor(max)) : 500; return typeof value === "string" ? value.trim().slice(0, limit) : ""; }
-function isSafeHttpUrl(value: string): boolean { return /^https?:\/\//i.test(value); }
+function isSafeHttpUrl(value: string): boolean {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!/^https?:\/\//i.test(raw)) return false;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    // URL parsing treats "https://https://example.com" as a request to the
+    // single-label host "https". Reject nested schemes and non-public
+    // single-label hosts before they reach DNS or the pinned transport.
+    if (!hostname || /^(?:https?|ftp)$/i.test(hostname)) return false;
+    if (!hostname.includes(".") && !hostname.includes(":")) return false;
+    if (url.username || url.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 function normalizedUrl(value: string): string | null { try { const u = new URL(value); return /^https?:$/i.test(u.protocol) ? sanitizeUrlForEvidence(u.href) : null; } catch { return null; } }
 
 
