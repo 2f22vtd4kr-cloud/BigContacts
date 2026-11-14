@@ -4689,9 +4689,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: only if the exact action appears in AVAILABLE ACTIONS after fresh worker attestation; otherwise unavailable. Worker outputs are leads, not proof.";
+  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn after fresh worker attestation; otherwise unavailable.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
-    ? "Conditional specialist OSINT actions are available only when the exact action is in this turn's AVAILABLE ACTIONS after fresh worker attestation. They are optional; the Investigator chooses whether their expected information gain justifies use."
+    ? "These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use."
     : "";
   const compactCriticalRetrievalGuidance = "PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action. Search snippets remain leads, not evidence.";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
