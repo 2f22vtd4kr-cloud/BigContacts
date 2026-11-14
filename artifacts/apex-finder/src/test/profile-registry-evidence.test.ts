@@ -48,6 +48,11 @@ describe("registry profile evidence semantics", () => {
     expect(dataSourcesSource).toContain("Other Name 1–5 are preserved per aircraft as unverified additional names");
   });
 
+  it("keeps the registry confidence badge from presenting source confidence as proof of wealth", () => {
+    expect(narrativeSource).toContain("does not prove beneficial ownership or personal wealth");
+    expect(narrativeSource).not.toContain("confirm this person's wealth profile");
+  });
+
   it("keeps shared narrative helpers from turning registry records into wealth or ownership claims", () => {
     expect(narrativeSource).toContain("registrant is not necessarily the beneficial owner");
     expect(narrativeSource).toContain("not proof of personal wealth or HNWI status");
