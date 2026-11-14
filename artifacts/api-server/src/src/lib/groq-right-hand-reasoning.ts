@@ -3,7 +3,7 @@ import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { ProviderQuotaError, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import {
   classifyProviderHttpStatus,
@@ -372,7 +372,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
       if(!attemptTelemetryRecorded)recordAgenticLlmAttempt({...telemetryContext,provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:"error",success:false,latencyMs:Date.now()-attemptStartedAt,retryIndex:Math.max(1,outboundAttemptCount),reason:error instanceof Error&&error.name==="AbortError"?"timeout":"exception"});
      if(!modelAuditResponseRecorded){const auditCaptureFailed=error instanceof Error&&error.message.startsWith("model_prompt_audit_response_capture_failed");emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,transportFailure:auditCaptureFailed?undefined:error instanceof Error?error.name:"unknown_error",auditCaptureFailure:auditCaptureFailed?"response_write_failed":undefined});}
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
-    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"?(error as any).code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"&&typeof (error as any).retryAfterMs==="number"?(error as any).retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
+    const localTokenWindowQuota = error instanceof ProviderQuotaError && error.quotaKind === "tokens";
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof ProviderQuotaError?error.code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof ProviderQuotaError?error.retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:localTokenWindowQuota?"tokens":cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
     if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${JSON.stringify(describeThrownProviderError(error))}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
