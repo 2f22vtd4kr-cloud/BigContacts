@@ -96,15 +96,35 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
   }
 }
 
-function safeErrorShape(error: unknown): { name: string; message: string; code: string; status: number | null } {
-  const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
-  const cause = value.cause && typeof value.cause === "object" ? value.cause as Record<string, unknown> : {};
+function safeErrorShape(error: unknown): { name: string; message: string; code: string; status: number | null; providerQuotaError: boolean } {
+  const chain: Record<string, unknown>[] = [];
+  const seen = new Set<object>();
+  let current: unknown = error;
+  for (let depth = 0; depth < 8 && current && typeof current === "object" && !seen.has(current); depth += 1) {
+    seen.add(current);
+    const record = current as Record<string, unknown>;
+    chain.push(record);
+    current = record.cause;
+  }
+  const value = chain[0] ?? {};
   const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name : "unknown";
   const message = error instanceof Error ? error.message : typeof value.message === "string" ? value.message : "";
-  const code = typeof value.code === "string" ? value.code : typeof cause.code === "string" ? cause.code : "";
-  const rawStatus = value.status ?? value.statusCode ?? cause.status ?? cause.statusCode;
-  const status = typeof rawStatus === "number" && Number.isInteger(rawStatus) ? rawStatus : typeof rawStatus === "string" && /^\d{3}$/.test(rawStatus) ? Number(rawStatus) : null;
-  return { name, message, code, status };
+  const quotaRecord = chain.find((record) => record.name === "ProviderQuotaError");
+  // A wrapped provider quota signal is more specific than a generic wrapper
+  // code and must survive adapter/orchestration Error.cause boundaries.
+  const code = typeof quotaRecord?.code === "string"
+    ? quotaRecord.code
+    : typeof value.code === "string"
+      ? value.code
+      : chain.map((record) => record.code).find((candidate): candidate is string => typeof candidate === "string") ?? "";
+  const rawStatus = chain.map((record) => record.status ?? record.statusCode)
+    .find((candidate) => candidate !== undefined && candidate !== null);
+  const status = typeof rawStatus === "number" && Number.isInteger(rawStatus)
+    ? rawStatus
+    : typeof rawStatus === "string" && /^\\d{3}$/.test(rawStatus)
+      ? Number(rawStatus)
+      : null;
+  return { name, message, code, status, providerQuotaError: quotaRecord !== undefined };
 }
 
 /** Classify registry failures separately from legitimate successful no-hit results. */
@@ -222,10 +242,10 @@ export function classifyCanonicalAtlasFailure(input: {
       return { domain: "model_provider", kind: "invalid_contract" };
     }
     // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.
-    if (error.name === "ProviderQuotaError" && error.code === "cooldown") {
+    if (error.providerQuotaError && error.code === "cooldown") {
       return { domain: "model_provider", kind: "local_provider_cooldown" };
     }
-    if (error.name === "ProviderQuotaError" && error.code === "budget_exhausted") {
+    if (error.providerQuotaError && error.code === "budget_exhausted") {
       return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
     }
     if (error.code === "quota_exceeded"
