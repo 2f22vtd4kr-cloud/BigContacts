@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   applyFaaRegistryNameValidation,
+  buildLegacyFaaRegistrantRelationshipRepairPairs,
   buildFaaAircraftAsset,
   buildFaaRegistrantEntity,
   createFaaRegistrationDedupKey,
@@ -330,6 +331,21 @@ describe("legacy FAA registrant repair", () => {
     expect(shouldReclassifyLegacyFaaRegistrantLink({ sourceEntityId: 10, ownerEntityId: 11 })).toBe(false);
   });
 
+  it("repairs only exact FAA registrant-to-asset pairs when an independent owner FK exists", () => {
+    expect(buildLegacyFaaRegistrantRelationshipRepairPairs(
+      [{ id: 500, ownerEntityId: 10 }],
+      [
+        { sourceEntityId: 10, targetId: 500, ownerEntityId: 10 },
+        { sourceEntityId: 11, targetId: 500, ownerEntityId: 10 },
+      ],
+    )).toEqual([{ sourceEntityId: 10, targetId: 500 }]);
+
+    expect(buildLegacyFaaRegistrantRelationshipRepairPairs(
+      [],
+      [{ sourceEntityId: 12, targetId: 501, ownerEntityId: null }],
+    )).toEqual([{ sourceEntityId: 12, targetId: 501 }]);
+  });
+
   it("records FAA source class separately from registry ingestion and corroboration", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     expect(source).toContain('sourceClass: "registry_adapter_source"');
@@ -365,6 +381,9 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("const repairAssets = legacyAssets;");
     expect(repair).toContain("repairableFaaOwnedLinks.map((row) => row.targetId)");
     expect(repair).toContain("legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink)");
+    expect(repair).toContain("buildLegacyFaaRegistrantRelationshipRepairPairs(repairAssets, repairableFaaOwnedLinks)");
+    expect(repair).toContain("relationshipRepairConditions.map");
+    expect(repair).toContain("or(...relationshipRepairConditions)");
     expect(repair).toContain("const assetIds = Array.from(new Set");
     expect(repair).toContain(".filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)");
     expect(repair).toContain('relationshipType: "REGISTERED_TO"');
