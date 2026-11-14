@@ -39,7 +39,7 @@ describe("Groq Investigator runtime contract", () => {
   it("keeps the preferred user prompt within the 7,200-character request envelope", () => {
     expect(investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(4_800);
     expect(2_000 + investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(7_200);
-    expect(investigatorUserPromptBudget(6_500)).toBe(700);
+    expect(investigatorUserPromptBudget(6_500)).toBe(460);
   });
   it("downgrades a safe browser fetch with a stale provider label to visit", () => {
     const parsed = parseAgentAction(JSON.stringify({
