@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
+import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -41,6 +41,28 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(line).not.toContain("Alice Example");
   });
 
+  it("normalizes only observed Groq token and request quota headers", () => {
+    const headers = new Map<string, string>([
+      ["x-ratelimit-remaining-tokens", "84500"],
+      ["x-ratelimit-reset-tokens", "6.02s"],
+      ["x-ratelimit-remaining-requests", "72"],
+      ["x-ratelimit-reset-requests", "1m23.5s"],
+      ["authorization", "Bearer should-never-be-read"],
+    ]);
+    expect(readGroqRateLimitHeaders({ get: (name) => headers.get(name) ?? null })).toEqual({
+      rateLimitRemainingTokens: 84500,
+      rateLimitResetTokensMs: 6020,
+      rateLimitRemainingRequests: 72,
+      rateLimitResetRequestsMs: 83500,
+    });
+    expect(readGroqRateLimitHeaders({ get: () => null })).toEqual({
+      rateLimitRemainingTokens: null,
+      rateLimitResetTokensMs: null,
+      rateLimitRemainingRequests: null,
+      rateLimitResetRequestsMs: null,
+    });
+  });
+
   it("instruments all three model roles with job, case, target-set and decision context", () => {
     const investigator = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
     const boss = readFileSync(new URL("./groq-boss.ts", import.meta.url), "utf8");
@@ -52,6 +74,8 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(boss).toContain("...telemetryContext");
     expect(rightHand).toContain('role: "right_hand" as const');
     expect(rightHand).toContain("...telemetryContext");
+    expect(boss).toContain("readGroqRateLimitHeaders(response.headers)");
+    expect(rightHand).toContain("readGroqRateLimitHeaders(response.headers)");
     expect(control).toContain("targetDigest, iteration: input.controlTurn, decisionId");
   });
 
@@ -159,6 +183,10 @@ describe("Investigator LLM telemetry privacy", () => {
         dailyBudgetTokens: reservation.dailyBudgetTokens,
         estimatedTokens: reservation.reservedTokens,
         providerRequestSent: true,
+        rateLimitRemainingTokens: 84500,
+        rateLimitResetTokensMs: 6020,
+        rateLimitRemainingRequests: 72,
+        rateLimitResetRequestsMs: 83500,
       });
       await flushAgenticLlmUsageLedger();
       const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
@@ -172,6 +200,10 @@ describe("Investigator LLM telemetry privacy", () => {
         reservedTokens: 0,
         dailyBudgetTokens: 1000,
         budgetExhausted: true,
+        lastRateLimitRemainingTokens: 84500,
+        lastRateLimitResetTokensMs: 6020,
+        lastRateLimitRemainingRequests: 72,
+        lastRateLimitResetRequestsMs: 83500,
       });
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 451, env }))
         .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
