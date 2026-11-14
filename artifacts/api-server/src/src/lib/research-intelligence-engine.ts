@@ -39,6 +39,13 @@ export interface IntelligenceEvidence {
   spanEnd?: number | null;
   spanBound?: boolean;
   spanBindingKind?: "identity" | "value" | "identity_and_value";
+  hypothesisLabel?: string | null;
+  hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null;
+  hypothesisRationale?: string | null;
+  relationshipType?: string | null;
+  temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null;
+  interpretationConfidence?: number | null;
+  ambiguityNotes?: string | null;
   sourceLineageId?: string;
   fingerprint: string;
 }
@@ -137,7 +144,7 @@ export interface IntelligenceContext {
   frontier: ReturnType<typeof assessResearchFrontier>;
   sourceIndependence: number;
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
-  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; attribution: string | null }>;
+  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; hypothesisLabel?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
   /** Raw cumulative learning statistics; optional for older durable contexts. */
   actionYieldStats?: Array<[string, ActionYieldStat]>;
@@ -207,8 +214,6 @@ function tierForHost(host: string | null): IntelligenceSourceTier {
 }
 function hash(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 function clamp(value: number, min = 0, max = 1): number { return Math.max(min, Math.min(max, value)); }
-function tokenize(value: string): string[] { return normalize(value).split(" ").filter((token) => token.length > 2 && !STOPWORDS.has(token)); }
-function overlap(a: string, b: string): number { const aa = new Set(tokenize(a)); const bb = new Set(tokenize(b)); if (!aa.size || !bb.size) return 0; let hit = 0; for (const token of aa) if (bb.has(token)) hit += 1; return hit / Math.max(aa.size, bb.size); }
 function extractPredicate(claim: string): { subject: string; predicate: string; object: string } {
   const text = claim.trim();
   const match = text.match(/^(.{2,100}?)(?:\s+is\s+|\s+works?\s+at\s+|\s+founded\s+|\s+owns?\s+|\s+email(?:s)?\s+|\s+phone(?:s)?\s+)(.{2,220})$/i);
@@ -216,24 +221,6 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
   const lower = text.toLowerCase();
   const predicate = lower.includes(" works at ") ? "works_at" : lower.includes(" founded ") ? "founded" : lower.includes(" owns ") ? "owns" : lower.includes(" email ") || lower.includes(" emails ") ? "email" : lower.includes(" phone ") || lower.includes(" phones ") ? "phone" : "is";
   return { subject: match[1]!.trim(), predicate, object: match[2]!.trim() };
-}
-
-function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
-  const parseableHypothesis = hypothesis
-    .replace(/\b(?:may|might|could|possibly|probably|likely|perhaps)\b/gi, " ")
-    .replace(/\b(?:the|a|an)\b/gi, " ")
-    .replace(/\bbe\b/gi, "is")
-    .replace(/\s+/g, " ")
-    .trim();
-  const hypothesisClaim = extractPredicate(parseableHypothesis);
-  const evidenceClaim = extractPredicate(claim);
-  if (hypothesisClaim.predicate !== "asserts" && evidenceClaim.predicate !== "asserts") {
-    if (normalize(hypothesisClaim.subject) !== normalize(evidenceClaim.subject)) return false;
-    if (hypothesisClaim.predicate !== evidenceClaim.predicate) return false;
-    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
-    if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
-  }
-  return overlap(hypothesis, claim) >= 0.35;
 }
 
 export class ResearchIntelligenceEngine {
@@ -250,7 +237,7 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown" | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const observationIsFetchedSource = input.execution === "success"
       && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
