@@ -253,6 +253,47 @@ export function parseEntityRegistries(value: EntityNarrative["sourceRegistries"]
   return [];
 }
 
+function parseEntityMetadata(entity: any): Record<string, any> {
+  try {
+    const parsed = typeof entity?.metadata === "string" ? JSON.parse(entity.metadata) : entity?.metadata;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function hasPersonalWealthEvidence(entity: any): boolean {
+  if (entity?.estimatedNetWorth == null) return false;
+  const metadata = parseEntityMetadata(entity);
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  if (explicitlyNotWealthEvidence) return false;
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (explicitlyQualified) return true;
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  return !hasFaaSource || metadata.personalWealthEvidence === true;
+}
+
+export function displayEntityType(entity: any): string {
+  if (entity?.type !== "HNWI") return entity?.type ?? "Other";
+  const metadata = parseEntityMetadata(entity);
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const hasFaaSource = metadata.source === "faa-aircraft-registry"
+    || registries.some((source) => /FAA Releasable Aircraft Database/i.test(source));
+  const explicitlyNotWealthEvidence = metadata.personalWealthEvidence === false || metadata.wealthStatus === "not_assessed";
+  const explicitlyQualified = metadata.personalWealthEvidence === true
+    || ["qualified", "verified", "assessed"].includes(String(metadata.wealthStatus))
+    || metadata.hnwiQualificationStatus === "qualified";
+  if (!hasFaaSource || explicitlyQualified && !explicitlyNotWealthEvidence) return "HNWI";
+  const registrantType = String(metadata.typeRegistrant ?? metadata.registrantTypeCode ?? "");
+  if (registrantType === "1") return "PersonCandidate";
+  if (["2", "3", "7", "8"].includes(registrantType)) return "Corporation";
+  return "Other";
+}
+
 function noteField(notes: string | null | undefined, field: string): string | null {
   if (!notes) return null;
   const match = notes.match(new RegExp(`${field}:\\s*(.*?)(?=\\s+(?:Source|Filing|Company|Nationality|Location|Entity type):|$)`, "i"));
