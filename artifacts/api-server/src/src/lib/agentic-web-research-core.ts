@@ -2089,24 +2089,18 @@ export function buildAgenticActionParseFailureRecord(input: {
 }
 
 /**
- * Route ordinary action selection to the economical model and reserve the
- * stronger model for contradiction/final adjudication. An explicit model
- * environment override remains authoritative; the 20B capability is pinned.
+ * Boss selects an Investigator capability based on mission complexity. The
+ * 20B capability is pinned to GPT-OSS 20B; standard capabilities use the
+ * configured canonical model (120B by default). No silent model rotation.
  */
 export function selectGroqInvestigatorModel(input: {
   capability?: InvestigatorCapability;
-  cognitiveTask: ResearchCognitiveTask;
   configuredModel?: string | null;
-  routineModel?: string | null;
   highReasoningModel?: string | null;
 }): string {
   if (input.capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "openai/gpt-oss-20b";
   const configured = input.configuredModel?.trim();
-  if (configured) return configured;
-  if (input.cognitiveTask === "contradiction_resolution" || input.cognitiveTask === "final_adjudication") {
-    return input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
-  }
-  return input.routineModel?.trim() || "openai/gpt-oss-20b";
+  return configured || input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
 }
 
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
@@ -2471,9 +2465,7 @@ async function callGroqJson(
   // owned by Boss-directed reassignment, which preserves durable ownership.
   const routedModels = [selectGroqInvestigatorModel({
     capability: investigatorCapability,
-    cognitiveTask,
     configuredModel: process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null,
-    routineModel: process.env.APEX_GROQ_INVESTIGATOR_ROUTINE_MODEL?.trim() || null,
     highReasoningModel: GROQ_DEFAULT_MODEL,
   })];
   for (const model of routedModels) {
