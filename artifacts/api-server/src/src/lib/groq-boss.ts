@@ -3,7 +3,7 @@ import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
-import { getGroqTokenMaxWaitMs, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { ProviderQuotaError, getGroqTokenMaxWaitMs, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -354,9 +354,13 @@ async function generateGroqBossTextImpl(
   };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
+  // The local TPM reservation is shared across credential aliases and scoped by model.
+  // A blocked model should not be retried under another key; try the next same-role model.
+  const locallyTokenBlockedModels = new Set<string>();
 
   for (const entry of ordered) {
     for (const model of candidates) {
+      if (locallyTokenBlockedModels.has(model)) continue;
       if (Date.now() >= deadline) break;
       let transient503Retries = 0;
       let rateLimitRetries = 0;
@@ -587,6 +591,14 @@ async function generateGroqBossTextImpl(
               : error instanceof Error ? `Groq Boss ${model} request failed: ${error.message}` : "Groq Boss request failed.";
           logger.warn({ role: "groq_boss", phase: "request_failed", model, keyName: entry.name, failureClass, providerErrorCode: localProviderCode }, "Groq Boss request failed");
           if (isLocalProviderQuotaError(error)) {
+            // Groq's process-local TPM reservation is model-specific and shared across
+            // Boss/Right-hand credentials. A blocked model may recover on the next
+            // bounded model within the SAME Boss role; credential aliases add no TPM.
+            if (error instanceof ProviderQuotaError && error.provider === "groq" && error.quotaKind === "tokens") {
+              locallyTokenBlockedModels.add(model);
+              lastError = `Groq Boss ${model} was blocked by the local shared token-window budget; trying the next bounded Boss model.`;
+              break;
+            }
             return { model, raw: null, error: `Groq Boss local provider gate blocked further attempts (${localProviderCode ?? "unknown"}).`, attempts };
           }
           break;
@@ -598,7 +610,7 @@ async function generateGroqBossTextImpl(
   }
 
   return {
-    model: selection.model,
+    model: attempts.at(-1)?.model ?? selection.model,
     raw: null,
     error: `Groq Boss unavailable after bounded model/key attempts. ${lastError}. Attempts: ${formatGroqBossAttemptSummary(attempts)}.`,
     attempts,
