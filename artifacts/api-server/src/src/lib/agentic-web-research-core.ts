@@ -2490,6 +2490,7 @@ async function callGroqJson(
       let dailyReservationDate: string | null = null;
       let dailyReservationTokens = 0;
       let dailyBudgetTokens = 0;
+      let dailyEstimatedTokens = 0;
       let providerRequestSent = false;
       try {
         const quotaReadiness = await waitForKnownGroqTokenWindow(
@@ -2504,10 +2505,11 @@ async function callGroqJson(
           return { model, raw: "", error: lastProviderError };
         }
         const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
+        dailyEstimatedTokens = groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length) + completionBudgetForReservation;
         const reservation = await reserveAgenticLlmDailyBudget({
           provider: "groq",
           model,
-          estimatedTokens: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length) + completionBudgetForReservation,
+          estimatedTokens: dailyEstimatedTokens,
         });
         dailyReservationDate = reservation.usageDate;
         dailyReservationTokens = reservation.reservedTokens;
@@ -2545,11 +2547,11 @@ async function callGroqJson(
           signal,
         };
         const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
-        providerRequestSent = true;
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () =>
-            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit),
-          ),
+          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => {
+            providerRequestSent = true;
+            return safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
+          }),
         );
 
         // Consume every provider response body exactly once. Error responses need
@@ -2589,6 +2591,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
             budgetExhausted: tokenDailyQuota,
             provider: "groq",
