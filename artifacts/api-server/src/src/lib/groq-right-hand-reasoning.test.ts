@@ -119,6 +119,11 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(result.model).toBe("openai/gpt-oss-20b");
     expect(chatBodies).toHaveLength(1);
     expect(chatBodies[0].model).toBe("openai/gpt-oss-20b");
+    const systemMessage = (chatBodies[0].messages as Array<{ role: string; content: string }>).find((message) => message.role === "system");
+    expect(systemMessage?.content).toContain("APEX ATLAS MEMORY COMPACTION");
+    expect(systemMessage?.content).toContain("non-authoritative transformation");
+    expect(systemMessage?.content).not.toContain("DISCOVERY ECONOMY");
+    expect(systemMessage?.content).not.toContain("APEX MISSION CONTRACT");
     const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
     expect((chatCall?.[1]?.headers as Record<string, string>)?.Authorization).toBe("Bearer test-right-hand-key");
   });
