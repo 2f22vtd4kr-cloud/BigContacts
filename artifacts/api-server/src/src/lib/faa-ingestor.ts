@@ -223,6 +223,17 @@ export function normalizeFaaAdditionalRegistrantNames(values: readonly string[])
     .filter(Boolean);
 }
 
+export function shouldReclassifyLegacyFaaRegistrantLink(input: {
+  sourceEntityId: number;
+  ownerEntityId: number | null;
+}): boolean {
+  // If the FK is still present, it must identify the same registrant as the
+  // FAA-labelled OWNS edge. A different FK is independent ownership evidence
+  // and must remain untouched. A missing FK can still be repaired from the
+  // exact FAA source label plus the FAA asset source registry.
+  return input.ownerEntityId == null || input.ownerEntityId === input.sourceEntityId;
+}
+
 /** Merge current FAA-owned fields without discarding enrichment from other sources. */
 export function mergeFaaAssetMetadata(existingRaw: string | null | undefined, incomingRaw: string | null | undefined): string {
   const parse = (raw: string | null | undefined): Record<string, unknown> => {
@@ -497,13 +508,14 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       eq(relationshipsTable.notes, "FAA aircraft registration"),
       eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
     ));
-    // The legacy ownerEntityId itself came from the FAA registrant import.
-    // Reclassify every FAA association even if an older OWNS relationship row
-    // was never written or has since been lost.
+    // Reclassify FAA-labelled links even when the asset FK has since been
+    // removed, but preserve an OWNS edge when its source entity conflicts with
+    // a still-present ownerEntityId (that is independent ownership evidence).
+    const repairableFaaOwnedLinks = legacyFaaOwnedLinks.filter(shouldReclassifyLegacyFaaRegistrantLink);
     const repairAssets = legacyAssets;
     const assetIds = Array.from(new Set([
       ...repairAssets.map((row) => row.id),
-      ...legacyFaaOwnedLinks.map((row) => row.targetId),
+      ...repairableFaaOwnedLinks.map((row) => row.targetId),
     ]));
     const ownerEntityAssetIds = Array.from(new Set([
       ...repairAssets.map((row) => row.id),
