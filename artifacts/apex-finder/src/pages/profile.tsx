@@ -887,7 +887,7 @@ export default function ApexProfile() {
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{displayableEstimatedNetWorth != null ? entityMeta(entity.type).metricLabel : "Primary source"}</span>
               {displayableEstimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
                 {entity.type === "HNWI" ? formatCurrency(displayableEstimatedNetWorth) : entityMetric(entity)}
