@@ -123,20 +123,30 @@ export function scoreAttribution(params: {
 
   // 3. Validation — structural validity + not generic
   let validation = 0;
+  // A generic-looking local part is a weak prior, not an attribution verdict.
+  // When the model has explicitly attributed the route to this person and the
+  // exact claim is present in the fetched source, preserve that interpretation.
+  // The caller still has to enforce fetched-source provenance and quote integrity.
+  const modelBackedPersonRoute = exactClaimObserved && targetPersonEvidence;
   if (email && isValidEmail) {
-    validation = isGenericLocalPart(email) ? 0.28 : 0.90;
+    validation = isGenericLocalPart(email)
+      ? (modelBackedPersonRoute ? 0.78 : 0.28)
+      : 0.90;
   } else if (phone && isValidPhone) {
     validation = 0.72;
   }
 
-  // 4. Directness — personal vs organisation-level contact
-  let directness = 0.72;  // default: assume personal for HNWI / Gatekeeper
+  // 4. Directness — semantic person-vs-organization attribution is supplied by
+  // the model-backed finding; local-part spelling alone cannot override it.
+  let directness = 0.72;
   if (["Corporation", "Trust"].includes(entityType)) {
     if (email && !isGenericLocalPart(email)) directness = 0.60;
-    else if (email) directness = 0.28;
+    else if (email) directness = modelBackedPersonRoute ? 0.72 : 0.28;
     else directness = 0.40;
   }
-  if (email && isGenericLocalPart(email)) directness = Math.min(directness, 0.28);
+  if (email && isGenericLocalPart(email) && !modelBackedPersonRoute) {
+    directness = Math.min(directness, 0.28);
+  }
   if (!email && !phone) directness = 0.08;
 
   // 5. Domain fit — does email domain match resolved employer domain?
@@ -179,6 +189,7 @@ export function scoreAttribution(params: {
   if (authority >= 0.85) parts.push("high-authority source");
   if (families.size >= 2) parts.push(`${families.size} independent source families`);
   if (email && isValidEmail && !isGenericLocalPart(email)) parts.push("personal local-part");
+  if (email && isValidEmail && isGenericLocalPart(email) && modelBackedPersonRoute) parts.push("model-attributed person-specific route with exact source claim");
   if (domainFit >= 0.80 && resolvedDomain) parts.push(`domain match: ${resolvedDomain}`);
   if (score < ATTRIBUTION_THRESHOLD) parts.push("below attribution threshold");
   if (!exactClaimObserved) parts.push("no exact claim URL");
