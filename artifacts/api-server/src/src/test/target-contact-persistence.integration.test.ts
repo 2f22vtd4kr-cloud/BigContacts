@@ -136,6 +136,8 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       note: "The fetched public team profile explicitly attributes this direct professional route.",
       contactAttribution: "person_specific" as const,
       exactQuote,
+      identityAssessment: "same_person" as const,
+      identityRationale: "The fetched official profile names the target, states the Managing Director role and quotes the exact direct address.",
       promotionDecision: "promote" as const,
       promotionReason: "The exact fetched statement names the person and gives the route.",
     };
@@ -145,6 +147,8 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       scope: "candidate",
       contactAttribution: "person_specific",
       exactQuote,
+      identityAssessment: "same_person",
+      identityRationale: expect.stringContaining("official profile"),
       promote: true,
     });
 
@@ -168,6 +172,8 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
       scope: "candidate",
       contactAttribution: "person_specific",
       exactQuote,
+      identityAssessment: "same_person",
+      identityRationale: expect.stringContaining("official profile"),
       sourceUrls: [personalUrl],
       investigatorSelectedForCard: true,
       jobId,
@@ -183,6 +189,8 @@ describe.skipIf(!databaseEnabled)("PostgreSQL Investigator contact persistence a
           personName: targetName,
           contactAttribution: "person_specific",
           exactQuote,
+          identityAssessment: "same_person",
+          identityRationale: expect.stringContaining("official profile"),
           sourceUrls: [personalUrl],
           observedSourceUrls: [personalUrl],
           claimEventId: expect.any(Number),
