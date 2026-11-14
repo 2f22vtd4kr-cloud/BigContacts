@@ -134,12 +134,12 @@ describe("AI investigation context compaction", () => {
     ].join(" ");
     expect(firstSummary.length).toBeGreaterThan(900);
 
-    const correctedSummary = "Alice Example is the managing director, appointed on 2024-06-12. Source: " + sourceUrl;
+    const correctedSummary = "Alice Example is the managing director. The filing states Alice Example was appointed director on 2024-06-12. Source: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstSummary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
-    const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
+    const result = await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: "BOUNDED TRAJECTORY PROJECTION:\n" + JSON.stringify([{ action: "visit", execution: "success", args: { url: sourceUrl }, observedUrls: [sourceUrl] }]), maxChars: 900 });
 
     expect(result).toBe(correctedSummary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
@@ -154,8 +154,8 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("Omit commenter names, profile links, and optional detail");
     const firstOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
     const repairOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5];
-    expect(firstOptions?.maxCompletionTokens).toBe(1_536);
-    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
+    expect(firstOptions?.maxCompletionTokens).toBe(768);
+    expect(repairOptions?.maxCompletionTokens).toBe(768);
     expect(repairOptions?.maxCompletionTokens).toBeGreaterThanOrEqual(firstOptions?.maxCompletionTokens ?? 0);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
@@ -183,8 +183,8 @@ describe("AI investigation context compaction", () => {
     const firstOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
     const repairOptions = rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5];
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
-    expect(firstOptions?.maxCompletionTokens).toBe(1_536);
-    expect(repairOptions?.maxCompletionTokens).toBe(1_536);
+    expect(firstOptions?.maxCompletionTokens).toBe(768);
+    expect(repairOptions?.maxCompletionTokens).toBe(768);
     expect(repairOptions?.maxCompletionTokens).toBe(firstOptions?.maxCompletionTokens);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
@@ -281,6 +281,61 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("REPAIR REQUIRED");
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("unverified search leads");
+  });
+
+  it("repairs a summary that denies successful fetches recorded in the durable trajectory", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "HISTORICAL DURABLE TRAJECTORY:",
+      JSON.stringify([{ turn: 6, action: "visit", execution: "success", observedUrls: [fetchedUrl] }]),
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The leadership page was successfully fetched and returned source text.",
+      "BACKGROUND: " + "Preserve the exact source-stage history and remaining open questions. ".repeat(40),
+    ].join("\n");
+    const falseNegative = "No fetch or visit had been recorded; the remaining search leads are unverified.";
+    const corrected = "The leadership page was fetched (source: " + fetchedUrl + "); other search leads remain unverified.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: falseNegative }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    const repairPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
+    expect(repairPrompt).toContain("REPAIR REQUIRED");
+    expect(repairPrompt).toContain("summary_denies_successful_fetch");
+  });
+
+  it("allows a source-specific no-fetch statement for a separate lead beside a successful fetch", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const unvisitedUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "HISTORICAL DURABLE TRAJECTORY:",
+      JSON.stringify([{ turn: 6, action: "visit", execution: "success", observedUrls: [fetchedUrl] }]),
+      "SEARCH-ONLY LEAD: " + unvisitedUrl,
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions): The leadership page was fetched; the investor page remains unvisited.",
+      "BACKGROUND: " + "Keep fetched evidence distinct from unfetched leads. ".repeat(35),
+    ].join("\n");
+    const summary = "The leadership page was fetched (source: " + fetchedUrl + "); no fetch was attempted for the investor lead (lead URL: " + unvisitedUrl + ").";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
@@ -500,7 +555,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({ jobId: null, caseId: null, cognitiveTask: "context_compaction" });
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxCompletionTokens: 1_536 });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxCompletionTokens: 768 });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
@@ -536,7 +591,7 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5];
-    expect(options?.maxCompletionTokens).toBe(1_536);
+    expect(options?.maxCompletionTokens).toBe(768);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
@@ -568,13 +623,40 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 1_536,
+      maxCompletionTokens: 768,
       maxAttempts: 1,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({
       jobId: null,
       caseId: null,
       cognitiveTask: "context_compaction",
+    });
+  });
+
+  it("recovers a local 20B TPM reservation cooldown on the same-role 120B model", async () => {
+    const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
+    const summary = "The source memory remains available for model-led research.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-20b",
+        raw: null,
+        error: 'Groq Right-hand openai/gpt-oss-20b rate_limited: {"httpStatus":null,"providerCode":"cooldown","rateLimitKind":"tokens","retryAfterMs":15000,"failureClass":"rate_limited"}',
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "openai/gpt-oss-120b",
+        raw: JSON.stringify({ summary }),
+        error: null,
+        attempts: [],
+      });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-120b",
+      allowModelFallback: false,
+      maxCompletionTokens: 768,
+      maxAttempts: 1,
     });
   });
 
@@ -627,7 +709,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 1_536,
+      maxCompletionTokens: 768,
       maxAttempts: 1,
     });
   });
@@ -685,7 +767,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-120b",
       allowModelFallback: false,
-      maxCompletionTokens: 1_536,
+      maxCompletionTokens: 768,
       maxAttempts: 1,
     });
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({
@@ -761,4 +843,47 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({ maxAttempts: 1 });
   });
 
+  it("rejects numeric summaries that change portfolio composition into personal ownership and preserves the original statement verbatim", async () => {
+    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
+    const source = "EARLY CASE CONTEXT " + "boilerplate context. ".repeat(80) + sourceFact + " " + "later unrelated context. ".repeat(80);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "Kayne Anderson is a 100% owner of fossil-fuel companies." }),
+      error: null,
+    });
+    const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-fidelity", caseId: 91 });
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text).toContain("VERBATIM NUMERIC / FINANCIAL SOURCE EXCERPTS");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).not.toContain("100% owner");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalled();
+  });
+
+  it("rejects numeric paraphrases that retain the same number but alter its denominator", async () => {
+    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
+    const source = "CASE MEMORY " + "context. ".repeat(50) + sourceFact + " " + "more context. ".repeat(50);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "100% of the company's portfolio was fossil-fuel companies." }),
+      error: null,
+    });
+    const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-denominator", caseId: 92 });
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).not.toContain("100% of the company's portfolio");
+  });
+
+  it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
+    const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
+    const source = "CASE MEMORY " + "context. ".repeat(50) + sourceFact + " " + "more context. ".repeat(50);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "One hundred percent of the company's portfolio was fossil-fuel companies." }),
+      error: null,
+    });
+    const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-words", caseId: 93 });
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).not.toContain("One hundred percent of the company's portfolio");
+  });
 });

@@ -11,8 +11,8 @@ const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
-assert(/maxChars: 3_000/.test(core), "working Investigator context must preserve room for the complete objective, schema and live evidence");
-assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /900,\n  \);/.test(core), "intelligence state must remain bounded to 900 characters");
+assert(/maxChars: input\.mode === "discovery" \? 1_200 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
+assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 500 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 8_400/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 6_800/.test(core), "the preferred 8,400/6,800 character targets remain explicit");
@@ -33,14 +33,21 @@ const stepPrompt = stepStart >= 0 && stepEnd > stepStart ? core.slice(stepStart,
 assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional orientation must not be duplicated inside the dynamic user prompt");
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
 assert(
-  /DISCOVERY TARGETABILITY \/ REALISM:/.test(stepPrompt)
-    && /objective\/Boss scope sets target class\/geography/.test(stepPrompt)
-    && /require direct relevance to the active objective/.test(stepPrompt)
-    && /No name blacklist, preset targets or invented geography/.test(stepPrompt)
-    && /Web\/registry sources have neutral standing; no registry-first\/fixed order/.test(stepPrompt)
-    && /at most two outbound search actions is a per-episode cost ceiling, not a prescribed sequence/.test(stepPrompt)
-    && /Investigator chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(stepPrompt),
-  "discovery targetability and source-choice guidance must remain explicit while preserving model-owned investigative decisions",
+  /AUTHORITATIVE SAME-CASE SEARCH BUDGET/.test(stepPrompt)
+    && /runtime safety ceiling is/.test(stepPrompt)
+    && /not a stopping target or fixed sequence/.test(stepPrompt)
+    && /DISCOVERY LEAD HANDOFF CONTRACT:/.test(stepPrompt)
+    && /review-only findings/.test(stepPrompt),
+  "dynamic discovery prompt must retain its live search budget and review-only handoff state",
+);
+assert(
+  /DISCOVERY TARGETABILITY \/ REALISM:/.test(orientation)
+    && /human objective\/Boss scope govern/.test(orientation)
+    && /require direct relevance to the active objective/.test(orientation)
+    && /do not force a mixed-source batch or a registry-first order/.test(orientation)
+    && /The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(orientation)
+    && /ranking-only mentions are leads, not qualified targets/.test(orientation),
+  "institutional system contract must preserve objective-led, model-owned discovery without duplicating it in each user prompt",
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");

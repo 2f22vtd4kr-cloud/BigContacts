@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Apply less-public");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("Generic prospect discovery must not select globally famous/household-name people");
+    expect(apexInvestigatorSystemCore()).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
@@ -81,14 +81,14 @@ describe("objective-led institutional orientation", () => {
     const core = apexInvestigatorSystemCore();
     expect(core).not.toContain("casinos in Slovenia");
     expect(core).toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("sector and jurisdiction");
+    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
     expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("genuinely global register");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("at most two outbound search actions");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("one bounded mixed-source batch");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("single strongest objective-fit lead, not a shortlist");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("runtime enforces a configurable safety ceiling (default 8 outbound search actions)");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("one strongest objective-fit lead can be handed to Boss when useful");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
     expect(core).not.toContain("\\n");
@@ -101,7 +101,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("B2B needs fetched role/company evidence");
     expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("a bounded mixed-source first pass is available when useful");
+    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
     expect(core).toContain("single strongest objective-fit lead, not a shortlist");
     expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
     expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");

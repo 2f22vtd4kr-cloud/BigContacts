@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
+import { ATLAS_CAPABILITIES, HARVESTER_SOURCE_IDS, exposeAttestedCapabilities, normalizeHarvesterSourceSelection, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
 describe("Atlas capability prompt guidance", () => {
   it("keeps every model-selectable capability visible within the existing 1000-character prompt budget", () => {
@@ -75,6 +75,19 @@ describe("runtime-attested capability exposure", () => {
     expect(noAttestation.find((capability) => capability.id === "contact.email")?.investigatorSelectable).toBe(false);
     expect(noAttestation.find((capability) => capability.id === "osint.spiderfoot")?.investigatorSelectable).toBe(false);
     expect(noAttestation.find((capability) => capability.id === "web.visit")?.investigatorSelectable).not.toBe(false);
+  });
+
+  it("exposes model-selected theHarvester sources only after worker attestation", () => {
+    const noAttestation = exposeAttestedCapabilities([]);
+    expect(noAttestation.find((capability) => capability.id === "domain.harvest")?.investigatorSelectable).toBe(false);
+
+    const attested = exposeAttestedCapabilities(["harvest_domain"]);
+    expect(attested.find((capability) => capability.id === "domain.harvest")?.investigatorSelectable).toBe(true);
+    expect(renderAtlasCapabilityGuidanceCompact(attested)).toContain("- domain.harvest (harvest_domain):");
+    expect(HARVESTER_SOURCE_IDS).toEqual(["bing", "duckduckgo", "yahoo", "certspotter", "crtsh"]);
+    expect(normalizeHarvesterSourceSelection(["crtsh", "bing"])).toEqual(["crtsh", "bing"]);
+    expect(normalizeHarvesterSourceSelection(["bing", "unsupported"])).toBeNull();
+    expect(normalizeHarvesterSourceSelection([])).toBeNull();
   });
 
   it("promotes only the worker capability whose exact action is present in the attested allowlist", () => {

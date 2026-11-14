@@ -5,7 +5,7 @@ export type ExternalProvider = "serper"|"tavily"|"exa"|"groq"|"mistral"|"gemini"
 export type AtlasProviderRole = "investigator" | "control";
 const providerRoleStorage = new AsyncLocalStorage<AtlasProviderRole>();
 type BudgetClass="llm"|"search"|"scrape"|"registry"|"osint"|"generic";type ProviderConfig={budgetClass:BudgetClass;maxRequests:number;minIntervalMs:number;cacheTtlMs:number};type ProviderState={active:number;lastStartedAt:number;windowStartedAt:number;windowAttempts:number;cooldownUntil:number;lastUsedAt:number};type CacheEntry={expiresAt:number;status:number;statusText:string;headers:Array<[string,string]>;body:Uint8Array};type Waiter={provider:ExternalProvider;resolve:()=>void;reject:(error:Error)=>void;signal?:AbortSignal;onAbort?:()=>void};
-export class ProviderQuotaError extends Error{readonly code:"budget_exhausted"|"cooldown";readonly provider:ExternalProvider;readonly retryAfterMs:number;constructor(code:"budget_exhausted"|"cooldown",provider:ExternalProvider,retryAfterMs:number){super(`${provider} ${code.replace("_"," ")}`);this.name="ProviderQuotaError";this.code=code;this.provider=provider;this.retryAfterMs=retryAfterMs;}}
+export class ProviderQuotaError extends Error{readonly code:"budget_exhausted"|"cooldown";readonly provider:ExternalProvider;readonly retryAfterMs:number;readonly quotaKind:"tokens"|null;constructor(code:"budget_exhausted"|"cooldown",provider:ExternalProvider,retryAfterMs:number,quotaKind:"tokens"|null=null){super(`${provider} ${code.replace("_"," ")}`);this.name="ProviderQuotaError";this.code=code;this.provider=provider;this.retryAfterMs=retryAfterMs;this.quotaKind=quotaKind;}}
 const scopeStorage=new AsyncLocalStorage<string>();export type ProviderRetryOwner="gate"|"caller";const retryOwnerStorage=new AsyncLocalStorage<Partial<Record<ExternalProvider,ProviderRetryOwner>>>();const providerStates=new Map<string,ProviderState>();const scopeStates=new Map<string,ProviderState>();const waiters:Waiter[]=[];const responseCache=new Map<string,CacheEntry>();let responseCacheBytes=0;const inFlight=new Map<string,Promise<Response>>();const boundedEnv=(name:string,fallback:number,min:number,max:number):number=>{const parsed=Number(process.env[name]);if(!Number.isFinite(parsed))return fallback;return Math.min(max,Math.max(min,parsed));};const globalConcurrency=()=>boundedEnv("APEX_EXTERNAL_GLOBAL_CONCURRENCY",4,1,32);const perProviderConcurrency=(provider?:ExternalProvider)=>{const suffix=provider?`_${provider.replace(/[^a-z0-9]/gi,"_").toUpperCase()}`:"";const providerSpecific=provider?process.env[`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`]:undefined;const fallback=provider==="gemini"?2:1;return boundedEnv(`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`,providerSpecific?Number(providerSpecific):fallback,1,8);};const windowMs=()=>boundedEnv("APEX_EXTERNAL_WINDOW_MS",10*60_000,10_000,24*60*60_000);const perScopeMaxRequests=()=>{const scope=getScope();if(scope.startsWith("atlas-run:"))return boundedEnv("APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80);return boundedEnv("APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE",40,1,10_000);};const maxWaiters=()=>boundedEnv("APEX_EXTERNAL_MAX_WAITERS",1024,1,10_000);const maxProviderStates=()=>boundedEnv("APEX_EXTERNAL_MAX_PROVIDER_STATES",4096,32,100_000);const maxResponseCacheEntries=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_ENTRIES",512,16,10_000);const maxResponseCacheBytes=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_BYTES",64*1024*1024,4*1024*1024,512*1024*1024);let activeGlobal=0;
 const DEFAULTS:Record<BudgetClass,Omit<ProviderConfig,"budgetClass">>={llm:{maxRequests:90,minIntervalMs:250,cacheTtlMs:0},search:{maxRequests:120,minIntervalMs:125,cacheTtlMs:60_000},scrape:{maxRequests:30,minIntervalMs:250,cacheTtlMs:5*60_000},registry:{maxRequests:150,minIntervalMs:125,cacheTtlMs:2*60_000},osint:{maxRequests:90,minIntervalMs:150,cacheTtlMs:60_000},generic:{maxRequests:300,minIntervalMs:75,cacheTtlMs:30_000}};
 const PROVIDER_CLASSES:Record<ExternalProvider,BudgetClass>={serper:"search",tavily:"search",exa:"search",groq:"llm",mistral:"llm",gemini:"llm",scrapfly:"scrape",zenrows:"scrape",browserless:"scrape",playwright:"scrape",rdap:"registry","companies-house":"registry",whoisjson:"registry",whoxy:"registry",registry:"registry",search:"search",osint:"osint",generic:"generic"};
@@ -57,6 +57,174 @@ function stripCredentialQueryParams(parsed:URL):void{for(const key of [...parsed
 function effectiveRequestHeaders(input:string|URL|Request,init?:RequestInit):Headers{return new Headers(init?.headers!==undefined?init.headers:input instanceof Request?input.headers:undefined);}
 function accountFingerprint(input:string|URL|Request,init?:RequestInit):string{const headers=effectiveRequestHeaders(input,init);const credentials=[...headers.entries()].filter(([name])=>/^(authorization|proxy-authorization|x-api-key|x-goog-api-key|api-key|x-auth-token|x-access-token|x-client-secret|x-subscription-key)$/i.test(name)).map(([name,value])=>`${name.toLowerCase()}:${value}`).sort().join("\n");const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;const queryCredential=findQueryCredential(url);const material=credentials||queryCredential;let modelDiscriminator="";try{const parsed=new URL(url);if(parsed.hostname==="generativelanguage.googleapis.com"&&/^\/v1beta\/models\/[^/]+:generateContent$/i.test(parsed.pathname))modelDiscriminator=parsed.pathname;}catch{}if(!material){try{return createHash("sha256").update(`${new URL(url).host}\n${modelDiscriminator}`).digest("hex").slice(0,16);}catch{return "unknown";}}return createHash("sha256").update(`${material}\n${modelDiscriminator}`).digest("hex").slice(0,16);}
 function parseRetryAfter(response:Response):number{const value=response.headers.get("retry-after");if(!value)return 0;const seconds=Number(value);if(Number.isFinite(seconds))return Math.min(5*60_000,Math.max(0,seconds*1000));const timestamp=Date.parse(value);return Number.isFinite(timestamp)?Math.min(5*60_000,Math.max(0,timestamp-Date.now())):0;}
+
+type GroqTokenReservation = { createdAt: number; reservedTokens: number };
+type GroqTokenWindowState = { reservations: GroqTokenReservation[]; cooldownUntil: number; providerLimit: number | null };
+const groqTokenWindows = new Map<string, GroqTokenWindowState>();
+const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
+const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
+const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
+const groqTokenMaxWaitMs = () => boundedEnv("APEX_GROQ_TPM_MAX_WAIT_MS", 10_000, 0, 120_000);
+
+function estimateStructuredPromptChars(value: unknown): number {
+  if (typeof value === "string") return value.length;
+  if (typeof value === "number" || typeof value === "boolean") return String(value).length;
+  if (Array.isArray(value)) return value.reduce((total, item) => total + estimateStructuredPromptChars(item), 0);
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (total, [key, item]) => total + key.length + estimateStructuredPromptChars(item),
+      0,
+    );
+  }
+  return 0;
+}
+
+export function getGroqTokenRequest(input: string | URL | Request, init?: RequestInit): { model: string; reservedTokens: number } | undefined {
+  const url = requestUrl(input);
+  if (!/api\.groq\.com\/openai\/v1\/chat\/completions(?:[?#]|$)/i.test(url)) return undefined;
+  const raw = typeof init?.body === "string" ? init.body : null;
+  if (!raw) return undefined;
+  try {
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    const model = typeof body.model === "string" ? body.model.trim() : "";
+    const messages = Array.isArray(body.messages) ? body.messages : null;
+    if (!model || !messages) return undefined;
+    // Estimate the actual structured prompt strings, not JSON.stringify's
+    // escaped wire representation. Escaped newlines/quotes inflated the old
+    // estimate enough to reject valid Right-hand compaction calls locally
+    // (before Groq could report real usage). Keep a conservative 5% margin.
+    const promptCharacters = estimateStructuredPromptChars({
+      messages,
+      tools: body.tools,
+      response_format: body.response_format,
+      tool_choice: body.tool_choice,
+    });
+    const promptTokens = Math.ceil(promptCharacters / 4.5 * 1.05);
+    const rawCompletion = body.max_completion_tokens ?? body.max_tokens;
+    const completionTokens = typeof rawCompletion === "number" && Number.isFinite(rawCompletion)
+      ? Math.max(1, Math.floor(rawCompletion))
+      : 1_024;
+    return { model, reservedTokens: promptTokens + completionTokens };
+  } catch {
+    return undefined;
+  }
+}
+
+function groqTokenWindowState(key: string): GroqTokenWindowState {
+  const existing = groqTokenWindows.get(key);
+  if (existing) return existing;
+  const created: GroqTokenWindowState = { reservations: [], cooldownUntil: 0, providerLimit: null };
+  groqTokenWindows.set(key, created);
+  return created;
+}
+
+async function reserveGroqTokenWindow(key: string, requestedTokens: number, signal?: AbortSignal): Promise<GroqTokenReservation> {
+  const windowMs = groqTokenWindowMs();
+  const state = groqTokenWindowState(key);
+  const configuredLimit = groqTokenBudget();
+  const limit = Math.min(configuredLimit, state.providerLimit ?? configuredLimit);
+  if (requestedTokens > limit) {
+    logger.warn({ modelKeyDigest: createHash("sha256").update(key).digest("hex").slice(0, 12), requestedTokens, tokenBudget: limit }, "Groq request exceeds the safe local TPM reservation");
+    throw new ProviderQuotaError("budget_exhausted", "groq", windowMs, "tokens");
+  }
+  const startedAt = Date.now();
+  while (true) {
+    if (signal?.aborted) throw new Error("Groq token-window reservation cancelled.");
+    const now = Date.now();
+    state.reservations = state.reservations.filter((reservation) => now - reservation.createdAt < windowMs);
+    if (state.cooldownUntil > now) {
+      const waitMs = state.cooldownUntil - now;
+      if (now - startedAt + waitMs > groqTokenMaxWaitMs()) throw new ProviderQuotaError("cooldown", "groq", waitMs, "tokens");
+      await abortableProviderDelay(waitMs, signal);
+      continue;
+    }
+    const used = state.reservations.reduce((total, reservation) => total + reservation.reservedTokens, 0);
+    if (used + requestedTokens <= limit) {
+      const reservation = { createdAt: now, reservedTokens: requestedTokens };
+      state.reservations.push(reservation);
+      return reservation;
+    }
+    const oldest = state.reservations.reduce<number | null>((minimum, reservation) =>
+      minimum === null ? reservation.createdAt : Math.min(minimum, reservation.createdAt), null);
+    const waitMs = oldest === null ? windowMs : Math.max(1, oldest + windowMs - now);
+    const elapsedMs = now - startedAt;
+    const remainingWaitBudgetMs = groqTokenMaxWaitMs() - elapsedMs;
+    if (remainingWaitBudgetMs <= 0) throw new ProviderQuotaError("cooldown", "groq", waitMs, "tokens");
+    // A completed request may reconcile from its conservative reservation to
+    // actual usage while this waiter sleeps. Recheck periodically instead of
+    // sleeping through the entire rolling window after capacity has been freed.
+    await abortableProviderDelay(Math.min(waitMs, remainingWaitBudgetMs, 1_000), signal);
+  }
+}
+
+function groqResetDurationMs(raw: string | null): number | null {
+  const value = raw?.trim() ?? "";
+  if (!value) return null;
+  const maxResetMs = 24 * 60 * 60_000;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(maxResetMs, Math.floor(seconds * 1_000));
+  const match = value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
+  if (!match) return null;
+  return Math.min(maxResetMs, Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000));
+}
+
+function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenReservation, response: Response, bodyText: string): void {
+  // The provider window continues to include tokens consumed during generation;
+  // start the conservative local expiry at response completion, not request start.
+  reservation.createdAt = Date.now();
+  const state = groqTokenWindowState(key);
+  const providerLimit = Number(response.headers.get("x-ratelimit-limit-tokens"));
+  if (Number.isFinite(providerLimit) && providerLimit > 0) {
+    state.providerLimit = state.providerLimit === null ? providerLimit : Math.min(state.providerLimit, providerLimit);
+  }
+  let parsedPayload: unknown;
+  try { parsedPayload = JSON.parse(bodyText); } catch { return; }
+  if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) return;
+  const payload = parsedPayload as { error?: { code?: unknown; type?: unknown }; usage?: { total_tokens?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
+  const tokenWindowCapacityRejection = response.status === 413
+    && payload.error?.code === "rate_limit_exceeded"
+    && typeof payload.error?.type === "string"
+    && payload.error.type.toLowerCase() === "tokens";
+  const tokenRateLimitRejection = response.status === 429
+    && typeof payload.error?.type === "string"
+    && payload.error.type.toLowerCase() === "tokens";
+  if (tokenWindowCapacityRejection || tokenRateLimitRejection) {
+    const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
+    const retryAfterMs = parseRetryAfter(response);
+    state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + (resetMs ?? (retryAfterMs > 0 ? retryAfterMs : 5_000)));
+    return;
+  }
+  if (response.status === 429) return;
+  if (!response.ok) return;
+  const usage = payload.usage;
+  const actual = typeof usage?.total_tokens === "number" && Number.isFinite(usage.total_tokens)
+    ? usage.total_tokens
+    : typeof usage?.prompt_tokens === "number" && typeof usage?.completion_tokens === "number"
+      ? usage.prompt_tokens + usage.completion_tokens
+      : null;
+  if (actual !== null && actual >= 0) reservation.reservedTokens = Math.ceil(actual * 1.1);
+}
+
+async function reconcileGroqTokenWindow(key: string, reservation: GroqTokenReservation, response: Response): Promise<void> {
+  reservation.createdAt = Date.now();
+  try {
+    const bodyText = await response.clone().text();
+    reconcileGroqTokenWindowFromBody(key, reservation, response, bodyText);
+  } catch {
+    // Keep the conservative reservation until its rolling window expires.
+  }
+}
+
+/**
+ * Complete a runProviderCall reservation after its caller has read the response
+ * body for its own result handling. This preserves the one-read response contract.
+ */
+export function reconcileGroqTokenResponse(response: Response, bodyText: string): void {
+  const pending = pendingGroqTokenResponses.get(response);
+  if (!pending) return;
+  pendingGroqTokenResponses.delete(response);
+  reconcileGroqTokenWindowFromBody(pending.key, pending.reservation, response, bodyText);
+}
  function isQuotaResponse(provider:ExternalProvider,response:Response):boolean{if(provider==="gemini"&&(response.status===403||response.status===429||response.status===503))return false;if(response.status===429||response.status===402)return true;return false;}function requestMethod(input:string|URL|Request,init?:RequestInit):string{return(init?.method??(input instanceof Request?input.method:"GET")).toUpperCase();}function requestUrl(input:string|URL|Request):string{return typeof input==="string"?input:input instanceof URL?input.toString():input.url;}function isLocalUrl(url:string):boolean{try{const host=new URL(url).hostname;return host==="localhost"||host==="127.0.0.1"||host==="::1"||host.endsWith(".local");}catch{return false;}}
 function hostIsOrWithin(host: string, domain: string): boolean {
  return host === domain || host.endsWith("." + domain);
@@ -163,13 +331,24 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    // rate-limit delay. Recheck synchronously immediately before the request.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
    assertAtlasRoleBudgetAvailable(provider,roleBudget);
+   const groqRequest = provider === "groq" ? getGroqTokenRequest(input, init) : undefined;
+   // Groq TPM is shared by all role credentials within this API process for a
+   // given model. Keying only by model prevents role API-key aliases from
+   // each believing they own a fresh token window.
+   const groqWindowKey = groqRequest ? "groq-model:" + groqRequest.model : "";
+   const groqReservation = groqRequest
+    ? await reserveGroqTokenWindow(groqWindowKey, groqRequest.reservedTokens, requestSignal)
+    : null;
    state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
-   const response=await fetcher();
+   let response: Response;
+   try { response = await fetcher(); }
+   catch (error) { if (groqReservation) groqReservation.createdAt = Date.now(); throw error; }
+   if (groqReservation) await reconcileGroqTokenWindow(groqWindowKey, groqReservation, response);
    const retryOwner=retryOwnerStorage.getStore()?.[provider]??"gate";
    if(isQuotaResponse(provider,response)){
     const retryMs=Math.max(parseRetryAfter(response),response.status===429?5_000:60_000);
     if(retryOwner==="gate"){
-     state.cooldownUntil=Date.now()+retryMs;
+     state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+retryMs);
      logger.warn({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"quota_gate"},"External provider quota cooldown set");
     }else logger.info({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"caller"},"Provider retry ownership delegated to caller");
    }
@@ -188,7 +367,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
  if(key)inFlight.set(key,task);
  try{return await task;}finally{if(key&&inFlight.get(key)===task)inFlight.delete(key);}
 }
-export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal},fn:()=>Promise<T>):Promise<T>{
+export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal;groqRequest?:{model:string;reservedTokens:number}},fn:()=>Promise<T>):Promise<T>{
  const provider=options.provider,account=options.account??"operation",scope=options.scope??getScope();
  return scopeStorage.run(scope,async()=>{
   const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now(),roleBudget=atlasRoleBudget(provider);
@@ -206,18 +385,23 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
    // checking the live counters again, immediately before the actual operation.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
    assertAtlasRoleBudgetAvailable(provider,roleBudget);
+   const groqWindowKey = provider === "groq" && options.groqRequest ? "groq-model:" + options.groqRequest.model : "";
+   const groqReservation = groqWindowKey
+    ? await reserveGroqTokenWindow(groqWindowKey, options.groqRequest!.reservedTokens, options.signal)
+    : null;
    state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
    try{
     const result=await fn();
+    if(groqReservation && result instanceof Response){groqReservation.createdAt=Date.now();pendingGroqTokenResponses.set(result,{key:groqWindowKey,reservation:groqReservation});}
     if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
      const retryMs=parseRetryAfter(result);
-     state.cooldownUntil=Date.now()+Math.max(retryMs,result.status===429?5_000:60_000);
+     state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+Math.max(retryMs,result.status===429?5_000:60_000));
     }
     return result;
-   }catch(error){if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
+   }catch(error){if(groqReservation)groqReservation.createdAt=Date.now();if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
   }finally{releaseConcurrency(provider);}
  });
 }
 export function withProviderScope<T>(scope:string,fn:()=>Promise<T>):Promise<T>{return scopeStorage.run(scope,fn);}export function withProviderRole<T>(role:AtlasProviderRole,fn:()=>Promise<T>):Promise<T>{return providerRoleStorage.run(role,fn);}export function withProviderRetryOwnership<T>(provider:ExternalProvider,owner:ProviderRetryOwner,fn:()=>Promise<T>):Promise<T>{const inherited=retryOwnerStorage.getStore()??{};return retryOwnerStorage.run({...inherited,[provider]:owner},fn);}export function installExternalQuotaGuard():void{const current=globalThis.fetch;if(current&&(current as typeof fetch&{__apexQuotaGuard?:boolean}).__apexQuotaGuard)return;const original=current.bind(globalThis);const guarded=(async(input:string|URL|Request,init?:RequestInit)=>{const url=requestUrl(input);if(isLocalUrl(url))return original(input,init);const provider=classifyExternalProvider(url);return runProviderFetch(provider,input,init,()=>original(input,init));}) as typeof fetch&{__apexQuotaGuard?:boolean};guarded.__apexQuotaGuard=true;globalThis.fetch=guarded;logger.info({globalConcurrency:globalConcurrency(),providerConcurrency:perProviderConcurrency(),windowMs:windowMs(),perScopeMaxRequests:perScopeMaxRequests(),maxWaiters:maxWaiters(),maxProviderStates:maxProviderStates(),maxResponseCacheEntries:maxResponseCacheEntries(),maxResponseCacheBytes:maxResponseCacheBytes()},"External provider quota gate installed");}
 export function getProviderGateSnapshot(){const now=Date.now(),byProvider=new Map<ExternalProvider,{active:number;windowAttempts:number;cooldownMs:number}>();for(const[key,state]of providerStates){const provider=key.split("|",1)[0] as ExternalProvider;const current=byProvider.get(provider)??{active:0,windowAttempts:0,cooldownMs:0};current.active+=state.active;current.windowAttempts=Math.max(current.windowAttempts,state.windowAttempts);current.cooldownMs=Math.max(current.cooldownMs,Math.max(0,state.cooldownUntil-now));byProvider.set(provider,current);}return{activeGlobal,providers:[...byProvider.entries()].map(([provider,state])=>({provider,...state}))};}
-export function resetProviderGateForTests(){providerStates.clear();scopeStates.clear();responseCache.clear();responseCacheBytes=0;inFlight.clear();waiters.length=0;activeGlobal=0;}
+export function resetProviderGateForTests(){providerStates.clear();scopeStates.clear();responseCache.clear();responseCacheBytes=0;inFlight.clear();waiters.length=0;groqTokenWindows.clear();activeGlobal=0;}

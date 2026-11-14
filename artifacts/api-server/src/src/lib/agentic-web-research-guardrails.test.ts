@@ -3,6 +3,7 @@ import {
   buildActionParseFailureObservation,
   buildStepPrompt,
 } from "./agentic-web-research-core";
+import { apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 
 describe("Investigator target and source grounding guardrails", () => {
   it("keeps ordinary discovery target-neutral and grounds target-specific names in observations", () => {
@@ -25,11 +26,12 @@ describe("Investigator target and source grounding guardrails", () => {
       mode: "discovery",
       actionAllowlist: ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "done"],
     });
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied.");
-    expect(prompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
-    expect(prompt).toContain("never model memory");
-    expect(prompt).not.toContain("The full objective is represented in Boss-generated memory");
+    expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
+    expect(modelPrompt).toContain("never model memory");
+    expect(modelPrompt).not.toContain("The full objective is represented in Boss-generated memory");
   });
 
   it("requires a same-case observed URL when recovering an invalid visit action", () => {

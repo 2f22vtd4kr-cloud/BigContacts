@@ -241,7 +241,7 @@ describe("Groq Investigator runtime contract", () => {
       "invalid_action_arguments action=parallel_registry_search missing=searches",
     );
     expect(repair).toContain("searches");
-    expect(repair).toContain("2–4 objects");
+    expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('"provider":null');
     expect(repair).toContain('"locale":null');
@@ -285,13 +285,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
     expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
-    expect(submitted).toContain("MISSION: Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
+    expect(submitted).toContain("Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(submitted).toContain('"url":null');
-    expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/registry:null/locale/market/purpose");
+    expect(submitted).toContain("url may be null when unused");
+    expect(submitted).toContain("Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose");
+    expect(submitted).toContain("Parallel registry searches need 1–4 objects, each with query/registry (a configured ID)/provider:null/locale:null/market:null/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
-    expect(submitted).toContain('"searches":[],"findings":[]');
+    expect(submitted).toContain("targetType, profile, searches, findings");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(messages).toHaveLength(2);
   });
@@ -345,7 +346,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(prompt).toContain("Apply objective criteria");
+    expect(messages.map((message) => message.content).join("\n")).toContain("Apply objective criteria");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
@@ -371,7 +372,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(body).toMatchObject({
       model: "openai/gpt-oss-120b",
       reasoning_effort: "medium",
-      max_completion_tokens: 1024,
+      max_completion_tokens: 768,
       include_reasoning: false,
     });
   });

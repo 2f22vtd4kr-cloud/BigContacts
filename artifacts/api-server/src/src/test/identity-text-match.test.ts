@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { candidateIdentityObserved, normalizeCandidateIdentityName } from "../lib/identity-text-match";
+import { candidateIdentityObserved, hasNonEmptyCandidateName, normalizeCandidateIdentityName } from "../lib/identity-text-match";
 
 describe("candidate identity text matching", () => {
   it("normalizes case, Unicode compatibility forms, punctuation, and repeated whitespace", () => {
@@ -18,6 +18,14 @@ describe("candidate identity text matching", () => {
     expect(candidateIdentityObserved("John", "Johnathan Smith is the founder")).toBe(false);
     expect(candidateIdentityObserved("Li", "Li is listed here")).toBe(false);
     expect(candidateIdentityObserved("Li Ann", "William Ann Li")).toBe(false);
+  });
+
+  it("preserves any non-empty source-backed name without imposing a language-specific minimum length", () => {
+    expect(hasNonEmptyCandidateName("Li")).toBe(true);
+    expect(hasNonEmptyCandidateName("李")).toBe(true);
+    expect(hasNonEmptyCandidateName("A")).toBe(true);
+    expect(hasNonEmptyCandidateName("  ")).toBe(false);
+    expect(hasNonEmptyCandidateName(null)).toBe(false);
   });
 
   it("fails closed when the observation is not text or the name is empty", () => {

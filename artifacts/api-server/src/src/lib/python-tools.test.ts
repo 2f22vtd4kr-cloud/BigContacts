@@ -87,6 +87,19 @@ describe("canonical Python tool adapters", () => {
     expect(outcome.execution?.status).toBe("partial");
   });
 
+  it("passes the Investigator's explicit theHarvester source selection to the attested worker", async () => {
+    mockedExecute.mockResolvedValueOnce(result("theharvester", "completed", {
+      emails: [], subdomains: [], ips: [], hosts: [], totalFound: 0,
+    }));
+
+    await runTheHarvester("example.com", "crtsh,bing");
+
+    expect(mockedExecute).toHaveBeenCalledWith(expect.objectContaining({
+      tool: "theharvester",
+      args: { domain: "example.com", sources: "crtsh,bing" },
+    }));
+  });
+
   it("does not convert an empty partial theHarvester report into a successful result", async () => {
     mockedExecute.mockResolvedValueOnce(result("theharvester", "partial", {
       emails: [], subdomains: [], ips: [], hosts: [], totalFound: 0,

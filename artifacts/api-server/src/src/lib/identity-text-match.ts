@@ -11,6 +11,10 @@ export function normalizeCandidateIdentityName(value: string): string {
  * Match a candidate's normalized full name as a token-bounded phrase.
  * Substring matching can incorrectly attribute "Joann Li" to "Ann Li".
  */
+export function hasNonEmptyCandidateName(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 export function candidateIdentityObserved(personName: string, observation: unknown): boolean {
   const normalizedName = normalizeCandidateIdentityName(personName);
   const normalizedText = normalizeCandidateIdentityName(typeof observation === "string" ? observation : "");

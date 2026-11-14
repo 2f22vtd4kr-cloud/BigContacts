@@ -243,10 +243,33 @@ export function buildDeterministicContextProjection(
   const requiredObservationMarkers = kind === "observation"
     ? ["OBSERVATION_START", "OBSERVATION_END"].filter((marker) => source.includes(marker))
     : [];
+  // Preserve high-risk numeric/financial statements verbatim. This is not a
+  // factual endorsement: it retains the source's original denominator and
+  // relationship so a later model cannot turn portfolio composition into
+  // personal ownership. Full observations remain durable in all cases.
+  const numericSourceExcerpts = source
+    .replace(/\\n/g, "\n")
+    .split(/(?<=[.!?])\s+|\r?\n/u)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => /\d/u.test(sentence)
+      && /(?:%|percent|owner|ownership|equity|stake|shareholder|portfolio|investment|investor|valuation|revenue|asset|million|billion|transaction|acquisition|exit|control|concession|licen[cs]e|fossil|energy)/iu.test(sentence)
+      && sentence.length <= 360);
+  const numericHeading = "VERBATIM NUMERIC / FINANCIAL SOURCE EXCERPTS (uninterpreted; preserve original attribution and denominator):";
+  const numericLines: string[] = [];
+  const numericBudget = Math.min(1_000, Math.floor(limit * 0.42));
+  let numericChars = numericHeading.length;
+  for (const sentence of numericSourceExcerpts) {
+    if (numericLines.includes(sentence)) continue;
+    if (numericChars + sentence.length + 2 > numericBudget) continue;
+    numericLines.push(sentence);
+    numericChars += sentence.length + 2;
+    if (numericLines.length >= 4) break;
+  }
+  const numericBlock = numericLines.length ? numericHeading + "\n" + numericLines.join("\n") : "";
   // Structural observation delimiters are provenance boundaries, not expendable
   // prose. Reserve room for any delimiter omitted by the head/tail excerpt.
   const markerReserve = requiredObservationMarkers.reduce((total, marker) => total + marker.length + 1, 0);
-  const projectionBudget = Math.max(0, limit - markerReserve);
+  const projectionBudget = Math.max(0, limit - markerReserve - numericBlock.length - (numericBlock ? 2 : 0));
   const projection = compactPromptSectionPreservingUrlTokens(
     source,
     projectionBudget,
@@ -254,7 +277,7 @@ export function buildDeterministicContextProjection(
   );
   const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !projection.includes(marker));
   const markerSuffix = missingObservationMarkers.join(" ");
-  return markerSuffix ? [projection, markerSuffix].filter(Boolean).join(" ") : projection;
+  return [projection, numericBlock, markerSuffix].filter(Boolean).join(" ").slice(0, limit);
 }
 
 /** Observation-specific alias used by the recent-observation recovery path. */
