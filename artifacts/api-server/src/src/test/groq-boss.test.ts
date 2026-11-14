@@ -326,6 +326,35 @@ describe("Groq Boss token-window recovery", () => {
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("does not retry model-specific local TPM blocks through other credential aliases", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-local-tpm-primary";
+    process.env.GROQ_BOSS_API_KEY_1 = "test-groq-boss-local-tpm-secondary";
+    const chatModels: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      chatModels.push(body.model);
+      throw new ProviderQuotaError("cooldown", "groq", 45_000, "tokens");
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 2,
+        candidateCount: 2,
+        candidateModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return the opening control decision.",
+      { cognitiveTask: "control_decision", maxOutputTokens: 384 },
+    );
+
+    expect(result.raw).toBeNull();
+    expect(result.attempts).toHaveLength(2);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 
