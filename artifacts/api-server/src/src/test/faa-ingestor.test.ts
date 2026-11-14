@@ -356,6 +356,7 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("const repairAssets = legacyAssets;");
     expect(repair).toContain("legacyFaaOwnedLinks.map((row) => row.targetId)");
     expect(repair).toContain("const assetIds = Array.from(new Set");
+    expect(repair).toContain(".filter((row) => row.ownerEntityId != null && row.ownerEntityId === row.sourceEntityId)");
     expect(repair).toContain('relationshipType: "REGISTERED_TO"');
     expect(repair).toContain("BTRIM(${entitiesTable.contactMethod})");
     expect(repair).toContain("ELSE ${entitiesTable.contactMethod} END");
