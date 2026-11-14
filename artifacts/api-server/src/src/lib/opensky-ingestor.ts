@@ -1,5 +1,5 @@
 /**
- * Live ADS-B — Private Jet Tracking Enricher
+ * Live ADS-B — Privacy-Safe Aircraft Status Enricher
  *
  * Fetches the live aircraft state vectors from the OpenSky Network REST API
  * and matches them against aviation assets already in our database (ingested
@@ -32,6 +32,7 @@ import { eq, sql } from "drizzle-orm";
 import { updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 import { readsbToStateVector, type ReadsbAircraft, type StateVector } from "./opensky-normalize";
+import { buildPrivacySafeOpenSkyObservation } from "./opensky-privacy";
 
 export interface OpenSkyEnrichParams {
   jobId: string;
@@ -173,33 +174,22 @@ export async function runOpenSkyEnrichment(
     if (!sv) { skipped++; continue; }
 
     try {
-      const icao24        = String(sv[0] ?? "");
-      const originCountry = String(sv[2] ?? "");
-      const longitude     = typeof sv[5] === "number" ? sv[5] : null;
-      const latitude      = typeof sv[6] === "number" ? sv[6] : null;
-      const baroAlt       = typeof sv[7] === "number" ? sv[7] : null;
-      const onGround      = Boolean(sv[8]);
-      const velocity      = typeof sv[9] === "number" ? sv[9] : null;
-      const track         = typeof sv[10] === "number" ? sv[10] : null;
-      const squawk        = sv[14] != null ? String(sv[14]) : null;
+      const icao24 = String(sv[0] ?? "");
+      const baroAlt = typeof sv[7] === "number" ? sv[7] : null;
+      const onGround = Boolean(sv[8]);
+      const velocity = typeof sv[9] === "number" ? sv[9] : null;
+      const flightData = buildPrivacySafeOpenSkyObservation({
+        icao24,
+        onGround,
+        altitudeMeters: baroAlt,
+        speedMetersPerSecond: velocity,
+        observedAt: new Date(),
+        source: liveSource,
+      });
 
       const existingMeta = (() => {
         try { return JSON.parse(asset.metadata ?? "{}"); } catch { return {}; }
       })();
-
-      const flightData = {
-        icao24,
-        originCountry,
-        longitude,
-        latitude,
-        altitudeFt: metersToFt(baroAlt),
-        onGround,
-        speedKnots: mpsToKnots(velocity),
-        trackDeg: track != null ? Math.round(track) : null,
-        squawk,
-        lastSeenAt: new Date().toISOString(),
-        source: liveSource,
-      };
 
       await db
         .update(assetsTable)
@@ -213,7 +203,7 @@ export async function runOpenSkyEnrichment(
 
       await appendJobLog(
         jobId,
-        `✈️  ${identifier} is AIRBORNE — ${latitude?.toFixed(2)}°N ${longitude?.toFixed(2)}°E @ ${metersToFt(baroAlt)?.toLocaleString() ?? "?"}ft / ${mpsToKnots(velocity) ?? "?"}kts`,
+        `✈️  ${identifier} latest public status: ${onGround ? "ON GROUND" : "AIRBORNE"} — approx ${flightData.altitudeBandFt?.toLocaleString() ?? "?"}ft / ${flightData.speedBandKnots ?? "?"}kts; no position or route retained.`,
       );
     } catch (err: any) {
       logger.warn({ err: err.message, asset: asset.identifier }, "OpenSky update error");
