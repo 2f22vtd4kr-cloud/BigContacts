@@ -3746,6 +3746,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(describeAgentActionParseFailure('{"action":"footprint_email","email":"person@example.com"}')).toBe("unsupported_action action=footprint_email");
     expect(describeAgentActionParseFailure('{"action":"harvest_domain","domain":"example.com"}')).toBe("unsupported_action action=harvest_domain");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"not-a-url","hypothesis":"validate URL handling","purpose":"check parser rejection","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=visit invalid=url");
+    expect(describeAgentActionParseFailure('{"action":"visit","url":"https://https://example.com/path","hypothesis":"validate nested scheme handling","purpose":"reject malformed URL before DNS","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=visit invalid=url");
+    expect(describeAgentActionParseFailure('{"action":"browser_fetch","url":"https://http://example.com/path","provider":"playwright","hypothesis":"validate nested scheme handling","purpose":"reject malformed URL before DNS","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=browser_fetch invalid=url");
     const malformedUrlFailure = describeAgentActionParseFailure('{"action":"browser_fetch","url":"httpshttps://peclimaterisks.org/private-equity-global-energy-company-tracker/","provider":"scrapfly","hypothesis":"inspect an observed lead","purpose":"retrieve the observed source","expectedInformationGain":0.6}');
     expect(malformedUrlFailure).toBe("invalid_action_arguments action=browser_fetch invalid=url");
     expect(buildActionParseFailureObservation(malformedUrlFailure)).toContain("Use exactly one scheme prefix");
