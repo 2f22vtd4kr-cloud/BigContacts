@@ -91,7 +91,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
-export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
+export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved"; hypothesisRationale?: string; relationshipType?: string; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable"; interpretationConfidence?: number; ambiguityNotes?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
 
@@ -2067,6 +2067,14 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         note: cleanText(f.note, 400) || "Investigator-authored finding",
         contactAttribution,
         exactQuote,
+        identityAssessment: ["same_person","different_people","unresolved"].includes(cleanText(f.identityAssessment, 30)) ? cleanText(f.identityAssessment, 30) as AgenticFinding["identityAssessment"] : undefined,
+        identityRationale: cleanText(f.identityRationale, 800) || undefined,
+        hypothesisRelation: ["supports","contradicts","unrelated","ambiguous","unresolved"].includes(cleanText(f.hypothesisRelation, 30)) ? cleanText(f.hypothesisRelation, 30) as AgenticFinding["hypothesisRelation"] : undefined,
+        hypothesisRationale: cleanText(f.hypothesisRationale, 800) || undefined,
+        relationshipType: cleanText(f.relationshipType, 120) || undefined,
+        temporalStatus: ["current","historical","unclear","not_applicable"].includes(cleanText(f.temporalStatus, 30)) ? cleanText(f.temporalStatus, 30) as AgenticFinding["temporalStatus"] : undefined,
+        interpretationConfidence: typeof f.interpretationConfidence === "number" && Number.isFinite(f.interpretationConfidence) ? Math.max(0, Math.min(1, f.interpretationConfidence)) : undefined,
+        ambiguityNotes: cleanText(f.ambiguityNotes, 800) || undefined,
         promotionDecision: scope === "candidate" && contactAttribution === "person_specific" && exactQuote && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
@@ -2949,10 +2957,18 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           note: { type: "string" },
           contactAttribution: { type: ["string","null"], enum: ["person_specific","shared_inbox","organization","unknown",null] },
           exactQuote: { type: ["string","null"] },
+          identityAssessment: { type: ["string","null"], enum: ["same_person","different_people","unresolved",null] },
+          identityRationale: { type: ["string","null"] },
+          hypothesisRelation: { type: ["string","null"], enum: ["supports","contradicts","unrelated","ambiguous","unresolved",null] },
+          hypothesisRationale: { type: ["string","null"] },
+          relationshipType: { type: ["string","null"] },
+          temporalStatus: { type: ["string","null"], enum: ["current","historical","unclear","not_applicable",null] },
+          interpretationConfidence: { type: ["number","null"] },
+          ambiguityNotes: { type: ["string","null"] },
           promotionDecision: { type: ["string","null"] },
           promotionReason: { type: ["string","null"] }
         },
-        required: ["vectorType","value","personName","role","scope","sourceUrls","note","contactAttribution","exactQuote","promotionDecision","promotionReason"],
+        required: ["vectorType","value","personName","role","scope","sourceUrls","note","contactAttribution","exactQuote","identityAssessment","identityRationale","hypothesisRelation","hypothesisRationale","relationshipType","temporalStatus","interpretationConfidence","ambiguityNotes","promotionDecision","promotionReason"],
         additionalProperties: false
       }
     }
