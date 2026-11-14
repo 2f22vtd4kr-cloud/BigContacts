@@ -26,6 +26,21 @@ describe("source-backed contact attribution", () => {
     expect(result.explanation).toContain("model-attributed person-specific route");
   });
 
+  it("does not let a domain-fit mismatch veto explicit same-source model attribution", () => {
+    const result = scoreAttribution({
+      ...base,
+      email: "info@subsidiary.example.net",
+      resolvedDomain: "example.com",
+      exactClaimObserved: true,
+      targetPersonEvidence: true,
+      contactAttribution: "person_specific",
+      exactQuotePersonValueBound: true,
+    });
+
+    expect(result.attributed).toBe(true);
+    expect(result.dimensions.domainFit).toBeLessThan(0.5);
+  });
+
   it("keeps a generic inbox un-attributed when the source does not attribute it to the person", () => {
     const result = scoreAttribution({
       ...base,
