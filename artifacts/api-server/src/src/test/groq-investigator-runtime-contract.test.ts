@@ -498,13 +498,13 @@ describe("Groq Investigator runtime contract", () => {
   it("requires model-resolved identity before parsing candidate contact promotion", () => {
     const baseFinding = {
       vectorType: "email",
-      value: "jane@example.org",
+      value: "jane@acme.co.uk",
       personName: "Jane Example",
       role: "Director",
       scope: "candidate",
-      sourceUrls: ["https://example.org/team"],
+      sourceUrls: ["https://acme.co.uk/team"],
       contactAttribution: "professional_person_specific",
-      exactQuote: "Jane Example — Director — jane@example.org",
+      exactQuote: "Jane Example — Director — jane@acme.co.uk",
       promotionDecision: "promote",
     };
     const unresolved = parseAgentAction(JSON.stringify({
