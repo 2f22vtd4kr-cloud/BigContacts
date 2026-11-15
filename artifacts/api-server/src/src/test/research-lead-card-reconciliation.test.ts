@@ -313,7 +313,7 @@ describe("canonical Atlas organization target selection", () => {
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
     );
     const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
-    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationEnd = canonicalAtlas.indexOf("\nexport async function ", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
       organizationStart,
       organizationEnd >= 0 ? organizationEnd : undefined,
