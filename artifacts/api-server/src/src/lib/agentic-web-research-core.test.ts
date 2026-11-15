@@ -2883,7 +2883,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
-    expect(modelPrompt).toContain("Sector, geography, fame, wealth, seniority, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("Wealth, fame, seniority, size, listing, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not eligibility rules");
     expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
