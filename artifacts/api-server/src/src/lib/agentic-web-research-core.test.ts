@@ -15,7 +15,7 @@ import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
@@ -3743,9 +3743,17 @@ Choose each next action yourself from the available capabilities and observed ev
       .toContain("Use the exact ID from the configured choices; do not substitute labels or omit registry");
   });
 
-  it("passes the selected theHarvester sources through the Investigator execution path", () => {
-    expect(apexInvestigatorSystemCore()).toContain("explicit non-empty sources array chosen from bing, duckduckgo, yahoo, certspotter, and crtsh");
-    expect(apexInvestigatorSystemCore()).toContain("profile, sources, searches, findings.");
+  it("keeps specialist worker fields optional while preserving the executable theHarvester contract", () => {
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
+      json_schema?: { schema?: { required?: string[]; properties?: Record<string, unknown> } };
+    };
+    const schema = responseFormat.json_schema?.schema;
+    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.properties?.sources).toBeDefined();
+    expect(schema?.properties?.profile).toBeDefined();
+    expect(schema?.properties?.searches).toBeDefined();
+    expect(schema?.properties?.findings).toBeDefined();
+    expect(apexInvestigatorSystemCore()).toContain("six required root fields");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
