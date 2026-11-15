@@ -747,4 +747,47 @@ describe("Groq Investigator runtime contract", () => {
     })).toBe("openai/gpt-oss-20b");
   });
 
+  it("measures the actual outbound Investigator prompts offline against the 2026-11-14 baseline", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover evidence-backed public decision makers and ownership relationships for a named operating company.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "No research action has executed yet.",
+      findings: [],
+      intelligenceContext: "RESEARCH INTELLIGENCE STATE: no findings yet; hypotheses and source lineage are empty.",
+      mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "visit", "registry_search", "done"],
+    });
+    const buildMeasurement = (model: string) => {
+      const body = buildGroqInvestigatorRequestBody({ model, prompt, cognitiveTask: "discovery", promptMode: "discovery" });
+      const messages = body.messages as Array<{ role: string; content: string }>;
+      const systemPrompt = messages.find((message) => message.role === "system")?.content ?? "";
+      const userPrompt = messages.find((message) => message.role === "user")?.content ?? "";
+      const responseFormat = body.response_format ? JSON.stringify(body.response_format) : "";
+      const requestChars = systemPrompt.length + userPrompt.length + responseFormat.length;
+      const estimatedInputTokens = Math.ceil(requestChars / 3.4);
+      const completionCap = Number(body.max_completion_tokens ?? 0);
+      return { model, systemPromptChars: systemPrompt.length, userPromptChars: userPrompt.length, responseFormatChars: responseFormat.length, requestChars, estimatedInputTokens, completionCap, reasoningEffort: body.reasoning_effort ?? "unsupported" };
+    };
+    const twentyB = buildMeasurement("openai/gpt-oss-20b");
+    const oneTwentyB = buildMeasurement("openai/gpt-oss-120b");
+    const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
+      capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number };
+    };
+    console.info("APEX_INVESTIGATOR_PROMPT_MEASUREMENT " + JSON.stringify({
+      method: "offline character estimate (ceil(total request characters / 3.4)); not a provider tokenizer",
+      baseline2026_11_14: replay.capturedSuccessfulResponse,
+      representativeFirstTurn20B: twentyB,
+      representativeFirstTurn120B: oneTwentyB,
+    }));
+    expect(twentyB.systemPromptChars).toBeGreaterThan(0);
+    expect(twentyB.userPromptChars).toBeGreaterThan(0);
+    expect(oneTwentyB.responseFormatChars).toBeGreaterThan(0);
+    expect(twentyB.systemPromptChars).toBeLessThan(3_000);
+    expect(oneTwentyB.systemPromptChars).toBeLessThan(3_000);
+    expect(twentyB.completionCap).toBe(1_024);
+    expect(oneTwentyB.completionCap).toBe(1_024);
+  });
+
 });
