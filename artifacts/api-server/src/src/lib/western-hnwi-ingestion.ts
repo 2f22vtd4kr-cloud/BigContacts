@@ -322,13 +322,6 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
 // DEF 14A (proxy statements) list real directors and named executive officers
 // of public US companies. These are confirmed high-level executives.
 
-const DEF14A_SEARCH_TERMS = [
-  '"director since"',
-  '"independent director"',
-  '"chief executive officer"',
-  '"non-executive director"',
-];
-
 async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
