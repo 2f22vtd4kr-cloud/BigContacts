@@ -288,10 +288,12 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the wealth-first default objective and the company-to-owner research bridge", () => {
-    expect(launchDefaults).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
-    expect(launchDefaults).toContain("A person is the ultimate investor-identification goal.");
-    expect(launchDefaults).toContain("Companies are leads and may be selected for target-scoped research to identify owners");
+  it("keeps a model-owned investor objective and company-to-owner research bridge", () => {
+    expect(launchDefaults).toContain("Identify potential investors and other objective-fit people, companies, assets, relationships");
+    expect(launchDefaults).toContain("The Investigator owns relevance, hypotheses, target selection, research direction");
+    expect(launchDefaults).toContain("No fixed source mix, search sequence, target class, geography or target quota.");
+    expect(launchDefaults).toContain("targetCount: 25");
+    expect(launchDefaults).toContain("researchLimit: 25");
     expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
