@@ -68,12 +68,7 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
 }
 
 
-const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
-  "cnbc.com", "reuters.com", "bloomberg.com", "forbes.com", "ft.com",
-  "wsj.com", "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk",
-  "apnews.com", "fortune.com", "businessinsider.com", "marketwatch.com",
-  "axios.com", "techcrunch.com", "sifted.eu", "theinformation.com",
-] as const;
+
 
 /**
  * A press story can corroborate a person or ownership claim, but it is not by
