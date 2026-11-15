@@ -96,8 +96,11 @@ describe("name-pair similarity is not identity proof", () => {
     expect(result.assessment).toBe("unresolved");
   });
 
-  it("allows exact normalized duplicates but not approximate aliases", () => {
-    expect(assessGraphNamePairRisk("José Álvarez", "José Álvarez").risk).toBe(false);
+  it("does not merge identical display names without exact record identity or model context", () => {
+    const exactName = assessGraphNamePairRisk("José Álvarez", "José Álvarez");
+    expect(exactName.risk).toBe(true);
+    expect(exactName.assessment).toBe("unresolved");
+    expect(exactName.reason).toMatch(/identical display names do not prove/i);
     expect(assessGraphNamePairRisk("José Álvarez", "Jose Alvarez").assessment).toBe("unresolved");
   });
 });
