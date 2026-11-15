@@ -56,7 +56,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     for (const role of ["boss", "right_hand", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain("Fame, wealth, seniority, company size, listing status and route type are contextual signals");
+      expect(prompt).toContain(role === "dig_agent" ? "Fame, wealth, title, prestige, company size, visibility, and listing status are contextual signals" : "Fame, wealth, seniority, company size, listing status and route type are contextual signals");
       expect(prompt).not.toContain("globally famous/household-name");
       expect(prompt).not.toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
