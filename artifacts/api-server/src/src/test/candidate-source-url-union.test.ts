@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { hasCredibleDiscoveryWealthPotentialSignal, hasDiscoveryOwnershipLeadSignal } from "../lib/candidate-source-url-union";
 import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, hasRealisticPersonRouteSource, isClaimGradeDiscoverySourceUrl, isRealisticPersonRouteSourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
