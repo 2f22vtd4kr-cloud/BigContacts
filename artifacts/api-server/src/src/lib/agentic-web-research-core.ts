@@ -4741,7 +4741,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: Preserve useful objective-fit person/company/asset leads as provisional, unverified review items. Include exact observed names, associated public URLs and uncertainty; sourced ownership/wealth hypotheses only. Boss approves material scope changes; selection is not promotion."
+    "DISCOVERY LEAD HANDOFF: Preserve exact observed names and source URLs for useful objective-fit person/company/asset leads as provisional, unverified review items. Include uncertainty; sourced ownership/wealth hypotheses only. Boss approves material scope changes; selection is not promotion."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
