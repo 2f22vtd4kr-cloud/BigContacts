@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { IntelligenceContext } from "./research-intelligence-engine";
-import { defaultTerminalContract, evaluateResearchTerminal, hasSuccessfulExternalResearchAttempt } from "./research-terminal-gate";
+import { defaultTerminalContract, evaluateResearchTerminal, hasSuccessfulExternalResearchAttempt, hasSuccessfulFalsificationAttempt } from "./research-terminal-gate";
 
 function context(input: {
   evidenceCount?: number;
@@ -40,6 +40,28 @@ describe("research-stage terminal contracts", () => {
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     });
+  });
+
+  it("requires an executed counterevidence attempt rather than treating any successful research as falsification", () => {
+    expect(hasSuccessfulFalsificationAttempt(context({
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "Jane Smith current CFO official biography" } }],
+    }))).toBe(false);
+    expect(hasSuccessfulFalsificationAttempt(context({
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to Jane Smith being current CFO" } }],
+    }))).toBe(true);
+  });
+
+  it("does not count a failed nested parallel query as a successful falsification attempt", () => {
+    expect(hasSuccessfulFalsificationAttempt(context({
+      recentActions: [{
+        action: "parallel_web_search",
+        execution: "success",
+        args: {
+          searches: [{ query: "find counterevidence to Jane Smith being current CFO", provider: "serper" }],
+          searchOutcomes: [{ query: "find counterevidence to Jane Smith being current CFO", status: "error" }],
+        },
+      }],
+    }))).toBe(false);
   });
 
   it("rejects an empty first-turn done when no evidence or external research has occurred", () => {
