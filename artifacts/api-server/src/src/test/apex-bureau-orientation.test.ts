@@ -81,7 +81,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("there is no fixed search-count cap or per-case search quota");
     expect(APEX_BUREAU_PLAYBOOK).toContain("Search count is telemetry, not progress or an admission rule.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("one strongest objective-fit lead can be handed to Boss when useful");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("one or more objective-fit leads can be handed to Boss when useful");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
     expect(core).not.toContain("\\n");
