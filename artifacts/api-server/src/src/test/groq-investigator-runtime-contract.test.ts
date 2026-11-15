@@ -269,13 +269,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("searches");
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
-    expect(repair).toContain('"provider":null');
-    expect(repair).toContain('"locale":null');
-    expect(repair).toContain('"market":null');
-    expect(repair).toContain('"purpose"');
-    expect(repair).toContain("null only action-irrelevant scalar fields");
+    expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
+    expect(repair).toContain("Omit provider, locale and market");
+    expect(repair).toContain("nested purpose is optional");
+    expect(repair).not.toContain('"provider":null');
+    expect(repair).not.toContain('"locale":null');
+    expect(repair).not.toContain('"market":null');
+    expect(repair).toContain("Omit unused optional fields rather than sending null placeholders");
     expect(repair).toContain("never null these fields");
-    expect(repair).toContain("nested registry-search item");
   });
 
   it("explains the configured browser provider when browser_fetch action arguments are invalid", () => {
