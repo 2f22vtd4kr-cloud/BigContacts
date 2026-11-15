@@ -4,9 +4,16 @@ import {
   computeContactOutcome,
   hasMeaningfulDirectContact,
   isHeuristicEmailEvidence,
+  isPersonalContactOutcome,
 } from "../lib/contact-confidence";
 
 describe("durable Investigator contact attribution", () => {
+  it("counts only an explicitly verified model-attributed route as personal", () => {
+    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(false);
+    expect(isPersonalContactOutcome("direct_contact_verified")).toBe(true);
+    expect(isPersonalContactOutcome("organization_contact")).toBe(false);
+  });
+
   it("recognizes an exactly value-bound person-specific promotion even for an unusual mailbox local part", () => {
     const entity = {
       type: "HNWI",
