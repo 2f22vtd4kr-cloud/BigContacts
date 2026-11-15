@@ -4565,10 +4565,10 @@ export function discoveryPivotAlignmentReason(
   // Keep a subject-open pivot model-led while still enforcing every explicit
   // source class, geography, and exclusion found in the direction.
   if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  // Provenance grows only through successful actions already grounded in the active
-  // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
-  const sourceStageReason = explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
-  if (sourceStageReason) return sourceStageReason;
+  // Boss prose may suggest a sequence, but natural-language "first/then"
+  // wording is not compiled into a deterministic source itinerary. The
+  // Investigator chooses the next capability from current evidence and cost;
+  // provenance and technical execution guards remain deterministic.
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
   if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
