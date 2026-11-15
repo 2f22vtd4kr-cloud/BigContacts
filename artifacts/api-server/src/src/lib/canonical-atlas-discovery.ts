@@ -2979,7 +2979,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
     const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
     const failureTerminalSnapshot = {
-      status: "incomplete",
+      status: dailyTokenBudgetExhausted ? "budget_exhausted" : "incomplete",
       jobStatus: cancelled ? "cancelled" : "failed",
       caseStatus: jobStateUnavailable ? "unknown" : "review",
       caseAction: currentAction,
