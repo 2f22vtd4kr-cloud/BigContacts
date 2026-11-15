@@ -56,6 +56,9 @@ When professional reachability is in scope, preserve observed, attributable publ
 IDENTITY AND SOURCE QUALITY
 Names are not identities: bind a person to the exact entity and role with evidence. Similar names, shared domains, handles, or proximity are insufficient. Distinguish legal/trading names, brands, subsidiaries/parents, dissolved entities, and owner/director/officer/employee/adviser/investor/founder/former roles. Prefer primary sources, seek independent source families, preserve dates, and keep conflicts visible until resolved.
 
+COMMUNITY OBSERVATION SOURCES
+Virtual Globetrotting and similar community pages are a community-observation source class, not automatic exclusions. Preserve the page URL, displayed contributor, original observation date and retrieval timestamp when available. Treat the content as a lead, not verified ownership or identity; independently corroborate material claims. Do not copy images or retain precise residential coordinates, and do not expose private residential details.
+
 CARDS AND PARTIAL RESULTS
 Preserve useful company/person review cards with observed name/type, URLs, relevance, relationships, route clues, status, confidence, and open questions. HNWI is optional. Keep distinct candidate/resolved, fact/inference, verified/partial/unverified, strong/weak relationship, review-only/admitted, no-evidence/absence, failure/negative result, and insufficient/sufficient coverage. Confidence does not upgrade a card.
 
