@@ -2003,6 +2003,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoveryIterationCeiling,
       ),
     );
+    if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
+    if (discovery.stopReason === "USAGE_LEDGER_UNAVAILABLE") throw new Error("investigator_usage_ledger_unavailable");
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -2610,7 +2612,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
-          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error");
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
@@ -2633,7 +2635,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const providerDiagnostic = describeThrownProviderError(underlyingError);
           const runtimeFailureDomain = runtimeFailureRecord?.failureDomain;
           const runtimeFailureKind = runtimeFailureRecord?.failureKind;
-          const diagnostic = runtimeFailureRecord?.action === "runtime_error" && runtimeFailureDomain && runtimeFailureKind
+          const diagnostic = runtimeFailureDomain && runtimeFailureKind
             ? { domain: runtimeFailureDomain, kind: runtimeFailureKind }
             : classifyCanonicalAtlasFailure({
               stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode",
@@ -2643,7 +2645,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight failed" : "Canonical Investigator continuation failed",
             underlyingError,
           );
-          const failureMessage = `${episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : "Canonical Investigator continuation stopped before a usable new research pass"}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
+          const failureLabel = episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "Canonical Investigator daily token budget exhausted; no further provider request was attempted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "Canonical Investigator stopped because the durable daily usage ledger was unavailable; provider egress was blocked" : "Canonical Investigator continuation stopped before a usable new research pass";
+          const failureMessage = `${failureLabel}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
             await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
@@ -2670,7 +2673,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
             await tx.update(researchCasesTable).set({
               status: "review",
-              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed",
+              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed",
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
@@ -2686,12 +2689,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               status: "error",
               summary: episodeFailure.code === "investigator_oversight_unavailable"
                 ? "Canonical Right-hand oversight unavailable; case parked for review."
-                : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
+                : episodeFailure.code === "investigator_daily_token_budget_exhausted"
+                  ? "Configured daily Investigator token budget exhausted; case preserved for resume after budget reset."
+                  : episodeFailure.code === "investigator_usage_ledger_unavailable"
+                    ? "Durable daily usage ledger unavailable; no provider request was sent and the case was preserved."
+                    : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
               correlationKey: `${atlasJobId}:investigator-episode-failure:control:${controlTurns}`,
               payload: JSON.stringify({
                 jobId: atlasJobId,
                 controlTurn: controlTurns,
                 failureCode: episodeFailure.code,
+                budgetExhausted: episodeFailure.code === "investigator_daily_token_budget_exhausted",
+                usageLedgerUnavailable: episodeFailure.code === "investigator_usage_ledger_unavailable",
+                resumableAfterBudgetReset: episodeFailure.code === "investigator_daily_token_budget_exhausted",
                 reportedStatus: nextDiscovery.status,
                 stopReason: nextDiscovery.stopReason ?? null,
                 iterations: nextDiscovery.iterations,
@@ -2941,6 +2951,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const jobMissing = !jobStateUnavailable && !durableJob;
     const jobStateMismatch = !jobStateUnavailable && Boolean(durableJob) && durableJob?.status !== "running" && !cancelled;
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
+    const dailyTokenBudgetExhausted = /daily_token_budget_exhausted/i.test(rawMessage);
+    const usageLedgerUnavailable = /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(rawMessage);
     const recoverableRightHandOpeningFailure = isRecoverableRightHandOpeningFailure(failureStage, error);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -2952,7 +2964,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? "canonical-lease-lost"
             : recoverableRightHandOpeningFailure
               ? "groq-right-hand-unavailable"
-              : "canonical-atlas-failed";
+              : dailyTokenBudgetExhausted
+                ? "daily-token-budget-exhausted"
+                : usageLedgerUnavailable
+                  ? "daily-usage-ledger-unavailable"
+                  : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
@@ -2969,13 +2985,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failureDomain: failureDiagnostic.domain,
       failureKind: failureDiagnostic.kind,
       jobStateUnavailable,
+      budgetExhausted: dailyTokenBudgetExhausted,
+      usageLedgerUnavailable,
+      resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
         ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
-        : `${safeFailureSummary} (${diagnosticSuffix})`;
+        : dailyTokenBudgetExhausted
+          ? `Canonical Atlas Investigator daily token budget exhausted; no further provider request was attempted and the case is preserved for resume after the configured budget resets. (${diagnosticSuffix})`
+          : usageLedgerUnavailable
+            ? `Canonical Atlas stopped because the durable daily usage ledger was unavailable; provider egress was blocked and the case is preserved for review. (${diagnosticSuffix})`
+            : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({
