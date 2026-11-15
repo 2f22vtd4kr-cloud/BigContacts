@@ -4839,12 +4839,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 600 : 3_000,
+        maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 200 : 900,
+    input.mode === "discovery" ? 150 : 900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
