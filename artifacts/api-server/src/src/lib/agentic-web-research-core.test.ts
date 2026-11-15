@@ -250,6 +250,37 @@ describe("model-owned discovery relevance reasoning", () => {
   });
 });
 
+describe("schema-inclusive Investigator prompt measurement", () => {
+  it("keeps a representative first discovery request near the 2,000-token target", () => {
+    const objective = "Investigate publicly documented people and companies relevant to private business ownership and asset control. Find useful source-backed leads, preserve uncertainty, and let the Investigator decide which hypotheses, sectors, sources and follow-ups can advance the objective. Explicitly exclude private residential and sensitive personal data. Boss retains authority over material scope changes.";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      priorContext: "",
+      intelligenceContext: "",
+      mode: "discovery",
+    });
+    const systemPrompt = apexInvestigatorSystemCore() + "\\nReturn one JSON action object only.";
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b");
+    const schemaChars = JSON.stringify(responseFormat).length;
+    const requestChars = systemPrompt.length + prompt.length + schemaChars;
+    // The November 14 captured request measured 3,565 provider input tokens
+    // for 15,610 system+user prompt characters (~4.38 chars/token). Reuse
+    // that observed ratio for an empirical estimate and retain the stricter
+    // 3.4 chars/token heuristic as a conservative upper bound.
+    const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
+    const conservativeTokens = Math.ceil(requestChars / 3.4);
+    expect(prompt.length).toBeLessThanOrEqual(3_000);
+    expect(empiricalTokens).toBeLessThanOrEqual(2_000);
+    expect(conservativeTokens).toBeLessThanOrEqual(2_600);
+    expect(schemaChars).toBeGreaterThan(1_000);
+  });
+});
+
 describe("model-owned review-lead selection", () => {
   it("does not create company findings from search-result titles in deterministic runtime code", () => {
     expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
