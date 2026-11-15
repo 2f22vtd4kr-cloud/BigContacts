@@ -54,7 +54,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("no fixed score, domain fit, name proximity or route category may veto an explicit exact-quote-backed model attribution");
     expect(APEX_WHAT_IS_ATLAS).not.toContain("globally famous/household-name public figures");
     expect(APEX_WHAT_IS_ATLAS).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
-    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+    for (const role of ["boss", "right_hand", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("Fame, wealth, seniority, company size, listing status and route type are contextual signals");
       expect(prompt).not.toContain("globally famous/household-name");
@@ -62,6 +62,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
       expect(prompt).not.toContain("Tim Cook");
     }
+    expect(apexInvestigatorSystemCore()).toContain("fame, wealth, seniority, company size, listing status");
     expect(apexInvestigatorSystemCore()).not.toContain("PERSON REALISM");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
