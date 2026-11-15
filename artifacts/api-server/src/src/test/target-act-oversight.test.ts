@@ -30,14 +30,17 @@ describe("target act Right-hand review economy", () => {
   it("reviews candidate admission and explicit promotion decisions", () => {
     expect(shouldReviewTargetActWithRightHand({
       action: "web_search",
+      execution: "success",
       findings: [{ scope: "candidate", personName: "Jane Example", value: "Jane Example" }],
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ scope: "organization", value: "shared inbox at Example Ltd" }],
     })).toBe(false);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ promotionDecision: "promote" }],
     })).toBe(true);
   });
@@ -45,6 +48,7 @@ describe("target act Right-hand review economy", () => {
   it("reviews unresolved identity and material contradictions", () => {
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ identityAssessment: "unresolved", personName: "Jane Example" }],
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
@@ -53,6 +57,7 @@ describe("target act Right-hand review economy", () => {
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ hypothesisRelation: "contradicts" }],
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
