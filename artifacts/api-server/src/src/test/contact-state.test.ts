@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { computeContactState } from "../lib/contact-confidence";
 
+function personRouteMetadata(field: "email" | "phone", value: string, personName: string) {
+  return {
+    agenticContactProvenance: {
+      [field]: {
+        value, personName, contactAttribution: "professional_person_specific",
+        exactQuote: `${personName} published professional contact: ${value}`,
+        identityAssessment: "same_person",
+        identityRationale: "The same fetched public profile explicitly binds this person to the route.",
+        sourceUrls: ["https://example.org/public-profile"],
+        jobId: "contact-state-test-job",
+      },
+    },
+  };
+}
+
 describe("contact-state reconciliation", () => {
   it("keeps an organization route out of personal access", () => {
     const state = computeContactState({
@@ -10,7 +25,7 @@ describe("contact-state reconciliation", () => {
       phoneSource: "CompaniesHouse-Phone",
     });
     expect(state.contactConfidence).toBe(0);
-    expect(state.contactOutcome).toBe("organization_contact");
+    expect(state.contactOutcome).toBe("evidence_only");
     expect(state.isHot).toBe(false);
   });
 
@@ -22,7 +37,7 @@ describe("contact-state reconciliation", () => {
       validatedDirectContact: true,
     });
     expect(state.contactConfidence).toBe(0);
-    expect(state.contactOutcome).toBe("organization_contact");
+    expect(state.contactOutcome).toBe("evidence_only");
     expect(state.isHot).toBe(false);
   });
 
@@ -32,6 +47,7 @@ describe("contact-state reconciliation", () => {
       email: "sigurd@oslofamilyoffice.com",
       phone: "+47 91 33 22 11",
       phoneSource: "Oslo Family Office — published professional route",
+      metadata: personRouteMetadata("phone", "+47 91 33 22 11", "Sigurd Example"),
     });
     expect(state.contactOutcome).toBe("direct_contact_candidate");
     expect(state.contactConfidence).toBeGreaterThan(0);
@@ -42,6 +58,7 @@ describe("contact-state reconciliation", () => {
     const state = computeContactState({
       type: "HNWI",
       email: "person@real-domain.co.uk",
+      metadata: personRouteMetadata("email", "person@real-domain.co.uk", "Jane Example"),
     });
     expect(state.contactOutcome).toBe("direct_contact_candidate");
     expect(state.isHot).toBe(false);
@@ -51,7 +68,7 @@ describe("contact-state reconciliation", () => {
     const state = computeContactState({
       type: "HNWI",
       email: "person@real-domain.co.uk",
-      metadata: { validatedDirectContact: true },
+      metadata: personRouteMetadata("email", "person@real-domain.co.uk", "Jane Example"),
       validatedDirectContact: true,
     });
     expect(state.contactOutcome).toBe("direct_contact_verified");
