@@ -82,7 +82,15 @@ try {
   const foundColumns = new Set(columnResult.rows.map((row) => row.column_name));
   const missingColumns = quotaColumns.filter((name) => !foundColumns.has(name));
   if (missingColumns.length) throw new Error(`Apex quota ledger verification failed; missing columns: ${missingColumns.join(", ")}`);
-  console.log("[apex-schema] required durable tables and quota columns present.");
+  const semanticContactScores = ["source_reliability", "identity_match", "recency_score", "directness_score"];
+  const semanticScoreResult = await pool.query(
+    "SELECT column_name, is_nullable FROM information_schema.columns WHERE table_schema=\'public\' AND table_name=\'contact_evidence\' AND column_name = ANY($1::text[])",
+    [semanticContactScores],
+  );
+  const nullableScores = new Set(semanticScoreResult.rows.filter((row) => row.is_nullable === "YES").map((row) => row.column_name));
+  const nonNullableScores = semanticContactScores.filter((name) => !nullableScores.has(name));
+  if (nonNullableScores.length) throw new Error("Apex contact semantic-score verification failed; columns must be nullable/unassessed: " + nonNullableScores.join(", "));
+  console.log("[apex-schema] required durable tables, quota columns and unassessed contact-score columns present.");
 } finally {
   await pool.end();
 }
