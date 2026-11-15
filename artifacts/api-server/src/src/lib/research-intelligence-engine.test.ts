@@ -4,10 +4,32 @@ describe("ResearchIntelligenceEngine", () => {
   it("deduplicates evidence, tracks source diversity, and preserves a hash-chain digest", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-1", target: "Jane Example", objective: "Find an attributable public contact route" });
     engine.recordAction({ turn: 1, action: "web_search", execution: "success", urls: ["https://example.gov/people/jane"], observation: "Jane Example director", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"], note: "official directory" }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.gov/people/jane"], observation: "Jane Example director email jane@example.org", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"] }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.gov/people/jane"], observation: "Jane Example director email jane@example.org", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"], exactQuote: "Jane Example director email jane@example.org", contactAttribution: "person_specific", identityAssessment: "same_person", identityRationale: "The fetched official profile labels the email alongside Jane Example." }] });
     const state = engine.buildContext();
     expect(state.evidenceCount).toBeGreaterThan(0); expect(state.sourceDiversity).toBe(1); expect(state.provenanceDigest).toHaveLength(64); expect(state.contacts[0]?.state).toBe("ATTRIBUTED");
   });
+  it("keeps an exact-quote person contact review-only until the Investigator resolves identity", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "identity-unresolved", target: "Jane Example", objective: "Find a person-attributed contact" });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: ["https://company.example/team"],
+      observation: "Jane Example — Contact: jane@example.org",
+      findings: [{
+        vectorType: "email",
+        value: "jane@example.org",
+        personName: "Jane Example",
+        sourceUrls: ["https://company.example/team"],
+        exactQuote: "Jane Example — Contact: jane@example.org",
+        contactAttribution: "person_specific",
+        identityAssessment: "unresolved",
+        identityRationale: "The page does not distinguish the person's direct route from a shared organizational address.",
+      }],
+    });
+    expect(engine.buildContext().contacts[0]?.state).toBe("DISCOVERED");
+  });
+
   it("surfaces contradictions instead of collapsing them into one fact", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-2", target: "Alex Example", objective: "Resolve identity" });
     engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
