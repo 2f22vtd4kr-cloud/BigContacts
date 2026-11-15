@@ -26,10 +26,12 @@ describe("Groq Investigator runtime contract", () => {
     expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
   });
 
-  it("keeps the preferred user prompt within the 7,200-character request envelope", () => {
-    expect(investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(4_800);
-    expect(2_000 + investigatorUserPromptBudget(2_000)).toBeLessThanOrEqual(7_200);
-    expect(investigatorUserPromptBudget(6_500)).toBe(460);
+  it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
+    expect(investigatorUserPromptBudget(2_000)).toBe(4_000);
+    expect(2_000 + investigatorUserPromptBudget(2_000) + 3_000).toBeLessThanOrEqual(9_000);
+    // When system instructions alone leave no room after schema allowance,
+    // the optimizer returns zero rather than deleting authoritative context.
+    expect(investigatorUserPromptBudget(6_500)).toBe(0);
   });
   it("downgrades a safe browser fetch with a stale provider label to visit", () => {
     const parsed = parseAgentAction(JSON.stringify({
