@@ -73,6 +73,8 @@ export function supportsCandidateContactOnSameObservation(observationText:string
   return Boolean(
    name
    && ["person_specific","direct_personal","professional_person_specific"].includes(item.contactAttribution??"")
+   && item.identityAssessment === "same_person"
+   && Boolean(item.identityRationale?.trim())
    && quote
    && quoteAppearsInObservation(observationText, quote)
    && hasBoundIdentityAndValue(quote,name,cleanValue,vectorType),
