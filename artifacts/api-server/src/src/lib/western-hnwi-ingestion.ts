@@ -568,6 +568,15 @@ const CH_OFFICER_QUERIES = [
   "person with significant control",
 ];
 
+function parseConfiguredQueryList(value: string | undefined, fallback: readonly string[]): string[] {
+  const configured = value?.split("|").map((query) => query.trim()).filter(Boolean) ?? [];
+  return configured.length > 0 ? [...new Set(configured)] : [...fallback];
+}
+
+export function parseCompaniesHouseOfficerQueries(value?: string): string[] {
+  return parseConfiguredQueryList(value, CH_OFFICER_QUERIES);
+}
+
 async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<HarvestedPerson> {
   const apiKey = process.env["COMPANIES_HOUSE_API_KEY"];
   if (!apiKey) return;
@@ -576,7 +585,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
   let yielded = 0;
   const seen = new Set<string>();
 
-  for (const query of CH_OFFICER_QUERIES) {
+  for (const query of parseCompaniesHouseOfficerQueries(process.env.APEX_COMPANIES_HOUSE_OFFICER_QUERIES)) {
     if (yielded >= maxCount) break;
 
     for (let start = 0; start < 1000 && yielded < maxCount; start += 20) {
@@ -802,6 +811,10 @@ const RANDOM_REGISTRY_QUERIES = [
   "international",
   "real estate",
 ] as const;
+
+export function parseRegistrySeedQueries(value?: string): string[] {
+  return parseConfiguredQueryList(value, RANDOM_REGISTRY_QUERIES);
+}
 
 function pickRandom<T>(values: readonly T[]): T | undefined {
   return values[Math.floor(Math.random() * values.length)];
@@ -1079,7 +1092,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         250,
       );
   const shuffledRegistries = [...randomDiscoveryRegistries].sort(() => Math.random() - 0.5);
-  const randomQueryOrder = [...RANDOM_REGISTRY_QUERIES].sort(() => Math.random() - 0.5);
+  const randomQueryOrder = parseRegistrySeedQueries(process.env.APEX_REGISTRY_SEED_QUERIES).sort(() => Math.random() - 0.5);
   let randomDiscoveryInserted = 0;
 
   for (const registry of shuffledRegistries) {
