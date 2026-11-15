@@ -1439,17 +1439,17 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
     expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
-    expect(modelPrompt).toMatch(/MISSION PRIORITY:/);
+    expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
-    expect(modelPrompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
-    expect(modelPrompt).toMatch(/ownership\/control\/equity\/investment/i);
+    expect(modelPrompt).toMatch(/models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority/i);
+    expect(modelPrompt).toMatch(/Sourced ownership\/wealth hypotheses may be recorded with their evidence and uncertainty/i);
     expect(modelPrompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
     expect(modelPrompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
-    expect(modelPrompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
-    expect(modelPrompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
-    expect(modelPrompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
-    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes/i);
+    expect(modelPrompt).toMatch(/exact quotations and source URLs from same-case observations/i);
+    expect(modelPrompt).toMatch(/never invent claims or routes/i);
+    expect(modelPrompt).toMatch(/CONTACT: Model classifies person-specific, shared, organization, assistant\/intermediary or unresolved routes/i);
+    expect(modelPrompt).toMatch(/Target research and independent review determine which claims are corroborated, contradicted, material or ready for promotion/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
