@@ -4759,13 +4759,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
-  const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `SEARCH ACTIVITY (informational only; no fixed search cap): ${discoverySearchActionsUsed} outbound search actions observed. The Investigator chooses further searches, fetches, pivots and stopping by expected information gain.`
-    : "";
-  const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
-    discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: Preserve exact observed names and source URLs for selected objective-fit leads as provisional review items; include scope and uncertainty. Selection is not promotion. Boss approves material scope changes."
-  ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
@@ -4873,7 +4866,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
-  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown. Scanned/image-only PDFs require OCR (unavailable) or another readable source.";
 
   const composedPrompt = [
     assignment,
@@ -4887,10 +4879,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "CAPABILITIES:",
     capabilityGuidance,
     terminalContractGuidance,
-    compactPageFormatGuidance,
     "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
     APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
-    ...compactEmergencyDiscoveryContractParts,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
@@ -5014,7 +5004,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (value: unknown, maxChars = 320): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 220): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
@@ -5187,9 +5177,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     if (activeBossScopeSection && activeBossDirection && !repaired.includes(activeBossDirection)) {
       appendBeforeSchema(activeBossScopeSection);
-    }
-    if (discoverySearchBudgetGuidance && !repaired.includes(discoverySearchBudgetGuidance)) {
-      appendBeforeSchema(discoverySearchBudgetGuidance);
     }
     if (blockedScopeRecoveryMarker && !repaired.includes(blockedScopeRecoveryMarker)) {
       appendBeforeSchema(blockedScopeRecoveryMarker);
