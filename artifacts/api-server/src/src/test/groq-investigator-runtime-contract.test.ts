@@ -340,7 +340,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
     expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
     expect(messages).toHaveLength(2);
   });
 
