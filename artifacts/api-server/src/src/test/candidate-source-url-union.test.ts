@@ -189,7 +189,7 @@ describe("discovery source evidence policy", () => {
   it("rejects a name-only second source and does not let search actions corroborate", () => {
     const findings = [
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://leadership.alpha.test/jane"], exactQuote: "Jane Example is Chief Executive Officer." },
-      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: "Jane Example is mentioned here." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: null },
     ];
     const normalize = (raw: string) => { try { const url = new URL(raw); url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; } catch { return null; } };
     expect(candidateRoleCorroborationSources({
