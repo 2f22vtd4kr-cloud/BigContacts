@@ -10,6 +10,7 @@ const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-resear
 const orientationSource = fs.readFileSync(path.join(libDir, "apex-bureau-orientation.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
 const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
+const leadReconciliationSource = fs.readFileSync(path.join(libDir, "research-lead-card-reconciliation.ts"), "utf8");
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
@@ -602,7 +603,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('finding.promotionDecision === "reject"');
     expect(canonicalSource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalSource).toContain("payload.runId !== input.discoveryRunId");
-    expect(canonicalSource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(leadReconciliationSource).toContain('observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter');
     expect(canonicalSource).toContain('targetType: "organization" as const');
     expect(canonicalSource).toContain("return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows }");
     expect(canonicalSource).toContain("metadata.partialOrganizationLead === true");
