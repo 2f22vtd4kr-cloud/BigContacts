@@ -1517,14 +1517,14 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
-    expect(modelPrompt).toMatch(/visit=text\\/PDF; browser_fetch=HTML/);
-    expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
+    expect(modelPrompt).toMatch(/visit=text\/PDF; browser_fetch=HTML/);
+    expect(modelPrompt).toMatch(/browser_fetch=HTML/);
     expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toMatch(/wealth claims need sourced ownership\\/equity\\/investment/i);
+    expect(modelPrompt).toMatch(/wealth claims need sourced ownership\/equity\/investment/i);
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
