@@ -19,15 +19,22 @@ const required = [
   "investigatorCapabilityKeyName(selectedInvestigatorLlm)",
   "fallback: []",
   "investigatorCapabilityKeyName(investigatorCapability)",
-  "promptTokens: data.usage?.prompt_tokens",
-  "cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens",
+  "readGroqUsageMetrics(data.usage)",
+  "...usageMetrics",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
 }
 
 const telemetryCount = (source.match(/recordAgenticLlmAttempt\(\{/g) || []).length;
-if (!/promptTokens\?: number/.test(telemetry) || !/cachedPromptTokens\?: number/.test(telemetry)) throw new Error("agentic LLM efficiency guard failed: token telemetry fields are missing");
+if (!/promptTokens\?: number/.test(telemetry)
+  || !/completionTokens\?: number/.test(telemetry)
+  || !/reasoningTokens\?: number/.test(telemetry)
+  || !/totalTokens\?: number/.test(telemetry)
+  || !/function readGroqUsageMetrics/.test(telemetry)
+  || !/completionDetails\.reasoning_tokens/.test(telemetry)) {
+  throw new Error("agentic LLM efficiency guard failed: provider token/reasoning telemetry fields are missing");
+}
 
 if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
 
