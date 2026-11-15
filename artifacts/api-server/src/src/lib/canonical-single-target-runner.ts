@@ -20,6 +20,7 @@ import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType, r
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; objective?: string; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; currentAction: string | null; iteration: number; objective: string; caseFile: string | null };
+type TargetCaseRow = Omit<TargetCase, "targetEntityId"> & { targetEntityId: number | null };
 
 export function isBudgetStoppedTargetCase(status: string, currentAction: string | null): boolean {
   return status === "review" && (currentAction === "daily-token-budget-exhausted" || currentAction === "daily-usage-ledger-unavailable");
@@ -72,7 +73,8 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
         await tx.update(entitiesTable).set({ metadata: JSON.stringify(nextMetadata) }).where(eq(entitiesTable.id, target.id));
       }
     };
-    const resumeBudgetStoppedCase = async (existing: TargetCase): Promise<TargetCase> => {
+    const resumeBudgetStoppedCase = async (existing: TargetCaseRow): Promise<TargetCase> => {
+      if (typeof existing.targetEntityId !== "number") throw new Error("Cannot resume a target case without its canonical target entity binding.");
       const nextFile = parseCaseFile(existing.caseFile);
       const oldJobId = typeof nextFile.atlasJobId === "string" ? nextFile.atlasJobId : null;
       const previousJobIds = Array.isArray(nextFile.previousAtlasJobIds)
