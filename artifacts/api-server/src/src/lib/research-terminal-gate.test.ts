@@ -78,6 +78,7 @@ describe("research-stage terminal contracts", () => {
     const result = evaluateResearchTerminal(state, "target");
     expect(result.allowed).toBe(true);
     expect(result.metrics.evidenceCount).toBe(0);
+    expect(result.outcome).toBe("inconclusive");
   });
 
   it("allows completion when genuine evidence already exists in the current case", () => {
