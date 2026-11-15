@@ -53,6 +53,7 @@ describe("target act Right-hand review economy", () => {
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ identityAssessment: "different_people" }],
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
@@ -62,6 +63,7 @@ describe("target act Right-hand review economy", () => {
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [{ hypothesisRelation: "ambiguous" }],
     })).toBe(true);
   });
