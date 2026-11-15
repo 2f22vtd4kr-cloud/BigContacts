@@ -83,10 +83,10 @@ export function isPlaceholderRegistryName(name: string): boolean {
 function normalizeEdgarName(raw: string): string {
   // Preserve registry order; name-part parsing and identity resolution belong
   // to the Investigator, not a first-token surname heuristic.
-  return raw.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+  return raw.trim().replace(/\s+/g, " ").toLocaleLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_match, separator: string, letter: string) => separator + letter.toLocaleUpperCase());
 }
 
-/** Rough heuristic: does this look like a person name (not a fund/company)? */
+/** @deprecated Legacy semantic classifier retained for rollback only; active harvesters must not call it. */
 function looksLikePerson(name: string): boolean {
   // EDGAR display names use punctuation inconsistently: "L.P.", "Co.",
   // "S.A.", etc. Normalize separators before checking corporate suffixes so
@@ -212,9 +212,10 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
         // Extract all person-like names AND the issuer company name from the array
         const displayNames: string[] = src?.display_names ?? [];
         const allCleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
-        const personNames = allCleanNames.filter((n: string) => n && n.toLowerCase() !== "unknown" && looksLikePerson(n));
+        const personNames = allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name));
         // The issuer is the non-person display_name — the company whose stock is being reported on
-        const companyIssuer = allCleanNames.find((n: string) => n && n.length > 2 && !looksLikePerson(n)) ?? null;
+        // Preserve the complete registry display-name set; the Investigator resolves issuer/person roles from source context.
+        const companyIssuer: string | null = null;
 
         if (personNames.length === 0) continue;
 
@@ -225,7 +226,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
 
         for (const rawName of personNames) {
           if (yielded >= maxCount) break;
-          const nameKey = rawName.toLowerCase();
+          const nameKey = normalizeName(rawName);
           if (seen.has(nameKey)) continue;
           seen.add(nameKey);
 
@@ -242,6 +243,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
               fileDate,
               bizLocation,
               entityName: rawName,
+              displayNames: allCleanNames,
               ...(companyIssuer ? { companyName: companyIssuer } : {}),
               edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
             },
@@ -568,8 +570,8 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
         const rawName: string = sanitizeChName((item?.title ?? "").trim());
         if (!rawName) continue;
 
-        // Companies House officer search returns both people and companies — filter
-        if (!looksLikePerson(rawName)) continue;
+        // Keep structurally valid names for the batch LLM name-shape check; do not pre-judge personhood with English keywords.
+        if (!isStructurallyValidCandidateName(rawName)) continue;
 
         const key = dedupKey(rawName, "GB");
         if (seen.has(key)) continue;
@@ -602,7 +604,8 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
           },
           signals: {
             isLargeShareholder: false,
-            isBoardDirector: /director|chairman/i.test(item?.officer_role ?? ""),
+            // Preserve the source role verbatim; the Investigator interprets whether it is a board role.
+            isBoardDirector: false,
             isCompanyOfficer: true,
             hasRecentFiling: (item?.appointed_on ?? "") >= "2018-01-01",
             jurisdiction: "GB",
