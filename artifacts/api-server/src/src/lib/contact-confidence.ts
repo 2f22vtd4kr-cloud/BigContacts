@@ -79,14 +79,50 @@ function hasExplicitOrganizationInvestigatorProvenance(input: {
   personalWebsite?: string | null; metadata?: string | Record<string, unknown> | null;
 }): boolean {
   const attribution = modelAttributionForCurrentContact(input);
-  return Boolean(attribution && (
-    ["department","shared_inbox","assistant_intermediary","generic_contact_form","organization"].includes(String(attribution.contactAttribution ?? ""))
-  ));
+  return Boolean(
+    attribution
+    && ["department","shared_inbox","assistant_intermediary","generic_contact_form","organization"].includes(String(attribution.contactAttribution ?? ""))
+    && typeof attribution.exactQuote === "string" && attribution.exactQuote.trim()
+    && Array.isArray(attribution.sourceUrls) && attribution.sourceUrls.length > 0
+    && typeof attribution.jobId === "string" && attribution.jobId.trim(),
+  );
 }
-function hasCandidatePhone(entity:{type?:string|null;phone?:string|null;phoneSource?:string|null}):boolean{if(isOrgPhoneSource(entity.phoneSource))return false;const normalized=normalizePhone(entity.phone);if(normalized)return true;if(entity.type)return false;const digits=entity.phone?.replace(/[^\d]/g,"")??"";return digits.length>=8&&digits.length<=15&&Boolean(entity.phone?.trim());}
-export function computeContactConfidence(entity:{type?:string|null;organizationContact?:boolean;email?:string|null;phone?:string|null;phoneSource?:string|null;linkedinUrl?:string|null;telegramHandle?:string|null;twitterHandle?:string|null;instagramHandle?:string|null;knownResidences?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null}):number{if(entity.organizationContact||["Corporation","Corp","Trust"].includes(entity.type??""))return 0;if(hasStrictPersonSpecificInvestigatorProvenance(entity))return 100;let score=0;const emailOrg=entity.emailSource==="agentic-web-org"||/company|issuer|switchboard|hq/i.test(String(entity.emailSource??""));if(isValidPublicEmail(entity.email)&&!isHeuristicEmailEvidence(entity)&&!emailOrg)score+=35;if(hasCandidatePhone(entity))score+=25;if(sanitizePublicSocialUrl(entity.linkedinUrl,"linkedin","person"))score+=15;if(entity.telegramHandle?.trim()&&/^[a-zA-Z0-9_]{2,64}$/.test(entity.telegramHandle.replace(/^@/,"")))score+=12;if(isValidPublicSocialHandle(entity.twitterHandle,"twitter"))score+=8;if(isValidPublicSocialHandle(entity.instagramHandle,"instagram"))score+=5;if(entity.knownResidences&&entity.knownResidences!=="[]"&&entity.knownResidences!=="null"&&entity.knownResidences.trim().length>2)score+=5;return Math.min(score,100);}
-export function hasMeaningfulDirectContact(entity:{type?:string|null;organizationContact?:boolean;email?:string|null;phone?:string|null;phoneSource?:string|null;contactOutcome?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null}):boolean{if(entity.organizationContact||["Corporation","Corp","Trust"].includes(entity.type??""))return false;if(hasStrictPersonSpecificInvestigatorProvenance(entity))return true;const emailOrg=entity.emailSource==="agentic-web-org"||/company|issuer|switchboard|hq/i.test(String(entity.emailSource??""));const hasPersonalEmail=Boolean(entity.email?.trim())&&isValidPublicEmail(entity.email)&&!isHeuristicEmailEvidence(entity)&&!emailOrg;const hasPersonalPhone=Boolean(entity.phone?.trim())&&hasCandidatePhone(entity);return hasPersonalEmail||hasPersonalPhone;}
+/**
+ * Contact confidence is not a deterministic blend of email, phone, social,
+ * residence or entity-type heuristics. Only a durable, exact-value-bound
+ * Investigator attribution can establish person-specific contact confidence.
+ * All other values remain unassessed evidence for model review.
+ */
+export function computeContactConfidence(entity: {
+  type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
+  phoneSource?: string | null; linkedinUrl?: string | null; telegramHandle?: string | null;
+  twitterHandle?: string | null; instagramHandle?: string | null; knownResidences?: string | null;
+  emailSource?: string | null; metadata?: string | Record<string, unknown> | null;
+}): number {
+  return hasStrictPersonSpecificInvestigatorProvenance(entity) ? 100 : 0;
+}
+
+export function hasMeaningfulDirectContact(entity: {
+  type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
+  phoneSource?: string | null; contactOutcome?: string | null; emailSource?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+}): boolean {
+  return hasStrictPersonSpecificInvestigatorProvenance(entity);
+}
+
 export type ContactOutcome="none"|"evidence_only"|"social_only"|"organization_contact"|"direct_contact_candidate"|"direct_contact_verified";
 export function isPersonalContactOutcome(outcome:ContactOutcome):boolean{return outcome==="direct_contact_candidate"||outcome==="direct_contact_verified";}
 export function computeContactState(entity:{type?:string|null;organizationContact?:boolean;email?:string|null;phone?:string|null;phoneSource?:string|null;linkedinUrl?:string|null;telegramHandle?:string|null;twitterHandle?:string|null;instagramHandle?:string|null;knownResidences?:string|null;website?:string|null;bizLocation?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null;validatedDirectContact?:boolean;isGenericPrefix?:boolean}):{contactConfidence:number;contactOutcome:ContactOutcome;isHot:boolean}{const contactConfidence=computeContactConfidence(entity),contactOutcome=computeContactOutcome(entity),directTarget=entity.type==="HNWI"||entity.type==="Gatekeeper";return{contactConfidence,contactOutcome,isHot:directTarget&&contactOutcome==="direct_contact_verified"&&hasMeaningfulDirectContact(entity)};}
-export function computeContactOutcome(entity:{type?:string|null;email?:string|null;phone?:string|null;linkedinUrl?:string|null;twitterHandle?:string|null;instagramHandle?:string|null;telegramHandle?:string|null;website?:string|null;bizLocation?:string|null;validatedDirectContact?:boolean;emailSource?:string|null;phoneSource?:string|null;isGenericPrefix?:boolean;metadata?:string|Record<string,unknown>|null}):ContactOutcome{const emailStr=entity.email?.trim()??"",phoneStr=entity.phone?.trim()??"",orgVehicle=["Corporation","Corp","Trust"].includes(entity.type??"");if(orgVehicle){if(emailStr||phoneStr)return"organization_contact";if(entity.linkedinUrl?.trim()||entity.twitterHandle?.trim()||entity.instagramHandle?.trim()||entity.telegramHandle?.trim())return"social_only";if(entity.website?.trim()||entity.bizLocation?.trim())return"evidence_only";return"none";}const provenanceInput={email:entity.email,phone:entity.phone,linkedinUrl:entity.linkedinUrl,twitterHandle:entity.twitterHandle,instagramHandle:entity.instagramHandle,telegramHandle:entity.telegramHandle,personalWebsite:entity.website,metadata:entity.metadata};if(hasStrictPersonSpecificInvestigatorProvenance(provenanceInput))return "direct_contact_verified";if(hasExplicitOrganizationInvestigatorProvenance(provenanceInput))return "organization_contact";if(emailStr||phoneStr)return"direct_contact_candidate";if(entity.linkedinUrl?.trim()||entity.twitterHandle?.trim()||entity.instagramHandle?.trim()||entity.telegramHandle?.trim())return"social_only";if(entity.website?.trim()||entity.bizLocation?.trim())return"evidence_only";return"none";}
+export function computeContactOutcome(entity: { type?: string | null; email?: string | null; phone?: string | null; linkedinUrl?: string | null; twitterHandle?: string | null; instagramHandle?: string | null; telegramHandle?: string | null; website?: string | null; bizLocation?: string | null; validatedDirectContact?: boolean; emailSource?: string | null; phoneSource?: string | null; isGenericPrefix?: boolean; metadata?: string | Record<string, unknown> | null }): ContactOutcome {
+  const provenanceInput = {
+    email: entity.email, phone: entity.phone, linkedinUrl: entity.linkedinUrl,
+    twitterHandle: entity.twitterHandle, instagramHandle: entity.instagramHandle,
+    telegramHandle: entity.telegramHandle, personalWebsite: entity.website, metadata: entity.metadata,
+  };
+  if (hasStrictPersonSpecificInvestigatorProvenance(provenanceInput)) return "direct_contact_verified";
+  if (hasExplicitOrganizationInvestigatorProvenance(provenanceInput)) return "organization_contact";
+  if (entity.email?.trim() || entity.phone?.trim()) return "evidence_only";
+  if (entity.linkedinUrl?.trim() || entity.twitterHandle?.trim() || entity.instagramHandle?.trim() || entity.telegramHandle?.trim()) return "social_only";
+  if (entity.website?.trim() || entity.bizLocation?.trim()) return "evidence_only";
+  return "none";
+}
