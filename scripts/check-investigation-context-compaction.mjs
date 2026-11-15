@@ -72,9 +72,10 @@ const checks = [
     const uiObjective = objectiveLiteral(launchUi);
     const apiObjective = objectiveLiteral(launchDefaults);
     return Boolean(uiObjective)
-      && uiObjective.includes("Discover lesser-known people with credible wealth potential and public/professional routes.")
-      && uiObjective.length <= 1_202
-      && uiObjective.includes("use only human-specified geography")
+      && uiObjective.includes("Identify potential investors and other objective-fit people, companies, assets")
+      && uiObjective.includes("The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping")
+      && uiObjective.includes("Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss")
+      && !uiObjective.includes("use only human-specified geography")
       && apiObjective === uiObjective
       && launchDefaults.includes("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
       && canonicalDiscovery.includes("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE")
@@ -82,7 +83,7 @@ const checks = [
   })()],
   ["human case objective has explicit verbatim protection markers", source.includes("VERBATIM_CASE_OBJECTIVE_BEGIN") && source.includes("VERBATIM_CASE_OBJECTIVE_END") && source.includes("export function buildAuthoritativeCaseObjectiveBlock") && source.includes("containsVerbatimCaseObjective")],
   ["canonical Investigator prompt separates the complete objective from auxiliary context and appends the latest action plus complete fetched evidence", core.includes("buildAuthoritativeCaseObjectiveBlock(input.objective)") && core.includes("authoritativeCaseObjective") && core.includes("objective: \"\"") && core.includes("const composedPrompt = [") && core.includes("activeBossScopeSection") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
-  ["actual Investigator system prompt frames wealth labels as non-evidence and requires a model-owned falsifiable public-evidence hypothesis", investigatorSystemCore.includes("MISSION:") && investigatorSystemCore.includes("HNWI/wealth/success labels are not evidence") && investigatorSystemCore.includes("MODEL-OWNED RELEVANCE:") && investigatorSystemCore.includes("Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved.") && investigatorSystemCore.includes("Apply only mission-specific evidence standards; do not invent extra criteria.")],
+  ["actual Investigator system prompt frames wealth labels as non-evidence and requires a model-owned falsifiable public-evidence hypothesis", investigatorSystemCore.includes("MISSION:") && investigatorSystemCore.includes("HNWI/wealth/success labels are not evidence") && investigatorSystemCore.includes("MODEL-OWNED RELEVANCE:") && investigatorSystemCore.includes("HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved.") && investigatorSystemCore.includes("No unrequested criteria; generic nouns are not queries.")],
   ["full Investigator prompt retains objective, Boss scope, complete fetched evidence and bounded unverified search context without size-driven emergency tiers", core.includes("const composedPrompt = [") && core.includes("authoritativeCaseObjective") && core.includes("activeBossScopeSection") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
   ["emergency prompt sizing remains advisory while objective and output contracts remain intact", core.includes("authoritativeCaseObjective") && core.includes("containsVerbatimCaseObjective") && core.includes("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)") && !/Cannot preserve the complete human case objective within maxPromptChars/.test(core)],
   ["actual Investigator system prompt preserves autonomous hypothesis and source choice without a fixed source or action itinerary", investigatorSystemCore.includes("No fixed source/provider/registry order or itinerary. No mandatory mix.") && investigatorSystemCore.includes("Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification by evidence, information gain and cost.") && investigatorSystemCore.includes("source classes are context, not gates.") && core.includes("SEARCH ACTIVITY (informational only; no fixed search cap)") && !core.includes("MAX_DISCOVERY_SEARCH_ACTIONS")],
