@@ -6,13 +6,12 @@
  */
 /**
  * Admit discovery-agent candidates into the ledger (person entities, review notes).
- * Uses target-fitness fame/shell gates only for the legacy non-model-selected path.
+ * Preserves caller-selected leads without lexical fitness scoring or semantic vetoes.
  */
 import { db, entitiesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { isWellFormedPersonCandidate, type DiscoveryCandidate } from "./discovery-agent";
 import { logger } from "./logger";
-import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
 
 /**
  * Registry/public-source identity is only a candidate admission. Wealth and
@@ -45,16 +44,6 @@ export async function createEntityFromDiscoveryCandidate(
     }
   }
 
-  const fitness = options.modelSelected
-    ? null
-    : evaluateTargetFitness({
-      name,
-      notes: [c.basis, c.role, c.company].filter(Boolean).join(" | "),
-    });
-  if (fitness && shouldRejectTarget(fitness)) {
-    logger.info({ name, fit: fitness.fit, reasons: fitness.reasons }, "[discovery-agent-admit] rejected by fitness");
-    return null;
-  }
 
   const existing = await db
     .select({ id: entitiesTable.id })
@@ -68,7 +57,6 @@ export async function createEntityFromDiscoveryCandidate(
     c.role ? `Role: ${c.role}` : null,
     c.company ? `Company: ${c.company}` : null,
     c.sourceUrls?.length ? `Sources: ${c.sourceUrls.slice(0, 4).join(" | ")}` : null,
-    fitness ? `Fitness: ${fitness.fit} (${fitness.reasons.slice(0, 2).join("; ")})` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -80,7 +68,6 @@ export async function createEntityFromDiscoveryCandidate(
       type: DISCOVERY_CANDIDATE_CLASSIFICATION.type,
       // Do not synthesize a discovery score. Model-selected admission preserves
       // model order; the value below is only a neutral seed for legacy list UI.
-      bayesianScore: options.modelSelected ? 0.2 : Math.max(0.2, Math.min(0.45, fitness?.score ?? 0.2)),
       notes,
       sourceRegistries: JSON.stringify(["discovery-agent"]),
       metadata: JSON.stringify({
@@ -93,7 +80,6 @@ export async function createEntityFromDiscoveryCandidate(
         promotionReason: c.promotionReason,
         reviewOnly: DISCOVERY_CANDIDATE_CLASSIFICATION.reviewOnly,
         wealthStatus: DISCOVERY_CANDIDATE_CLASSIFICATION.wealthStatus,
-        ...(fitness ? { fitness: fitness.fit } : {}),
       }),
       contactConfidence: 0,
       contactOutcome: "evidence_only",
