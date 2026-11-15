@@ -908,7 +908,7 @@ Return a structured research report with:
 - evidence of wealth, investment activity, ownership, or influence
 - practical public contact or introduction routes
 - exact supporting source URLs
-- realistic versus merely famous target assessment
+- evidence-based target relevance and practical reachability assessment
 - unresolved identity and attribution questions
 - strongest next research directions
 
