@@ -9,7 +9,7 @@ import { sanitizeUrlsInText } from "./url-privacy";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
-export type IntelligenceSourceClass = "REGULATORY" | "OFFICIAL_COMPANY" | "OFFICIAL_GOVERNANCE" | "OFFICIAL_PERSONAL" | "REPUTABLE_NEWS" | "PROFESSIONAL_DIRECTORY" | "SOCIAL_PROFILE" | "SEARCH_RESULT" | "AGGREGATOR" | "SCRAPED_DIRECTORY" | "UNKNOWN";
+export type IntelligenceSourceClass = "REGULATORY" | "OFFICIAL_COMPANY" | "OFFICIAL_GOVERNANCE" | "OFFICIAL_PERSONAL" | "REPUTABLE_NEWS" | "PROFESSIONAL_DIRECTORY" | "SOCIAL_PROFILE" | "SEARCH_RESULT" | "AGGREGATOR" | "SCRAPED_DIRECTORY" | "COMMUNITY_OBSERVATION" | "UNKNOWN";
 export type IntelligenceClaimStatus = "supported" | "contradicted" | "unresolved";
 export type ContactEvidenceState = "DISCOVERED" | "OBSERVED" | "ATTRIBUTED" | "CORROBORATED" | "VERIFIED" | "STALE" | "CONTRADICTED" | "REJECTED";
 
@@ -187,6 +187,7 @@ function sourceFamily(host: string | null): string {
 }
 function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (!host) return "UNKNOWN";
+  if (hostMatchesDomain(host, "virtualglobetrotting.com")) return "COMMUNITY_OBSERVATION";
   if (["companieshouse.gov.uk", "company-information.service.gov.uk", "sec.gov", "brreg.no", "bodacc.fr", "gleif.org"].some((domain) => hostMatchesDomain(host, domain))) return "REGULATORY";
   if (["linkedin.com", "x.com", "twitter.com", "instagram.com"].some((domain) => hostMatchesDomain(host, domain))) return "SOCIAL_PROFILE";
   if (["crunchbase.com", "pitchbook.com", "opencorporates.com"].some((domain) => hostMatchesDomain(host, domain))) return "PROFESSIONAL_DIRECTORY";
@@ -210,7 +211,7 @@ function tierForHost(host: string | null): IntelligenceSourceTier {
   if (isOfficialGovernmentHost(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
   if (/\.(edu|ac\.[a-z]{2})$/.test(host)) return "B";
   if (/linkedin\.com$|crunchbase\.com$|pitchbook\.com$|wikipedia\.org$/.test(host)) return "C";
-  return "B";
+  return "unknown";
 }
 function hash(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 function clamp(value: number, min = 0, max = 1): number { return Math.max(min, Math.min(max, value)); }
