@@ -37,10 +37,15 @@ export function evaluateIdentityGate(input: {
     return { decision: "review", reason: "Investigator assessed a same-person link, but independent source corroboration is not yet present." };
   }
 
-  const hasStableIdentifier = signals.has("shared_registry_identifier") || signals.has("shared_asset_identifier");
-  const hasAttributableProfile = signals.has("shared_public_profile") && signals.has("shared_affiliation");
-  if (hasStableIdentifier || hasAttributableProfile) {
+  // The model owns which contextual facts matter (career history, roles and
+  // dates, geography, organisations, asset links, transactions, etc.). Do not
+  // require a fixed signal vocabulary such as registry IDs or public profiles:
+  // those are useful evidence types, not an exhaustive identity checklist.
+  // Keep the deterministic boundary limited to independent source coverage
+  // and a non-trivial model-authored evidence basis.
+  const evidenceBasis = [...signals].filter((signal) => typeof signal === "string" && signal.trim().length > 0);
+  if (evidenceBasis.length >= 2) {
     return { decision: "accepted", reason: input.semanticRationale.trim() };
   }
-  return { decision: "review", reason: "The model's same-person assessment lacks an independent stable identifier or corroborated attributable profile." };
+  return { decision: "review", reason: "The model's same-person assessment does not yet cite at least two distinct contextual evidence signals; preserve both records for review." };
 }
