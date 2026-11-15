@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -450,6 +450,51 @@ describe("Groq Investigator runtime contract", () => {
       currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
     })).toEqual({ action: "fail" });
   });
+  it("rejects first-turn completion without evidence but allows completion after a real prior fetch", () => {
+    const premature = [{
+      action: "done",
+      execution: "success",
+      observation: "No evidence",
+      observedUrls: [],
+      findings: [],
+      turn: 1,
+      args: {},
+      model: "openai/gpt-oss-120b",
+      thought: null,
+      leadUrls: [],
+    }] as unknown as Parameters<typeof discoveryTerminalGate>[0];
+    expect(discoveryTerminalGate(premature)).toMatchObject({ allowed: false });
+
+    const afterFetch = [
+      {
+        action: "visit",
+        execution: "success",
+        observation: "Official organization page fetched.",
+        observedUrls: ["https://example.org/about"],
+        findings: [],
+        turn: 1,
+        args: { url: "https://example.org/about" },
+        model: "openai/gpt-oss-120b",
+        thought: null,
+        leadUrls: [],
+      },
+      {
+        action: "done",
+        execution: "success",
+        observation: "Research completed after inspecting a source.",
+        observedUrls: [],
+        findings: [],
+        turn: 2,
+        args: {},
+        model: "openai/gpt-oss-120b",
+        thought: null,
+        leadUrls: [],
+      },
+    ] as unknown as Parameters<typeof discoveryTerminalGate>[0];
+    expect(discoveryTerminalGate(afterFetch)).toMatchObject({ allowed: true, reason: null });
+    expect(hasUsableDiscoveryExternalObservation(afterFetch)).toBe(true);
+  });
+
   it("withholds discovery done until successful external observation", () => {
     const failure = [{ action: "investigator_provider_error", execution: "error", observation: "HTTP_400:json_validate_failed", observedUrls: [] }, { action: "done", execution: "blocked", observation: "No evidence", observedUrls: [] }];
     const emptySearch = [{ action: "web_search", execution: "success", observation: "No usable result returned; no hits", observedUrls: [] }];
