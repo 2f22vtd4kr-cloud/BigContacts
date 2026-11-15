@@ -4,14 +4,7 @@
  * Investigator-selected provisional review cards through this legacy path:
  * its candidate fitness/shape helpers are not the canonical admission policy.
  */
-/**
- * Discovery intake — Replit-safe diversity + approachable-HNWI preference.
- *
- * Goals:
- * - Mix broad web themes and registry rounds without fixed Europe-first bias
- * - Prefer operators / active principals over famous-but-unreachable trophy names
- * - Real public signals only; never invent openness or contacts
- */
+/** Deprecated legacy discovery intake utilities. Canonical investigation strategy belongs to the Investigator and Boss models. */
 
 
 export type DiscoverySourceKind = "broad" | "registry" | "faa";
@@ -41,18 +34,15 @@ export function shuffledCopy<T>(items: readonly T[], random: () => number = Math
  */
 export function sampleBroadCategories(
   sources: readonly DiscoverySource[],
-  count: number,
-  random: () => number = Math.random,
+  _count: number,
+  _random: () => number = Math.random,
 ): Set<number> {
   const broad = sources.filter((s): s is Extract<DiscoverySource, { kind: "broad" }> => s.kind === "broad");
-  const picked = shuffledCopy(broad, random).slice(0, Math.max(1, Math.min(count, broad.length)));
-  return new Set(picked.map((s) => s.category));
+  return new Set(broad.map((s) => s.category));
 }
 
-/**
- * Build the run order: keep a light broad/registry interleave, but shuffle
- * which broad themes and which registry slots appear so each run differs.
- */
+
+/** Legacy compatibility: randomize the supplied source pool without fixed stages or category truncation. */
 export function buildSourcesToRun(input: {
   sources: readonly DiscoverySource[];
   discoveryFirst?: boolean;
@@ -60,39 +50,10 @@ export function buildSourcesToRun(input: {
   includeFaa?: boolean;
   random?: () => number;
 }): DiscoverySource[] {
-  const random = input.random ?? Math.random;
-  const all = input.sources.filter((s) => (s.kind === "faa" ? Boolean(input.includeFaa) : true));
-
-  const broadAll = all.filter((s): s is Extract<DiscoverySource, { kind: "broad" }> => s.kind === "broad");
-  const registryAll = all.filter((s): s is Extract<DiscoverySource, { kind: "registry" }> => s.kind === "registry");
-  const faaAll = all.filter((s): s is Extract<DiscoverySource, { kind: "faa" }> => s.kind === "faa");
-
-  const broadLimit =
-    input.discoveryFirst && input.broadCategories != null && input.broadCategories > 0
-      ? Math.max(1, Math.min(input.broadCategories, broadAll.length))
-      : broadAll.length;
-
-  const broadPicked = shuffledCopy(broadAll, random).slice(0, broadLimit);
-  const registryPicked = shuffledCopy(registryAll, random);
-  const faaPicked = shuffledCopy(faaAll, random);
-
-  // Interleave: prefer pattern B R B R … so intake stays mixed, not all-web then all-registry.
-  const out: DiscoverySource[] = [];
-  const maxLen = Math.max(broadPicked.length, registryPicked.length, faaPicked.length);
-  let faaInserted = false;
-  for (let i = 0; i < maxLen; i++) {
-    if (i < broadPicked.length) out.push(broadPicked[i]!);
-    if (i < registryPicked.length) out.push(registryPicked[i]!);
-    // Optional FAA sprinkle mid-run when enabled — not a required lane
-    if (!faaInserted && faaPicked.length > 0 && i === Math.floor(maxLen / 2)) {
-      out.push(faaPicked[0]!);
-      faaInserted = true;
-    }
-  }
-  if (!faaInserted && faaPicked.length > 0) out.push(faaPicked[0]!);
-
-  return out;
+  const all = input.sources.filter((source) => source.kind !== "faa" || Boolean(input.includeFaa));
+  return shuffledCopy(all, input.random ?? Math.random);
 }
+
 
 /**
  * Deprecated compatibility helpers. The canonical Investigator owns
