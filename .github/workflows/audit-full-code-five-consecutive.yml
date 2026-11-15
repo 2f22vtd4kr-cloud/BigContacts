@@ -54,6 +54,10 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Repository architecture contract suite
         run: pnpm run check:bureau
       - name: Typecheck
@@ -62,10 +66,6 @@ jobs:
         run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Initialize complete Apex database schema and migrations
-        env:
-          APEX_ALLOW_SCHEMA_PUSH: "true"
-        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
