@@ -109,10 +109,10 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
     const observations = observationsFromSourceUrls(supportingUrls, { observedAt, runId, collectionMethod: "agentic-investigator-attribution", idPrefix: `${runId ?? "run"}:claim:${index + 1}` });
     const claim = {
       id: `claim:${runId ?? "run"}:${index + 1}`,
-      subject: finding.personName?.trim() || "organization",
+      subject: finding.personName?.trim() || (finding.scope === "organization" ? "organization" : "unresolved target"),
       predicate: finding.vectorType,
       object: finding.value.trim(),
-      scope: finding.scope === "unknown" ? "organization" : finding.scope,
+      scope: finding.scope === "unknown" ? "target" : finding.scope,
       personName: finding.personName?.trim() || null,
       confidence: null,
     } as const;
