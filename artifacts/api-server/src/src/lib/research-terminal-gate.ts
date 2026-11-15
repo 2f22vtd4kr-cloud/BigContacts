@@ -3,6 +3,13 @@ import type { IntelligenceContext } from "./research-intelligence-engine";
 
 export type TerminalContractMode = "target" | "discovery";
 
+/** A model-selected terminal action is accepted only after the core gate records it. */
+export function isAcceptedInvestigatorTerminal(input: { action: unknown; execution: unknown; stopReason: unknown }): boolean {
+  return input.action === "done"
+    && input.execution === "success"
+    && input.stopReason === "MODEL_DECIDED_DONE";
+}
+
 const EXECUTED_RESEARCH_ACTIONS = new Set([
   "web_search",
   "parallel_web_search",
