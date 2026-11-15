@@ -43,19 +43,18 @@ const SOURCE_AUTHORITY_MAP: Record<string, number> = {
   "phase-j-in-house":    0.45,
 };
 
-// ── Generic/organisation local-part detection ─────────────────────────────────
+// Contact semantics are model-authored. Local-part spelling (for example,
+// "info@" or "support@") is not sufficient to classify a mailbox as shared.
+export type ContactAttributionKind =
+  | "person_specific" | "direct_personal" | "professional_person_specific"
+  | "department" | "shared_inbox" | "assistant_intermediary"
+  | "generic_contact_form" | "organization" | "unknown";
 
-const ORG_LOCAL_PARTS = new Set([
-  "info", "contact", "hello", "admin", "office", "mail", "support",
-  "ir", "media", "press", "noreply", "no-reply", "webmaster", "legal",
-  "careers", "jobs", "billing", "sales", "hr", "enquiries", "helpdesk",
-  "help", "service", "team", "general", "all", "news", "marketing",
-  "customerservice", "customer-service", "client", "clientservices",
-]);
-
-export function isGenericLocalPart(email: string): boolean {
-  const local = email.split("@")[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
-  return ORG_LOCAL_PARTS.has(local);
+function isPersonSpecificAttribution(value: ContactAttributionKind): boolean {
+  return ["person_specific", "direct_personal", "professional_person_specific"].includes(value);
+}
+function isOrganizationAttribution(value: ContactAttributionKind): boolean {
+  return ["department", "shared_inbox", "assistant_intermediary", "generic_contact_form", "organization"].includes(value);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -104,7 +103,7 @@ export function scoreAttribution(params: {
   isValidPhone:    boolean;
   exactClaimObserved?: boolean;
   targetPersonEvidence?: boolean;
-  contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown";
+  contactAttribution?: ContactAttributionKind;
   exactQuotePersonValueBound?: boolean;
 }): AttributionResult {
   const {
@@ -133,28 +132,19 @@ export function scoreAttribution(params: {
   // The caller still has to enforce fetched-source provenance and quote integrity.
   const modelBackedPersonRoute = exactClaimObserved
     && targetPersonEvidence
-    && contactAttribution === "person_specific"
+    && isPersonSpecificAttribution(contactAttribution)
     && exactQuotePersonValueBound;
+  const modelBackedOrganizationRoute = exactClaimObserved && isOrganizationAttribution(contactAttribution);
   if (email && isValidEmail) {
-    validation = isGenericLocalPart(email)
-      ? (modelBackedPersonRoute ? 0.78 : 0.28)
-      : 0.90;
+    validation = modelBackedPersonRoute ? 1.0 : modelBackedOrganizationRoute ? 0.72 : 0.90;
   } else if (phone && isValidPhone) {
-    validation = 0.72;
+    validation = modelBackedPersonRoute ? 1.0 : modelBackedOrganizationRoute ? 0.55 : 0.72;
   }
 
-  // 4. Directness — semantic person-vs-organization attribution is supplied by
-  // the model-backed finding; local-part spelling alone cannot override it.
-  let directness = 0.72;
-  if (["Corporation", "Trust"].includes(entityType)) {
-    if (email && !isGenericLocalPart(email)) directness = 0.60;
-    else if (email) directness = modelBackedPersonRoute ? 0.72 : 0.28;
-    else directness = 0.40;
-  }
-  if (email && isGenericLocalPart(email) && !modelBackedPersonRoute) {
-    directness = Math.min(directness, 0.28);
-  }
-  if (!email && !phone) directness = 0.08;
+  // Directness is an Investigator interpretation, not a mailbox-spelling heuristic.
+  const directness = modelBackedPersonRoute ? 1.0
+    : modelBackedOrganizationRoute ? 0.28
+    : (email || phone) ? 0.55 : 0.08;
 
   // 5. Domain fit — does email domain match resolved employer domain?
   let domainFit = 0.48;  // neutral when no domain context
@@ -200,8 +190,8 @@ export function scoreAttribution(params: {
   const parts: string[] = [];
   if (authority >= 0.85) parts.push("high-authority source");
   if (families.size >= 2) parts.push(`${families.size} independent source families`);
-  if (email && isValidEmail && !isGenericLocalPart(email)) parts.push("personal local-part");
-  if (email && isValidEmail && isGenericLocalPart(email) && modelBackedPersonRoute) parts.push("model-attributed person-specific route with exact source claim");
+  if (modelBackedPersonRoute) parts.push("model-attributed person-specific route with exact source claim");
+  if (modelBackedOrganizationRoute) parts.push(`model-attributed ${contactAttribution} route`);
   if (domainFit >= 0.80 && resolvedDomain) parts.push(`domain match: ${resolvedDomain}`);
   if (score < ATTRIBUTION_THRESHOLD) parts.push("below attribution threshold");
   if (!exactClaimObserved) parts.push("no exact claim URL");
@@ -231,7 +221,7 @@ export function anyAttributed(
     isValidPhone: boolean;
     exactClaimObserved?: boolean;
     targetPersonEvidence?: boolean;
-    contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown";
+    contactAttribution?: ContactAttributionKind;
     exactQuotePersonValueBound?: boolean;
   }>,
 ): boolean {
