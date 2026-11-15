@@ -87,7 +87,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("https://source.example/search-result");
       expect(prompt).toContain("https://source.example/lead-1");
       expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
-      expect(modelPrompt).toContain("MISSION & ROLES: Human objective and constraints govern. Boss sets strategy; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research, interpretation and stopping.");
+      expect(modelPrompt).toContain("MISSION & ROLES: Human objective governs; Boss strategizes, Right-hand challenges; Investigator researches.");
       expect(modelPrompt).toContain("B2B roles need fetched role evidence");
       expect(modelPrompt).toContain("wealth claims need sourced ownership/equity/investment");
       expect(prompt).not.toContain("people are the ultimate mission");
@@ -135,7 +135,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(prompt.length + systemInstruction.length).toBeGreaterThan(8_400);
     expect(prompt.length).toBeGreaterThan(8_400 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
-    expect(prompt).toContain("FETCH: visit reads text/PDF; browser_fetch is HTML-only.");
+    expect(prompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("LATEST_OBSERVATION_SENTINEL");
   });
