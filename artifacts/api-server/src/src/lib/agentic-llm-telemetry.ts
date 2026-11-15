@@ -277,7 +277,7 @@ export async function reserveAgenticLlmDailyBudget(input: {
     return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
   }
   try {
-    const [{ db, agenticLlmDailyUsageTable }, { sql, and, eq }] = await Promise.all([
+    const [{ db, agenticLlmDailyUsageTable }, { sql }] = await Promise.all([
       import("@workspace/db"),
       import("drizzle-orm"),
     ]);
