@@ -135,7 +135,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(prompt.length + systemInstruction.length).toBeGreaterThan(8_400);
     expect(prompt.length).toBeGreaterThan(8_400 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
-    expect(prompt).toContain("FETCH: visit extracts text/PDF; browser_fetch is HTML-only.");
+    expect(prompt).toContain("FETCH: visit reads text/PDF; browser_fetch is HTML-only.");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("LATEST_OBSERVATION_SENTINEL");
   });
