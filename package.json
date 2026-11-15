@@ -31,7 +31,7 @@
     "check:investigator-identity-boundary": "node scripts/check-investigator-identity-boundary.mjs",
     "check:ui-source-boundary-idempotence": "node scripts/check-investigator-ui-source-boundary-idempotence.mjs",
     "check:investigator-provider-selection": "node scripts/check-investigator-provider-selection.mjs",
-    "check:agentic-efficiency": "node scripts/check-agentic-llm-efficiency.mjs",
+    "check:agentic-efficiency": "node scripts/check-agentic-llm-efficiency.mjs && node scripts/check-investigator-prompt-budget.mjs",
     "check:target-agent-context": "node scripts/check-target-agent-context-boundary.mjs",
     "check:target-investigator-autonomy": "node scripts/check-target-investigator-autonomy.mjs",
     "check:atlas-control-durability": "node scripts/check-atlas-control-durability.mjs",
