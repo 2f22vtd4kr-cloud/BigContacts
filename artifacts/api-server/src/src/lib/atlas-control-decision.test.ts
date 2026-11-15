@@ -39,7 +39,7 @@ function pinnedStateWithUnfetchedLead(): string {
     },
     admittedCandidates: [],
     findings: [],
-    missionBudget: { investigatorActionsUsed: 5, globalActionsRemaining: 3, discoveryActionsRemaining: 0, discoverySearchActionsUsed: 2, discoverySearchActionsRemaining: 0, targetResearchReserveRemaining: 2 },
+    missionBudget: { investigatorActionsUsed: 5, globalActionsRemaining: 3, discoveryActionsRemaining: 0, discoverySearchActionsUsed: 2, targetResearchReserveRemaining: 2 },
   });
 }
 
@@ -71,11 +71,12 @@ describe("Atlas control-plane lead continuity", () => {
     expect(atlasRegistryFeasibilityLaw()).toContain("not a natural-person shareholder or beneficial-owner search");
     expect(atlasRegistryFeasibilityLaw()).toContain("must never be described as surfacing disclosed owners/shareholders");
   });
-  it("pins executable action budgets so supervisors cannot confuse local and global limits", () => {
+  it("pins global runtime safeguards while treating search counts as informational", () => {
     const pinned = pinnedStateWithUnfetchedLead();
-    expect(pinned).toContain("AUTHORITATIVE EXECUTABLE ACTION BUDGET");
+    expect(pinned).toContain("AUTHORITATIVE EXECUTION STATE");
     expect(pinned).toContain('"globalActionsRemaining":3');
-    expect(pinned).toContain('"discoverySearchActionsRemaining":0');
+    expect(pinned).toContain('"discoverySearchActionsUsed":2');
+    expect(pinned).not.toContain('"discoverySearchActionsRemaining"');
   });
 
   it("preserves explicitly unfetched search leads in the compact Investigator report", () => {
