@@ -58,7 +58,7 @@ export function assessIdentityCollision(input: {
     };
   }
   if (!Array.isArray(input.sourceUrls) || input.sourceUrls.length === 0) {
-    return { risk: true, identityMatch: 0.3, assessment: "unresolved", reason: "identity has no cited source" };
+    return { risk: true, assessment: "unresolved", reason: "identity has no cited source" };
   }
   // Source class is retained in provenance and interpreted contextually by
   // the models; do not hard-exclude a source domain with a static allow/deny
@@ -69,12 +69,12 @@ export function assessIdentityCollision(input: {
   // are simply ineligible for irreversible card promotion.
   if (input.identityAssessment === "same_person") {
     if (!input.identityRationale?.trim()) {
-      return { risk: true, identityMatch: 0.5, assessment: "unresolved", reason: "same-person assessment lacks a model-authored rationale" };
+      return { risk: true, assessment: "unresolved", reason: "same-person assessment lacks a model-authored rationale" };
     }
-    return { risk: false, identityMatch: 1, assessment: "same_person", reason: null };
+    return { risk: false, assessment: "same_person", reason: null };
   }
   if (input.identityAssessment === "different_people") {
-    return { risk: true, identityMatch: 0, assessment: "different_people", reason: input.identityRationale?.trim() || "Investigator assessed these as different people" };
+    return { risk: true, assessment: "different_people", reason: input.identityRationale?.trim() || "Investigator assessed these as different people" };
   }
   return unresolved;
 }
