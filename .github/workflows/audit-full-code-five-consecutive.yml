@@ -23,6 +23,8 @@ concurrency:
 env:
   PNPM_VERSION: 9.15.9
   RUN_LIVE_API_TESTS: "true"
+  # Exercise local HTTP routes only; external registry/OSINT providers remain disabled in CI.
+  RUN_LIVE_PROVIDER_TESTS: "false"
   # Prompt-audit tests inject their own env; prevent inherited capture from blocking provider mocks.
   APEX_CAPTURE_MODEL_PROMPTS: "false"
   APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
