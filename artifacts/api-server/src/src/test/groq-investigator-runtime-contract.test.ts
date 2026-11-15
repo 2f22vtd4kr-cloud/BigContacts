@@ -322,10 +322,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders).");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
-    expect(submitted).toContain("Apply only mission-specific evidence standards; do not invent extra criteria. Adjectives/generic nouns are not queries.");
+    expect(submitted).toContain("No human-unrequested criteria; adjectives/nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
-    expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, meaning, contact attribution and priority.");
-    expect(submitted).toContain("fame, wealth, seniority, company size, listing status, sector, geography, language and source classes are context, not gates.");
+    expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(submitted).toContain("Wealth, fame, seniority, size, listing, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop only at defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion.");
     expect(submitted).toContain("parallel_web_search items require query and provider; locale/market are optional and registry is omitted.");
     expect(submitted).toContain("parallel_registry_search items require query and registry; provider/locale/market are omitted.");
