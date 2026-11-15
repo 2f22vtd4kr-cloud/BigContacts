@@ -55,7 +55,7 @@ assert(
   "canonical research/control paths must not reintroduce deterministic secondary-surface expansion or the legacy contact persistence module",
 );
 assert(hasAll(target, [
-  'const promotionSupported = isCandidate && attribution === "person_specific" && Boolean(finding.exactQuote?.trim())',
+  'const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim()) && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim())',
   'promote: promotionSupported && finding.promotionDecision === "promote"',
   "state: \"review_only\"",
   "tier: \"candidate\"",
