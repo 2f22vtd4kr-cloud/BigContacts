@@ -318,7 +318,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
-    expect(submitted).toContain("expectedInformationGain is a finite number in [0,1]");
+    expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("Omit action-irrelevant optional fields rather than sending null placeholders");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
