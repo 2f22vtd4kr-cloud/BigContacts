@@ -63,6 +63,10 @@ describe("Agentic LLM daily token accounting", () => {
       promptChars: 1200,
       systemPromptChars: 800,
       userPromptChars: 400,
+      totalPromptChars: 1200,
+      responseFormatChars: 900,
+      totalRequestChars: 2100,
+      estimatedPromptTokens: 618,
       status: 200,
       success: true,
       promptTokens: 300,
@@ -84,6 +88,16 @@ describe("Agentic LLM daily token accounting", () => {
     const payload = JSON.parse(String(log.mock.calls[0]?.[0]));
     expect(payload).not.toHaveProperty("prompt");
     expect(payload).not.toHaveProperty("completion");
-    expect(payload).toMatchObject({ provider: "groq", role: "investigator", model: "openai/gpt-oss-20b" });
+    expect(payload).toMatchObject({
+      provider: "groq",
+      role: "investigator",
+      model: "openai/gpt-oss-20b",
+      systemPromptChars: 800,
+      userPromptChars: 400,
+      totalPromptChars: 1200,
+      responseFormatChars: 900,
+      totalRequestChars: 2100,
+      estimatedPromptTokens: 618,
+    });
   });
 });
