@@ -22,6 +22,7 @@ type PersistedInvestigatorContactAttribution = {
   contactAttribution?: unknown;
   exactQuote?: unknown;
   identityAssessment?: unknown;
+  identityRationale?: unknown;
   sourceUrls?: unknown;
   jobId?: unknown;
 };
