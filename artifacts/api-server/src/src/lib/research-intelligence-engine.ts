@@ -242,7 +242,7 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const sourceAttribution = input.args?.sourceAttribution && typeof input.args.sourceAttribution === "object"
       ? input.args.sourceAttribution as Record<string, unknown>
@@ -335,7 +335,7 @@ export class ResearchIntelligenceEngine {
         const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
         const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
         const wholeClaimSupported = !finding.personName
-          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || ["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "")));
+          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || (["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "") && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim()))));
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
@@ -359,6 +359,8 @@ export class ResearchIntelligenceEngine {
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
         const locallyBound = ["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "")
+          && finding.identityAssessment === "same_person"
+          && Boolean(finding.identityRationale?.trim())
           && supportedSources.some((source) => source.binding === "identity_and_value");
         const attributionUrls = supportedSources.filter((source) => source.binding === "identity_and_value").map((source) => source.url);
         this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
