@@ -119,7 +119,7 @@ export async function runTargetResearch(
     await recordResearchAudit(session.id, [
       {
         algo: "L0 — Reachability Realism Preflight",
-        contribution: `${reachability.status} target · ${reachability.score}/100`,
+        contribution: `${reachability.status} targetability context · ${reachability.evidence.length} stored observations; no eligibility score assigned`,
         status: "done",
       },
       {
