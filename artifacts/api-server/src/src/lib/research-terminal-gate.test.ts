@@ -7,7 +7,7 @@ function context(input: {
   independentSourceUnits?: number;
   openQuestions?: string[];
   contradictions?: Array<{ claim: string; evidenceIds: string[]; sources: string[] }>;
-  recentActions?: Array<{ action: string; execution: string }>;
+  recentActions?: Array<{ action: string; execution: string; args?: Record<string, unknown> }>;
 } = {}): IntelligenceContext {
   return {
     evidenceCount: input.evidenceCount ?? 0,
@@ -31,12 +31,12 @@ describe("research-stage terminal contracts", () => {
     expect(defaultTerminalContract("discovery").allowHighSeverityContradictions).toBe(Number.MAX_SAFE_INTEGER);
   });
 
-  it("does not impose fixed evidence, source-count, falsification or open-question thresholds on target research", () => {
+  it("requires independent sources and falsification without imposing an open-question quota on target research", () => {
     expect(defaultTerminalContract("target")).toEqual({
       minEvidence: 0,
-      minIndependentSourceUnits: 0,
+      minIndependentSourceUnits: 2,
       requireExactSpanForFindings: false,
-      requireFalsification: false,
+      requireFalsification: true,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     });
@@ -50,7 +50,7 @@ describe("research-stage terminal contracts", () => {
 
   it("allows the Investigator to stop after a successful external research attempt even when no result was found", () => {
     const state = context({
-      recentActions: [{ action: "web_search", execution: "success" }],
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to the current executive role" } }],
     });
     expect(hasSuccessfulExternalResearchAttempt(state)).toBe(true);
     const result = evaluateResearchTerminal(state, "target");
@@ -59,13 +59,19 @@ describe("research-stage terminal contracts", () => {
   });
 
   it("allows completion when genuine evidence already exists in the current case", () => {
-    const result = evaluateResearchTerminal(context({ evidenceCount: 1 }), "target");
+    const result = evaluateResearchTerminal(context({
+      evidenceCount: 1,
+      independentSourceUnits: 2,
+      recentActions: [{ action: "visit", execution: "success", args: { purpose: "seek counterevidence and disprove the current executive role" } }],
+    }), "target");
     expect(result.allowed).toBe(true);
   });
 
   it("does not force the Investigator to close every open question or erase contradictions before stopping", () => {
     const result = evaluateResearchTerminal(context({
       evidenceCount: 1,
+      independentSourceUnits: 2,
+      recentActions: [{ action: "visit", execution: "success", args: { purpose: "seek counterevidence and disprove the current executive role" } }],
       openQuestions: ["Beneficial ownership remains unresolved", "A historical role may have ended"],
       contradictions: [{
         claim: "The role is current",

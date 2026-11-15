@@ -37,6 +37,9 @@ export function hasSuccessfulFalsificationAttempt(context: IntelligenceContext):
     if (action.action === "parallel_web_search" || action.action === "parallel_registry_search") {
       const searches = Array.isArray(args.searches) ? args.searches : [];
       const outcomes = Array.isArray(args.searchOutcomes) ? args.searchOutcomes : null;
+      // Without per-query outcomes a successful batch cannot prove that this
+      // particular falsification query reached and completed at the provider.
+      if (!outcomes) continue;
       for (const search of searches) {
         if (!search || typeof search !== "object" || Array.isArray(search)) continue;
         const query = actionText((search as Record<string, unknown>).query);
