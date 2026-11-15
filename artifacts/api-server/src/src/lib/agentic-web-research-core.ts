@@ -5454,7 +5454,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     + cues.join(" ")
     + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
 }
-/** Preserve short names only when the exact name and role are co-bound in one fetched source. */
+/** Match exact name tokens; only unspaced-script names need role co-binding to disambiguate substrings. */
 export function candidateIdentitySourceBound(personName: string, role: string | null | undefined, observation: string): boolean {
   const normalizedName = normalizeCandidateIdentityName(personName);
   if (!normalizedName) return false;
@@ -5463,10 +5463,8 @@ export function candidateIdentitySourceBound(personName: string, role: string | 
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
   if (candidateIdentityObserved(personName, identityText)) return true;
 
-  const codePoints = Array.from(normalizedName);
-  if (codePoints.length >= 3 || !role?.trim()) return false;
   const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
-  if (codePoints.length === 1 && !unspacedNameScript.test(personName)) return false;
+  if (!unspacedNameScript.test(personName) || !role?.trim()) return false;
   const span = bindExactSourceSpan(observation, role.trim(), personName);
   if (!span?.exact) return false;
   const spanText = span.text.toLowerCase();
