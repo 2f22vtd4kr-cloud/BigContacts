@@ -4851,7 +4851,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 700) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 450) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
       const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
