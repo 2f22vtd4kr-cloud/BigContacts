@@ -322,7 +322,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("Omit action-irrelevant optional fields rather than sending null placeholders");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
-    expect(submitted).toContain("Do not impose criteria the human did not request");
+    expect(submitted).toContain("Apply only mission-specific evidence standards; do not invent extra criteria.");
     expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
     expect(submitted).toContain("Models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority");
     expect(submitted).toContain("Sector, geography, fame, wealth, seniority, company size, listing status, language, terminology and source class are context, not gates");
