@@ -1760,6 +1760,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
     const valid = value.searches as Array<Record<string, unknown>>;
     if (valid.some((item) => !cleanText(item.query, 300) || !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20)))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
+    if (valid.some((item) => item.registry !== undefined && item.registry !== null)) return "invalid_action_arguments action=parallel_web_search invalid=registry";
   } else if (action === "parallel_registry_search") {
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_registry_search missing=searches";
     if (value.searches.length < 1) return "invalid_action_arguments action=parallel_registry_search searches_min=1";
