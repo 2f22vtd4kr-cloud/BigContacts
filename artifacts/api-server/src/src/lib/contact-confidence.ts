@@ -66,7 +66,7 @@ function hasStrictPersonSpecificInvestigatorProvenance(input: {
     attribution
     && ["person_specific","direct_personal","professional_person_specific"].includes(String(attribution.contactAttribution ?? ""))
     && typeof attribution.personName === "string" && attribution.personName.trim()
-    && typeof attribution.exactQuote === "string" && attribution.exactQuote.includes(attribution.personName) && attribution.exactQuote.includes(String(attribution.value ?? ""))
+    && typeof attribution.exactQuote === "string" && attribution.exactQuote.toLocaleLowerCase().includes(attribution.personName.toLocaleLowerCase()) && attribution.exactQuote.toLocaleLowerCase().includes(String(attribution.value ?? "").toLocaleLowerCase())
     && attribution.identityAssessment === "same_person"
     && typeof attribution.identityRationale === "string" && attribution.identityRationale.trim()
     && Array.isArray(attribution.sourceUrls) && attribution.sourceUrls.length > 0
