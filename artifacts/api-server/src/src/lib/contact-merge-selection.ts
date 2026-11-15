@@ -17,6 +17,8 @@ export type SelectedMergeContactEvidence = {
   phone: string | null;
   /** Source label from the same entity row that supplied the selected phone. */
   phoneSource: string | null;
+  /** Metadata from the same entity row that supplied the selected phone. */
+  phoneMetadata: string | null;
 };
 
 /**
@@ -44,5 +46,6 @@ export function selectMergedContactEvidence(
     emailSource: emailOwner?.emailSource ?? null,
     phone,
     phoneSource: phoneOwner?.phoneSource ?? null,
+    phoneMetadata: phoneOwner?.metadata ?? null,
   };
 }
