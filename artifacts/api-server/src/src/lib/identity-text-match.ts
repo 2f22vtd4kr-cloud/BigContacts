@@ -29,5 +29,5 @@ export function candidateIdentityObserved(personName: string, observation: unkno
   }
 
   const normalizedText = normalizeCandidateIdentityName(rawText);
-  return \` \${normalizedText} \`.includes(\` \${normalizedName} \`);
+  return (" " + normalizedText + " ").includes(" " + normalizedName + " ");
 }
