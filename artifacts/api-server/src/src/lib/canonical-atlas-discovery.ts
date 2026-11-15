@@ -1772,85 +1772,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. Right-hand advises; Boss
     // receives that advice and makes the final opening control decision.
-    failureStage = "right_hand_opening_review";
-    const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
-      runGroqRightHandFreeJson(
-        `Independently review the exact human objective and opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. LIVE RANDOMIZED REGISTRY CATALOG: ${atlasRegistryFeasibilityLaw()}. Recommend a small objective-compatible source mix in focusLanes using only runtime-callable IDs/families from this catalog (for example registry:<id> and public_web). Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead. The human mission and realistic-targetability rules govern. Assess whether a relevant registry/asset-register route should be combined with independent public-web discovery, and explain any concrete reason to omit either. Do not impose a fixed order or itinerary. The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point. You cannot browse and must not treat confidence as evidence. Do not select the Investigator or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start the normal mixed-source discovery phase or stop. A disagreement is advice, not a veto. Return exactly one JSON object with exactly these keys: decision (non-empty string), reason (non-empty string; use "reason", not "rationale"), focusLanes (array of at most 8 strings), and confidence (number from 0 to 1; do not use low/medium/high labels).`,
-        "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
-        ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
-        (raw) => {
-          try {
-            const value: unknown = JSON.parse(raw);
-            const parsed = value && typeof value === "object" && !Array.isArray(value)
-              ? value as Record<string, unknown>
-              : null;
-            return normalizeAtlasOpeningRightHandReview(parsed) !== null;
-          } catch {
-            return false;
-          }
-        },
-        { jobId: atlasJobId, caseId: discoveryCaseId },
-        {
-          maxCompletionTokens: 1_024,
-          reasoningEffort: "low",
-          maxAttempts: 4,
-          generationBudgetRecovery: {
-            maxCompletionTokens: 1_536,
-            reasoningEffort: "low",
-          },
-        },
-      ),
-    ).catch((error) => ({
-      status: "unavailable" as const,
+    // No source observations, candidates, proposed stops or pivots exist yet.
+    // Defer the independent Right-hand review until the Investigator creates a
+    // consequential decision worth challenging; avoid a low-information
+    // startup call that consumes the same daily model budget as research.
+    const rightHand = {
+      status: "deferred" as const,
       model: "none",
-      raw: null,
-      error: safeThrownErrorSummary("Groq Right-hand opening advice unavailable", error),
-    }));
-    await assertAtlasJobActive(atlasJobId);
-
-    let rightHand: {
-      status: "completed" | "unavailable";
-      model: string;
-      decision: string | null;
-      reason: string | null;
-      focusLanes: string[];
-      confidence: number | null;
-      error: string | null;
-    } = {
-      status: "unavailable",
-      model: rightHandRaw.model,
       decision: null,
-      reason: null,
-      focusLanes: [],
-      confidence: null,
-      error: rightHandRaw.error ?? "Right-hand returned no usable opening advice.",
+      reason: "Deferred until the Investigator produces source observations or a consequential stop, admission, pivot, identity, or contradiction decision.",
+      focusLanes: [] as string[],
+      confidence: null as number | null,
+      error: null as string | null,
     };
-    if (rightHandRaw.status === "completed" && rightHandRaw.raw?.trim()) {
-      try {
-        const value: unknown = JSON.parse(rightHandRaw.raw);
-        const parsed = value && typeof value === "object" && !Array.isArray(value)
-          ? value as Record<string, unknown>
-          : null;
-        const normalized = normalizeAtlasOpeningRightHandReview(parsed);
-        if (normalized) {
-          rightHand = {
-            status: "completed",
-            model: rightHandRaw.model,
-            decision: normalized.decision as string,
-            reason: normalized.reason as string,
-            focusLanes: normalized.focusLanes as string[],
-            confidence: normalized.confidence as number,
-            error: null,
-          };
-        } else {
-          rightHand.error = "Right-hand returned an invalid advisory review contract.";
-        }
-      } catch {
-        rightHand.error = "Right-hand returned invalid JSON.";
-      }
-    } else if (rightHandRaw.status === "completed") {
-      rightHand.error = "Right-hand returned an empty opening advice response.";
-    }
+    await assertAtlasJobActive(atlasJobId);
 
     // Persist the review exactly as an advisory observation. An unavailable
     // review is also recorded; it is not an automatic stop/veto.
@@ -1879,10 +1814,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         iteration: nextIteration,
         actorRole: "right_hand",
         eventType: "observation",
-        status: rightHand.status === "completed" ? "recorded" : "unavailable",
+        status: rightHand.status === "completed" ? "recorded" : rightHand.status === "deferred" ? "deferred" : "unavailable",
         summary: rightHand.status === "completed"
           ? "Groq Right-hand recorded independent advisory observations for Boss's opening decision; advice is not an authorization gate."
-          : "Groq Right-hand opening advice was unavailable; Boss remains responsible for the final opening decision.",
+          : rightHand.status === "deferred"
+            ? "Groq Right-hand review was deferred because no Investigator observation or consequential decision exists yet."
+            : "Groq Right-hand opening advice was unavailable; Boss remains responsible for the final opening decision.",
         correlationKey: `${atlasJobId}:right-hand-opening`,
         payload: JSON.stringify({
           jobId: atlasJobId,
@@ -1919,14 +1856,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         bossInitialReport: null,
         bossInitialDirections: [],
         bossUncertainties: [],
-        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand source-mix advice and make the final Boss decision: start the normal mixed-source discovery phase under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or target directions to adopt yet.",
+        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand source-mix advice and make the final Boss decision: start the normal discovery phase under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or target directions to adopt yet.",
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
         "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
-        "OPENING TARGET / SOURCE-MIX CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Evaluate the live randomized registry catalog and Right-hand source-mix advice; the opening discovery portfolio should combine a materially relevant callable registry/asset-register route with independent public-web discovery when both are available. This is a source-diversity expectation, not a fixed order or itinerary. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator chooses the target and exact source actions autonomously; do not assume a target class or jurisdiction.",
+        "OPENING TARGET / SOURCE-MIX CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Evaluate the available runtime capabilities; Right-hand review is deferred until an Investigator action warrants independent challenge. the opening discovery portfolio should combine a materially relevant callable registry/asset-register route with independent public-web discovery when both are available. This is a source-diversity expectation, not a fixed order or itinerary. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator chooses the target and exact source actions autonomously; do not assume a target class or jurisdiction.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules govern. Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.",
       ].join("\n"),
