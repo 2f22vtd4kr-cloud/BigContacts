@@ -174,11 +174,22 @@ describe("Bureau multi-source attribution", () => {
   });
 
   it("keeps same-person contact fields together across semicolons and pipes", () => {
-    const item = { vectorType: "email", value: "jane.smith@acme.org", personName: "Jane Smith", scope: "candidate", sourceUrls: ["https://acme.org/team"] };
     for (const observationText of [
       "Jane Smith — CFO; email: jane.smith@acme.org",
       "Jane Smith — CFO | email: jane.smith@acme.org",
     ]) {
+      const item = {
+        vectorType: "email",
+        value: "jane.smith@acme.org",
+        personName: "Jane Smith",
+        role: "CFO",
+        scope: "candidate",
+        contactAttribution: "professional_person_specific",
+        identityAssessment: "same_person",
+        identityRationale: "The fetched source names Jane Smith as CFO beside this exact email.",
+        exactQuote: observationText,
+        sourceUrls: ["https://acme.org/team"],
+      };
       expect(supportsContactClaimAcrossObservations([{ observationText, sourceUrls: ["https://acme.org/team"] }], item, item.value, "email")).toBe(true);
     }
   });
@@ -198,7 +209,12 @@ describe("Bureau multi-source attribution", () => {
       vectorType: "email",
       value: "jane.smith@acme.org",
       personName: "Jane Smith",
+      role: "CFO",
       scope: "candidate",
+      contactAttribution: "professional_person_specific",
+      identityAssessment: "same_person",
+      identityRationale: "The fetched source names Jane Smith as CFO beside this exact email.",
+      exactQuote: "Jane Smith — CFO, email: jane.smith@acme.org",
       sourceUrls: ["https://acme.org/team"],
     };
     const observations = [{
