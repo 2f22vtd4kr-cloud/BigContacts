@@ -858,14 +858,16 @@ function buildRegistryEntity(
   const rawMetadata = (() => {
     try {
       const parsed = JSON.parse(result.metadata ?? "{}");
-      return parsed && typeof parsed === "object" ? parsed : {};
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
     } catch {
       return {};
     }
   })();
+  const fingerprint = sourceRecordFingerprint(result.name, jurisdiction, sourceLabel, rawMetadata);
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(persistedType) ? "PersonCandidate" : persistedType;
 
   return {
-    key: dedupKey(result.name, jurisdiction),
+    key: "western:v3:" + fingerprint + ":" + canonicalType,
     entity: {
       name: result.name,
       type: persistedType,
@@ -887,6 +889,7 @@ function buildRegistryEntity(
       sourceRegistries: result.sourceRegistries,
       metadata: JSON.stringify({
         ...rawMetadata,
+        sourceRecordFingerprint: fingerprint,
         lastVerified: undefined,
         source: rawMetadata.source ?? registry,
         registryId: registry,
