@@ -212,10 +212,10 @@ describe("discovery source evidence policy", () => {
       "https://search.yahoo.com/search?p=Jane",
       "https://duckduckgo.com/?q=Jane",
       "https://efts.sec.gov/LATEST/search-index?q=Jane",
-      "https://example.test/search?q=Jane",
       "https://s.jina.ai/search?q=Jane+Example",
     ]) expect(isClaimGradeDiscoverySourceUrl(url)).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
+    expect(isClaimGradeDiscoverySourceUrl("https://example.test/search?q=Jane")).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
   });
 
@@ -234,6 +234,33 @@ describe("discovery source evidence policy", () => {
   it("rejects DuckDuckGo Instant Answer API URLs, including trailing-dot host aliases", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com/?q=Jane+Example&format=json")).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(false);
+  });
+
+  it("accepts official registry observations as exact-quote-backed candidate evidence", () => {
+    const url = "https://registry.example.test/search/person?id=123";
+    const quote = "Anna Example is listed as managing director of Example GmbH.";
+    const result = candidateRoleCorroborationSources({
+      personName: "Anna Example",
+      role: "Managing Director",
+      findings: [{
+        personName: "Anna Example",
+        role: "Managing Director",
+        promotionDecision: "promote",
+        scope: "candidate",
+        sourceUrls: [url],
+        exactQuote: quote,
+      }],
+      observations: [{
+        action: "registry_search",
+        execution: "success",
+        sourceUrl: url,
+        observation: quote,
+        eventId: 41,
+      }],
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
+      normalizeSourceUrl: normalizeSourceUrl,
+    });
+    expect(result).toEqual([{ sourceUrl: url, publisher: "registry.example.test", eventId: 41 }]);
   });
 
   it("preserves short but non-empty model-selected identities in the durable source union", () => {
