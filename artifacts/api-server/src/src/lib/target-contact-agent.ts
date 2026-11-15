@@ -166,9 +166,9 @@ function compactReachabilityControl(raw: string): string {
   const observations = lines
     .filter((line) => line.startsWith("- ") || line.startsWith("TARGETABILITY CONTEXT"))
     .slice(0, 1)
-    .map((line) => line.slice(0, 125));
-  const facts = [status, modeLine?.slice(0, 180) ?? "", ...observations].filter(Boolean);
-  const authority = "MODEL DECISION: Judge relevance and routes against the human objective and source context. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contact values need exact-quote person attribution.";
+    .map((line) => line.slice(0, 80));
+  const facts = [status, modeLine?.slice(0, 110) ?? "", ...observations].filter(Boolean);
+  const authority = "MODEL DECISION: Judge relevance and routes against human objective and sources. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contacts need exact-quote person attribution.";
   return [...facts, authority].join("\n");
 }
 
@@ -180,11 +180,11 @@ export function buildTargetContactInvestigatorObjective(input: {
 }): string {
   // Bound the identity labels and realism annotation before composing the prompt.
   // The substantive research and provenance clauses below are fixed, not sliced.
-  const targetName = input.targetName.trim().replace(/\s+/g, " ").slice(0, 180);
-  const companyName = input.companyName?.trim().replace(/\s+/g, " ").slice(0, 140);
+  const targetName = input.targetName.trim().replace(/\s+/g, " ").slice(0, 160);
+  const companyName = input.companyName?.trim().replace(/\s+/g, " ").slice(0, 120);
   if (input.targetType === "asset") {
     const assetObjective = [
-      `Research the exact public asset or asset record ${targetName.slice(0, 140)}${companyName ? ` (seed association: ${companyName.slice(0, 90)})` : ""}.`,
+      `Research the exact public asset or asset record ${targetName.slice(0, 120)}${companyName ? ` (seed association: ${companyName.slice(0, 80)})` : ""}.`,
       compactReachabilityControl(input.reachabilityControl),
       "Verify public asset identity, type, registration/manufacturer, jurisdiction, status, source date and historical/current distinction.",
       "Separate registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared interests. A registered owner or operator is not automatically the beneficial owner; follow person/entity links only when the source states them.",
@@ -232,10 +232,10 @@ export function buildTargetContactInvestigatorObjective(input: {
   const compactSections = [
     `Target: ${targetName}. Company: ${companyName || "case record"}. Investigate the person, not generic company contacts.`,
     sections[1]!,
-    "Verify identity, role, employer and aliases. For wealth potential, require a public source documenting a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting. No fixed checklist; Investigator chooses actions from evidence.",
-    "Seek public, attributable profiles on LinkedIn, Facebook, Instagram, X/Twitter, Telegram, official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
+    "Verify identity, role and employer. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting. No fixed checklist; Investigator chooses from evidence.",
+    "Seek public, attributable profiles on LinkedIn, Facebook, Instagram, X/Twitter, Telegram and official bios; corroborate name with role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Follow documented family/associate ties only when they clarify ownership/control or an intermediary route; never infer from surnames, co-location, follows or social proximity.",
-    "Classify routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Shared/unknown routes remain review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
+    "Classify routes explicitly. Promote only direct_personal or professional_person_specific (legacy person_specific) with same-person rationale, verbatim exactQuote and fetched source. Keep shared/unknown review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
   if (compactObjective.length > 1_900) {
