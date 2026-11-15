@@ -2829,7 +2829,8 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap): 24 outbound search actions observed.");
+    expect(prompt).not.toContain("SEARCH ACTIVITY");
+    expect(prompt).not.toContain("fixed search cap");
   });
 
   it("counts only executed outbound searches for observability, without blocking later model-selected searches", () => {
@@ -2859,16 +2860,16 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain(objective);
-    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
-    expect(prompt).toContain("The Investigator chooses further searches, fetches, pivots and stopping by expected information gain.");
-    expect(modelPrompt).toContain("do not force a mixed-source batch or a registry-first order");
-    expect(modelPrompt).toContain("FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist");
+    expect(prompt).not.toContain("SEARCH ACTIVITY");
+    expect(modelPrompt).toContain("AUTONOMY:");
+    expect(modelPrompt).toMatch(/no mandatory mix|No fixed source\/provider\/registry order/i);
+    expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
     expect(modelPrompt).toContain("criteria depend on the mission");
-    expect(modelPrompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
+    expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("scope=organization");
   });
 
