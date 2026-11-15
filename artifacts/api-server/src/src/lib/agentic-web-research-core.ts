@@ -2683,7 +2683,7 @@ async function callGroqJson(
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
             rateLimitRemainingTokens: rateLimits.remainingTokens,
-            promptTokenEstimate: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
+            promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
           });
           if (recovery.action === "increase_completion_budget") {
             // Truncation is an output-capacity failure, not a key or quota failure.
@@ -2789,7 +2789,7 @@ async function callGroqJson(
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
             rateLimitRemainingTokens: rateLimits.remainingTokens,
-            promptTokenEstimate: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
+            promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
             finishReason,
           });
           if (recovery.action === "increase_completion_budget") {
