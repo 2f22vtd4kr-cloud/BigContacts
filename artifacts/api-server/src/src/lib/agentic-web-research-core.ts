@@ -317,9 +317,10 @@ export function buildDiscoveryLeadUtilizationState(
           resultExcerpts.push({ provider: currentProvider, excerpt });
         }
       }
-      // A mixed parallel batch must not let one provider crowd the others
-      // out of bounded context. Preserve the first available result from each
-      // provider in the order requested by the search action.
+      // Preserve representative context from providers the Investigator actually
+      // selected, without prescribing a provider mix or a research sequence.
+      // For a single provider, retain both ends so a useful later result is not
+      // silently discarded merely because it followed generic search results.
       const rawSearches = record.args?.searches;
       const providerOrder = Array.isArray(rawSearches)
         ? rawSearches.flatMap((search) => {
@@ -331,8 +332,15 @@ export function buildDiscoveryLeadUtilizationState(
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
       const selectedExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
       for (const provider of providers) {
-        const first = resultExcerpts.find((item) => item.provider === provider);
-        if (first) selectedExcerpts.push(first);
+        const matching = resultExcerpts.filter((item) => item.provider === provider);
+        if (matching.length) selectedExcerpts.push(matching[0]!);
+      }
+      for (const provider of providers) {
+        const matching = resultExcerpts.filter((item) => item.provider === provider);
+        const last = matching.at(-1);
+        if (last && last !== matching[0] && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 420) {
+          selectedExcerpts.push(last);
+        }
       }
       if (!selectedExcerpts.length) {
         selectedExcerpts.push(...(resultExcerpts.length > 4
