@@ -98,6 +98,14 @@ export function shouldInvokeAtlasRightHandReview(input: {
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
   const previousName = input.priorCandidate?.trim().toLocaleLowerCase() ?? null;
+  // A newly admitted, source-attributed review target is a consequential handoff
+  // candidate. Ask Right-hand for an independent challenge once per new target,
+  // but do not repeatedly review the same candidate on every continuation turn.
+  const hasNewAdmittedCandidate = input.admittedCandidates.some((candidate) => {
+    const name = candidate.name.trim().toLocaleLowerCase();
+    return Boolean(name) && name !== previousName;
+  });
+  if (hasNewAdmittedCandidate) return true;
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
   const latestFindings = latest?.findings ?? [];
   if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
