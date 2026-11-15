@@ -28,7 +28,7 @@ const checks = [
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles are evidence leads only, never targets or access routes"], "apex-bureau-orientation.ts"],
   [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","runtime safety ceiling is","review-only findings"], "agentic-web-research-core.ts"],
-  [canonical, ["hasDiscoveryOwnershipLeadSignal", "claimGradeObservations", "target research must test that, falsify", "realistic route before any contact/wealth promotion"], "canonical-atlas-discovery.ts"],
+  [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth signals, role keywords and proximity are not admission gates", "target research tests materiality, identity, counter-evidence and routes"], "canonical-atlas-discovery.ts"],
   [targetContact, ["REALISM / REACHABILITY CONTROL", "material business, ownership stake, investment, asset, exit or control role", "realistic public/professional/intermediary routes", "Prefer a directly published professional contact or documented assistant"], "target-contact-agent.ts"],
   [candidateSources, ["export function isRealisticPersonRouteSourceUrl","DISCOVERY_PRESS_PUBLISHER_DOMAINS","News/blog/article pages are evidence leads, not an access route"], "candidate-source-url-union.ts"],
 ];
