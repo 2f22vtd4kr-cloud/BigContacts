@@ -5287,15 +5287,37 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
+    latestRecordTail,
     aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
   let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
   for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
-  const requiredTail = [...pinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
   const marker = "[INVESTIGATOR PROMPT COMPACTION: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
-  const prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
-  // If mandatory evidence itself exceeds the preferred size, preserve the full
-  // request and let provider/token accounting handle its actual serialized cost.
+  let boundedPinnedContext = [...pinnedContext];
+  let requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+  let prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+  // If the preferred budget is exceeded, shorten only the lossy AI historical
+  // memory. Keep the complete human objective, Boss scope, executable action
+  // list, callable registry IDs, terminal/schema contracts and newest durable
+  // action/fetched evidence intact.
+  if (prefixBudget < 0 && aiHistoricalMemorySection) {
+    const fixedPinnedContext = pinnedContext.filter((section) => section !== aiHistoricalMemorySection);
+    const fixedLength = [...fixedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n").length;
+    const memoryBudget = Math.max(0, userPromptBudget - fixedLength - marker.length - 2);
+    if (memoryBudget > 0) {
+      const boundedMemory = compactPromptSectionPreservingUrlTokens(
+        aiHistoricalMemorySection,
+        memoryBudget,
+        "[AI MEMORY BOUNDED: omitted historical detail is unknown; durable case evidence remains authoritative]",
+      );
+      boundedPinnedContext = [...fixedPinnedContext, boundedMemory];
+      requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+      prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+    }
+  }
+  // If even the non-lossy objective, scope, action, registry, latest evidence
+  // and output contract exceed the preferred size, preserve the full request
+  // and let provider/token accounting handle its actual serialized cost.
   if (prefixBudget < 0) return providerBoundedPrompt;
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
