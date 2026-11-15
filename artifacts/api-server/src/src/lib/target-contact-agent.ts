@@ -174,8 +174,8 @@ export function buildTargetContactInvestigatorObjective(input: {
 }): string {
   // Bound the identity labels and realism annotation before composing the prompt.
   // The substantive research and provenance clauses below are fixed, not sliced.
-  const targetName = input.targetName.trim();
-  const companyName = input.companyName?.trim();
+  const targetName = input.targetName.trim().replace(/\s+/g, " ").slice(0, 180);
+  const companyName = input.companyName?.trim().replace(/\s+/g, " ").slice(0, 140);
   if (input.targetType === "asset") {
     const assetObjective = [
       `Research the exact public asset or asset record ${targetName}${companyName ? ` (associated in the seed record with ${companyName})` : ""}.`,
@@ -224,12 +224,12 @@ export function buildTargetContactInvestigatorObjective(input: {
   // This fallback keeps the evidence/identity laws intact and only shortens
   // optional route detail; never cut a policy sentence at an arbitrary offset.
   const compactSections = [
-    `Target: ${targetName}. Company context is in the case; investigate public identity, business interests and professional routes.`,
+    `Target: ${targetName}. Company context: ${companyName || "case record"}. Research public identity, business interests and professional routes.`,
     sections[1]!,
-    "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
+    "Verify identity, role and employer. For wealth, require a public source directly documenting a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
     "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity.",
-    "Classify as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown; only the first two (or legacy person_specific) may be promoted with exact-quote source proof. Never invent identities, wealth, ties, contacts or URLs.",
+    "Relationships require explicit credible public evidence and a relevant ownership/control or documented intermediary purpose; never infer from surnames, co-location, follows or social proximity.",
+    "Classify contact routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Keep other/unknown routes review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
   if (compactObjective.length > 1_900) {
