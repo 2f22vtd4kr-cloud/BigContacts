@@ -12,27 +12,19 @@
  * not: starting only Phase J, not: mock mode.
  */
 
-export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Discover lesser-known people with credible wealth potential and public/professional routes. “Lesser-known” describes prominence, not a search term, name fragment, brand, or target type. A person is the ultimate investor-identification goal. Companies are leads and may be selected for target-scoped research to identify owners, operators, founders, shareholders, investors or assets. Focus on private/mid-market firms, controlling owners, investors and concession/license holders. Seek public ownership/equity/investment/control evidence, material assets or exits, plus practical public/professional routes. Never infer wealth from seniority, fame, prestige or brand leadership; avoid celebrity/richest lists and global household brands unless evidence identifies a realistic local operator/intermediary. Do not compare sectors/geographies; use only human-specified geography. Select one company, person or asset from a public source; one useful candidate starts target research. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth basis and approach route are source-supported. Never invent people, relationships, wealth, contacts or URLs.";
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes that may help the founder present the startup. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class, geography or target quota. Never invent people, relationships, wealth, contacts or URLs.";
 
 export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
   discoveryFirst: true,
   /**
-   * Number of targets the Bureau is asked to research end-to-end.
-   * Discovery is the funnel for this same target goal; it must not run an
-   * arbitrary larger number of expensive LLM sessions and then discard them
-   * merely because researchLimit is smaller.
+   * Operational upper bound only. The Investigator/Boss decide which targets
+   * matter and when to stop; this is not a target quota or admission threshold.
    */
-  targetCount: 1,
+  targetCount: 25,
   discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
-  /**
-   * Full target-scoped research budget. In the canonical flow this matches
-   * targetCount: each admitted discovery target gets researched. The
-   * orchestrator may still research fewer when discovery cannot produce
-   * enough qualified targets, but it must never manufacture targets to fill
-   * this number.
-   */
-  researchLimit: 1,
+  /** Operational upper bound matching targetCount; model-owned stopping governs actual work. */
+  researchLimit: 25,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
   hotLeadsOnly: false,
@@ -52,7 +44,7 @@ export type CanonicalAtlasLaunchBody = typeof CANONICAL_ATLAS_LAUNCH_BODY;
 /** Minimal smoke (launch then immediate stop) — not a real bureau cycle */
 export const SMOKE_ATLAS_LAUNCH_BODY = {
   ...CANONICAL_ATLAS_LAUNCH_BODY,
-  targetCount: 1,
-  researchLimit: 1,
+  targetCount: 25,
+  researchLimit: 25,
   targetTimeoutMs: 60_000,
 } as const;
