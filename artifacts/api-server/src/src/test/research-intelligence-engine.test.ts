@@ -200,6 +200,8 @@ describe("Apex research intelligence", () => {
     expect(state.evidenceCount).toBe(0);
     expect(state.recentActions[0]?.useful).toBe(false);
     expect(question?.status).toBe("open");
+    expect(question?.importance).toBe(0.8);
+    expect(question?.uncertainty).toBeNull();
   });
 
   it("answers a research question only after a fetched source binds a useful finding", () => {
@@ -603,6 +605,22 @@ describe("Apex research intelligence", () => {
     expect(rendered).not.toContain(signatureSecret);
     expect(rendered).toContain("REDACTED");
     expect(rendered).toContain("state=keep");
+  });
+
+
+  it("does not reject low-posterior hypotheses or hide their discriminators from the Investigator", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-review-not-vetoed", target: "Example Person", objective: "assess competing public identity hypotheses" });
+    engine.addHypothesis({ label: "low-posterior alternative", entity: "Example Person", score: 0.1, missingDiscriminators: ["check the alternative employer and date"] });
+    for (let index = 1; index <= 8; index += 1) {
+      engine.addHypothesis({ label: "higher posterior hypothesis " + index, entity: "Example Person", score: 0.8 + index * 0.01, missingDiscriminators: ["test contradictory evidence " + index] });
+    }
+    const state = engine.buildContext();
+    const low = state.hypotheses.find((item) => item.label === "low-posterior alternative");
+    const high = state.hypotheses.find((item) => item.label === "higher posterior hypothesis 8");
+    expect(low?.status).toBe("alternative");
+    expect(low?.missingDiscriminators).toContain("check the alternative employer and date");
+    expect(high?.missingDiscriminators).toContain("test contradictory evidence 8");
+    expect(renderIntelligenceContext(state, 6_000)).toContain("low-posterior alternative");
   });
 
 
