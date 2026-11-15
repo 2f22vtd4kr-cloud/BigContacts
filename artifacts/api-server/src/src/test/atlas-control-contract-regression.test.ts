@@ -48,7 +48,7 @@ describe("conditional Right-hand review policy", () => {
     })).toBe(true);
     expect(shouldInvokeAtlasRightHandReview({
       ...noEvidence,
-      trajectoryRecords: [{ action: "browser_fetch", findings: [{ value: "new finding" }] }],
+      trajectoryRecords: [{ action: "browser_fetch", findings: [{ value: "new finding", promotionDecision: "promote" }] }],
     })).toBe(true);
   });
 
@@ -355,7 +355,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandPrompt).toContain(feedback);
     expect(bossPrompt).toContain(feedback);
     expect(rightHandPrompt).toContain("The complete human objective and explicit constraints govern.");
-    expect(bossPrompt).toContain("Mission priority: the human objective governs target class and any reachability constraints.");
+    expect(bossPrompt).toContain("Mission priority: the complete human objective and explicit constraints govern.");
     expect(bossPrompt).toContain("do not use fame, wealth, seniority, company size, listing status, ranking badges, industry labels or contact-route categories as deterministic eligibility gates.");
     expect(bossPrompt).toContain("Distinguish person-specific contact evidence from generic organization channels");
     expect(bossPrompt).toContain("Prominent people and public companies may be directly relevant to the mission.");
@@ -375,7 +375,7 @@ describe("Atlas control-plane contract regression", () => {
       compactState: "No source-backed findings or admitted candidates.",
       rightHand: { status: "completed", decision: "pivot_discovery", reason: "The current scope is blocked.", direction: "Shift to a sector-specific approach in a chosen region.", confidence: 0.8, model: "openai/gpt-oss-120b", error: null },
     });
-    expect(bossPrompt).toContain("A pivot must be self-contained and executable");
+    expect(bossPrompt).toContain("A pivot must be self-contained and evidence-led:");
     expect(bossPrompt).toContain("where geography is open or evidence justifies a different jurisdiction, the model may propose a contextual pivot for Boss authorization.");
   });
 
@@ -719,7 +719,7 @@ describe("Atlas control-plane contract regression", () => {
       focusLanes: [],
       confidence: 0.86,
     })).toBe(true);
-    expect(canonicalDiscoverySource).not.toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalDiscoverySource).not.toContain("normalizeAtlasOpeningRightHandReview(parsed)");
     expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
