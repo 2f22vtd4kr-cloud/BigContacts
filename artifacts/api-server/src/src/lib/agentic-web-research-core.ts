@@ -2833,6 +2833,27 @@ async function callGroqJson(
         lastProviderError = "empty_response";
         break;
       } catch (error: any) {
+        // Every reserved allowance must be reconciled even when cancellation or
+        // mandatory prompt-audit capture fails before the normal response path.
+        // providerRequestSent distinguishes a local preflight failure from a
+        // physical request; no prompt or provider response text is persisted.
+        const recordInterruptedAttempt = (reason: string) => recordAgenticLlmAttempt({
+          ...telemetryContext,
+          dailyReservationDate,
+          dailyReservationTokens,
+          dailyBudgetTokens,
+          estimatedTokens: dailyEstimatedTokens,
+          providerRequestSent,
+          provider: "groq",
+          model,
+          promptChars: workingPrompt.length,
+          ...promptMeasurement,
+          status: "error",
+          success: false,
+          latencyMs: Date.now() - started,
+          retryIndex: attempt,
+          reason,
+        });
         if (error instanceof Error && error.message.startsWith("model_prompt_audit_")) {
           if (modelAuditRequestId && !modelAuditResponseRecorded) {
             const auditCaptureFailed = error.message.startsWith("model_prompt_audit_response_capture_failed");
@@ -2845,6 +2866,7 @@ async function callGroqJson(
               auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
             });
           }
+          recordInterruptedAttempt("model_prompt_audit_capture_failed");
           return { model, raw: "", error: error.message };
         }
         if (modelAuditRequestId && !modelAuditResponseRecorded) {
@@ -2858,7 +2880,10 @@ async function callGroqJson(
             auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
           });
         }
-        if (signal.aborted) throw new Error("cancelled");
+        if (signal.aborted) {
+          recordInterruptedAttempt("cancelled");
+          throw new Error("cancelled");
+        }
         const localProviderGateFailure = isLocalProviderQuotaError(error)
           ? (error.code === "cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted")
           : null;
