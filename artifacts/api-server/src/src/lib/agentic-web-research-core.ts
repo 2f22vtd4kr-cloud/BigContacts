@@ -4785,8 +4785,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
     ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: a prior request was blocked before execution by an earlier deterministic alignment policy; this is not evidence and its keyword criteria are not authoritative. Reassess the proposed research independently against the human objective and the current Boss-approved direction. If it genuinely advances the mission within that direction, choose an appropriate action; do not mechanically repeat geography, source-class or subject wording. If it would change strategic scope, ask Boss."
     : "";
+  const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
-    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
+    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n"
+      + (activeBossDirectionAlreadyPreserved
+        ? "The accepted direction is preserved verbatim in the authoritative case objective above; do not duplicate or override it."
+        : boundInvestigatorPromptSection(activeBossDirection, input.mode === "discovery" ? 700 : 1_200))
     : "";
   const currentControlContext = (input.priorContext?.length ?? 0) <= 800
     ? (input.priorContext ?? "")
@@ -4835,12 +4839,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 600 : 3_000,
+        maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 200 : 900,
+    input.mode === "discovery" ? 150 : 900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -4850,22 +4854,27 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 700) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 450 : 350) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
-      const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
+      const availableActionsGuidance = "ACTION ALLOWLIST: Use an action ONLY if its exact name appears in AVAILABLE ACTIONS this turn. AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.";
+  const compactWorkerCapabilityGuidance = hasAvailableSpecialistOsintAction
+    ? "SPECIALIST OSINT (attested, optional): " + [
+        ["harvest_domain", "theHarvester"], ["footprint_email", "email footprint"],
+        ["footprint_username_maigret", "Maigret"], ["footprint_username_sherlock", "Sherlock"], ["footprint_spiderfoot", "SpiderFoot"],
+      ].filter(([action]) => availablePythonActions.has(action)).map(([action, label]) => action + " (" + label + ")").join("; ") + ". Model selects by expected information gain."
+    : "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
     ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; never invent IDs.`;
+  const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; Never invent adapter IDs.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson; locale=language; market=country.";
-  const compactPageFormatGuidance = "FETCH: visit extracts bounded text/PDF; browser_fetch is HTML-only; failed extraction=unknown.";
+  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown. Scanned/image-only PDFs require OCR (unavailable) or another readable source.";
 
   const composedPrompt = [
     assignment,
@@ -4880,6 +4889,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     capabilityGuidance,
     terminalContractGuidance,
     compactPageFormatGuidance,
+    "TARGET NAMES: exact names only from the human objective or observed source material; no homonym guesses.",
+    APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     ...compactEmergencyDiscoveryContractParts,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
