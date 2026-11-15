@@ -2550,10 +2550,9 @@ async function callGroqJson(
         };
         const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => {
+          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit, () => {
             providerRequestSent = true;
-            return safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
-          }),
+          })),
         );
 
         // Consume every provider response body exactly once. Error responses need
