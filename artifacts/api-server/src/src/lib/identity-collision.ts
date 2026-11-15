@@ -110,13 +110,15 @@ export function assessIdentityCollision(input: {
 export function assessGraphNamePairRisk(leftName: string, rightName: string): IdentityCollisionResult {
   const left = leftName.trim().normalize("NFKC").toLocaleLowerCase();
   const right = rightName.trim().normalize("NFKC").toLocaleLowerCase();
-  if (left && right && left === right) {
-    return { risk: false, identityMatch: 1, assessment: "same_person", reason: null };
-  }
+  // Even exact same-name strings can describe different people. This function
+  // has no immutable record IDs or source-backed context, so it cannot prove
+  // identity; exact duplicate record detection belongs to the persistence key.
   return {
     risk: true,
-    identityMatch: 0.5,
+    identityMatch: left && right && left === right ? 0.5 : 0.3,
     assessment: "unresolved",
-    reason: "name similarity alone cannot establish identity; require an Investigator same-person assessment",
+    reason: left && right && left === right
+      ? "identical display names do not prove the same person; require an exact record duplicate or Investigator assessment"
+      : "name similarity alone cannot establish identity; require an Investigator same-person assessment",
   };
 }
