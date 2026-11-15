@@ -632,25 +632,28 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
   });
 
-  it("keeps the model-scoped 20B capability selectable when it shares the first 120B credential", () => {
+  it("keeps the 20B capability opt-in until provider structured output is verified", () => {
+    const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
+    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(optedIn)).toContain("groq-investigator-20b");
+  });
+
+  it("keeps model-scoped 20B fallback opt-in when it shares the first 120B credential", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual([
-      "groq-investigator-20b",
-      "groq-investigator-1",
-    ]);
-    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([
-      "groq-investigator-20b",
-    ]);
-    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual([
-      "groq-investigator-1",
-    ]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([]);
+    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
