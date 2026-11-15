@@ -93,9 +93,11 @@ describe("discovery quality metrics", () => {
       { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
     ]);
     expect(metrics.total).toBe(3);
-    expect(metrics.fameRejected).toBe(0);
-    expect(metrics.nonPersonRejected).toBe(1);
-    expect(metrics.personShaped).toBe(2);
+    expect(metrics.fameRejected).toBeNull();
+    expect(metrics.nonPersonRejected).toBeNull();
+    expect(metrics.personShaped).toBeNull();
+    expect(metrics.approachableMean).toBeNull();
+    expect(metrics.personAdmitRate).toBeNull();
     expect(metrics.withAnyEvidence).toBe(1);
     expect(metrics.evidenceRate).toBeCloseTo(1 / 3, 3);
   });
