@@ -4066,6 +4066,74 @@ Choose each next action yourself from the available capabilities and observed ev
 
 
 describe("Groq Investigator structured-output recovery", () => {
+  it("replays the November 14 captured request and provider rejection recovery offline", () => {
+    const replay = JSON.parse(readFileSync(resolve(
+      process.cwd(),
+      "src/src/test/fixtures/investigator-2026-11-14-replay.json",
+    ), "utf8")) as {
+      capturedRequest: {
+        model: string;
+        max_completion_tokens: number;
+        messages: Array<{ role: string; content: string }>;
+        responseFormat: { type: string; strict: boolean; additionalProperties: boolean };
+        schemaRequired: number;
+        schemaProperties: number;
+      };
+      capturedProviderError: {
+        status: number;
+        code: string;
+        message: string;
+        failedGenerationPresent: boolean;
+      };
+      capturedSuccessfulResponse: {
+        prompt_tokens: number;
+        completion_tokens: number;
+        reasoning_tokens: number;
+        total_tokens: number;
+        finishReason: string;
+        action: string;
+        findings: number;
+      };
+    };
+    const { capturedRequest, capturedProviderError, capturedSuccessfulResponse } = replay;
+    expect(capturedRequest.model).toBe("openai/gpt-oss-120b");
+    expect(capturedRequest.messages.map((message) => message.role)).toEqual(["system", "user"]);
+    expect(capturedRequest.messages[0]?.content).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping");
+    expect(capturedRequest.messages[1]?.content).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>");
+    expect(capturedRequest.messages[1]?.content).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(capturedRequest.responseFormat).toMatchObject({
+      type: "json_schema",
+      strict: true,
+      additionalProperties: false,
+    });
+    expect(capturedRequest.schemaRequired).toBe(20);
+    expect(capturedRequest.schemaProperties).toBe(20);
+
+    expect(capturedProviderError).toMatchObject({
+      status: 400,
+      code: "json_validate_failed",
+      failedGenerationPresent: false,
+    });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: capturedProviderError.status,
+      providerCode: capturedProviderError.code,
+      providerMessage: capturedProviderError.message,
+      responseFormat: "json_schema",
+      failureDetailsAvailable: capturedProviderError.failedGenerationPresent,
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: capturedRequest.max_completion_tokens,
+    })).toEqual({ action: "retry_json_object" });
+
+    expect(capturedSuccessfulResponse).toMatchObject({
+      finishReason: "stop",
+      action: "done",
+      findings: 0,
+    });
+    expect(capturedSuccessfulResponse.prompt_tokens + capturedSuccessfulResponse.completion_tokens)
+      .toBe(capturedSuccessfulResponse.total_tokens);
+    expect(capturedSuccessfulResponse.reasoning_tokens).toBeLessThanOrEqual(capturedSuccessfulResponse.completion_tokens);
+  });
+
   it("detects explicit truncation separately from generic JSON validation errors", () => {
     expect(isGroqCompletionTruncationMessage(
       "max completion tokens reached before generating a valid document: output was truncated and missing required content; increase max_completion_tokens",
