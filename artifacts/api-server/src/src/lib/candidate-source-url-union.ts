@@ -103,9 +103,8 @@ export function candidateRoleCorroborationSources(input: {
   normalizeSourceUrl: (raw: string) => string | null;
 }): Array<{ sourceUrl: string; publisher: string; eventId: number }> {
   const role = input.role?.trim().replace(/\s+/g, " ") ?? "";
-  if (!role) return [];
   const claimedUrls = new Set(candidateSourceUrlsForIdentity({
-    findings: input.findings, personName: input.personName, role,
+    findings: input.findings, personName: input.personName, role: role || null,
     isClaimGradeSourceUrl: input.isClaimGradeSourceUrl, normalizeSourceUrl: input.normalizeSourceUrl,
   }));
   if (!claimedUrls.size) return [];
