@@ -1994,7 +1994,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
   const json = extractJsonObject(normalizedRaw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parsePartialFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
-    if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || (item as Record<string, unknown>).registry !== null)) return null;
+    if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || ((item as Record<string, unknown>).registry !== undefined && (item as Record<string, unknown>).registry !== null))) return null;
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       return {
@@ -2924,25 +2924,25 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     // subset. The runtime parser remains authoritative for action/provider
     // combinations and cardinality, so those safety checks are not weakened.
     query: { type: ["string","null"] },
-    provider: { type: ["string","null"], enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright",null] },
-    url: { type: ["string","null"] },
-    email: { type: ["string","null"] },
-    username: { type: ["string","null"] },
-    domain: { type: ["string","null"] },
-    registry: { type: ["string","null"] },
+    provider: { type: "string", enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright"] },
+    url: { type: "string" },
+    email: { type: "string" },
+    username: { type: "string" },
+    domain: { type: "string" },
+    registry: { type: "string" },
     thought: { type: ["string","null"] },
     hypothesis: { type: ["string","null"] },
     purpose: { type: ["string","null"] },
     expectedInformationGain: { type: ["number","null"] },
-    locale: { type: ["string","null"] },
-    market: { type: ["string","null"] },
-    target: { type: ["string","null"] },
-    targetType: { type: ["string","null"] },
-    profile: { type: ["string","null"] },
-    sources: { type: ["array","null"], items: { type: "string", enum: [...HARVESTER_SOURCE_IDS] } },
+    locale: { type: "string" },
+    market: { type: "string" },
+    target: { type: "string" },
+    targetType: { type: "string" },
+    profile: { type: "string" },
+    sources: { type: "array", items: { type: "string", enum: [...HARVESTER_SOURCE_IDS] } },
     // Groq's strict schema contract does not document minItems/maxItems.
     // Cardinality and per-item provider validation remain enforced locally.
-    searches: { type: "array", items: { type: "object", properties: { query: { type: "string" }, provider: { type: ["string","null"], enum: ["serper","tavily","exa",null] }, registry: { type: ["string","null"], enum: [...getAvailableRegistryIdsForPrompt(), null] }, locale: { type: ["string","null"] }, market: { type: ["string","null"] }, purpose: { type: ["string","null"] } }, required: ["query","provider","registry","locale","market","purpose"], additionalProperties: false } },
+    searches: { type: "array", items: { type: "object", properties: { query: { type: "string" }, provider: { type: "string", enum: ["serper","tavily","exa"] }, registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()] }, locale: { type: "string" }, market: { type: "string" }, purpose: { type: "string" } }, required: ["query"], additionalProperties: false } },
     findings: {
       type: "array",
       items: {
@@ -2981,7 +2981,7 @@ const AGENTIC_ACTION_SCHEMA = {
   ...AGENTIC_STRUCTURED_SCHEMA,
   properties: {
     ...AGENTIC_STRUCTURED_SCHEMA.properties,
-    registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null] },
+    registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()] },
     searches: {
       ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
       items: {
@@ -3007,15 +3007,15 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   const availableActions = actionAllowlist ? selectableActions : browserProviders.length
     ? selectableActions
     : selectableActions.filter((action) => action !== "browser_fetch");
-  const providerEnum = [...new Set(["serper", "tavily", "exa", "rdap", "whoisjson", ...browserProviders]), null];
-  const availableRegistryEnum: (string | null)[] = [...getAvailableRegistryIdsForPrompt(), null];
+  const providerEnum = [...new Set(["serper", "tavily", "exa", "rdap", "whoisjson", ...browserProviders])];
+  const availableRegistryEnum: string[] = [...getAvailableRegistryIdsForPrompt()];
   const schema = {
     ...AGENTIC_STRUCTURED_SCHEMA,
     properties: {
       ...AGENTIC_STRUCTURED_SCHEMA.properties,
       action: { type: "string", enum: availableActions },
-      provider: { type: ["string", "null"], enum: providerEnum },
-      registry: { type: ["string", "null"], enum: availableRegistryEnum },
+      provider: { type: "string", enum: providerEnum },
+      registry: { type: "string", enum: availableRegistryEnum },
       searches: {
         ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
         items: {
