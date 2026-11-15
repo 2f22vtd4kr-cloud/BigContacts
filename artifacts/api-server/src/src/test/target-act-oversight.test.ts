@@ -28,8 +28,8 @@ describe("target act Right-hand review economy", () => {
     })).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
-      findings: [{ scope: "organization", value: "Example Ltd" }],
-    })).toBe(true);
+      findings: [{ scope: "organization", value: "shared inbox at Example Ltd" }],
+    })).toBe(false);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
       findings: [{ promotionDecision: "promote" }],
