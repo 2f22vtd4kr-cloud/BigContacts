@@ -54,15 +54,15 @@ describe("model-authored identity adjudication", () => {
     expect(result.assessment).toBe("unresolved");
   });
 
-  it("continues to block aggregator-only sources even when the model says same person", () => {
+  it("does not hard-exclude a source class when the model makes a reasoned identity assessment", () => {
     const result = assessIdentityCollision({
       ...common,
       sourceUrls: ["https://www.rocketreach.co/roberto-felipe_email_123"],
       identityAssessment: "same_person",
-      identityRationale: "The person appears to match the subject.",
+      identityRationale: "The source's exact quoted public profile identifier and role history match the subject's independently observed career record.",
     });
-    expect(result.risk).toBe(true);
-    expect(result.reason).toMatch(/aggregator-only/i);
+    expect(result.risk).toBe(false);
+    expect(result.assessment).toBe("same_person");
   });
 
   it("allows an independent public source alongside an aggregator lead", () => {
