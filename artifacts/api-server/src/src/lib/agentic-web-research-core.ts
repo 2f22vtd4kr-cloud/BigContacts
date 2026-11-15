@@ -4712,10 +4712,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY SEARCH ECONOMY: max " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound searches per case; this is a cost guard, not a sequence or stopping target. At zero, choose another callable action or stop/park. Investigator chooses by expected information gain; no forced mixed-source batch or registry-first order.",
-    "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD: preserve the model-selected exact observed name, stated role or null, source URLs and any quote-backed claims with uncertainty. Review-only status is not verification; never invent claims or routes. VALID COMPANY REVIEW-LEAD SHAPE: scope=organization; personName=null; role=null. COMPANY REVIEW: a concrete company named in a same-case search observation may be preserved as a review-only organization lead; do not require a prior fetch, ownership clue, wealth proof or HNWI qualification. Sourced ownership/wealth hypotheses may be recorded with their evidence and uncertainty.",
-    "DISCOVERY LEAD HANDOFF: preserve useful model-selected leads. Target research and independent review determine which claims are corroborated, contradicted, material or ready for promotion according to the human objective; no universal ownership, wealth, role or route checklist."
-
+    "DISCOVERY CHOICE: Investigator chooses the next target, source, query, tool and action by the human objective, observed evidence, information gain, source independence and cost. No mandatory source mix, sector, jurisdiction or action order; preserve explicit constraints and propose evidence-led scope changes to Boss.",
+    "DISCOVERY LEADS: Preserve useful model-selected person, company and asset leads as provisional review cards. Include exact observed names, stated roles or null, source URLs and quote-backed claims with uncertainty. Sourced ownership/wealth hypotheses may be recorded; review-only status is not verification. Never invent claims or routes. Target research and independent review decide what is corroborated, contradicted, material or ready for promotion."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -4804,12 +4802,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
-      const descriptorSearchGuidance = "MODEL-OWNED RELEVANCE: explain how the target and falsifiable hypothesis advance the human objective and what uncertainty the action tests. Mission adjectives and generic nouns are not queries; choose concrete subjects, terms, sources and actions. Sector, geography, fame, rankings, publisher type, language and unfamiliar terminology are context, not eligibility rules. Form evidence-led hypotheses and propose material scope changes to Boss. Company prominence or a missing contact route does not automatically qualify or disqualify a lead.";
-  const semanticAuthorityGuidance = "REASONING: Apply the human objective and Boss scope to the current evidence and uncertainty. Semantic decisions belong to the models; runtime code enforces technical safety, provenance and budgets.";
-  const discoveryLeadHandoffGuidance = "DISCOVERY LEAD HANDOFF: Preserve objective-relevant people, organizations and assets as provisional review leads, not verified cards; Investigator decides which deserve a card. News, registry and community pages are interpreted from their actual content and provenance, not page-type rules. For Virtual Globetrotting and similar community observations, preserve attribution/date/page, corroborate material claims independently, and respect privacy/copyright. Target research tests role, relationship, materiality, counter-evidence and routes before promotion. Runtime limits are technical (availability, safe fetch, schema, syntax, provenance), never semantic relevance. Search budgets are cost guards, not stopping targets or itineraries. Preserve useful review-only findings for Boss.";
-  const researchContract = "MISSION/SCOPE: human objective and explicit constraints govern; propose evidence-led scope changes to Boss. Use exact names only from the human brief or same-case observations. RESEARCH: You own the research trajectory. Choose the next action from available capabilities using evidence, information gain, identity discrimination, source independence and cost. Investigator owns target, hypothesis, source/tool, pivot, corroboration and stopping; no fixed sequence. Use market for country-specific search only when mission or same-case evidence justifies it; locale is language only. Avoid stale years unless explicitly historical." + (input.mode === "discovery" ? " " + descriptorSearchGuidance : " " + APEX_COMPANY_REALISM_GUIDANCE_COMPACT);
-  
-  const actionLiveness = "ACTION LIVENESS: avoid exact normalized repeats unless rationale, provider/resource or evidence changes. Snippets and registry hits are leads, not proof.";
+      const researchContract = "MISSION/RESEARCH: Honor the human objective and explicit constraints; use exact names only from the brief or same-case observations. Choose each action by evidence, information gain, source independence and cost. No fixed sequence. When sector/geography is open, form evidence-led hypotheses and propose material scope changes to Boss. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const actionLiveness = "ACTION LIVENESS: avoid exact normalized repeats unless evidence, rationale or available resources change. Search results are leads, not proof.";
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
@@ -4825,13 +4819,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryCoveragePromptGuidance = registryCoverageGuidance
     ? "SOURCE COVERAGE (not a checklist): available evidence routes, not a prescribed order; choose by case relevance and expected information gain. " + registryCoverageGuidance
     : "SOURCE COVERAGE (not a checklist): no native registry adapters are currently available; use relevant public-web sources.";
-  const compactRegistryCoveragePromptGuidance = "REGISTRY COVERAGE: callable adapters listed above have adapter-specific entity/role/asset coverage; public-web corroboration remains available. Rows are leads; withheld/failed is not no-hit.";
   const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): ${registryIdList}. Never invent adapter IDs; unintegrated public sources may be searched on the web. Results are leads until fetched. Never assume records expose owners, shareholders, members or managers without observed documentation. Asset registrants are not automatically beneficial owners; withheld or failed results are not no-hits.`;
   const providerGuidance = "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = " + (availableBrowserProviders.join(" | ") || "unavailable") + "; domain_lookup = rdap | whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale controls language, not geography.";
-  const evidenceLaw = "EVIDENCE: cite successful same-case observations and exact spans. Failed/unfetched means unknown. Never invent identities, URLs, contacts or targets; seek corroboration and falsification.";
+  const evidenceLaw = "EVIDENCE: cite same-case observations and exact quotations. Failed/unfetched means unknown. Never invent identities, URLs or contacts.";
   const compactPageFormatGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts bounded text; browser_fetch is HTML-only. Scanned PDFs need OCR; encrypted, malformed and failed extraction are distinct unknowns, not negative evidence. Do not retry the same binary URL through the other fetch action.";
 
-  const partialFindingGuidance = "PARTIAL FINDINGS: Preserve useful source-backed people and organization findings, exact URLs, uncertainty and contradictions while research continues.";
+  const partialFindingGuidance = "PARTIAL FINDINGS: Preserve useful source-backed leads, exact URLs, uncertainty and contradictions.";
   const modelOwnedRelevanceGuidance = input.mode === "discovery"
     ? "MODEL-OWNED RELEVANCE SELF-CHECK: Explain how the proposed target and falsifiable evidence hypothesis advance the human objective and Boss scope, what same-case evidence or uncertainty motivates the action, and what the source could confirm or falsify. This is a reasoning aid, not a fixed action sequence or a semantic code gate."
     : "";
@@ -4839,9 +4832,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     assignment,
     authoritativeCaseObjective,
     activeBossScopeSection,
-    semanticAuthorityGuidance,
-    ...(input.mode === "discovery" ? [discoveryLeadHandoffGuidance, modelOwnedRelevanceGuidance] : []),
-    "",
     researchContract,
     partialFindingGuidance,
     actionLiveness,
@@ -4849,7 +4839,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
-    compactRegistryCoveragePromptGuidance,
     providerGuidance,
     "",
     "CAPABILITY GUIDANCE:",
@@ -4860,7 +4849,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactPageFormatGuidance,
     "",
     ...compactEmergencyDiscoveryContractParts,
-    ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 400, "[advisory detail omitted; all actions remain available]"), "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
+    ...(discoveryLivenessAdvisory ? ["OPTIONAL TRAJECTORY ADVISORY (non-binding):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 300, "[advisory omitted]")] : []),
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
