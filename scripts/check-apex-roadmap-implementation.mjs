@@ -35,8 +35,8 @@ const obs=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/targe
 for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!obs.toLowerCase().includes(marker.toLowerCase())) throw new Error("Oversight durability marker missing: "+marker);
 const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),"utf8");
 for(const marker of [
-  "Investigator selects searches, fetches, tools, follow-ups, pivots, corroboration and falsification",
-  "Models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority",
+  "Investigator owns hypotheses, targets, research, interpretation and stopping",
+  "The Investigator decides which people, companies, assets, relationships and sources matter to the mission",
   "Never infer semantics from keyword, name, employer or proximity heuristics"
 ]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const uiFiles=["artifacts/apex-finder/src/pages/profile.tsx","artifacts/apex-finder/src/pages/research.tsx","artifacts/apex-finder/src/pages/graph.tsx","artifacts/apex-finder/src/router.tsx"]; for(const f of uiFiles) if(!fs.existsSync(path.join(root,f))) throw new Error("Investigator workstation surface missing: "+f);
