@@ -212,12 +212,10 @@ export function classifyCanonicalAtlasFailure(input: {
   if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
     return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
   }
-  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
-    && /daily_token_budget_exhausted|investigator_daily_token_budget_exhausted/i.test(error.message)) {
+  if (/daily_token_budget_exhausted|investigator_daily_token_budget_exhausted/i.test(error.message)) {
     return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
   }
-  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
-    && /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(error.message)) {
+  if (/daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(error.message)) {
     return { domain: "persistence_database", kind: "request_failure" };
   }
   if ((input.stage === "investigator_episode" || input.stage === "orchestration")
