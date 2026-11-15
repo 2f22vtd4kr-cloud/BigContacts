@@ -29,7 +29,7 @@ const checks = [
   ["semantic ownership and materiality wordlists are absent from the canonical source policy", !/DISCOVERY_OWNERSHIP_SIGNALS|materialitySignals|hasDiscoveryOwnershipLeadSignal|hasCredibleDiscoveryWealthPotentialSignal/.test(sourcePolicy)],
   ["review-only admission is transactionally bound to the live discovery case", strictAdmission.includes("db.transaction(async (tx) =>") && strictAdmission.includes("supportingEventId: support.eventId") && strictAdmission.includes("reviewOnly: true")],
   ["missing durable evidence-session creation fails rather than fabricating a card", strictAdmission.includes("if (!session?.id) throw new Error(")],
-  ["exact source-span matching supports Unicode identity boundaries", epistemic.includes("hasExactTokenBoundary") && /\p\{L\}/u.test(epistemic)],
+  ["exact source-span matching supports Unicode identity boundaries", epistemic.includes("hasExactTokenBoundary") && epistemic.includes("\\p{L}")],
   ["community observations retain an explicit lower-trust path in source attribution", fs.readFileSync("artifacts/api-server/src/src/lib/discovery-source-attribution.ts", "utf8").includes("community_user_submitted_unverified")],
   ["terminal discovery status requires model completion plus a durable admitted target", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !discoveryResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
 ];
