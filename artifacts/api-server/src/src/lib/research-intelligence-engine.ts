@@ -450,7 +450,7 @@ export class ResearchIntelligenceEngine {
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
       const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: restoredKind, claim: restoredClaim, value: parsed.object, sourceUrl, sourceHost,
-        sourceTier: tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
+        sourceTier: item.sourceTier ?? tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         spanBindingKind: item.spanBindingKind,
