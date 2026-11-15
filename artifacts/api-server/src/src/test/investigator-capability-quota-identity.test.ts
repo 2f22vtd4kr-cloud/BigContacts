@@ -22,7 +22,6 @@ describe("Investigator credential quota identity", () => {
       "groq-investigator-3",
     ]);
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual([
-      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-3",
     ]);
@@ -48,7 +47,6 @@ describe("Investigator credential quota identity", () => {
       GROQ_INVESTIGATOR_API_KEY_1: "  shared-test-credential  ",
     } as NodeJS.ProcessEnv;
     expect(getAvailableDistinctInvestigatorCapabilities(whitespaceEnv)).toEqual([
-      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-3",
     ]);
