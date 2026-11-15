@@ -883,7 +883,8 @@ async function materializePartialOrganizationLeadCards(input: {
       const observations: Array<{
         action: string; execution: string; verificationLevel: "fetched_source" | "search_result_lead";
         sourceUrl: string; observation: string; eventId: number; createdAt: Date; sourceUrlBoundByAdapter?: boolean;
-        sourceName?: string; sourceClass?: string; sourceContributor?: string | null;
+        sourceName?: string; sourceDomain?: string; sourceClass?: string; sourceContributor?: string | null;
+        originalObservedAt?: string | null;
       }> = [];
 
       // Registry adapter rows are supporting observations only. They may
@@ -927,6 +928,10 @@ async function materializePartialOrganizationLeadCards(input: {
         : searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length
           ? payload.leadUrls
           : [];
+      const rawSourceAttribution = payload.args?.sourceAttribution;
+      const sourceAttribution = rawSourceAttribution && typeof rawSourceAttribution === "object" && !Array.isArray(rawSourceAttribution)
+        ? rawSourceAttribution as Record<string, unknown>
+        : {};
       if (Array.isArray(sourceUrls)) {
         observations.push(...sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
           action,
@@ -936,6 +941,11 @@ async function materializePartialOrganizationLeadCards(input: {
           observation: typeof payload.observation === "string" ? payload.observation : "",
           eventId: event.id,
           createdAt: event.createdAt,
+          sourceName: typeof sourceAttribution.sourceName === "string" ? sourceAttribution.sourceName : undefined,
+          sourceDomain: typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain : undefined,
+          sourceClass: typeof sourceAttribution.sourceClass === "string" ? sourceAttribution.sourceClass : undefined,
+          sourceContributor: typeof sourceAttribution.sourceContributor === "string" ? sourceAttribution.sourceContributor : null,
+          originalObservedAt: typeof sourceAttribution.originalObservedAt === "string" ? sourceAttribution.originalObservedAt : null,
         })));
       }
       return observations;
@@ -963,7 +973,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; sourceUrlBoundByAdapter?: boolean; restrictedCommunitySource: boolean; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceDomain?: string; sourceClass?: string; sourceContributor?: string | null; originalObservedAt?: string | null; sourceUrlBoundByAdapter?: boolean; restrictedCommunitySource: boolean; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -993,7 +1003,8 @@ async function materializePartialOrganizationLeadCards(input: {
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
-          sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor,
+          sourceName: observation.sourceName, sourceDomain: observation.sourceDomain, sourceClass: observation.sourceClass,
+          sourceContributor: observation.sourceContributor, originalObservedAt: observation.originalObservedAt ?? null,
           sourceUrlBoundByAdapter: observation.sourceUrlBoundByAdapter === true,
           restrictedCommunitySource,
           spanText: exactSpan && span ? span.text : "",
@@ -1082,7 +1093,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.originalObservedAt ?? support.createdAt, sourceName: support.sourceName, sourceDomain: support.sourceDomain, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.restrictedCommunitySource
           ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE
           : support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
