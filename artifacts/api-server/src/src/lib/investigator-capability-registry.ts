@@ -19,7 +19,7 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
-  // Prefer the economical routine-action model in Boss capability menus.
+  // GPT-OSS 20B remains explicitly opt-in until structured-output behavior is verified.
   GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
@@ -45,10 +45,15 @@ export function investigatorCapabilityLabel(capability: InvestigatorCapability):
   return keyName ? `Groq Investigator ${keyIndex(capability)} (${keyName})` : capability;
 }
 
+function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
+  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() === "true";
+}
+
 export function getAvailableInvestigatorCapabilities(
   env: NodeJS.ProcessEnv = process.env,
 ): InvestigatorCapability[] {
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
+    if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY && !isTwentyBInvestigatorEnabled(env)) return false;
     const keyName = investigatorCapabilityKeyName(capability);
     return Boolean(keyName && env[keyName]?.trim());
   });
@@ -138,7 +143,7 @@ export function getAvailableDistinctInvestigatorCapabilities(
   );
   const seenCredentials = new Set(excludedCredentials);
   const available: InvestigatorCapability[] = [];
-  for (const capability of INVESTIGATOR_CAPABILITIES) {
+  for (const capability of getAvailableInvestigatorCapabilities(env)) {
     const fingerprint = fingerprintFor(capability);
     if (!fingerprint || seenCredentials.has(fingerprint)) continue;
     seenCredentials.add(fingerprint);
