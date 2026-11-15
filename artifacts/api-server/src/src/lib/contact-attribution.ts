@@ -136,7 +136,7 @@ export function scoreAttribution(params: {
     && exactQuotePersonValueBound;
   const modelBackedOrganizationRoute = exactClaimObserved && isOrganizationAttribution(contactAttribution);
   if (email && isValidEmail) {
-    validation = modelBackedPersonRoute ? 1.0 : modelBackedOrganizationRoute ? 0.72 : 0.90;
+    validation = modelBackedPersonRoute ? 1.0 : contactAttribution === "shared_inbox" ? 0.28 : modelBackedOrganizationRoute ? 0.72 : 0.90;
   } else if (phone && isValidPhone) {
     validation = modelBackedPersonRoute ? 1.0 : modelBackedOrganizationRoute ? 0.55 : 0.72;
   }
