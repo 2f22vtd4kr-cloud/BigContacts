@@ -1,6 +1,6 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { sourceLineageId } from "./research-epistemic-vnext";
-import { isAggregatorHost, publisherDomain } from "./source-corroboration";
+import { publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
   personName: string | null;
@@ -49,9 +49,9 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
-    // Aggregator/profile directories can inform the Investigator, but are not
-    // claim-grade identity evidence for durable candidate admission.
-    if (isAggregatorHost(host)) return false;
+    // Source quality is provenance for model interpretation, not a domain
+    // allow/deny list. Aggregator/profile pages may be leads or evidence; the
+    // Investigator and independent reviewer judge their weight and relevance.
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
@@ -80,7 +80,7 @@ export function isRealisticPersonRouteSourceUrl(value: unknown): value is string
   // Whether a page is a useful person-specific route is a contextual model
   // judgement, not a publisher/path allowlist. Keep only technical source
   // eligibility here: a valid claim-grade HTTPS source, excluding search
-  // result endpoints and known aggregators via isClaimGradeDiscoverySourceUrl.
+  // result endpoints via isClaimGradeDiscoverySourceUrl.
   return isClaimGradeDiscoverySourceUrl(value);
 }
 
