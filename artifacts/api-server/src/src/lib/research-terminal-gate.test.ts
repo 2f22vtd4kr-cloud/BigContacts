@@ -1,26 +1,94 @@
 import { describe, expect, it } from "vitest";
-import { defaultTerminalContract } from "./research-terminal-gate";
+import type { IntelligenceContext } from "./research-intelligence-engine";
+import { defaultTerminalContract, evaluateResearchTerminal, hasSuccessfulExternalResearchAttempt } from "./research-terminal-gate";
+
+function context(input: {
+  evidenceCount?: number;
+  independentSourceUnits?: number;
+  openQuestions?: string[];
+  contradictions?: Array<{ claim: string; evidenceIds: string[]; sources: string[] }>;
+  recentActions?: Array<{ action: string; execution: string }>;
+} = {}): IntelligenceContext {
+  return {
+    evidenceCount: input.evidenceCount ?? 0,
+    independentSourceUnits: input.independentSourceUnits ?? 0,
+    openQuestions: input.openQuestions ?? [],
+    contradictions: input.contradictions ?? [],
+    recentActions: input.recentActions ?? [],
+    atomicEvidence: [],
+  } as unknown as IntelligenceContext;
+}
 
 describe("research-stage terminal contracts", () => {
-  it("lets discovery hand off one source-backed review lead with unresolved questions", () => {
-    expect(defaultTerminalContract("discovery")).toEqual({
+  it("retains the single-source review-lead integrity requirement for discovery handoff", () => {
+    expect(defaultTerminalContract("discovery")).toMatchObject({
       minEvidence: 1,
       minIndependentSourceUnits: 1,
       requireExactSpanForFindings: false,
       requireFalsification: false,
-      allowOpenQuestions: 8,
-      allowHighSeverityContradictions: 0,
+    });
+    expect(defaultTerminalContract("discovery").allowOpenQuestions).toBe(Number.MAX_SAFE_INTEGER);
+    expect(defaultTerminalContract("discovery").allowHighSeverityContradictions).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("does not impose fixed evidence, source-count, falsification or open-question thresholds on target research", () => {
+    expect(defaultTerminalContract("target")).toEqual({
+      minEvidence: 0,
+      minIndependentSourceUnits: 0,
+      requireExactSpanForFindings: false,
+      requireFalsification: false,
+      allowOpenQuestions: Number.MAX_SAFE_INTEGER,
+      allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     });
   });
 
-  it("keeps stricter evidence, falsification, and exact-span requirements in target research", () => {
-    expect(defaultTerminalContract("target")).toEqual({
-      minEvidence: 3,
-      minIndependentSourceUnits: 2,
-      requireExactSpanForFindings: true,
-      requireFalsification: true,
-      allowOpenQuestions: 0,
-      allowHighSeverityContradictions: 0,
+  it("rejects an empty first-turn done when no evidence or external research has occurred", () => {
+    const result = evaluateResearchTerminal(context(), "target");
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toContain("no_existing_evidence_or_successful_external_research_action");
+  });
+
+  it("allows the Investigator to stop after a successful external research attempt even when no result was found", () => {
+    const state = context({
+      recentActions: [{ action: "web_search", execution: "success" }],
     });
+    expect(hasSuccessfulExternalResearchAttempt(state)).toBe(true);
+    const result = evaluateResearchTerminal(state, "target");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.evidenceCount).toBe(0);
+  });
+
+  it("allows completion when genuine evidence already exists in the current case", () => {
+    const result = evaluateResearchTerminal(context({ evidenceCount: 1 }), "target");
+    expect(result.allowed).toBe(true);
+  });
+
+  it("does not force the Investigator to close every open question or erase contradictions before stopping", () => {
+    const result = evaluateResearchTerminal(context({
+      evidenceCount: 1,
+      openQuestions: ["Beneficial ownership remains unresolved", "A historical role may have ended"],
+      contradictions: [{
+        claim: "The role is current",
+        evidenceIds: ["ev-1", "ev-2"],
+        sources: ["https://a.example", "https://b.example"],
+      }],
+    }), "target");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.openQuestions).toBe(2);
+    expect(result.metrics.highSeverityContradictions).toBe(1);
+  });
+
+  it("keeps discovery handoff tied to an actual source-backed review lead", () => {
+    expect(evaluateResearchTerminal(context(), "discovery").allowed).toBe(false);
+    expect(evaluateResearchTerminal(context({ evidenceCount: 1 }), "discovery").allowed).toBe(false);
+    expect(evaluateResearchTerminal(context({ evidenceCount: 1, independentSourceUnits: 1 }), "discovery").allowed).toBe(true);
+  });
+
+  it("does not mistake a failed provider attempt for successful research", () => {
+    const state = context({
+      recentActions: [{ action: "web_search", execution: "error" }],
+    });
+    expect(hasSuccessfulExternalResearchAttempt(state)).toBe(false);
+    expect(evaluateResearchTerminal(state, "target").allowed).toBe(false);
   });
 });
