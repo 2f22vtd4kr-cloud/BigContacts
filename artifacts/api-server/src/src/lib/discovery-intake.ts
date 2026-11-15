@@ -29,9 +29,7 @@ export function shuffledCopy<T>(items: readonly T[], random: () => number = Math
   return shuffleInPlace([...items], random);
 }
 
-/**
- * Sample N broad categories without replacement (true mix, not slice(0, N)).
- */
+/** Legacy compatibility: return every configured broad category without a fixed cap. */
 export function sampleBroadCategories(
   sources: readonly DiscoverySource[],
   _count: number,
