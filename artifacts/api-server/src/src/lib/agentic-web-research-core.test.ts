@@ -4642,6 +4642,14 @@ describe("community source lead handling and evidence-led scope", () => {
     expect(source).not.toContain("hasRestrictedCommunityUrl");
     expect(source).not.toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
   });
+  it("preserves community contributor and original observation date through canonical review-lead projection", () => {
+    const canonical = readFileSync(new URL("./canonical-atlas-discovery.ts", import.meta.url), "utf8");
+    expect(canonical).toContain("const rawSourceAttribution = payload.args?.sourceAttribution");
+    expect(canonical).toContain("sourceContributor: observation.sourceContributor");
+    expect(canonical).toContain("observedAt: support.originalObservedAt ?? support.createdAt");
+    expect(canonical).not.toContain("sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor");
+    expect(canonical).not.toContain("sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor");
+  });
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
     expect(system).toContain("where sector/geography is open, propose evidence-led changes to Boss");
