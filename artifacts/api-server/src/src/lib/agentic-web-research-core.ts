@@ -5454,8 +5454,8 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     + cues.join(" ")
     + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
 }
-/** Match exact name tokens; only unspaced-script names need role co-binding to disambiguate substrings. */
-export function candidateIdentitySourceBound(personName: string, role: string | null | undefined, observation: string): boolean {
+/** Bind the model-selected name to observed source text; role claims are checked separately when supplied. */
+export function candidateIdentitySourceBound(personName: string, _role: string | null | undefined, observation: string): boolean {
   const normalizedName = normalizeCandidateIdentityName(personName);
   if (!normalizedName) return false;
   const identityText = observation
@@ -5463,20 +5463,10 @@ export function candidateIdentitySourceBound(personName: string, role: string | 
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
   if (candidateIdentityObserved(personName, identityText)) return true;
 
+  // Unspaced scripts have no reliable whitespace token boundary; require an
+  // exact source span, but do not require the model to invent a role.
   const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
-  if (!unspacedNameScript.test(personName) || !role?.trim()) return false;
-  const span = bindExactSourceSpan(observation, role.trim(), personName);
-  if (!span?.exact) return false;
-  const spanText = span.text.toLowerCase();
-  const normalizedRole = role.trim().toLowerCase();
-  const normalizedPerson = personName.trim().toLowerCase();
-  const roleIndex = spanText.indexOf(normalizedRole);
-  const personIndex = spanText.indexOf(normalizedPerson);
-  if (roleIndex < 0 || personIndex < 0) return false;
-  const roleEnd = roleIndex + normalizedRole.length;
-  const personEnd = personIndex + normalizedPerson.length;
-  const between = spanText.slice(Math.min(roleEnd, personEnd), Math.max(roleIndex, personIndex));
-  return !/[.!?\\n]/.test(between);
+  return unspacedNameScript.test(personName) && Boolean(bindExactSourceSpan(observation, personName)?.exact);
 }
 
 const DISCOVERY_EXTERNAL_ACTIONS = new Set([
