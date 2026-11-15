@@ -29,7 +29,7 @@ export function buildResearchEvidenceRows(input: {
   path: PathNode[];
   steps: MctsStep[];
   hybridMeta?: Partial<HybridSearchMeta>;
-  reachability?: { status?: string; score?: number; reasons?: string[]; blockers?: string[] };
+  reachability?: { status?: string; evidence?: string[]; sourceUrls?: string[] };
 }): InsertResearchEvidence[] {
   const rows: InsertResearchEvidence[] = [];
   const add = (row: Omit<InsertResearchEvidence, "sessionId" | "entityId">) => {
@@ -124,17 +124,23 @@ export function buildResearchEvidenceRows(input: {
   }
 
   if (input.reachability) {
-    addClaim({
-      claimType: "access",
-      claim: `Reachability preflight: ${input.reachability.status ?? "unknown"}`,
-      value: input.reachability.status ?? null,
-      sourceName: "Apex Atlas reachability preflight",
-      confidence: Math.max(0, Math.min(1, (input.reachability.score ?? 0) / 100)),
+    // This is model-review context, not a qualified access claim. Preserve the
+    // inventory as a neutral process observation; do not infer reachability
+    // confidence, negative status, or a person-specific contact route.
+    add({
+      claimType: "process",
+      claim: "Targetability observations captured for Investigator/Boss review",
+      value: input.reachability.status ?? "unassessed",
+      sourceName: "Apex Atlas targetability context",
+      confidence: 0,
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
-      rejectionReason: input.reachability.blockers?.join("; ") || null,
-      metadata: JSON.stringify({ reasons: input.reachability.reasons ?? [], blockers: input.reachability.blockers ?? [] }),
-      negativeReason: input.reachability.status === "reachable" ? null : input.reachability.blockers?.join("; ") || "No validated direct or intermediary route was established.",
+      metadata: JSON.stringify({
+        status: input.reachability.status ?? "unassessed",
+        evidence: input.reachability.evidence ?? [],
+        sourceUrls: input.reachability.sourceUrls ?? [],
+        interpretation: "Unassessed context only; not independent corroboration or evidence of access.",
+      }),
     });
   }
 
