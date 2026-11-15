@@ -811,14 +811,14 @@ export const DEFAULT_DISCOVERY_OBJECTIVE =
   "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people. Do not assume or expand a geographic scope unless the human supplies one.";
 
 export const DEFAULT_DISCOVERY_MOTIVATION =
-  "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors, not celebrity names or unreachable institutions.";
+  "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors. Identify objective-fit people, companies, relationships and professional routes using observed evidence.";
 
 export const DEFAULT_DISCOVERY_GEOGRAPHY = "No geographic restriction supplied; do not invent or broaden one.";
 
 export const DEFAULT_DISCOVERY_EXCLUSIONS = [
   "Do not invent people, companies, wealth, contact details, relationships, or source claims.",
-  "Evaluate practical reachability using documented public routes and evidence. For generic prospect discovery, do not surface globally famous/household-name people based on fame or wealth alone; require a documented person-specific professional route or explicit human request. General company/press/IR channels are not individual access. Preserve explicitly named targets and objective-relevant companies regardless of fame.",
-  "Do not stop at generic reception numbers or irrelevant shared inboxes when a closer public route exists.",
+  "Evaluate practical reachability using observed public/professional routes and evidence. Fame, prominence and rankings alone are neither qualifications nor exclusions. General company/press/IR channels are organization routes, not personal access. Preserve explicitly named targets and objective-fit people and companies.",
+  "Classify generic reception numbers and shared inboxes as organization/shared routes; the model decides whether further route research is worthwhile.",
   "Do not treat job titles, company association, fame, or search snippets as proof of personal wealth.",
 ];
 
