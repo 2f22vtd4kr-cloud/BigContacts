@@ -734,7 +734,7 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
     });
 
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
-    expect(prompt).toContain("Specialist OSINT actions are available only when listed in AVAILABLE ACTIONS after fresh worker attestation.");
+    expect(prompt).toContain("SPECIALIST OSINT: only AVAILABLE ACTIONS after fresh worker attestation.");
     expect(prompt).toMatch(/ONLY if the exact action appears in (?:ACTION ALLOWLIST and )?AVAILABLE ACTIONS this turn/);
     expect(prompt).not.toContain("intentionally not available capabilities");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
@@ -1472,7 +1472,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
-    expect(modelPrompt).toContain("visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.");
+    expect(modelPrompt).toContain("visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.");
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
     expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
@@ -3305,7 +3305,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("FETCH: visit reads text/PDF; browser_fetch is HTML-only.");
+    expect(prompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
@@ -4156,7 +4156,7 @@ describe("PDF prompt capability contract", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(modelPrompt).toContain("visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.");
+    expect(modelPrompt).toContain("visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.");
     expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require(?: OCR \(unavailable\)| unavailable OCR)/i);
     expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
