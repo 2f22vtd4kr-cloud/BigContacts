@@ -2830,7 +2830,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     expect(prompt).not.toContain("SEARCH ACTIVITY");
-    expect(prompt).not.toContain("fixed search cap");
+    expect(prompt).toContain("no fixed search cap");
   });
 
   it("counts only executed outbound searches for observability, without blocking later model-selected searches", () => {
@@ -2868,9 +2868,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(modelPrompt).toContain("criteria depend on the mission");
+    expect(modelPrompt).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("scope=organization");
+    expect(modelPrompt).toContain("scope=person/organization/asset");
   });
 
   it("does not exclude prominent people or companies by deterministic fame and ranking priors", () => {
@@ -2886,7 +2886,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
-    expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
+    expect(modelPrompt).toContain("Distinguish person-specific from organization routes.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
     expect(modelPrompt).not.toContain("do not select or surface them solely for wealth or prominence");
