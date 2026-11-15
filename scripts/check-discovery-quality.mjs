@@ -78,9 +78,11 @@ if (!discovery.includes("const slotCandidates = parsePersonFindings(admissionFin
 if (!discovery.includes("function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean")) failures.push("discovery-agent.ts missing observed-page provenance boundary");
 if (!discovery.includes("if (!hasObservedPageSource(sourceUrls, trajectory)) return;")) failures.push("discovery-agent.ts must require candidate source URL to match a visited/fetched page");
 const modelBranchStart = admit.indexOf("if (options.modelSelected)");
-const modelBranchEnd = admit.indexOf("const fitness =", modelBranchStart);
+const modelBranchEnd = admit.indexOf("const existing = await db", modelBranchStart);
 const modelBranch = modelBranchStart >= 0 && modelBranchEnd > modelBranchStart ? admit.slice(modelBranchStart, modelBranchEnd) : "";
+if (!modelBranch.includes('c.promotionDecision !== "promote"')) failures.push("model-selected admission must require an explicit Investigator promotion decision");
 if (!modelBranch.includes("isWellFormedPersonCandidate")) failures.push("model-selected admission is not visibly gated by identity/provenance validation");
+if (!modelBranch.includes("if (!isWellFormedPersonCandidate(c))")) failures.push("model-selected admission must reject malformed identity/provenance records");
 if (modelBranch.includes("evaluateTargetFitness") || modelBranch.includes("shouldRejectTarget")) failures.push("model-selected admission must not call target-fitness ranking/rejection");
 if (failures.length) { console.error("FAIL: discovery quality regression"); for (const failure of failures) console.error(` - ${failure}`); process.exit(1); }
 console.log("OK: canonical discovery remains model-selected with identity/provenance safety and Boss/Investigator separation");
