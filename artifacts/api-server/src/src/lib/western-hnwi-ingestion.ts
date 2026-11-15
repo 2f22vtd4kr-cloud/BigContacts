@@ -544,7 +544,23 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
             const roleDesc: string =
               BRREG_ROLE_TRANSLATIONS[roleCode] ?? rolle?.type?.beskrivelse ?? roleCode;
 
-            const key = dedupKey(fullName, "NO");
+            const sourceRegistry = "BRREG Norway — Enhetsregisteret";
+            const rawMetadata: Record<string, unknown> = {
+              source: "brreg-norway",
+              sourceRecordId: "brreg:" + orgnr + ":" + roleCode + ":" + normalizeName(fullName),
+              orgnr,
+              companyName,
+              municipality,
+              city,
+              organizationForm: orgForm,
+              employeeCount: employees,
+              roleCode,
+              roleDesc,
+              groupCode,
+              groupDesc,
+              brregUrl: "https://www.brreg.no/company/" + orgnr + "/",
+            };
+            const key = dedupKey(fullName, "NO", sourceRegistry, rawMetadata);
             if (seen.has(key)) continue;
             seen.add(key);
 
@@ -553,24 +569,10 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               name: fullName,
               nationality: "Norwegian",
               location: city,
-              sourceRegistry: "BRREG Norway — Enhetsregisteret",
+              sourceRegistry,
               role: roleDesc,
               companyName,
-              rawMetadata: {
-                source: "brreg-norway",
-                sourceRecordId: \`brreg:\${orgnr}:\${roleCode}:\${normalizeName(fullName)}\`,
-                orgnr,
-                companyName,
-                municipality,
-                city,
-                organizationForm: orgForm,
-                employeeCount: employees,
-                roleCode,
-                roleDesc,
-                groupCode,
-                groupDesc,
-                brregUrl: `https://www.brreg.no/company/${orgnr}/`,
-              },
+              rawMetadata,
               signals: {
                 isLargeShareholder: false,
                 isBoardDirector: false, // role codes remain in rawMetadata for model interpretation
