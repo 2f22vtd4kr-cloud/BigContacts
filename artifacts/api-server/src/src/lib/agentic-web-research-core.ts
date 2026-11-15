@@ -4712,8 +4712,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY CHOICE: Investigator chooses the next target, source, query, tool and action by the human objective, observed evidence, information gain, source independence and cost. No mandatory source mix, sector, jurisdiction or action order; preserve explicit constraints and propose evidence-led scope changes to Boss.",
-    "DISCOVERY LEADS: Preserve useful model-selected person, company and asset leads as provisional review cards. Include exact observed names, stated roles or null, source URLs and quote-backed claims with uncertainty. Sourced ownership/wealth hypotheses may be recorded; review-only status is not verification. Never invent claims or routes. Target research and independent review decide what is corroborated, contradicted, material or ready for promotion."
+    "DISCOVERY: choose targets, sources and actions from the objective, evidence, information gain and cost; no mandatory source mix or order. Preserve useful person/company/asset leads as provisional, with exact names, source URLs, quote-backed claims and uncertainty. Sourced ownership/wealth hypotheses may be recorded; never invent facts or routes. Propose material scope changes to Boss."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -4783,12 +4782,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 900 : 3_000,
+        maxChars: input.mode === "discovery" ? 750 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 350 : 900,
+    input.mode === "discovery" ? 250 : 900,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -4798,50 +4797,37 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_600 : 800) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
-  const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 700) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
-  const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
-      const researchContract = "MISSION/RESEARCH: Honor the human objective and explicit constraints; use exact names only from the brief or same-case observations. Choose each action by evidence, information gain, source independence and cost. No fixed sequence. When sector/geography is open, form evidence-led hypotheses and propose material scope changes to Boss. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
-  const actionLiveness = "ACTION LIVENESS: avoid exact normalized repeats unless evidence, rationale or available resources change. Search results are leads, not proof.";
-  const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
+  const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
+      const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: ONLY if the exact action appears in AVAILABLE ACTIONS this turn after fresh worker attestation; otherwise unavailable.";
+  const compactWorkerCapabilityGuidance = "Specialist OSINT actions are available only when listed in AVAILABLE ACTIONS after fresh worker attestation.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
     ? "These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): ${registryIdList}. Never invent adapter IDs; unintegrated public sources may be searched on the web. Results are leads until fetched. Never assume records expose owners, shareholders, members or managers without observed documentation. Asset registrants are not automatically beneficial owners; withheld or failed results are not no-hits.`;
-  const providerGuidance = "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = " + (availableBrowserProviders.join(" | ") || "unavailable") + "; domain_lookup = rdap | whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale controls language, not geography.";
-  const evidenceLaw = "EVIDENCE: cite same-case observations and exact quotations. Failed/unfetched means unknown. Never invent identities, URLs or contacts.";
-  const compactPageFormatGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts bounded text; browser_fetch is HTML-only. Scanned PDFs need OCR; encrypted, malformed and failed extraction are distinct unknowns, not negative evidence. Do not retry the same binary URL through the other fetch action.";
+  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Never invent IDs. Treat records as leads until interpreted; do not assume registrants are beneficial owners. Withheld/failed is not a no-hit.`;
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Market needs mission/evidence basis; locale is language.";
+  const compactPageFormatGuidance = "FETCH: visit extracts text/PDF; browser_fetch is HTML-only. Scanned, encrypted, malformed or failed extraction is unknown, not a negative finding.";
 
-  const partialFindingGuidance = "PARTIAL FINDINGS: Preserve useful source-backed leads, exact URLs, uncertainty and contradictions.";
   const composedPrompt = [
     assignment,
     authoritativeCaseObjective,
     activeBossScopeSection,
-    researchContract,
-    partialFindingGuidance,
-    actionLiveness,
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
     providerGuidance,
-    "",
-    "CAPABILITY GUIDANCE:",
+    "CAPABILITIES:",
     capabilityGuidance,
-    "",
-    evidenceLaw,
     terminalContractGuidance,
     compactPageFormatGuidance,
-    "",
     ...compactEmergencyDiscoveryContractParts,
-    ...(discoveryLivenessAdvisory ? ["OPTIONAL TRAJECTORY ADVISORY (non-binding):", compactPromptSectionPreservingUrlTokens(discoveryLivenessAdvisory, 300, "[advisory omitted]")] : []),
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
