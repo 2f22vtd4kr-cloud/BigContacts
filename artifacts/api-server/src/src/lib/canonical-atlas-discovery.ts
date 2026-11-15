@@ -249,8 +249,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     const candidateRoles = [...new Set(input.findings
       .filter((finding) => normalizeCandidateIdentityName(finding.personName ?? "") === identity
         && finding.promotionDecision === "promote" && finding.scope === "candidate")
-      .map((finding) => typeof finding.role === "string" ? finding.role.trim().replace(/\s+/g, " ") : "")
-      .filter(Boolean))];
+      .map((finding) => typeof finding.role === "string" ? finding.role.trim().replace(/\s+/g, " ") : ""))];
     if (!candidateRoles.length) continue;
 
     const caseEvents = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
@@ -281,11 +280,11 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     }
     if (supportingSources.length < 1) continue;
     // This is a source-backed review-target handoff, not an HNWI conclusion.
-    // The model has selected the candidate/role and supplied an exact quotation;
-    // candidateRoleCorroborationSources verifies that quotation against the
-    // actual fetched observation and its URL. Ownership terminology, wealth
-    // signals, role keywords and proximity are not admission gates. Target
-    // research tests materiality, identity, counter-evidence and routes.
+    // The model selects the candidate and may leave role unspecified; exact
+    // quotations and source URLs are verified against fetched observations.
+    // Ownership terminology, wealth signals, role keywords and proximity are
+    // not admission gates. Target research tests materiality, identity,
+    // counter-evidence and routes.
     const primarySupport = supportingSources[0];
     if (!primarySupport) continue;
 
@@ -313,7 +312,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       let entityId = existing?.id ?? null;
       let createdEntity = false;
       if (!entityId) {
-        const [created] = await tx.insert(entitiesTable).values({ name, type: "PersonCandidate", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Source-backed review-only research lead; target-scoped research must independently test identity/ownership and establish a realistic contact route before any HNWI/contact conclusion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id });
+        const [created] = await tx.insert(entitiesTable).values({ name, type: "PersonCandidate", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Source-backed review-only research lead; target-scoped research must independently test identity/ownership and establish a realistic contact route before any HNWI/contact conclusion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole || null, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id });
         entityId = created?.id ?? null;
         createdEntity = Boolean(entityId);
       }
@@ -337,19 +336,19 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         const supportEvent = caseEvents.find((event) => event.id === support.eventId);
         const [session] = await tx.insert(researchSessionsTable).values({
           targetEntityId: entityId,
-          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion", role: selectedRole, independentPublisher: support.publisher }]),
-          notes: "One observed role-bound source plus an ownership/control clue admits this review-only lead; target-scoped investigation must corroborate identity/ownership, test materiality and counter-evidence, and establish a contact route before promotion.",
+          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion", role: selectedRole || null, independentPublisher: support.publisher }]),
+          notes: "An exact source quote binding the person to an objective-relevant claim admits this review-only lead; any stated role is separately verified. Target-scoped investigation must corroborate identity/ownership, test materiality and counter-evidence, and establish a contact route before promotion.",
           safeUseStatus: "manual_review", crmStatus: "Lead Gen",
         }).returning({ id: researchSessionsTable.id });
         if (!session?.id) throw new Error("Canonical discovery evidence session insert returned no durable session ID.");
         await tx.insert(researchEvidenceTable).values({
           sessionId: session.id, entityId, claimType: "identity_candidate",
-          claim: "Investigator-discovered candidate: " + name + "; role: " + selectedRole,
+          claim: "Investigator-discovered candidate: " + name + (selectedRole ? "; role: " + selectedRole : "; role unspecified"),
           value: name, sourceName: support.publisher,
           sourceUrl: support.sourceUrl, sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review", confidence: 0.5, observedAt: supportEvent?.createdAt ?? new Date(),
           freshnessScore: 1,
-          metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole, independentPublisher: support.publisher, reviewOnly: true }),
+          metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole || null, independentPublisher: support.publisher, reviewOnly: true }),
         });
         addedEvidence += 1;
         durableSourceCount += 1;
