@@ -31,12 +31,12 @@ Item 1. Security and Issuer.
     ).toBe("organization_contact");
   });
 
-  it("notice phone may be direct_contact_candidate", () => {
+  it("notice phone remains unclassified evidence until an Investigator binds it to a person", () => {
     expect(
       computeContactOutcome({
         phone: "609-921-3633",
         phoneSource: "EDGAR-Notice-Phone",
       }),
-    ).toBe("direct_contact_candidate");
+    ).toBe("evidence_only");
   });
 });
