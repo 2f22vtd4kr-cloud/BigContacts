@@ -149,7 +149,7 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap): 2 outbound search actions observed.");
+    expect(prompt).not.toContain("SEARCH ACTIVITY");
     expect(prompt).not.toContain("At zero, no more web/registry searches");
   });
 });
@@ -2884,7 +2884,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
-    expect(modelPrompt).toContain("Wealth, fame, seniority, size, listing, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
     expect(modelPrompt).toContain("context, not eligibility rules");
     expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
@@ -2917,7 +2917,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).not.toContain("discoverySearchBudgetExhaustionObservation");
     expect(agenticCoreSource).not.toContain("discovery_search_budget_exhausted");
     expect(agenticCoreSource).not.toContain("if (discoverySearchActionsUsed >=");
-    expect(agenticCoreSource).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
+    expect(agenticCoreSource).not.toContain("MAX_DISCOVERY_SEARCH_ACTIONS");
+    expect(agenticCoreSource).not.toContain("discoverySearchActionsRemaining");
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
   });
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
@@ -4101,7 +4102,7 @@ describe("Groq Investigator structured-output recovery", () => {
     expect(capturedRequest.messages.map((message) => message.role)).toEqual(["system", "user"]);
     expect(capturedRequest.messages[0]?.content).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping");
     expect(capturedRequest.messages[1]?.content).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>");
-    expect(capturedRequest.messages[1]?.content).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(capturedRequest.messages[1]?.content).toContain("REVIEW LEADS:");
     expect(capturedRequest.responseFormat).toMatchObject({
       type: "json_schema",
       strict: true,
