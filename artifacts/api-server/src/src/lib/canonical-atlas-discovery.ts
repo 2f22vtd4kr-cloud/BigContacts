@@ -1346,6 +1346,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       evidenceRows += result.evidenceRows;
     };
     let selectedInvestigator = boss.investigatorLlm;
+    let latestRightHandReviewContext: { status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null; reviewedAction: string } | null = null;
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
@@ -2145,6 +2146,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
       const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
+        rightHandIndependentReview: latestRightHandReviewContext,
         controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss discovery direction at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected structured research direction or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
           : controlValidationFeedback.kind === "candidate_selection"
@@ -2229,6 +2231,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           { jobId: atlasJobId, caseId: discoveryCaseId, iteration: controlTurns, cognitiveTask: "consequential_discovery_decision_review" },
           { maxCompletionTokens: 512, reasoningEffort: "low", maxAttempts: 1, allowModelFallback: false },
         );
+        latestRightHandReviewContext = { status: review.status, model: review.model, raw: review.raw, error: review.error, reviewedAction: decision.action };
         await assertAtlasJobActive(atlasJobId);
         failureStage = "case_persistence";
         await db.transaction(async (tx) => {
