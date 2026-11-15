@@ -282,7 +282,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain('finding.promotionDecision === "reject"');
     expect(canonicalAtlas).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlas).toContain("payload.runId !== input.discoveryRunId");
-    expect(canonicalAtlas).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(canonicalAtlas).toContain("support.spanVerified || support.sourceUrlBoundByAdapter === true");
     expect(canonicalAtlas).toContain('targetType: "organization" as const');
     expect(canonicalAtlas).toContain("metadata.partialOrganizationLead === true");
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
