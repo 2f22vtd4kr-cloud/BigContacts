@@ -19,10 +19,11 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
+  // Prefer the economical routine-action model in Boss capability menus.
+  GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
   ),
-  GROQ_INVESTIGATOR_20B_CAPABILITY,
 ];
 
 function keyIndex(capability: InvestigatorCapability): number | null {
@@ -39,7 +40,7 @@ export function investigatorCapabilityKeyName(capability: InvestigatorCapability
 }
 
 export function investigatorCapabilityLabel(capability: InvestigatorCapability): string {
-  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "Groq Investigator GPT-OSS 20B model fallback";
+  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "Groq Investigator GPT-OSS 20B (economical routine action model)";
   const keyName = investigatorCapabilityKeyName(capability);
   return keyName ? `Groq Investigator ${keyIndex(capability)} (${keyName})` : capability;
 }
