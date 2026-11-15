@@ -2,11 +2,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runGroqRightHandFreeJson } from "../lib/groq-right-hand-reasoning";
 
 describe("Groq Right-hand token-window timing", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+  });
+
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
     delete process.env.GROQ_RIGHT_HAND_API_KEY;
+    vi.unstubAllEnvs();
   });
 
   it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", { timeout: 15_000 }, async () => {
