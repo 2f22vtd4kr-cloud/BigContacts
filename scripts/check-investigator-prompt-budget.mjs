@@ -11,9 +11,9 @@ const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 6_800/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
-assert(/maxChars: input\.mode === "discovery" \? 1_200 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
-assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 500 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
-assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
+assert(/maxChars: input\.mode === "discovery" \? 900 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
+assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 350 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
+assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 1_600 : 800\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
 assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 6_800/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 6_800/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_200/.test(core), "the preferred 7,200/4,800 character targets remain explicit");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core), "one shared helper derives the provider-safe user-message budget");
@@ -34,8 +34,8 @@ assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
 assert(
   /AUTHORITATIVE SAME-CASE SEARCH BUDGET/.test(stepPrompt)
-    && /runtime safety ceiling is/.test(stepPrompt)
-    && /not a stopping target or fixed sequence/.test(stepPrompt)
+    && /Runtime limits are technical/.test(stepPrompt)
+    && /Search budgets are cost guards, not itineraries/.test(stepPrompt)
     && /DISCOVERY LEAD HANDOFF:/.test(stepPrompt)
     && /provisional review leads/.test(stepPrompt),
   "dynamic discovery prompt must retain its live search budget and review-only handoff state",
