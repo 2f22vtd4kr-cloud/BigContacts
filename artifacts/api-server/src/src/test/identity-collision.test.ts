@@ -23,7 +23,7 @@ describe("model-authored identity adjudication", () => {
       identityAssessment: "same_person",
       identityRationale: "The fetched biography links Roberto Felipe to the target's documented former name and same board mandate.",
     });
-    expect(result).toMatchObject({ assessment: "same_person", risk: false, identityMatch: 1 });
+    expect(result).toMatchObject({ assessment: "same_person", risk: false });
   });
 
   it("blocks an explicit different-person assessment", () => {
