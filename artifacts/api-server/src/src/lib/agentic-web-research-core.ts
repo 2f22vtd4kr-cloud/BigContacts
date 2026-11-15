@@ -4812,22 +4812,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
     ? "These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use."
     : "";
-  const compactCriticalRetrievalGuidance = "PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action. Search snippets remain leads, not evidence.";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const registryCoverageGuidance = renderRegistryCoverageGuidance(availableRegistryIds);
-  const registryCoveragePromptGuidance = registryCoverageGuidance
-    ? "SOURCE COVERAGE (not a checklist): available evidence routes, not a prescribed order; choose by case relevance and expected information gain. " + registryCoverageGuidance
-    : "SOURCE COVERAGE (not a checklist): no native registry adapters are currently available; use relevant public-web sources.";
   const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): ${registryIdList}. Never invent adapter IDs; unintegrated public sources may be searched on the web. Results are leads until fetched. Never assume records expose owners, shareholders, members or managers without observed documentation. Asset registrants are not automatically beneficial owners; withheld or failed results are not no-hits.`;
   const providerGuidance = "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = " + (availableBrowserProviders.join(" | ") || "unavailable") + "; domain_lookup = rdap | whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale controls language, not geography.";
   const evidenceLaw = "EVIDENCE: cite same-case observations and exact quotations. Failed/unfetched means unknown. Never invent identities, URLs or contacts.";
   const compactPageFormatGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts bounded text; browser_fetch is HTML-only. Scanned PDFs need OCR; encrypted, malformed and failed extraction are distinct unknowns, not negative evidence. Do not retry the same binary URL through the other fetch action.";
 
   const partialFindingGuidance = "PARTIAL FINDINGS: Preserve useful source-backed leads, exact URLs, uncertainty and contradictions.";
-  const modelOwnedRelevanceGuidance = input.mode === "discovery"
-    ? "MODEL-OWNED RELEVANCE SELF-CHECK: Explain how the proposed target and falsifiable evidence hypothesis advance the human objective and Boss scope, what same-case evidence or uncertainty motivates the action, and what the source could confirm or falsify. This is a reasoning aid, not a fixed action sequence or a semantic code gate."
-    : "";
   const composedPrompt = [
     assignment,
     authoritativeCaseObjective,
