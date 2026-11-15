@@ -27,13 +27,13 @@ describe("Investigator registry schema reflects configured capabilities", () => 
     expect(enums.direct).toContain("sec-edgar");
     expect(enums.direct).toContain("faa");
     expect(enums.direct).not.toContain("bolagsverket-sweden");
-    expect(enums.direct).toContain(null);
+    expect(enums.direct).not.toContain(null);
     expect(enums.direct).not.toContain("opencorporates");
     expect(enums.direct).not.toContain("companies-house");
     expect(enums.parallel).toContain("sec-edgar");
     expect(enums.parallel).toContain("faa");
     expect(enums.parallel).not.toContain("bolagsverket-sweden");
-    expect(enums.parallel).toContain(null);
+    expect(enums.parallel).not.toContain(null);
     expect(enums.parallel).not.toContain("opencorporates");
     expect(enums.parallel).not.toContain("companies-house");
   });
@@ -56,8 +56,9 @@ describe("model-facing registry inventory", () => {
     const prompt = buildCreativeInvestigatorAngles({ targetName: "Sample target", country: "US", includeInstitutionalOrientation: false });
     expect(prompt).not.toContain("AVAILABLE STRUCTURED REGISTRY INVENTORY");
     const coreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
-    expect(coreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds)");
-    expect(coreSource).toContain("SOURCE COVERAGE (not a checklist)");
+    expect(coreSource).toContain("const availableRegistryIds = getAvailableRegistryIdsForPrompt();");
+    expect(coreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
+    expect(coreSource).toContain("Never invent IDs. Treat records as leads until interpreted");
     const inventory = renderRegistryCoverageGuidance(["sec-edgar", "faa"]);
     expect(inventory).toContain("faa — FAA Aircraft Registry (US)");
     expect(inventory).toContain("sec-edgar — SEC EDGAR (US)");
