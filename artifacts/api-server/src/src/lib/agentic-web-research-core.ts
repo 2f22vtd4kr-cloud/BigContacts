@@ -4787,7 +4787,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess it against the human objective and accepted Boss scope; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
+    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess it against the human objective and accepted Boss scope; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
@@ -5151,7 +5151,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
-  const latestObservationBoundaryMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"]
+  const latestObservationBoundaryMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END", "LATEST_SEARCH_OBSERVATION_BEGIN", "LATEST_SEARCH_OBSERVATION_END"]
     .filter((marker) => String(input.lastObservation ?? "").includes(marker)
       || Boolean(latestRecord?.observation?.includes(marker)));
   const latestObservationAlreadyIncludedInTail = !latestRecord && Boolean(input.lastObservation);
