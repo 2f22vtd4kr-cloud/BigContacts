@@ -10,6 +10,7 @@ describe("legacy target fitness adapter", () => {
       companyScoped: false,
     });
     expect(result.fit).toBe("review");
+    expect(result).not.toHaveProperty("score");
     expect(result.reasons.join(" ")).toContain("heuristics are disabled");
     expect(shouldRejectTarget(result)).toBe(false);
     expect(suggestReframe({ name: "Northstar Holdings LLC", fit: result.fit })).toBeNull();
@@ -23,6 +24,7 @@ describe("legacy target fitness adapter", () => {
       personScoped: true,
     });
     expect(result.fit).toBe("review");
+    expect(result).not.toHaveProperty("score");
     expect(result.roleHints).toEqual([]);
     expect(shouldRejectTarget(result)).toBe(false);
   });
@@ -42,6 +44,7 @@ describe("legacy target fitness adapter", () => {
       }),
     });
     expect(result.fit).toBe("review");
+    expect(result).not.toHaveProperty("score");
     expect(result.reasons.join(" ")).toContain("Company observation");
     expect(shouldRejectTarget(result)).toBe(false);
   });
