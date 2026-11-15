@@ -13,7 +13,8 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot)");
     expect(canonicalAtlasDiscoverySource).toContain("result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary })");
     expect(canonicalAtlasDiscoverySource).toContain("materializedCardCount: materialized");
-    expect(canonicalAtlasDiscoverySource).toContain("discoverySearchActionsRemaining:");
+    expect(canonicalAtlasDiscoverySource).toContain("investigatorActionsRemaining:");
+    expect(canonicalAtlasDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
   it("allows a completed target episode to become the current terminal", () => {
     expect(deriveLatestEvidenceBackedTerminal("target", "complete")).toBe("target");
