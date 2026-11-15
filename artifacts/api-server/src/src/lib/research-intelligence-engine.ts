@@ -47,6 +47,10 @@ export interface IntelligenceEvidence {
   interpretationConfidence?: number | null;
   ambiguityNotes?: string | null;
   sourceLineageId?: string;
+  sourceName?: string | null;
+  sourceContributor?: string | null;
+  originalObservedAt?: string | null;
+  sourceMechanism?: string | null;
   fingerprint: string;
 }
 
