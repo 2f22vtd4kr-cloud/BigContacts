@@ -184,12 +184,12 @@ export function buildTargetContactInvestigatorObjective(input: {
   const companyName = input.companyName?.trim().replace(/\s+/g, " ").slice(0, 140);
   if (input.targetType === "asset") {
     const assetObjective = [
-      `Research the exact public asset or asset record ${targetName}${companyName ? ` (associated in the seed record with ${companyName})` : ""}.`,
+      `Research the exact public asset or asset record ${targetName.slice(0, 140)}${companyName ? ` (seed association: ${companyName.slice(0, 90)})` : ""}.`,
       compactReachabilityControl(input.reachabilityControl),
-      "Establish the asset's public identity, type, manufacturer/model or registration identifier, jurisdiction, status and source freshness from attributable sources. Preserve historical versus current records.",
-      "Distinguish registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared/fractional interests. A registrant or operator is not automatically the beneficial owner. Follow entity/person links only when sources explicitly support them; do not infer a natural person from an asset registration.",
-      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses official registries, operator/issuer publications or other useful public sources based on observed evidence. Preserve exact source URLs and contradictions. Never infer private residence, movements, beneficial ownership, personal wealth or identity from a location or asset alone.",
-      "Classify each contact semantically: direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization, or unknown. Legacy person_specific is accepted. Only direct_personal, professional_person_specific, or legacy person_specific may be proposed as candidate contacts, and only with a verbatim exactQuote tying the named person to the exact value on a fetched source. Department, shared inbox, assistant/intermediary, generic contact form, and organization routes must remain organization/review routes and must never be promoted as personal contact. Unknown remains unclassified. Use exact URLs; snippets are leads.",
+      "Verify public asset identity, type, registration/manufacturer, jurisdiction, status, source date and historical/current distinction.",
+      "Separate registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared interests. A registered owner or operator is not automatically the beneficial owner; follow person/entity links only when the source states them.",
+      "No fixed checklist, provider order or hop sequence: the Investigator chooses official registries, issuer/operator records and other useful sources from observed evidence. Preserve exact URLs, contradictions and uncertainty. Never infer residence, movements, personal wealth or identity from an asset or location alone.",
+      "Classify routes as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown. Only a direct/professional person-specific route with a verbatim exactQuote binding the named person to the value on a fetched source may be promoted. Registered-owner status alone is not a personal contact. Shared/department/assistant/organization routes remain organization review; unknown remains unclassified. Snippets are leads.",
     ].join("\n");
     if (assetObjective.length > 1_900) throw new Error("Asset Investigator objective exceeds its hard prompt budget.");
     return assetObjective;
@@ -230,12 +230,12 @@ export function buildTargetContactInvestigatorObjective(input: {
   // This fallback keeps the evidence/identity laws intact and only shortens
   // optional route detail; never cut a policy sentence at an arbitrary offset.
   const compactSections = [
-    `Target: ${targetName}. Company context: ${companyName || "case record"}. Research public identity, business interests and professional routes.`,
+    `Target: ${targetName}. Company: ${companyName || "case record"}. Investigate the person, not generic company contacts.`,
     sections[1]!,
-    "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
-    "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity.",
-    "Classify contact routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Keep other/unknown routes review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
+    "Verify identity, role, employer, jurisdiction and aliases. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings, investment/deal records and local-language reporting. No fixed checklist; Investigator chooses sources and actions from evidence.",
+    "Seek public, attributable profiles on LinkedIn, Facebook, Instagram, X/Twitter, Telegram, official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
+    "Follow family/associate ties only when credible public sources explicitly document them and they clarify ownership/control or a documented intermediary route. Never infer from surnames, co-location, follows or social proximity.",
+    "Classify routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Shared/unknown routes remain review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
   if (compactObjective.length > 1_900) {
