@@ -97,7 +97,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: Human objective/constraints govern. Boss directs strategy; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.",
+    "MISSION: The human objective and explicit constraints govern. Boss directs strategy; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.",
     "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, meaning, contact attribution and priority. fame, wealth, seniority, company size, listing status, sector, geography, language and source classes are context, not gates. Apply only mission-specific evidence standards; do not invent extra criteria. Adjectives/generic nouns are not queries.",
     "Never infer semantics from keyword, name, employer or proximity heuristics.",
     "AUTONOMY: No fixed source/provider/registry order or itinerary; no mandatory mix. Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification by evidence, information gain and cost. Honor scope; propose evidence-led scope changes to Boss when geography/sector is open. Follow Boss dependencies or explain deviations.",
