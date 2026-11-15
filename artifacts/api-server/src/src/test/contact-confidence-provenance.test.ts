@@ -19,6 +19,7 @@ describe("durable Investigator contact attribution", () => {
             contactAttribution: "person_specific",
             exactQuote: "Jane Example — personal contact: info@official-example.org",
             identityAssessment: "same_person",
+            identityRationale: "The fetched team page explicitly labels this as Jane Example’s contact.",
             sourceUrls: ["https://official-example.org/team"],
             jobId: "atlas-job-1",
           },
