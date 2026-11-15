@@ -136,6 +136,26 @@ describe("model-guided graph identity gate", () => {
     expect(result.decision).toBe("accepted");
   });
 
+  it("accepts contextual career, role-date and geography evidence without a fixed identifier vocabulary", () => {
+    const result = evaluateIdentityGate({
+      ...base,
+      signals: ["career_history_continuity", "role_and_appointment_dates", "geographic_consistency"],
+      semanticAssessment: "same_person",
+      semanticRationale: "Independent biographies establish the same career progression, overlapping appointment dates and consistent operating geography.",
+    });
+    expect(result.decision).toBe("accepted");
+  });
+
+  it("keeps a same-person judgement under review when the model supplies only one evidence signal", () => {
+    const result = evaluateIdentityGate({
+      ...base,
+      signals: ["similar_name"],
+      semanticAssessment: "same_person",
+      semanticRationale: "The display names appear similar.",
+    });
+    expect(result.decision).toBe("review");
+  });
+
   it("keeps same-person judgements under review when sources are not independent", () => {
     const result = evaluateIdentityGate({
       ...base,
