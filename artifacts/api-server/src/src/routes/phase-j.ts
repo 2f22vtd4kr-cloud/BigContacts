@@ -275,10 +275,10 @@ async function persistEvidence(
       source: src,
       // Phase J is a legacy enrichment path, not a semantic attribution model.
       // Zero means "unassessed" (see metadata), never a publisher-quality verdict.
-      sourceReliability: 0,
-      identityMatch: 0,
-      recencyScore: 0,
-      directnessScore: 0,
+      sourceReliability: null,
+      identityMatch: null,
+      recencyScore: null,
+      directnessScore: null,
       independentCorroboration: corroboration,
       validationStatus: "candidate",
       sourceUrl,
@@ -316,7 +316,7 @@ async function persistEvidence(
         }),
         vectorType,
         value,
-        directnessScore: 0,
+        directnessScore: null,
         extractionMethod: evidence.extractionMethod ?? "public-source-parser",
       });
     }
@@ -327,7 +327,7 @@ async function persistEvidence(
         }),
         vectorType,
         value,
-        directnessScore: 0,
+        directnessScore: null,
         extractionMethod: "merged-result-without-source-row",
       });
     }
@@ -337,12 +337,12 @@ async function persistEvidence(
   addContactVector("phone", phone, sources[0] ?? "phase-j");
   if (linkedinUrl) rows.push({
     ...baseRow("LinkedIn", "candidate", canonicalizeUrl(linkedinUrl), { vector: "social" }),
-    vectorType: "social", value: linkedinUrl, directnessScore: 0,
+    vectorType: "social", value: linkedinUrl, directnessScore: null,
     extractionMethod: "public-profile-discovery",
   });
   if (domain) rows.push({
     ...baseRow("domain-resolver", "candidate", canonicalizeUrl(`https://${domain}`), { vector: "domain" }),
-    vectorType: "domain", value: domain, directnessScore: 0,
+    vectorType: "domain", value: domain, directnessScore: null,
     extractionMethod: "J4-domain-resolution",
   });
 
@@ -355,10 +355,10 @@ async function persistEvidence(
         vectorType: fe.type === "linkedin" ? "social" : fe.type,
         value: fe.value,
         sourceUrl: canonicalizeUrl(fe.sourceUrl),
-        sourceReliability: 0,
-        identityMatch: 0,
-        recencyScore: 0,
-        directnessScore: 0,
+        sourceReliability: null,
+        identityMatch: null,
+        recencyScore: null,
+        directnessScore: null,
         independentCorroboration: 1,
         validationStatus: "candidate",
         extractionMethod: fe.extractionMethod ?? `J5-${fe.queryTemplate ?? "discovery"}`,
