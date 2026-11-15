@@ -381,11 +381,21 @@ const BRREG_ROLE_TRANSLATIONS: Record<string, string> = {
   KOMP: "General partner",
 };
 
+export function parseBrregMunicipalityScope(value?: string): Array<string | null> {
+  const configured = value?.trim();
+  if (!configured) return [...BRREG_MUNICIPALITIES];
+  if (configured.toLowerCase() === "all") return [null];
+  const codes = [...new Set(configured.split(",").map((code) => code.trim()).filter((code) => /^\d{4}$/u.test(code)))];
+  return codes.length > 0 ? codes : [...BRREG_MUNICIPALITIES];
+}
+
 async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
+  // Scope is operator-selectable: comma-separated municipality codes or "all".
+  const municipalities = parseBrregMunicipalityScope(process.env.APEX_BRREG_MUNICIPALITIES);
 
-  for (const municipality of BRREG_MUNICIPALITIES) {
+  for (const municipality of municipalities) {
     if (yielded >= maxCount) break;
 
     // Fetch companies in this municipality
@@ -393,8 +403,11 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
       let companies: any[];
       try {
         const resp = await fetch(
-          `https://data.brreg.no/enhetsregisteret/api/enheter` +
-            `?kommunenummer=${municipality}&size=50&page=${page}`,
+          `https://data.brreg.no/enhetsregisteret/api/enheter?${new URLSearchParams({
+            ...(municipality ? { kommunenummer: municipality } : {}),
+            size: "50",
+            page: String(page),
+          }).toString()}`,
           {
             headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0" },
             signal: AbortSignal.timeout(12_000),
@@ -413,16 +426,10 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
         const orgnr: string = company?.organisasjonsnummer;
         if (!orgnr) continue;
 
-        // Skip micro-entities: sole proprietors (ENK) and small associations
-        // without meaningful employee counts — these are not HNWIs
+        // Preserve organization form and employee count as source context.
+        // They are prioritization signals for the Investigator, never eligibility gates.
         const orgForm: string = company?.organisasjonsform?.kode ?? "";
         const employees: number = company?.antallAnsatte ?? 0;
-        // ENK = Enkeltpersonforetak (sole trader), FLI = ideell forening (non-profit assoc)
-        // Only skip ENK/FLI with 0 employees; AS/ASA/SE companies always pass
-        if ((orgForm === "ENK" || orgForm === "FLI") && employees === 0) continue;
-        // Require meaningful scale for AS (private limited): at least 2 employees OR skip
-        // This filters out 1-person shell companies while keeping real operating businesses
-        if (orgForm === "AS" && employees < 2) continue;
 
         const companyName: string = company?.navn ?? "Unknown Company";
         const city: string =
@@ -469,7 +476,7 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               .join(" ")
               .trim();
 
-            if (!fullName || fullName.split(/\s+/).length < 2) continue;
+            if (!isStructurallyValidCandidateName(fullName)) continue;
 
             const roleCode: string = rolle?.type?.kode ?? "";
             const roleDesc: string =
@@ -489,10 +496,13 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               companyName,
               rawMetadata: {
                 source: "brreg-norway",
+                sourceRecordId: \`brreg:\${orgnr}:\${roleCode}:\${normalizeName(fullName)}\`,
                 orgnr,
                 companyName,
                 municipality,
                 city,
+                organizationForm: orgForm,
+                employeeCount: employees,
                 roleCode,
                 roleDesc,
                 groupCode,
@@ -501,7 +511,7 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               },
               signals: {
                 isLargeShareholder: false,
-                isBoardDirector: groupCode === "STYR" || roleCode === "LEDE",
+                isBoardDirector: false, // role codes remain in rawMetadata for model interpretation
                 isCompanyOfficer: true,
                 hasRecentFiling: true, // BRREG is always current
                 jurisdiction: "NO",
