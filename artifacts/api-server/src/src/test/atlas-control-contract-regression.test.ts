@@ -1082,7 +1082,7 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
+    expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
