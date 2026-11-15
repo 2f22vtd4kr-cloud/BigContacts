@@ -70,7 +70,7 @@ describe("discovery source evidence policy", () => {
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://profiles.alpha.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://mirror-copy.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: "Jane Example is the Chief Executive Officer of Beta." },
-      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://directory-gamma.test/jane"], exactQuote: "Jane Example appears here, but no role is stated." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://directory-gamma.test/jane"], exactQuote: null },
     ];
     const normalize = (raw: string) => {
       try { const url = new URL(raw); if (url.protocol !== "https:") return null; url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; }
