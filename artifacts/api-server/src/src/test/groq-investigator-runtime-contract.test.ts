@@ -319,6 +319,17 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("parallel_web_search each item requires query and provider");
     expect(submitted).toContain("parallel_registry_search each item requires query and registry");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
+      json_schema?: { schema?: {
+        required?: string[];
+        properties?: { searches?: { items?: { required?: string[]; properties?: Record<string, { type?: string }> } } };
+      } };
+    };
+    const actionSchema = responseFormat.json_schema?.schema;
+    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
     expect(messages).toHaveLength(2);
   });
 
