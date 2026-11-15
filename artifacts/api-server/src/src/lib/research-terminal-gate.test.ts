@@ -7,7 +7,7 @@ function context(input: {
   independentSourceUnits?: number;
   openQuestions?: string[];
   contradictions?: Array<{ claim: string; evidenceIds: string[]; sources: string[] }>;
-  recentActions?: Array<{ action: string; execution: string; args?: Record<string, unknown> }>;
+  recentActions?: Array<{ action: string; execution: string; args?: Record<string, unknown>; observation?: string; urls?: string[] }>;
 } = {}): IntelligenceContext {
   return {
     evidenceCount: input.evidenceCount ?? 0,
@@ -34,7 +34,7 @@ describe("research-stage terminal contracts", () => {
   it("requires independent sources and falsification without imposing an open-question quota on target research", () => {
     expect(defaultTerminalContract("target")).toEqual({
       minEvidence: 0,
-      minIndependentSourceUnits: 2,
+      minIndependentSourceUnits: 0,
       requireExactSpanForFindings: false,
       requireFalsification: true,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
@@ -50,7 +50,7 @@ describe("research-stage terminal contracts", () => {
 
   it("allows the Investigator to stop after a successful external research attempt even when no result was found", () => {
     const state = context({
-      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to the current executive role" } }],
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to the current executive role" }, observation: "Search completed; no matching pages found.", urls: [] }],
     });
     expect(hasSuccessfulExternalResearchAttempt(state)).toBe(true);
     const result = evaluateResearchTerminal(state, "target");

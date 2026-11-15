@@ -75,7 +75,7 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
     }
     : {
       minEvidence: 0,
-      minIndependentSourceUnits: 2,
+      minIndependentSourceUnits: 0,
       requireExactSpanForFindings: false,
       requireFalsification: true,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
@@ -109,6 +109,9 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
   const result = evaluateTerminalGate(metrics, defaultTerminalContract(mode));
   const claimEvidenceCount = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").length;
   const reasons = [...result.reasons];
+  if (mode === "target" && context.evidenceCount > 0 && context.independentSourceUnits < 2 && !reasons.includes("independent_source_units_below_2")) {
+    reasons.push("independent_source_units_below_2");
+  }
   if (mode === "target" && claimEvidenceCount > exactSpanBindings && !reasons.includes("exact_source_span_binding_incomplete")) {
     reasons.push("exact_source_span_binding_incomplete");
   }
