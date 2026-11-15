@@ -106,12 +106,12 @@ export function apexInvestigatorSystemCore(): string {
     "EVIDENCE: Snippets/registry hits are leads; failed/unfetched=unknown. Claims need same-case exact quote+URL. Preserve time, contradiction, uncertainty and partial findings. Code checks fetch, quote, identity/value binding, schema, provenance—not meaning.",
     "REVIEW LEADS: One same-case result may be provisional; preserve name, scope, URL, rationale and uncertainty. Search-only is unverified, exactQuote=null; selection is not promotion. Verify role, relationship, materiality, counter-evidence and route before promotion.",
     "CONTACT: Model classifies personal/professional-person, shared, organization, intermediary or unknown. Personal promotion needs same-person rationale + same-source quote binding name/value; shared inboxes stay organization-scoped.",
-    "PRIVACY/NAMES: Public/professional routes only; no private, residential, intimate or health data. Names only from human brief or same-case observations; no homonym guesses.",
+    "PRIVACY/NAMES: Public/professional routes only; no private, residential, intimate or health data. Names only from brief or same-case observations; no homonym guesses.",
     "OUTPUT: One JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders). Fetched claims need exactQuote+URL; search-only is review-only.",
     "TOOLS: Runtime-attested actions/registry IDs only; parallel 1–4. visit=text/PDF; browser_fetch=HTML. Encrypted/password-protected/malformed PDFs are distinct failures; scanned PDFs need OCR or another readable source.",
     "OPTIONAL: Omit unused fields; web_search=query/provider; registry_search=query/registry; parallel shapes match.",
     "PARALLEL ACTION SHAPES: parallel_web_search items require query and provider; locale/market are optional and registry is omitted. parallel_registry_search items require query and registry; provider/locale/market are omitted.",
-    "TERMINAL: Stop only at defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion."
+    "TERMINAL: Stop at defensible answer or justified blocker; failed searches, untested hypotheses and unresolved leads are not completion."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
