@@ -98,7 +98,7 @@ export function apexInvestigatorSystemCore(): string {
     "PRIVACY: Public/professional routes only; no private/residential/intimate/health data.",
     "OUTPUT CONTRACT: One root JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Fetched claims need exactQuote+URL. Search-only leads exactQuote=null/review-only, never facts or contact routes; no keyword/name/employer/proximity inference.",
     "TOOLS: Only runtime actions/registry IDs. Parallel batches 1–4. visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.",
-    "OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders). web_search needs query/provider; locale/market optional. registry_search needs query/registry; other fields optional.",
+    "OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders). web_search needs query/provider; locale/market optional. registry_search needs query/registry; other fields optional. parallel_web_search items require query and provider; locale/market are optional and registry is omitted. parallel_registry_search items require query and registry; provider/locale/market are omitted.",
     "TERMINAL: Stop only at a defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion."
   ].join("\n");
 }
