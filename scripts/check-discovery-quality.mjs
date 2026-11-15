@@ -30,7 +30,7 @@ const checks = [
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","Evaluate lists, registries, articles, directories and other sources by their actual content","do not assume a source family is high- or low-yield in advance"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles may provide evidence, leads, named targets or a contact route when their actual content supports that interpretation"], "apex-bureau-orientation.ts"],
-  [activeInvestigator, ["DISCOVERY LEAD HANDOFF","SEARCH ACTIVITY (informational only; no fixed search cap)","Preserve exact observed names and source URLs"], "agentic-web-research-core.ts"],
+  [orientation, ["REVIEW LEADS:","retain name, scope, URL, rationale and uncertainty","Search-only is unverified"], "apex-bureau-orientation.ts"],
   [communityAttribution, ["isCommunityObservationSourceUrl","extractCommunityObservationMetadata","sanitizeCommunityObservationText","community_user_submitted_unverified"], "discovery-source-attribution.ts"],
   [researchIntelligence, ["COMMUNITY_OBSERVATION","sourceContributor?: string | null","originalObservedAt?: string | null"], "research-intelligence-engine.ts"],
   [canonical, ["candidateRoleCorroborationSources", "Ownership terminology, wealth"], "canonical-atlas-discovery.ts"],
