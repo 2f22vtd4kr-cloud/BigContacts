@@ -647,8 +647,11 @@ describe("discovery runtime architecture", () => {
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     expect(uiObjectiveLiteral).toBeDefined();
     const uiObjective = uiObjectiveLiteral ?? "";
-    expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
-    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_200);
+    expect(uiObjective).toContain("Identify potential investors and other objective-fit people, companies, assets");
+    expect(uiObjective).toContain("The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping");
+    expect(uiObjective).toContain("Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss");
+    expect(uiObjective).not.toContain("use only human-specified geography");
+    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_400);
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
