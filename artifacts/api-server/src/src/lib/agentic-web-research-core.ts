@@ -2666,6 +2666,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
             provider: "groq",
             model,
@@ -2767,6 +2768,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
             provider: "groq",
             model,
@@ -2791,6 +2793,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
           provider: "groq",
           model,
@@ -2894,6 +2897,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
             ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
