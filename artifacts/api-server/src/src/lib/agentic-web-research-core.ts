@@ -2463,11 +2463,19 @@ async function callGroqJson(
       let dailyBudgetTokens = 0;
       let dailyEstimatedTokens = 0;
       let providerRequestSent = false;
+      let promptMeasurement = {
+        systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+        userPromptChars: workingPrompt.length,
+        totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+        responseFormatChars: 0,
+        totalRequestChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+        estimatedPromptTokens: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
+      };
       try {
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const responseFormatChars = responseFormat.type === "none" ? 0 : JSON.stringify(responseFormat).length;
-        const promptMeasurement = {
+        promptMeasurement = {
           systemPromptChars,
           userPromptChars: workingPrompt.length,
           totalPromptChars: workingPrompt.length + systemPromptChars,
