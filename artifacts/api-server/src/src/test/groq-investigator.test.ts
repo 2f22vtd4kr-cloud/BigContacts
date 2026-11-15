@@ -67,6 +67,12 @@ describe.sequential("Groq Investigator provider boundary", () => {
       GROQ_INVESTIGATOR_API_KEY_3: "key-4",
     } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
+      "groq-investigator-4",
+    ]);
+    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(optedIn)).toEqual([
       "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-2",
