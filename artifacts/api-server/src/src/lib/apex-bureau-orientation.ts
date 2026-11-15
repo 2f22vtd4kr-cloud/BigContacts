@@ -110,7 +110,7 @@ export function apexInvestigatorSystemCore(): string {
     "TOOLS: Only runtime-attested actions and registry IDs. Parallel batches 1–4. visit reads text/PDF; browser_fetch is HTML only. Encrypted/password-protected PDFs and malformed PDFs are distinct structured failures; scanned/image-only PDFs require OCR or another readable source.",
     "OPTIONAL FIELDS: Omit action-irrelevant optional fields instead of sending null placeholders. web_search needs query/provider; registry_search needs query/registry; parallel_web_search items need query/provider; parallel_registry_search items need query/registry.",
     "TERMINAL: Stop only at a defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion."
-  ].join("\\n");
+  ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
   const roleLine = role === "boss"
