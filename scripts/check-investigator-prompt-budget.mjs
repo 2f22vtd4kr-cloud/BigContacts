@@ -69,14 +69,14 @@ if (failures.length) {
 }
 // Offline prompt-section measurement. No provider, network, tokenizer package or
 // live API is invoked. Token counts are labelled estimates (chars / 3.4).
-const promptCoreMatch = orientation.match(/export function apexInvestigatorSystemCore\(\): string \{\\s*return \[([\\s\\S]*?)\]\\.join\("\\n"\);\\s*\}/);
+const promptCoreMatch = orientation.match(/export function apexInvestigatorSystemCore\(\): string \{\s*return \[([\s\S]*?)\]\.join\("\\n"\);\s*\}/);
 if (!promptCoreMatch) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to extract system prompt sections");
-const promptSections = [...promptCoreMatch[1].matchAll(/^\\s*("(?:\\\\.|[^"\\\\])*")\\s*,?\\s*$/gm)]
+const promptSections = [...promptCoreMatch[1].matchAll(/^\s*("(?:\\.|[^"\\])*")\s*,?\s*$/gm)]
   .map((match) => JSON.parse(match[1]));
 if (!promptSections.length) throw new Error("INVESTIGATOR PROMPT BUDGET: system prompt sections were not measurable");
 const systemPromptChars = promptSections.reduce((total, section) => total + section.length, 0)
   + Math.max(0, promptSections.length - 1)
-  + "\\nReturn one JSON action object only.".length;
+  + "\nReturn one JSON action object only.".length;
 const constant = (name) => {
   const match = core.match(new RegExp("const " + name + " = ([0-9_]+)"));
   if (!match) throw new Error("INVESTIGATOR PROMPT BUDGET: missing " + name);
