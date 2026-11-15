@@ -100,6 +100,7 @@ function extractAsyncFunctionBody(source, functionName) {
 const route = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts", "utf8");
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const candidateSourceUnion = fs.readFileSync("artifacts/api-server/src/src/lib/candidate-source-url-union.ts", "utf8");
+const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const researchRouter = fs.readFileSync("artifacts/api-server/src/src/routes/research.ts", "utf8");
 
 const controlText = maskSource(control, false);
@@ -132,7 +133,7 @@ const checks = [
   ["canonical Atlas control plane has a discovery-only mode", /\bdiscoveryOnly\?\s*:\s*boolean\b/.test(controlCode)],
   ["discovery uses first-class empty target rather than Discovery slot", !controlText.includes('targetName: "Discovery slot"')],
   ["discovery identity admission no longer creates synthetic contact evidence", !controlText.includes('value: `person:${name}`')],
-  ["strict promoted-person admission requires candidate scope and explicit model promotion", controlText.includes('finding.promotionDecision === "promote"') && controlText.includes('finding.scope === "candidate"')],
+  ["strict promoted-person admission requires candidate scope and explicit model promotion", targetAgent.includes('finding.promotionDecision === "promote"') && targetAgent.includes('finding.scope === "candidate"')],
   ["person target handoff requires Investigator promotion and same-run fetched exact-quote provenance, not ownership keywords or fixed proximity", controlText.includes("candidateRoleCorroborationSources") && controlText.includes('payload.runId !== input.discoveryRunId') && controlText.includes("payload.observedUrls") && controlText.includes("sources.length >= 1") && !controlText.includes("hasDiscoveryOwnershipLeadSignal") && candidateSourceUnion.includes("finding.exactQuote") && candidateSourceUnion.includes("observation.observation.includes(quote)") && candidateSourceUnion.includes('(observation.action !== "visit" && observation.action !== "browser_fetch")') && candidateSourceUnion.includes('observation.execution !== "success"') && !candidateSourceUnion.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)") && candidateSourceUnion.includes("supporting.has(publisher)")],
   ["canonical route is mounted before retired legacy execution routes", researchRouterCode.indexOf(canonicalMount) >= 0 && researchRouterCode.indexOf(legacyMount) >= 0 && researchRouterCode.indexOf(canonicalMount) < researchRouterCode.indexOf(legacyMount)],
   ["research router no longer mounts the retired casesRouter", !/router\.use\(casesRouter\)/.test(researchRouterCode)],
