@@ -95,7 +95,7 @@ export function apexInvestigatorSystemCore(): string {
     "TOOLS: Use only AVAILABLE ACTIONS and runtime IDs. Parallel batches contain 1–4 items. visit extracts text/PDFs; browser_fetch is HTML-only. Failed extraction is unknown.",
     "OPTIONAL ACTION FIELDS: Omit action-irrelevant optional fields instead of sending null placeholders. For parallel_web_search each item requires query and provider; locale/market are optional and registry is omitted. For parallel_registry_search each item requires query and registry; provider/locale/market are omitted.",
     "TERMINAL: Stop only at a defensible answer or justified blocker. Empty searches, failed fetches, untested hypotheses and unresolved useful leads are not completion."
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
