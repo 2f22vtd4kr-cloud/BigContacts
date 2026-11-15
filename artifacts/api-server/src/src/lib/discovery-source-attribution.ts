@@ -6,6 +6,7 @@ export type DiscoverySourceAttribution = {
   sourceContributor: string | null;
   sourceMechanism: string;
   originalObservedAt: string | null;
+  retrievedAt: string | null;
   independentCorroborationStatus: "not_assessed";
 };
 
@@ -54,6 +55,7 @@ export function buildDiscoverySourceAttribution(input: {
   sourceUrl: string;
   action: string;
   observedAt?: Date | string | null;
+  retrievedAt?: Date | string | null;
   sourceName?: string | null;
   sourceDomain?: string | null;
   sourceClass?: string | null;
@@ -78,13 +80,16 @@ export function buildDiscoverySourceAttribution(input: {
   const sourceContributor = typeof input.sourceContributor === "string" && input.sourceContributor.trim()
     ? input.sourceContributor.trim()
     : null;
-  let originalObservedAt: string | null = null;
-  if (input.observedAt instanceof Date && Number.isFinite(input.observedAt.getTime())) {
-    originalObservedAt = input.observedAt.toISOString();
-  } else if (typeof input.observedAt === "string" && input.observedAt.trim()) {
-    const parsed = new Date(input.observedAt);
-    if (Number.isFinite(parsed.getTime())) originalObservedAt = parsed.toISOString();
-  }
+  const parseTimestamp = (value: Date | string | null | undefined): string | null => {
+    if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+    if (typeof value === "string" && value.trim()) {
+      const parsed = new Date(value);
+      if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
+    }
+    return null;
+  };
+  const originalObservedAt = parseTimestamp(input.observedAt);
+  const retrievedAt = parseTimestamp(input.retrievedAt);
   return {
     sourceName: communityObservationSource ? "Virtual Globetrotting" : suppliedName || sourceDomain,
     sourceNameKind: communityObservationSource || suppliedName ? "publisher_name" : "domain_fallback",
@@ -93,6 +98,7 @@ export function buildDiscoverySourceAttribution(input: {
     sourceContributor,
     sourceMechanism: input.action || "unknown",
     originalObservedAt,
+    retrievedAt,
     independentCorroborationStatus: "not_assessed",
   };
 }
