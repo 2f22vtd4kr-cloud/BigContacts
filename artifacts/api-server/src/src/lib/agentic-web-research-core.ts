@@ -4786,8 +4786,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // structured pivot heading. Preserve that accepted scope in every prompt tier.
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
-  const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
+  const blockedScopeObservation = String(input.lastObservation ?? "");
+  const blockedScopeDimensions = ["geography", "source class", "target type", "search strategy"]
+    .filter((dimension) => blockedScopeObservation.toLowerCase().includes(dimension));
+  const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(blockedScopeObservation)
+    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. Blocked dimensions: " + (blockedScopeDimensions.join(", ") || "unspecified") + ". Ask Boss before a material scope change."
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
