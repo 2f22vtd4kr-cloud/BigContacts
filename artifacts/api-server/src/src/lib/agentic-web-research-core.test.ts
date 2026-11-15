@@ -281,6 +281,13 @@ describe("live discovery semantic-authority boundary", () => {
     expect(validator).not.toContain("findUnsupportedDiscoverySectorTerms");
     expect(validateDiscoverySearchQuery("Mongolian renewable-energy founders and public ownership records").allowed).toBe(true);
     expect(validateDiscoverySearchQuery("Singapore deep-tech operators, regional filings and investor relationships").allowed).toBe(true);
+
+    const runStart = agenticCoreSource.indexOf("export async function runAgenticWebResearch");
+    const runPreflightEnd = agenticCoreSource.indexOf("const requestedIterations", runStart);
+    expect(runStart).toBeGreaterThan(-1);
+    const targetPreflight = agenticCoreSource.slice(runStart, runPreflightEnd);
+    expect(targetPreflight).toContain('if (!name && input.mode !== "discovery")');
+    expect(targetPreflight).not.toContain("name.length < 2");
   });
 });
 
