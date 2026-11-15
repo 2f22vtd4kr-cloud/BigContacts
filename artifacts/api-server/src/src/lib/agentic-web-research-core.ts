@@ -5014,7 +5014,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (value: unknown, maxChars = 1_600): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 500): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
