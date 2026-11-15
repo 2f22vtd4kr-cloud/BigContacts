@@ -156,7 +156,7 @@ export interface IntelligenceContext {
   independentSourceUnits: number;
   discovery?: DiscoveryIntelligence;
   falsification: ReturnType<typeof assessFalsificationPlan>;
-  researchQuestions: Array<{ id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
+  researchQuestions: Array<{ id: string; question: string; importance: number | null; uncertainty: number | null; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -738,12 +738,11 @@ export class ResearchIntelligenceEngine {
       const posterior = updateHypothesisPosterior(hypothesis.priorScore, signals);
       hypothesis.score = posterior.score;
       hypothesis.logOdds = posterior.logOdds;
-      if (hypothesis.score >= 0.75) hypothesis.missingDiscriminators = hypothesis.missingDiscriminators.filter((item) => item.trim());
       const discriminator = chooseBestDiscriminator({ missingDiscriminators: hypothesis.missingDiscriminators, contradictionPressure: posterior.contradictionWeight, unresolvedPressure: hypothesis.missingDiscriminators.length });
       if (discriminator && !hypothesis.missingDiscriminators.includes(discriminator)) hypothesis.missingDiscriminators.push(discriminator);
     }
     const ranked = [...this.hypotheses.values()].sort((a, b) => b.score - a.score);
-    ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : hypothesis.score < 0.2 ? "rejected" : "alternative"; });
+    ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : "alternative"; });
   }
 
   buildContext(): IntelligenceContext {
@@ -843,9 +842,9 @@ export class ResearchIntelligenceEngine {
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = rankLearnedActionYield(this.actionYield);
-    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
+    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number | null; uncertainty: number | null; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
     for (const [index, question] of openQuestions.entries()) {
-      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" });
+      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: null, uncertainty: null, discriminators: [question], status: "open" });
     }
     // The model-authored action rationale is useful research intent. Keep it in
     // the question projection without turning it into a deterministic terminal
@@ -861,8 +860,8 @@ export class ResearchIntelligenceEngine {
       researchQuestionMap.set(key, {
         id: "rq_" + hash(purpose).slice(0, 16),
         question: purpose.slice(0, 500),
-        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : 0.5,
-        uncertainty: 0.8,
+        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : null,
+        uncertainty: null,
         discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
         status: action.useful ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
       });
@@ -930,7 +929,7 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     target: context.target,
     objective: context.objective.slice(0, 1_500),
     facts: headTailItems(context.facts, 12).map((fact) => ({ claim: fact.claim.slice(0, 500), evidenceIds: headTailItems(fact.evidenceIds, 8), sources: headTailItems(fact.sources, 6) })),
-    hypotheses: [...context.hypotheses].sort((a, b) => b.score - a.score).slice(0, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: headTailItems(hypothesis.supportingEvidenceIds, 8), contradictingEvidenceIds: headTailItems(hypothesis.contradictingEvidenceIds, 8), missingDiscriminators: headTailItems(hypothesis.missingDiscriminators, 8).map((v) => v.slice(0, 300)) })),
+    hypotheses: headTailItems(context.hypotheses, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: headTailItems(hypothesis.supportingEvidenceIds, 8), contradictingEvidenceIds: headTailItems(hypothesis.contradictingEvidenceIds, 8), missingDiscriminators: headTailItems(hypothesis.missingDiscriminators, 8).map((v) => v.slice(0, 300)) })),
     contradictions: headTailItems(context.contradictions, 8).map((item) => ({ claim: item.claim.slice(0, 500), evidenceIds: headTailItems(item.evidenceIds, 8), sources: headTailItems(item.sources, 6) })),
     contacts: headTailItems(context.contacts, 10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: headTailItems(contact.sourceUrls, 6), sourceHosts: headTailItems(contact.sourceHosts, 6) })),
     negativeFindings: headTailItems(context.negativeFindings, 12).map((v) => v.slice(0, 400)),
