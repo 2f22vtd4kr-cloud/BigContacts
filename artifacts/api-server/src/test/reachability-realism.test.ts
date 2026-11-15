@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assessTargetReachability } from "../lib/reachability-realism";
+import { assessCompanyRealism, assessTargetReachability, formatReachabilityDirective } from "../src/lib/reachability-realism";
 
-describe("target reachability realism", () => {
-  it("bounds a Buffett-like prominent isolated target before expensive research", () => {
-    const result = assessTargetReachability({
-      type: "HNWI",
+describe("model-owned targetability context", () => {
+  it("does not turn a high stored wealth estimate into a deterministic research-only decision", () => {
+    const assessment = assessTargetReachability({
+      type: "person",
       estimatedNetWorth: 130_000_000_000,
       contactOutcome: "social_only",
       contactConfidence: 18,
@@ -13,70 +13,53 @@ describe("target reachability realism", () => {
       gatekeeperConnections: 0,
       intermediaryConnections: 0,
     });
+    const prompt = formatReachabilityDirective(assessment);
 
-    expect(result.status).toBe("research_only");
-    expect(result.mode).toBe("research_only");
-    expect(result.score).toBeLessThan(20);
+    expect(assessment.status).toBe("unassessed");
+    expect(assessment.mode).toBe("model_assessment");
+    expect(prompt).toContain("130000000000");
+    expect(prompt).toContain("basis and accuracy have not been assessed");
+    expect(prompt).toContain("No fixed wealth cutoff, score, source-count minimum");
+    expect(prompt).not.toMatch(/research.only|500.?m threshold/i);
   });
 
-  it("keeps a validated direct vector on the normal research path", () => {
-    const result = assessTargetReachability({
-      type: "HNWI",
-      estimatedNetWorth: 2_000_000_000,
-      email: "principal@familyoffice.example",
-      phone: "+14155552671",
-      contactOutcome: "direct_contact_verified",
-      metadata: JSON.stringify({ publicProminence: true }),
-      networkDegree: 0,
+  it("preserves a company observation without requiring two source domains", () => {
+    const metadata = JSON.stringify({
+      companyGrowthRanking: [{
+        name: "Inc. 5000",
+        year: 2025,
+        rank: 412,
+        sourceType: "ranking_publisher",
+        sourceUrl: "https://ranking.example/list",
+        verified: true,
+      }],
     });
+    const company = assessCompanyRealism({ metadata });
+    const prompt = formatReachabilityDirective(assessTargetReachability({ type: "company", metadata }));
 
-    expect(result.status).toBe("direct");
-    expect(result.mode).toBe("full");
-    expect(result.hasDirectContact).toBe(true);
+    expect(company.status).toBe("unassessed");
+    expect(company.independentSourceCount).toBe(1);
+    expect(company.evidence[0]?.details).toContain("Inc. 5000");
+    expect(prompt).toContain("Inc. 5000");
+    expect(prompt).not.toMatch(/poor.fit|at least two independent|two source domains/i);
   });
 
-  it("uses a corroborated intermediary path without claiming direct access", () => {
-    const result = assessTargetReachability({
-      type: "HNWI",
-      estimatedNetWorth: 800_000_000,
-      contactOutcome: "none",
-      metadata: JSON.stringify({ publicProminence: true }),
-      networkDegree: 1,
+  it("does not treat a stored email as a verified person-specific route", () => {
+    const prompt = formatReachabilityDirective(assessTargetReachability({
+      type: "person",
+      email: "office@example.org",
+      contactOutcome: "organization_contact",
       gatekeeperConnections: 1,
-      intermediaryConnections: 1,
-    });
-
-    expect(result.status).toBe("intermediary");
-    expect(result.mode).toBe("full");
-    expect(result.hasDirectContact).toBe(false);
-    expect(result.hasIntermediaryPath).toBe(true);
+    }));
+    expect(prompt).toContain("does not establish person-specific attribution");
+    expect(prompt).toContain("A missing contact route is an unresolved evidence gap");
   });
 
-  it("does not treat a social-only celebrity as reachable", () => {
-    const result = assessTargetReachability({
-      type: "HNWI",
-      estimatedNetWorth: 400_000_000,
-      contactOutcome: "social_only",
-      instagramHandle: "publicprofile",
-      metadata: JSON.stringify({ prominence: "high" }),
-      networkDegree: 0,
-    });
-
-    expect(result.hasDirectContact).toBe(false);
-    expect(result.hasIntermediaryPath).toBe(false);
-    expect(result.status).toBe("research_only");
-  });
-
-  it("never creates access from fame or wealth alone", () => {
-    const result = assessTargetReachability({
-      type: "HNWI",
-      estimatedNetWorth: 10_000_000_000,
-      metadata: JSON.stringify({ publicProminence: true }),
-      networkDegree: 0,
-    });
-
-    expect(result.hasDirectContact).toBe(false);
-    expect(result.hasIntermediaryPath).toBe(false);
-    expect(result.status).toBe("research_only");
+  it("does not expose private residence details in targetability context", () => {
+    const prompt = formatReachabilityDirective(assessTargetReachability({
+      type: "person",
+      knownResidences: "PRIVATE_RESIDENCE_SENTINEL",
+    }));
+    expect(prompt).not.toContain("PRIVATE_RESIDENCE_SENTINEL");
   });
 });
