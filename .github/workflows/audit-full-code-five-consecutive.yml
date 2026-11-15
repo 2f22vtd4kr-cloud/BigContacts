@@ -62,10 +62,10 @@ jobs:
         run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Push database schema for live smoke tests
-        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
-      - name: Apply explicit Apex database invariants
-        run: pnpm --filter @workspace/db run harden
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
@@ -159,10 +159,10 @@ jobs:
       - run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Push database schema for live smoke tests
-        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
-      - name: Apply explicit Apex database invariants
-        run: pnpm --filter @workspace/db run harden
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
@@ -255,10 +255,10 @@ jobs:
       - run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Push database schema for live smoke tests
-        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
-      - name: Apply explicit Apex database invariants
-        run: pnpm --filter @workspace/db run harden
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
@@ -351,10 +351,10 @@ jobs:
       - run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Push database schema for live smoke tests
-        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
-      - name: Apply explicit Apex database invariants
-        run: pnpm --filter @workspace/db run harden
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
@@ -447,10 +447,10 @@ jobs:
       - run: pnpm run build
       - name: Atlas control contract regression
         run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
-      - name: Push database schema for live smoke tests
-        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
-      - name: Apply explicit Apex database invariants
-        run: pnpm --filter @workspace/db run harden
+      - name: Initialize complete Apex database schema and migrations
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
           set -euo pipefail
