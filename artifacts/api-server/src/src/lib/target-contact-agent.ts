@@ -153,20 +153,15 @@ async function validateTargetCaseBinding(caseId: number | undefined, entityId: n
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
 function compactReachabilityControl(raw: string): string {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (!lines.length) {
-    return "TARGETABILITY CONTEXT: no stored reachability observations are available; make a mission-specific assessment from the actual research.";
-  }
-  const decisionIndex = lines.findIndex((line) => line.startsWith("MODEL DECISION AUTHORITY:"));
-  const factLines = lines.slice(0, decisionIndex >= 0 ? decisionIndex : 8)
-    .filter((line) => line.startsWith("- ") || line.startsWith("TARGETABILITY CONTEXT") || line.startsWith("Stored source URLs"))
-    .slice(0, 7);
-  const decisionLines = decisionIndex >= 0 ? lines.slice(decisionIndex) : [];
-  const decisionText = decisionLines.join(" ");
-  const compact = [...factLines, decisionText].filter(Boolean).join("\n");
-  if (compact.length <= 1_350) return compact;
-  const facts = factLines.join("\n").slice(0, 720);
-  const decision = decisionText.slice(0, 600);
-  return [facts, decision].filter(Boolean).join("\n");
+  // Preserve only a couple of factual observations; the case file carries the
+  // complete durable record. Never allow telemetry context to crowd out the
+  // mission-specific target-research contract.
+  const facts = lines
+    .filter((line) => line.startsWith("- ") || line.startsWith("TARGETABILITY CONTEXT"))
+    .slice(0, 2)
+    .map((line) => line.slice(0, 105));
+  const authority = "MODEL DECISION: judge relevance, priority and direct/shared/assistant/intermediary routes against the exact objective and source context. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contact values are not person-specific without exact-quote attribution.";
+  return [...facts, authority].join("\n");
 }
 
 export function buildTargetContactInvestigatorObjective(input: {
