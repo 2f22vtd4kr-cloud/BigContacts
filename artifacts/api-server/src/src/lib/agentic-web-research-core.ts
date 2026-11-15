@@ -4782,7 +4782,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: a prior request was blocked before execution by an earlier deterministic alignment policy; this is not evidence and its keyword criteria are not authoritative. Reassess the proposed research independently against the human objective and the current Boss-approved direction. If it genuinely advances the mission within that direction, choose an appropriate action; do not mechanically repeat geography, source-class or subject wording. If it would change strategic scope, ask Boss."
+    ? "SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess it against the human objective and accepted Boss scope; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
@@ -5014,7 +5014,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (value: unknown, maxChars = 500): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 320): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
@@ -5136,7 +5136,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const carriedLeadCount = carryForwardSuccessfulSearch?.leadUrls?.length ?? 0;
     if (latestLeadCount > 0 || carriedLeadCount > 0) {
       parts.push(
-        "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. Before another broad search or pivot, compare the highest-value remaining same-scope lead against the alternatives; do not treat a lack of findings from snippets as evidence against unvisited leads. The Investigator retains action choice; this is an expected-information-gain judgment, not a fixed sequence. Search-result URLs remain leads, not evidence until fetched.",
+        "LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain. No findings from snippets is not evidence against unvisited leads; URLs remain leads until fetched.",
       );
     }
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
@@ -5276,13 +5276,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   if (outputContractIndex < 0) return providerBoundedPrompt;
   const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
   const pinnedContext = [
+    authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
-    discoverySearchBudgetGuidance,
     compactRegistryGuidance,
     terminalContractGuidance,
-    compactPageFormatGuidance,
     blockedScopeRecoveryMarker,
+    aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
   let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
   for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
