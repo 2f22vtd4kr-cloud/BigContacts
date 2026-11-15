@@ -190,6 +190,42 @@ describe("Investigator LLM telemetry privacy", () => {
     }
   });
 
+  (process.env.DATABASE_URL ? it : it.skip)("does not count a provider-rejected TPM 429 as daily token consumption", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-tpm-rejection";
+    const model = "openai/gpt-oss-20b-tpm-rejection-test";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, model),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      const reservation = await reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env });
+      recordAgenticLlmAttempt({
+        provider, role: "investigator", model, promptChars: 1_800, status: 429, success: false,
+        retryIndex: 1, reason: "upstream_rate_limited", providerErrorType: "tokens",
+        providerRequestSent: true, dailyReservationDate: reservation.usageDate,
+        dailyReservationTokens: reservation.reservedTokens, dailyBudgetTokens: reservation.dailyBudgetTokens,
+        estimatedTokens: reservation.reservedTokens,
+      });
+      await flushAgenticLlmUsageLedger();
+      const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(row).toMatchObject({
+        requestCount: 1, successCount: 0, failureCount: 1, totalTokens: 0, reservedTokens: 0,
+      });
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
+        .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
+  });
+
   (process.env.DATABASE_URL ? it : it.skip)("charges the reserved estimate when a sent failed request has no provider usage metadata", async () => {
     const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
       import("@workspace/db"),
