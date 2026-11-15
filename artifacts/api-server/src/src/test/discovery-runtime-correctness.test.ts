@@ -70,35 +70,32 @@ describe("discovery runtime architecture", () => {
     expect(orchestratorSource).toBe("");
   });
 
-  it("uses bounded output-budget recovery for the canonical opening Right-hand review", () => {
-    const rightHandCall = canonicalDiscoverySource.indexOf("runGroqRightHandFreeJson(");
-    const nextControlBoundary = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandCall);
+  it("uses a small low-reasoning budget for consequential discovery Right-hand review", () => {
+    const rightHandCall = canonicalDiscoverySource.indexOf("const review = await runGroqRightHandFreeJson(");
+    const reviewEnd = canonicalDiscoverySource.indexOf("latestRightHandReviewContext =", rightHandCall);
     expect(rightHandCall).toBeGreaterThan(-1);
-    expect(nextControlBoundary).toBeGreaterThan(rightHandCall);
-    const openingCall = canonicalDiscoverySource.slice(rightHandCall, nextControlBoundary);
-    expect(openingCall).toContain("maxCompletionTokens: 1_024");
-    expect(openingCall).toContain('reasoningEffort: "low"');
-    expect(openingCall).toContain("maxAttempts: 4");
-    expect(openingCall).toContain("generationBudgetRecovery");
-    expect(openingCall).toContain("maxCompletionTokens: 1_536");
+    expect(reviewEnd).toBeGreaterThan(rightHandCall);
+    const reviewCall = canonicalDiscoverySource.slice(rightHandCall, reviewEnd);
+    expect(reviewCall).toContain("maxCompletionTokens: 512");
+    expect(reviewCall).toContain('reasoningEffort: "low"');
+    expect(reviewCall).toContain("maxAttempts: 1");
+    expect(reviewCall).toContain('cognitiveTask: "consequential_discovery_decision_review"');
   });
 
-  it("keeps the canonical opening order Boss first, Right-hand second", () => {
-    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    const bossIndex = canonicalSource.indexOf("const boss = await runGroqBossDiscovery(");
-    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./groq-right-hand-reasoning\")");
-    expect(bossIndex).toBeGreaterThan(-1);
-    expect(rightHandIndex).toBeGreaterThan(-1);
-    expect(bossIndex).toBeLessThan(rightHandIndex);
-    const bossCall = canonicalSource.indexOf("runGroqBossDiscovery({");
-    const rightHandCall = canonicalSource.indexOf("runGroqRightHandFreeJson(");
-    expect(bossCall).toBeGreaterThan(-1);
-    expect(rightHandCall).toBeGreaterThan(-1);
-    expect(bossCall).toBeLessThan(rightHandCall);
-    const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
-    expect(rightHandSource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
-    expect(rightHandSource).not.toContain("boss.report");
-    expect(rightHandSource).not.toContain("boss.nextDirections");
+  it("defers discovery Right-hand review until the Investigator and Boss reach a consequential decision", () => {
+    const openingBoss = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
+    const firstInvestigatorEpisode = canonicalDiscoverySource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
+    const rightHandCall = canonicalDiscoverySource.indexOf("const review = await runGroqRightHandFreeJson(");
+    expect(openingBoss).toBeGreaterThan(-1);
+    expect(firstInvestigatorEpisode).toBeGreaterThan(openingBoss);
+    expect(rightHandCall).toBeGreaterThan(firstInvestigatorEpisode);
+    expect(canonicalDiscoverySource).toContain("const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0");
+    expect(canonicalDiscoverySource).toContain("(investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)");
+    expect(canonicalDiscoverySource).toContain("rightHandReconsiderationUsed");
+    const rightHandSource = canonicalDiscoverySource.slice(rightHandCall, rightHandCall + 2600);
+    expect(rightHandSource).toContain("consequential_discovery_decision_review");
+    expect(rightHandSource).toContain("Right-hand independently challenged the consequential decision");
+    expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
   });
 
   it("preserves and narrowly recovers terminal Right-hand opening failures", () => {
@@ -155,18 +152,19 @@ describe("discovery runtime architecture", () => {
     expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
   });
 
-  it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
+  it("runs target Boss opening before act 1 and reviews only consequential acts", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
+    const oversight = fs.readFileSync(path.join(libDir, "target-act-oversight.ts"), "utf8");
     const bossOpening = runner.indexOf("runGroqBossDiscovery({");
-    const rightHandOpening = runner.indexOf("runGroqRightHandFreeJson(");
     const firstAct = runner.indexOf("latestResult = await runTargetContactAgent({");
+    const oversightCall = runner.indexOf("await reviewTargetInvestigationAct({");
     expect(bossOpening).toBeGreaterThan(-1);
-    expect(rightHandOpening).toBeGreaterThan(bossOpening);
-    expect(firstAct).toBeGreaterThan(rightHandOpening);
+    expect(firstAct).toBeGreaterThan(bossOpening);
+    expect(oversightCall).toBeGreaterThan(firstAct);
+    expect(oversight).toContain("shouldReviewTargetActWithRightHand");
+    expect(oversight).toContain('if (act.action === "done" && act.execution === "success") return true;');
+    expect(oversight).toContain("previousBossDisposition === \"redirect\"");
     expect(runner).toMatch(/actorRole: "groq_boss"/);
-    expect(runner).toMatch(/actorRole: "right_hand"/);
-    expect(runner).toMatch(/target-boss-opening/);
-    expect(runner).toMatch(/target-right-hand-opening/);
   });
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
