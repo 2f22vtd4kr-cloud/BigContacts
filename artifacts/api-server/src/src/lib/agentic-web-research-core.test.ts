@@ -171,6 +171,10 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("EVIDENCE & INTEGRITY");
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("six required root fields");
+    expect(systemCore).toContain("MISSION-SPECIFIC EVIDENCE");
+    expect(systemCore).toContain("Omit action-irrelevant optional fields instead of sending null placeholders");
+    expect(systemCore).toContain("parallel_web_search each item requires query and provider");
+    expect(systemCore).toContain("parallel_registry_search each item requires query and registry");
     expect(systemCore).toContain("TERMINAL:");
     expect(systemCore).toContain("No fixed source/provider/registry order or itinerary");
     expect(systemCore).not.toContain("Virtual Globetrotting");
