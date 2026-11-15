@@ -152,24 +152,21 @@ export function findingsToContacts(findings: Array<{ vectorType: string; value: 
 async function validateTargetCaseBinding(caseId: number | undefined, entityId: number, jobId?: string): Promise<Record<string, unknown> | null> { if (caseId == null || !Number.isSafeInteger(caseId) || caseId <= 0 || !jobId?.trim()) return null; const [row] = await db.select({ targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row || row.caseType !== "target" || row.targetEntityId !== entityId || !row.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; if (parsed.atlasJobId === jobId) return parsed; return null; } catch { return null; } }
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
 function compactReachabilityControl(raw: string): string {
-  const value = raw.replace(/\s+/g, " ").trim();
-  const fallback = "REALISM / REACHABILITY CONTROL: prefer a realistic, source-backed public/professional/intermediary route; prominence is not access.";
-  if (!value) return fallback;
-  if (value.length <= 220) return value;
-
-  const status = value.match(/\bStatus:\s*([A-Z_]+)/i);
-  const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) (?:target|reachability pass)\./i);
-  const score = value.match(/practical access score\s+(\d+)\/100/i);
-  const blockers = value.match(/Known blockers:\s*([^\n]+)/i);
-  const route = value.match(/prioritize [^.\n]+/i);
-  const compact = [
-    "REALISM / REACHABILITY CONTROL:",
-    status ? `Status ${status[1]!.toUpperCase()}${score ? ` (access score ${score[1]}/100)` : ""}.` : "",
-    targetMode?.[0] ?? "",
-    route?.[0] ?? "",
-    blockers ? `Known blockers: ${blockers[1]!.slice(0, 70)}` : "",
-  ].filter(Boolean).join(" ");
-  return compact.length > 180 ? compact.slice(0, 177).trimEnd() + "..." : compact || fallback;
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) {
+    return "TARGETABILITY CONTEXT: no stored reachability observations are available; make a mission-specific assessment from the actual research.";
+  }
+  const decisionIndex = lines.findIndex((line) => line.startsWith("MODEL DECISION AUTHORITY:"));
+  const factLines = lines.slice(0, decisionIndex >= 0 ? decisionIndex : 8)
+    .filter((line) => line.startsWith("- ") || line.startsWith("TARGETABILITY CONTEXT") || line.startsWith("Stored source URLs"))
+    .slice(0, 7);
+  const decisionLines = decisionIndex >= 0 ? lines.slice(decisionIndex) : [];
+  const decisionText = decisionLines.join(" ");
+  const compact = [...factLines, decisionText].filter(Boolean).join("\n");
+  if (compact.length <= 1_350) return compact;
+  const facts = factLines.join("\n").slice(0, 720);
+  const decision = decisionText.slice(0, 600);
+  return [facts, decision].filter(Boolean).join("\n");
 }
 
 export function buildTargetContactInvestigatorObjective(input: {
