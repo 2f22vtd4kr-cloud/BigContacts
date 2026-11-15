@@ -162,6 +162,22 @@ describe("Agentic LLM daily token accounting", () => {
     });
   });
 
+  it("does not poison remaining daily capacity when one request exceeds the ceiling", async () => {
+    process.env.DATABASE_URL = "postgres://test.invalid/apex";
+    const input = {
+      provider: "groq",
+      model: "openai/gpt-oss-20b",
+      env: { APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv,
+    };
+    await expect(reserveAgenticLlmDailyBudget({ ...input, estimatedTokens: 1200 }))
+      .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
+    expect(dbMocks.execute).not.toHaveBeenCalled();
+    await expect(reserveAgenticLlmDailyBudget({ ...input, estimatedTokens: 600 }))
+      .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+    expect(dbMocks.state.reservedTokens).toBe(600);
+    expect(dbMocks.execute).toHaveBeenCalledTimes(1);
+  });
+
   it("serializes concurrent daily reservations against one atomic shared balance", async () => {
     process.env.DATABASE_URL = "postgres://test.invalid/apex";
     const input = {
