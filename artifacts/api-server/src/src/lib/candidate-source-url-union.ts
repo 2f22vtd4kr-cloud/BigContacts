@@ -1,5 +1,4 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { sourceLineageId } from "./research-epistemic-vnext";
 import { publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
@@ -111,7 +110,7 @@ export function candidateRoleCorroborationSources(input: {
   }));
   if (!claimedUrls.size) return [];
   const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
-  const observedLineages = new Set<string>();
+  const observedPassageFingerprints = new Set<string>();
   for (const observation of input.observations) {
     if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
@@ -134,13 +133,12 @@ export function candidateRoleCorroborationSources(input: {
     // The same exact quoted passage copied to a second domain is not independent
     // corroboration; use the model-selected, source-verified quotation as lineage.
     const passageFingerprint = exactQuote.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
-    const lineageId = sourceLineageId(sourceUrl, passageFingerprint);
-    if (observedLineages.has(lineageId)) continue;
+    if (observedPassageFingerprints.has(passageFingerprint)) continue;
     let host = "";
     try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
     const publisher = publisherDomain(host);
     if (!publisher) continue;
-    observedLineages.add(lineageId);
+    observedPassageFingerprints.add(passageFingerprint);
     if (supporting.has(publisher)) continue;
     supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
   }
