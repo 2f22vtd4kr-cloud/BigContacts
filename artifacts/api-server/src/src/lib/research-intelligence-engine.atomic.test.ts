@@ -13,7 +13,7 @@ describe("research intelligence atomic evidence", () => {
       contacts: [{ personName: "Ada Example", value: "jane@example.com", vector: "email", state: "ATTRIBUTED", sourceUrls: ["https://serper.dev/search"], sourceHosts: ["serper.dev"], firstSeen: "", lastSeen: "", attributionStrength: 0.9 }],
       evidenceCount: 1,
       sourceQualitySummary: [{ sourceClass: "SEARCH_RESULT", count: 1 }],
-      atomicEvidence: [{ evidenceId: "search-evidence", kind: "observation", claim: "Observed source https://serper.dev/search", sourceUrl: "https://serper.dev/search", sourceHost: "serper.dev", sourceClass: "SEARCH_RESULT", passage: "Ada Example — founder — jane@example.com", attribution: null }],
+      atomicEvidence: [{ evidenceId: "search-evidence", kind: "observation", claim: "Observed source https://serper.dev/search", sourceUrl: "https://serper.dev/search", sourceHost: "serper.dev", sourceTier: "D", sourceClass: "SEARCH_RESULT", passage: "Ada Example — founder — jane@example.com", attribution: null }],
     });
     const context = engine.buildContext();
     expect(context.atomicEvidence).toHaveLength(0);
