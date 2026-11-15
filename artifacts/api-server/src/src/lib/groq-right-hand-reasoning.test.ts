@@ -72,6 +72,10 @@ function isValidDecision(raw: string): boolean {
 
 describe("Groq Right-hand task-scoped control recovery", () => {
   beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "test-right-hand-key");
     vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
     resetGroqRightHandModelCatalogCacheForTests();
