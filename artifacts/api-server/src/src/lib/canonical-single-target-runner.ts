@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
@@ -93,7 +93,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
       }).where(and(
         eq(researchCasesTable.id, existing.id),
         eq(researchCasesTable.status, "review"),
-        eq(researchCasesTable.currentAction, existing.currentAction),
+        existing.currentAction === null ? isNull(researchCasesTable.currentAction) : eq(researchCasesTable.currentAction, existing.currentAction),
       )).returning({
         id: researchCasesTable.id,
         targetEntityId: researchCasesTable.targetEntityId,
@@ -103,16 +103,18 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
         objective: researchCasesTable.objective,
         caseFile: researchCasesTable.caseFile,
       });
-      if (!resumed?.targetEntityId) throw new Error("Target budget-stopped case changed before resume; refusing concurrent resume.");
+      const resumedTargetEntityId = resumed?.targetEntityId;
+      if (typeof resumedTargetEntityId !== "number") throw new Error("Target budget-stopped case changed before resume; refusing concurrent resume.");
       await linkTargetCase(resumed.id);
-      return { ...resumed, targetEntityId: resumed.targetEntityId, iteration: Number(resumed.iteration ?? 0), objective: resumed.objective ?? targetObjective };
+      return { ...resumed, targetEntityId: resumedTargetEntityId, iteration: Number(resumed.iteration ?? 0), objective: resumed.objective ?? targetObjective };
     };
   if (existingCaseId) {
     const [existing] = await tx.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.id, existingCaseId), eq(researchCasesTable.caseType, "target"))).limit(1);
-    if (!existing?.targetEntityId || existing.targetEntityId !== target.id) throw new Error(`Explicit target case ${existingCaseId} does not belong to target ${target.id}.`);
+    const existingTargetEntityId = existing?.targetEntityId;
+    if (typeof existingTargetEntityId !== "number" || existingTargetEntityId !== target.id) throw new Error(`Explicit target case ${existingCaseId} does not belong to target ${target.id}.`);
     const existingCaseFile = parseCaseFile(existing.caseFile); if (existingCaseFile.atlasJobId !== atlasJobId) { if (isBudgetStoppedTargetCase(existing.status, existing.currentAction)) return resumeBudgetStoppedCase(existing); throw new Error(`Explicit target case ${existingCaseId} is not bound to Atlas job ${atlasJobId}.`); }
     await linkTargetCase(existing.id);
-    return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? targetObjective };
+    return { ...existing, targetEntityId: existingTargetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? targetObjective };
   }
   const candidates = await tx.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.targetEntityId, target.id), eq(researchCasesTable.caseType, "target"))).orderBy(desc(researchCasesTable.updatedAt));
   const existing = candidates.find((candidate) => { const state = parseCaseFile(candidate.caseFile); return state.atlasJobId === atlasJobId; });
