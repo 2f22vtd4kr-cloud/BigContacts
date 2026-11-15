@@ -109,7 +109,7 @@ describe("canonical opening discovery contract", () => {
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = [");
     expect(agenticCoreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
-    expect(agenticCoreSource).toContain("These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use.");
+    expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
 
@@ -1169,7 +1169,9 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
     expect(canonicalDiscoverySource).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
     expect(canonicalDiscoverySource).toContain("buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? [])");
     expect(canonicalDiscoverySource).toContain("const controlBudgetState = {");
-    expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed)");
+    expect(canonicalDiscoverySource).toContain("investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed })");
+    expect(canonicalDiscoverySource).not.toContain("targetResearchReserveIterations");
+    expect(canonicalDiscoverySource).not.toContain("discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");
     expect(canonicalDiscoverySource).toContain("activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
     expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");
