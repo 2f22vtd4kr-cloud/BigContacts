@@ -37,6 +37,10 @@ describe("agentic evidence scope boundary", () => {
       personName: "Jane Example",
       role: "Founder",
       scope: "candidate",
+      contactAttribution: "professional_person_specific",
+      exactQuote: "Jane Example — Founder — jane@example.com",
+      identityAssessment: "same_person",
+      identityRationale: "The fetched source binds Jane Example to this exact professional email.",
       sourceUrls: [source],
       note: "named email on source",
     };
@@ -84,13 +88,14 @@ describe("agentic evidence scope boundary", () => {
       personName: null,
       role: null,
       scope: "unknown" as AgenticFinding["scope"],
+      contactAttribution: "unknown",
       sourceUrls: [source],
       note: "generic public mailbox",
     };
     const records = [observedRecord("Contact email: info@example.com")];
 
     expect(findingsToBureauContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
-      scope: "organization",
+      scope: "unknown",
       personName: null,
       promote: false,
     });
