@@ -131,6 +131,8 @@ describe("Phase J3 identity resolver", () => {
     const accepted = evaluateIdentityGate({
       score: 0.9,
       signals: ["shared_registry_identifier", "cross_registry"],
+      semanticAssessment: "same_person",
+      semanticRationale: "The model confirms the same person based on the shared identifier and independent registry evidence.",
       leftSources: ["SEC EDGAR"],
       rightSources: ["Companies House UK"],
     });

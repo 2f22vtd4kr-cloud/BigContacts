@@ -58,7 +58,7 @@ describe("terminal review-card reconciliation", () => {
     const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
       organizationStart,
-      organizationEnd >= 0 ? organizationEnd : undefined,
+      organizationEnd >= 0 ? organizationEnd : canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings", organizationStart),
     );
     expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');

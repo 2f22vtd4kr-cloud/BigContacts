@@ -142,7 +142,7 @@ describe("Apex research intelligence", () => {
   it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "evidence-span-upgrade", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/leadership";
-    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl], contactAttribution: "person_specific" as const, exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com" };
+    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl], contactAttribution: "person_specific" as const, exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com", identityAssessment: "same_person" as const, identityRationale: "The same fetched source names John Smith and quotes his exact email." };
     engine.recordAction({
       turn: 1, action: "visit", execution: "success",
       urls: [sourceUrl], observation: "John Smith is CFO of Example Corp.",

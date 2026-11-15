@@ -90,7 +90,7 @@ describe("target-act oversight prompt compaction", () => {
 
   it("anchors candidate contact evidence to its own persisted successful visit event", () => {
     const act = { turn: 2, model: "groq-investigator-1", action: "react_episode", args: {}, execution: "success", observation: "aggregate episode", observedUrls: ["https://example.com/team"],
-      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", scope: "candidate", sourceUrls: ["https://example.com/team"], note: "official team page" }],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", contactAttribution: "professional_person_specific", exactQuote: "Jane Example — jane@example.com", identityAssessment: "same_person", identityRationale: "The fetched team page names Jane Example and quotes the exact contact value.", sourceUrls: ["https://example.com/team"], note: "official team page" }],
       sourceRecords: [{ turn: 1, action: "visit", execution: "success", observation: "Team contact: Jane Example — jane@example.com", observedUrls: ["https://example.com/team"], findings: [] }],
     };
     const graphs = buildActEvidenceGraphs(7, act, 123, "run-evidence-anchor", new Map([[1, 456]]));

@@ -233,7 +233,7 @@ describe("offline eval cohort", () => {
 
 
 describe("discovery stop residual", () => {
-  it("stops next-pass when person-shaped evidence is already retained", () => {
+  it("does not force a deterministic stop merely because person-shaped evidence is retained", () => {
     const candidates = [
       { name: "Helen Vargas", type: "HNWI", contactEvidence: [{ value: "helen@example.com" }] },
       { name: "Marta Ellison", type: "HNWI", contactEvidence: [{ value: "marta@example.com" }] },
@@ -244,11 +244,11 @@ describe("discovery stop residual", () => {
       iteration: 2,
       mode: "next-pass",
     });
-    expect(stop.stop).toBe(true);
-    expect(stop.reason).toBe("evidence_sufficient");
+    expect(stop.stop).toBe(false);
+    expect(stop.reason).toBeNull();
   });
 
-  it("stops run-discovery when reports and candidates already exist", () => {
+  it("does not force a deterministic stop merely because reports and candidates already exist", () => {
     const stop = evaluateDiscoveryStop({
       candidates: [
         { name: "Helen Vargas", type: "HNWI" },
@@ -259,8 +259,8 @@ describe("discovery stop residual", () => {
       mode: "run-discovery",
       hasInvestigatorReports: true,
     });
-    expect(stop.stop).toBe(true);
-    expect(stop.reason).toBe("evidence_sufficient");
+    expect(stop.stop).toBe(false);
+    expect(stop.reason).toBeNull();
   });
 
   it("stops boss-review when already completed", () => {

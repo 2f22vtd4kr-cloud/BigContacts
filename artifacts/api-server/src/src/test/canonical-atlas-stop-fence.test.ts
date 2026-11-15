@@ -50,7 +50,8 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain("openingFence");
     expect(source).toContain("openingProjection");
     expect(source).toContain("refusing Boss opening event after cancellation");
-    expect(source).toContain("refusing Right-hand opening event after cancellation");
+    expect(source).toContain('rightHandOpening: { status: "deferred"');
+    expect(source).toContain("Deferred until the Investigator produces source observations or a consequential decision.");
   });
 
   it("keeps discovery lock cleanup inside the claim-owned failure boundary", () => {
