@@ -1248,7 +1248,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       discoveryObjective = restored.baseObjective;
       activeDiscoveryObjective = restored.activeObjective;
     }
-    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → model-owned Investigator discovery; Right-hand reviews consequential decisions…" });
     const shouldCancelAtlasInvestigator = async (): Promise<boolean> => {
       const currentJob = await getJobStrict(atlasJobId);
       if (!currentJob) throw new Error("Canonical Atlas job record missing during Investigator discovery.");
@@ -1921,12 +1921,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: "done",
         progress: 100,
         atlasPhase: 0,
-        message: "Groq Boss chose to stop after evaluating the objective and Right-hand advice. No Investigator action was executed; the case is preserved for review.",
+        message: "Groq Boss chose to stop after evaluating the objective and current evidence; opening Right-hand review was deferred. No Investigator action was executed; the case is preserved for review.",
         outcome: "incomplete",
         result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0, evidenceBackedTerminal: false }),
         finishedAt: new Date().toISOString(),
       });
-      phaseSummary.assignment = "Boss chose stop after weighing Right-hand advice; no Investigator action was executed.";
+      phaseSummary.assignment = "Boss chose stop before the first Investigator action; opening Right-hand review was deferred.";
       await clearActiveJobIfOwned(lockKey, atlasJobId);
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
@@ -1975,7 +1975,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         actorRole: "head_investigator",
         eventType: "assignment",
         status: "recorded",
-        summary: "Canonical discovery Investigator mounted after Boss opening and Right-hand review.",
+        summary: "Canonical discovery Investigator mounted after Boss opening; Right-hand review is deferred until consequential evidence.",
         correlationKey: `${atlasJobId}:discovery-assignment`,
         payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
       });
