@@ -2424,6 +2424,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
         const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities() });
+        if (targetResult.budgetExhausted) throw new Error("investigator_daily_token_budget_exhausted");
+        if (targetResult.usageLedgerUnavailable) throw new Error("investigator_usage_ledger_unavailable");
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
           await reassignInvestigatorAfterHardQuota(selectedInvestigator, "A target-scoped Investigator capability exhausted its upstream request quota during this Atlas job; the discovery capability is therefore also excluded for the remainder of this job.");
