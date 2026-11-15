@@ -137,10 +137,10 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(orientation).toContain("DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that names a concrete objective-fit company or person");
-    expect(orientation).toContain("One useful result can justify a card; do not wait for fetch, ownership, wealth or HNWI proof");
-    expect(orientation).toContain("scope=organization/candidate, associated public result URL");
-    expect(orientation).toContain("Keep exactQuote=null for search-only leads");
+    expect(orientation).toContain("REVIEW LEADS: Investigator selects same-case people/companies/assets; one relevant result suffices as a provisional review.");
+    expect(orientation).toContain("no fetch/ownership/wealth/HNWI proof");
+    expect(orientation).toContain("exact observed name, scope, source URL and rationale");
+    expect(orientation).toContain("exactQuote=null");
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
     expect(orientation).toContain("no fixed sequence");
     expect(agenticCore).not.toContain("Companies House is UK-only");

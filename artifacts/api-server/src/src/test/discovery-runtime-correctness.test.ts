@@ -172,7 +172,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("candidateRoleCorroborationSources");
     expect(canonicalSource).toContain("sources.length >= 1");
     expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
-    expect(canonicalSource).toContain("claimGradeObservations");
+    expect(canonicalSource).toContain("const observations = caseEvents.flatMap");
     expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
     expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
     expect(candidateSourcePolicy).toContain("const exactQuote = modelQuotes.find");

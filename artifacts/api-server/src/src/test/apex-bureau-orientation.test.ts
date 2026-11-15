@@ -72,7 +72,7 @@ describe("objective-led institutional orientation", () => {
 
   it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("propose evidence-led scope changes to Boss when geography/sector is open");
+    expect(core).toContain("propose evidence-led sector/geography changes to Boss when open");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
     expect(core).toContain("Apply only mission-specific evidence standards; do not invent extra criteria");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
