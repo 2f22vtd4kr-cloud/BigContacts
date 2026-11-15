@@ -1340,6 +1340,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     };
     let selectedInvestigator = boss.investigatorLlm;
     let latestRightHandReviewContext: { status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null; reviewedAction: string } | null = null;
+    let rightHandReconsiderationUsed = false;
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
@@ -2194,13 +2195,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       // evidence and Boss is considering a consequential stop, candidate admission,
       // or strategic pivot. It is advisory: it can challenge the decision but cannot
       // authorize a candidate or override deterministic provenance/security checks.
+      const latestInvestigatorRecord = (discovery.trajectoryRecords ?? []).at(-1);
+      const investigatorProposedStop = latestInvestigatorRecord?.action === "done";
+      const investigatorProposedCandidate = (latestInvestigatorRecord?.findings ?? []).some((finding) =>
+        finding.scope === "candidate" && finding.promotionDecision === "promote" && Boolean(finding.personName?.trim()));
+      const bossConsequentialDecision = ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
       const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0
-        && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
+        && (investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)
+        && (!rightHandReconsiderationUsed || decision.action !== "stop");
       if (requiresIndependentReview) {
         const reviewPrompt = [
           "Review this consequential Apex Atlas discovery control decision independently.",
           "Do not browse, invent evidence, or authorize a candidate. Identify material gaps, contradictions, alternative interpretations, and whether Boss should reconsider. Return concise structured advice only.",
           "MISSION:", compactControlText(activeDiscoveryObjective, 900),
+          "INVESTIGATOR PROPOSED ACTION:", JSON.stringify(latestInvestigatorRecord ? { action: latestInvestigatorRecord.action, hypothesis: latestInvestigatorRecord.hypothesis ?? null, thought: latestInvestigatorRecord.thought ?? null, findings: (latestInvestigatorRecord.findings ?? []).slice(0, 8).map((finding) => ({ personName: finding.personName ?? null, role: finding.role ?? null, promotionDecision: finding.promotionDecision ?? null, promotionReason: finding.promotionReason ?? null, exactQuote: finding.exactQuote ?? null, sourceUrls: finding.sourceUrls ?? [] })) } : null),
           "BOSS DECISION:", JSON.stringify({ action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null }),
           "ADMITTED CANDIDATES:", JSON.stringify(admittedCandidateSources.slice(0, 12).map(({ name, role, targetType, sourceUrls }) => ({ name, role, targetType, sourceUrls: sourceUrls.slice(0, 3) }))),
           "LATEST INVESTIGATOR OBSERVATIONS:", JSON.stringify((discovery.trajectoryRecords ?? []).slice(-6).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: compactControlText(record.observation, 900), observedUrls: (record.observedUrls ?? []).slice(0, 4), failureDomain: record.failureDomain, failureKind: record.failureKind }))),
@@ -2225,6 +2233,28 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           { maxCompletionTokens: 512, reasoningEffort: "low", maxAttempts: 1, allowModelFallback: false },
         );
         latestRightHandReviewContext = { status: review.status, model: review.model, raw: review.raw, error: review.error, reviewedAction: decision.action };
+        let rightHandAssessment: string | null = null;
+        if (review.status === "completed" && review.raw) {
+          try {
+            const parsedReview = JSON.parse(review.raw) as Record<string, unknown>;
+            rightHandAssessment = typeof parsedReview.assessment === "string" ? parsedReview.assessment : null;
+          } catch { rightHandAssessment = null; }
+        }
+        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
+          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
+          && !rightHandReconsiderationUsed;
+        if (reviewChallengesConsequentialDecision) {
+          rightHandReconsiderationUsed = true;
+          rejectedControlDecision = {
+            controlTurn: controlTurns,
+            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
+            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
+          };
+          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
+          // Do not execute the challenged stop/admission/pivot yet. The next
+          // Boss call receives the durable Right-hand assessment above.
+          continue;
+        }
         await assertAtlasJobActive(atlasJobId);
         failureStage = "case_persistence";
         await db.transaction(async (tx) => {
