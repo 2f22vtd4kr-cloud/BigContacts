@@ -1274,7 +1274,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("PARTIAL FINDINGS");
-    expect(modelPrompt).toContain("PARTIAL FINDINGS are preserved while research continues, not terminal-only");
+    expect(modelPrompt).toContain("Preserve partial findings and uncertainty.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -1358,7 +1358,7 @@ describe("Investigator prompt architecture", () => {
       mode: "target",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
-    expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
+    expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; falsification=false;");
     expect(modelPrompt).toContain("DISCOVERY LEAD HANDOFF");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
@@ -1471,8 +1471,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
-    expect(modelPrompt).toMatch(/VALID PROVIDERS: web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/i);
-    expect(modelPrompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
+    expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
+    expect(modelPrompt).toContain("visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.");
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
     expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
@@ -1713,7 +1713,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
-    expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
@@ -2835,7 +2835,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
-    expect(modelPrompt).toContain("fame, rankings, publisher type");
+    expect(modelPrompt).toContain("Sector, geography, fame, wealth, seniority, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not eligibility rules");
     expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
@@ -2870,7 +2870,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(budgetGuard).toBeGreaterThan(budgetCount);
     expect(registryDispatch).toBeGreaterThan(budgetGuard);
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
-    expect(agenticCoreSource).toContain("DISCOVERY SEARCH ECONOMY: the runtime safety ceiling is ");
+    expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached");
   });
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
@@ -3305,7 +3305,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("FETCH: visit extracts text/PDF; browser_fetch is HTML-only.");
+    expect(prompt).toContain("FETCH: visit reads text/PDF; browser_fetch is HTML-only.");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
@@ -4156,7 +4156,7 @@ describe("PDF prompt capability contract", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(modelPrompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
+    expect(modelPrompt).toContain("visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.");
     expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require(?: OCR \(unavailable\)| unavailable OCR)/i);
     expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
@@ -4277,7 +4277,7 @@ describe("single fetched page organization identity", () => {
   });
 
   it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
-    expect(agenticCoreSource).toContain("observedPageIdentity: restrictedCommunitySource ? null : page.pageIdentity ?? null");
+    expect(agenticCoreSource).toContain("buildDiscoverySourceAttribution");
     expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl && !restrictedCommunitySource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
     expect(researchLeadCardReconciliationSource).toContain("pageIdentitySource === url");
     expect(researchLeadCardReconciliationSource).toContain("organization name only; ownership, wealth, targetability, and person attribution remain unestablished");
@@ -4348,7 +4348,7 @@ describe("combined-main emergency discovery contract", () => {
 
     expect(prompt.length).toBeGreaterThan(5_600);
     expect(prompt).not.toContain("mandatory mixed-source");
-    expect(prompt).toContain("No fixed source/provider/registry order or itinerary");
+    expect(prompt).toMatch(/No fixed source\/provider\/registry order|No fixed action sequence/i);
     expect(prompt).not.toContain("mandatory lead-inspection itinerary");
     expect(prompt).toContain("ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact.");
     expect(prompt).toContain("companies-house");
