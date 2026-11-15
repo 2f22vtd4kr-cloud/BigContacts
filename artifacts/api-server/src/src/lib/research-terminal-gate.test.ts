@@ -88,6 +88,7 @@ describe("research-stage terminal contracts", () => {
       recentActions: [{ action: "visit", execution: "success", args: { purpose: "seek counterevidence and disprove the current executive role" } }],
     }), "target");
     expect(result.allowed).toBe(true);
+    expect(result.outcome).toBe("evidence_backed");
   });
 
   it("does not force the Investigator to close every open question or erase contradictions before stopping", () => {
