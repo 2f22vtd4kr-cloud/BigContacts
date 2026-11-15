@@ -95,7 +95,7 @@ export function normalizeReviewLeadFindings(findings: AgenticFinding[] = []): Ag
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({
   vectorType:f.vectorType,
   value:f.value,
-  scope:f.scope==="candidate"?"candidate":"organization",
+  scope:f.scope==="candidate"?"candidate":f.scope==="organization"?"organization":"unknown",
   personName:f.scope==="candidate"?f.personName:null,
   role:f.role,
   sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),
