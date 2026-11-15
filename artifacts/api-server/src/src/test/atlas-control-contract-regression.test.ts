@@ -712,47 +712,19 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
   });
 
-  it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
-    const valid = {
-      decision: "Start the normal mixed-source discovery phase.",
-      reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["registry:sec-edgar", "public_web"],
+  it("defers opening Right-hand review until consequential evidence exists", () => {
+    expect(validateAtlasOpeningRightHandReview({
+      decision: "Review a consequential target decision.",
+      reason: "Independent challenge is warranted by source-backed evidence.",
+      focusLanes: [],
       confidence: 0.86,
-    };
-    expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
-    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
-    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("normalizeAtlasOpeningRightHandReview(parsed) !== null");
-    expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
-    expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
-    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
-    expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: null");
-    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
-    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
-    const reviewCall = canonicalDiscoverySource.indexOf("const rightHandRaw = await import");
-    const bossDecisionCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
-    const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({");
-    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
-    expect(reviewCall).toBeGreaterThan(-1);
-    expect(bossDecisionCall).toBeGreaterThan(reviewCall);
-    expect(openingResolution).toBeGreaterThan(bossDecisionCall);
-    expect(investigatorObjective).toBeGreaterThan(openingResolution);
-    const reviewToBoss = canonicalDiscoverySource.slice(reviewCall, bossDecisionCall);
-    const reviewProviderAndParse = reviewToBoss.slice(0, reviewToBoss.indexOf('failureStage = "case_persistence";'));
-    expect(reviewToBoss).not.toContain('if (rightHandRaw.status !== "completed")');
-    expect(reviewProviderAndParse).not.toContain("throw new Error");
-    // Cancellation during durable review-event persistence remains fail-closed;
-    // provider outage or malformed advisory JSON must instead reach Boss as advice.
-    expect(reviewToBoss).toContain("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
-    expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
-    expect(controlSource).toContain("if (input.rightHandOverride)");
-    expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
+    })).toBe(true);
+    expect(canonicalDiscoverySource).not.toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
+    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
     expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
-    expect(controlSource).toContain("status: \"deferred\"");
-    expect(controlSource).toContain("reviewDeferred: input.rightHand.status === \"deferred\"");
-    expect(controlSource).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride)');
+    expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
