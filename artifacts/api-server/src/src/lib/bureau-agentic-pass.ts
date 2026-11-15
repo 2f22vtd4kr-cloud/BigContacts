@@ -104,17 +104,17 @@ export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:s
   // Bureau evidence projection. Dropping these fields silently converts an
   // explicit candidate into an unknown/organization route downstream.
   contactAttribution:f.contactAttribution??"unknown",
-  exactQuote:f.exactQuote??null,
-  identityAssessment:f.identityAssessment??null,
-  identityRationale:f.identityRationale??null,
-  promotionDecision:f.promotionDecision??null,
-  promotionReason:f.promotionReason??null,
-  hypothesisRelation:f.hypothesisRelation??null,
-  hypothesisRationale:f.hypothesisRationale??null,
-  relationshipType:f.relationshipType??null,
-  temporalStatus:f.temporalStatus??null,
-  interpretationConfidence:f.interpretationConfidence??null,
-  ambiguityNotes:f.ambiguityNotes??null,
+  exactQuote:f.exactQuote??undefined,
+  identityAssessment:f.identityAssessment??undefined,
+  identityRationale:f.identityRationale??undefined,
+  promotionDecision:f.promotionDecision??undefined,
+  promotionReason:f.promotionReason??undefined,
+  hypothesisRelation:f.hypothesisRelation??undefined,
+  hypothesisRationale:f.hypothesisRationale??undefined,
+  relationshipType:f.relationshipType??undefined,
+  temporalStatus:f.temporalStatus??undefined,
+  interpretationConfidence:f.interpretationConfidence??undefined,
+  ambiguityNotes:f.ambiguityNotes??undefined,
   reviewOnly:f.reviewOnly??undefined,
 }));}
 export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPersonName:string,trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>{const person=typeof f.personName==="string"?f.personName.trim():"";const candidate=f.scope==="candidate"&&person.length>0;return{vectorType:f.vectorType,value:f.value,scope:candidate?"candidate":f.scope==="unknown"?"unknown":"organization",personName:candidate?person:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:`bureau-agentic:${f.note}`,contactAttribution:f.contactAttribution??"unknown",exactQuote:f.exactQuote??null,identityAssessment:f.identityAssessment??null,identityRationale:f.identityRationale??null,tier:"candidate",state:"review_only",promote:candidate&&f.promotionDecision==="promote"};});}
