@@ -4889,10 +4889,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     providerGuidance,
     input.mode === "discovery"
-      ? "SEARCH ACTIVITY (informational only; no fixed search cap): " + discoverySearchActionsUsed + " outbound search actions observed. The Investigator chooses further searches, fetches, pivots and stopping by expected information gain; this count is telemetry, not a quota or completion signal."
+      ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
       : "",
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: Preserve model-selected people, organizations and assets as provisional review leads when useful. Search-result snippets and registry hits are leads, not identity or claim evidence; retain source URLs and uncertainty. Promotion requires attributable same-case fetched evidence and the applicable evidence-integrity checks. This handoff does not select targets or require a card."
+      ? "DISCOVERY LEAD HANDOFF: Investigator may retain model-selected people, organizations or assets as provisional review leads. Snippets/registry hits are leads, not evidence; keep exact URLs and uncertainty. Promotion needs attributable same-case fetched evidence; no automatic target/card selection."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
