@@ -11,30 +11,52 @@ export function isAcceptedInvestigatorTerminal(input: { action: unknown; executi
 }
 
 const EXECUTED_RESEARCH_ACTIONS = new Set([
-  "web_search",
-  "parallel_web_search",
-  "visit",
-  "browser_fetch",
-  "registry_search",
-  "parallel_registry_search",
-  "domain_lookup",
-  "harvest_domain",
-  "footprint_email",
-  "footprint_username_maigret",
-  "footprint_username_sherlock",
-  "footprint_spiderfoot",
+  "web_search", "parallel_web_search", "visit", "browser_fetch",
+  "registry_search", "parallel_registry_search", "domain_lookup", "harvest_domain",
+  "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
 ]);
 
-/**
- * Discovery needs one source-backed review lead before it can hand control back.
- * Target-research sufficiency is a model judgement: the Investigator may finish
- * with unresolved questions, a single strong source, contradictory observations,
- * or an honest no-result assessment after doing real research.
- *
- * This contract no longer uses fixed evidence counts, source counts, lexical
- * falsification tests, or zero-open-question rules to dictate when research is
- * sufficient. Exact quote/source/job integrity is enforced at admission time.
- */
+function actionText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function containsFalsificationIntent(value: string, discriminator: string): boolean {
+  if (!/\b(counterevidence|counter-evidence|disprove|falsif(?:y|ication)|contradict(?:ion)?|refute|challenge|evidence against|test against)\b/i.test(value)) return false;
+  if (!discriminator) return true;
+  const tokens = discriminator.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const relevant = tokens.filter((token) => token.length > 2 && !["the", "and", "for", "with", "from", "that", "this"].includes(token));
+  return relevant.length === 0 || relevant.every((token) => value.toLowerCase().includes(token));
+}
+
+/** Require a successful, explicit counterevidence attempt; ordinary verification is not falsification. */
+export function hasSuccessfulFalsificationAttempt(context: IntelligenceContext): boolean {
+  const discriminator = actionText(context.falsification?.discriminator);
+  for (const action of context.recentActions) {
+    if (action.execution !== "success") continue;
+    const args = action.args ?? {};
+    if (action.action === "parallel_web_search" || action.action === "parallel_registry_search") {
+      const searches = Array.isArray(args.searches) ? args.searches : [];
+      const outcomes = Array.isArray(args.searchOutcomes) ? args.searchOutcomes : null;
+      for (const search of searches) {
+        if (!search || typeof search !== "object" || Array.isArray(search)) continue;
+        const query = actionText((search as Record<string, unknown>).query);
+        if (!query || !containsFalsificationIntent(query, discriminator)) continue;
+        if (outcomes) {
+          const outcome = outcomes.find((candidate) => candidate && typeof candidate === "object"
+            && !Array.isArray(candidate)
+            && actionText((candidate as Record<string, unknown>).query) === query);
+          if (!outcome || (outcome as Record<string, unknown>).status !== "success") continue;
+        }
+        return true;
+      }
+      continue;
+    }
+    const candidates = [args.query, args.purpose, args.hypothesis].map(actionText).filter(Boolean);
+    if (candidates.some((candidate) => containsFalsificationIntent(candidate, discriminator))) return true;
+  }
+  return false;
+}
+
 export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSufficiencyContract {
   return mode === "discovery"
     ? {
@@ -47,9 +69,9 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
     }
     : {
       minEvidence: 0,
-      minIndependentSourceUnits: 0,
+      minIndependentSourceUnits: 2,
       requireExactSpanForFindings: false,
-      requireFalsification: false,
+      requireFalsification: true,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     };
@@ -75,18 +97,17 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
     exactSpanBindings,
     openQuestions: context.openQuestions.length,
     highSeverityContradictions: context.contradictions.length,
-    // There is no deterministic keyword/token-overlap falsification obligation.
-    // The Investigator and independent Right-hand review reason about counterevidence.
-    falsificationSatisfied: true,
+    falsificationSatisfied: mode === "discovery" || hasSuccessfulFalsificationAttempt(context),
   };
 
   const result = evaluateTerminalGate(metrics, defaultTerminalContract(mode));
-  if (mode === "target" && context.evidenceCount === 0 && !hasSuccessfulExternalResearchAttempt(context)) {
-    return {
-      ...result,
-      allowed: false,
-      reasons: ["no_existing_evidence_or_successful_external_research_action"],
-    };
+  const claimEvidenceCount = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").length;
+  const reasons = [...result.reasons];
+  if (mode === "target" && claimEvidenceCount > exactSpanBindings && !reasons.includes("exact_source_span_binding_incomplete")) {
+    reasons.push("exact_source_span_binding_incomplete");
   }
-  return result;
+  if (mode === "target" && context.evidenceCount === 0 && !hasSuccessfulExternalResearchAttempt(context)) {
+    reasons.push("no_existing_evidence_or_successful_external_research_action");
+  }
+  return { ...result, allowed: reasons.length === 0, reasons };
 }
