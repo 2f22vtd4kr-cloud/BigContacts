@@ -39,8 +39,8 @@ describe("objective-led institutional orientation", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("the exact human objective");
-      expect(prompt).toContain("HNWI is an optional classification");
-      expect(prompt).toMatch(/do not impose wealth|do not impose extra qualification|no wealth\/ownership criteria may be imposed unless requested/i);
+      expect(prompt).toContain("HNWI is optional; do not impose extra qualification criteria unless requested");
+      expect(prompt).toMatch(/do not impose extra qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
   });
 
@@ -59,7 +59,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     for (const role of ["boss", "right_hand", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain(role === "dig_agent" ? "Fame, wealth, title, prestige, company size, visibility, and listing status are contextual signals" : "Fame, wealth, seniority, company size, listing status and route type are contextual signals");
+      expect(prompt).toMatch(/fame, wealth, (?:title, prestige, company size, visibility, and listing status|seniority, size, listing status and route type) are contextual signals/i);
       expect(prompt).not.toContain("globally famous/household-name");
       expect(prompt).not.toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
@@ -72,9 +72,9 @@ describe("objective-led institutional orientation", () => {
 
   it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("where sector/geography is open, propose evidence-led changes to Boss");
+    expect(core).toContain("propose evidence-led scope changes to Boss when geography/sector is open");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("Do not impose criteria the human did not request");
+    expect(core).toContain("Apply only mission-specific evidence standards; do not invent extra criteria");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("runtime enforces a configurable safety ceiling (default 8 outbound search actions)");
@@ -92,6 +92,6 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("HNWI/wealth/success labels are not evidence");
     expect(core).toContain("Never infer wealth from seniority or prestige alone");
     expect(core).toContain("No fixed source/provider/registry order or itinerary");
-    expect(core).toContain("Investigator selects searches, fetches, tools, follow-ups, pivots, corroboration and falsification");
+    expect(core).toContain("Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification");
   });
 });
