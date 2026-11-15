@@ -29,26 +29,6 @@ export function organizationNameTokens(value: string | null | undefined): string
   return tokens;
 }
 
-// These hosts identify source quality, not person identity. Aggregator-only
-// evidence remains insufficient for trusted promotion even when the model says
-// two names refer to the same person.
-const AGGREGATOR_HOSTS = [
-  "rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io",
-  "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com",
-  "truepeoplesearch.com", "fastpeoplesearch.com", "thatsthem.com", "radaris.com",
-  "peoplefinder.com", "peoplefinders.com", "hunter.io", "clearbit.com", "lusha.com",
-  "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com",
-  "veripages.com", "idcrawl.com", "theorg.com", "jina.ai",
-];
-function isAggregatorSourceUrl(url: string): boolean {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\\./, "");
-    return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
-  } catch {
-    return false;
-  }
-}
-
 export function assessIdentityCollision(input: {
   targetName: string;
   companyName?: string | null;
@@ -83,10 +63,10 @@ export function assessIdentityCollision(input: {
   if (!Array.isArray(input.sourceUrls) || input.sourceUrls.length === 0) {
     return { risk: true, identityMatch: 0.3, assessment: "unresolved", reason: "identity has no cited source" };
   }
-  if (input.sourceUrls.every(isAggregatorSourceUrl)) {
-    return { risk: true, identityMatch: 0.3, assessment: "unresolved", reason: "aggregator-only source; require an attributable non-aggregator source" };
-  }
-
+  // Source class is retained in provenance and interpreted contextually by
+  // the models; do not hard-exclude a source domain with a static allow/deny
+  // list. Exact fetched-quote and identity/value binding are enforced by the
+  // immutable evidence persistence boundary.
   // Identity interpretation belongs to the model. Missing or uncertain
   // verdicts do not become a semantic rejection; they remain unresolved and
   // are simply ineligible for irreversible card promotion.
