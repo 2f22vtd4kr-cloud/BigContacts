@@ -1844,7 +1844,7 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 /** Give the model a minimal, action-specific correction without selecting its next research action. */
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
-  const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings and expectedInformationGain a finite number in [0,1]; never null these fields. Only action=done may use null for query/hypothesis/purpose/expectedInformationGain. Omit unused optional fields rather than sending null placeholders.";
+  const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings and expectedInformationGain a finite number in [0,1]; never null these fields. Only action=done may use null for query/thought/hypothesis/purpose/expectedInformationGain. Omit unused optional fields rather than sending null placeholders.";
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Omit provider, locale and market; nested purpose is optional. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return the six required top-level fields; omit unused optional fields. Return exactly one JSON object and no prose.`;
@@ -4841,7 +4841,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: Return one JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty and expectedInformationGain is a finite number in [0,1]; only done may null query/hypothesis/purpose/expectedInformationGain. Omit action-irrelevant optional fields rather than sending null placeholders. Use action-specific arguments only when needed and only with fields allowed by the response schema. Worker actions must appear in AVAILABLE ACTIONS.",
+    "OUTPUT CONTRACT: Return one JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty and expectedInformationGain is a finite number in [0,1]; only done may null query/thought/hypothesis/purpose/expectedInformationGain. Omit action-irrelevant optional fields rather than sending null placeholders. Use action-specific arguments only when needed and only with fields allowed by the response schema. Worker actions must appear in AVAILABLE ACTIONS.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
