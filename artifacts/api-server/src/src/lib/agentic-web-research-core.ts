@@ -5264,17 +5264,32 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
-  const userPromptBudget = Math.min(
-    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
-    2_400,
-  );
-  return providerBoundedPrompt.length <= userPromptBudget
-    ? providerBoundedPrompt
-    : compactPromptSectionPreservingUrlTokens(
-        providerBoundedPrompt,
-        userPromptBudget,
-        "[INVESTIGATOR PROMPT BOUND: the human objective, Boss-approved scope, action schema and newest durable evidence take priority; omitted middle context is unknown, not negative evidence. Full history remains in the immutable event ledger.]",
-      );
+  const userPromptBudget = investigatorUserPromptBudget(apexInvestigatorSystemCore().length);
+  if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
+
+  // The output schema and latest durable evidence are a single mandatory suffix:
+  // never let a generic prefix reducer remove the JSON contract or newest act.
+  const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
+  if (outputContractIndex < 0) {
+    throw new Error("Investigator prompt is missing its mandatory output contract.");
+  }
+  const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
+  const pinnedContext = [activeBossScopeSection, discoverySearchBudgetGuidance, availableActionsGuidance]
+    .filter((section) => Boolean(section) && !mandatorySuffix.includes(section));
+  let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
+  for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
+  const requiredTail = [...pinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+  const marker = "[INVESTIGATOR PROMPT BOUND: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action schema and newest durable evidence are preserved.]";
+  const prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+  if (prefixBudget < 0) {
+    throw new Error("Investigator mandatory objective, scope, newest evidence and action schema exceed the provider prompt budget.");
+  }
+  const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
+  const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
+  if (!boundedPrompt.includes("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain")) {
+    throw new Error("Investigator prompt compaction removed the mandatory top-level action schema.");
+  }
+  return boundedPrompt;
 }
 
 /**
