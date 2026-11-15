@@ -120,6 +120,7 @@ describe("target Investigator multi-source attribution", () => {
       role: "CFO",
       scope: "candidate" as const,
       sourceUrls: ["https://company.example/leadership", "https://company.example/contact"],
+      exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com",
       note: "one source co-binds the candidate and contact; another corroborates the value",
       promotionDecision: "promote" as const,
     }];

@@ -157,8 +157,8 @@ function compactReachabilityControl(raw: string): string {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   // Preserve the actual mode/score and one useful route instruction; the case
   // file retains the complete durable diagnostics.
-  const statusLine = lines.find((line) => /^Status:\s*(TARGETED|BOUNDED)/i.test(line));
-  const statusMatch = statusLine?.match(/^Status:\s*(TARGETED|BOUNDED)(?:\s*[·,;]\s*practical access score\s*(\d+\/100))?/i);
+  const statusLine = lines.find((line) => /Status[:\s]+(TARGETED|BOUNDED)/i.test(line));
+  const statusMatch = statusLine?.match(/Status[:\s]+(TARGETED|BOUNDED)(?:\s*[·,;]\s*practical access score\s*(\d+\/100))?/i);
   const status = statusMatch
     ? `Status ${statusMatch[1]!.toUpperCase()}${statusMatch[2] ? ` (access score ${statusMatch[2]}).` : "."}`
     : "";
@@ -188,7 +188,7 @@ export function buildTargetContactInvestigatorObjective(input: {
       compactReachabilityControl(input.reachabilityControl),
       "Verify public asset identity, type, registration/manufacturer, jurisdiction, status, source date and historical/current distinction.",
       "Separate registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared interests. A registered owner or operator is not automatically the beneficial owner; follow person/entity links only when the source states them.",
-      "No fixed checklist, provider order or hop sequence: the Investigator chooses official registries, issuer/operator records and other useful sources from observed evidence. Preserve exact URLs, contradictions and uncertainty. Never infer residence, movements, personal wealth or identity from an asset or location alone.",
+      "There is no fixed checklist, provider order or hop sequence: the Investigator chooses official registries, issuer/operator records and other useful sources from observed evidence. Preserve exact URLs, contradictions and uncertainty. Never infer residence, movements, personal wealth or identity from an asset or location alone.",
       "Classify routes as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown. Only a direct/professional person-specific route with a verbatim exactQuote binding the named person to the value on a fetched source may be promoted. Registered-owner status alone is not a personal contact. Shared/department/assistant/organization routes remain organization review; unknown remains unclassified. Snippets are leads.",
     ].join("\n");
     if (assetObjective.length > 1_900) throw new Error("Asset Investigator objective exceeds its hard prompt budget.");
@@ -234,7 +234,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     sections[1]!,
     "Verify identity, role and employer. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting. No fixed checklist; Investigator chooses from evidence.",
     "Seek public, attributable profiles on LinkedIn, Facebook, Instagram, X/Twitter, Telegram and official bios; corroborate name with role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Follow documented family/associate ties only when they clarify ownership/control or an intermediary route; never infer from surnames, co-location, follows or social proximity.",
+    "Map family or associate ties only when credible public sources explicitly document the tie and it clarifies ownership/control or an intermediary route. Never infer from surnames, co-location, follows or social proximity.",
     "Classify routes explicitly. Promote only direct_personal or professional_person_specific (legacy person_specific) with same-person rationale, verbatim exactQuote and fetched source. Keep shared/unknown review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
