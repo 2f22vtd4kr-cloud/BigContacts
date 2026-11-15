@@ -317,7 +317,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
   }
 }
 
-// ── Harvester 2: SEC EDGAR DEF 14A — Board directors & named executives ─────
+// ── Harvester 2: SEC EDGAR DEF 14A — company registrants ─────────────────────
 //
 // DEF 14A (proxy statements) list real directors and named executive officers
 // of public US companies. These are confirmed high-level executives.
@@ -332,94 +332,87 @@ const DEF14A_SEARCH_TERMS = [
 async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
-  const terms = shuffleArray(DEF14A_SEARCH_TERMS);
-  const pageStart = Math.floor(Math.random() * 25) * 10; // 0..240
+  const pageStart = Math.floor(Math.random() * 25) * 10; // sample a different slice between runs
 
-  for (const term of terms) {
-    if (yielded >= maxCount) break;
+  // Search all DEF 14A filings. Do not require a fixed English phrase to discover a registrant.
+  for (let from = pageStart; from < pageStart + 2000 && yielded < maxCount; from += 10) {
+    const url =
+      `https://efts.sec.gov/LATEST/search-index` +
+      `?forms=DEF+14A` +
+      `&dateRange=custom&startdt=2018-01-01` +
+      `&from=${from}`;
 
-    for (let from = pageStart; from < pageStart + 2000 && yielded < maxCount; from += 10) {
-      const url =
-        `https://efts.sec.gov/LATEST/search-index` +
-        `?q=${encodeURIComponent(term)}` +
-        `&forms=DEF+14A` +
-        `&dateRange=custom&startdt=2018-01-01` +
-        `&from=${from}`;
-
-      let data: any;
-      try {
-        const resp = await fetch(url, {
-          headers: EDGAR_HEADERS,
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (!resp.ok) break;
-        data = await resp.json();
-      } catch {
-        break;
-      }
-
-      const hits: any[] = data?.hits?.hits ?? [];
-      if (hits.length === 0) break;
-
-      for (const hit of hits) {
-        if (yielded >= maxCount) break;
-        const src = hit?._source ?? {};
-
-        // DEF 14A filer is the company registrant; preserve it as a company candidate.
-        const displayNames: string[] = src?.display_names ?? [];
-        const displayName = displayNames[0] ?? "";
-        const cik = displayName.match(/\(CIK\s*(\d+)\)/i)?.[1] ?? "";
-        const rawName: string = displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
-        if (!isStructurallyValidCandidateName(rawName)) continue;
-
-        const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string =
-          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
-        const sourceRegistry = "SEC EDGAR — DEF 14A (Proxy)";
-        const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "");
-        const rawMetadata: Record<string, unknown> = {
-          source: "sec-edgar-def14a",
-          sourceRecordId: cik ? "sec-cik:" + cik : "sec-def14a:" + accession,
-          cik: cik || undefined,
-          accessionNumber: accession || undefined,
-          fileDate,
-          bizLocation,
-          entityName: rawName,
-          displayNames,
-        };
-        const key = dedupKey(rawName, "US", sourceRegistry, rawMetadata, "Corporation");
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        yielded++;
-        yield {
-          entityType: "Corporation",
-          name: normalizeEdgarName(rawName),
-          nationality: "American",
-          location: bizLocation || "United States",
-          sourceRegistry,
-          role: "Company registrant (DEF 14A)",
-          filingType: "DEF 14A",
-          rawMetadata,
-          signals: {
-            isLargeShareholder: false,
-            isBoardDirector: false,
-            isCompanyOfficer: false,
-            hasRecentFiling: fileDate >= "2021-01-01",
-            jurisdiction: "US",
-          },
-        };
-      }
-
-      await sleep(120);
+    let data: any;
+    try {
+      const resp = await fetch(url, {
+        headers: EDGAR_HEADERS,
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!resp.ok) break;
+      data = await resp.json();
+    } catch {
+      break;
     }
+
+    const hits: any[] = data?.hits?.hits ?? [];
+    if (hits.length === 0) break;
+
+    for (const hit of hits) {
+      if (yielded >= maxCount) break;
+      const src = hit?._source ?? {};
+      const displayNames: string[] = src?.display_names ?? [];
+      const displayName = displayNames[0] ?? "";
+      const cik = displayName.match(/\(CIK\s*(\d+)\)/i)?.[1] ?? "";
+      const rawName: string = displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
+      if (!isStructurallyValidCandidateName(rawName)) continue;
+
+      const fileDate: string = src?.file_date ?? "";
+      const bizLocation: string =
+        (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+      const sourceRegistry = "SEC EDGAR — DEF 14A (Proxy)";
+      const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "");
+      const rawMetadata: Record<string, unknown> = {
+        source: "sec-edgar-def14a",
+        sourceRecordId: cik ? "sec-cik:" + cik : "sec-def14a:" + accession,
+        cik: cik || undefined,
+        accessionNumber: accession || undefined,
+        fileDate,
+        bizLocation,
+        entityName: rawName,
+        displayNames,
+      };
+      const key = dedupKey(rawName, "US", sourceRegistry, rawMetadata, "Corporation");
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      yielded++;
+      yield {
+        entityType: "Corporation",
+        name: normalizeEdgarName(rawName),
+        nationality: "American",
+        location: bizLocation || "United States",
+        sourceRegistry,
+        role: "Company registrant (DEF 14A)",
+        filingType: "DEF 14A",
+        rawMetadata,
+        signals: {
+          isLargeShareholder: false,
+          isBoardDirector: false,
+          isCompanyOfficer: false,
+          hasRecentFiling: fileDate >= "2021-01-01",
+          jurisdiction: "US",
+        },
+      };
+    }
+
+    await sleep(120);
   }
 }
 
 // ── Harvester 3: BRREG Norway — Company directors (Enhetsregisteret) ─────────
 //
 // The Norwegian Business Registry (Brønnøysundregistrene) provides a free REST API
-// with no authentication. Municipality codes are used to target wealth centres.
+// with no authentication. Default municipalities are configurable; scope is not an eligibility rule.
 // https://data.brreg.no/enhetsregisteret/api/
 
 const BRREG_MUNICIPALITIES = [
