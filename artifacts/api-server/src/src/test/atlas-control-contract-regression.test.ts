@@ -15,6 +15,7 @@ const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+const targetActOversightSource = readFileSync(resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
 
 describe("conditional Right-hand review policy", () => {
   it("defers repeated empty-cycle reviews but invokes independent challenge for consequential decisions", () => {
@@ -433,7 +434,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(investigatorSource).toContain('action: "investigator_provider_error"');
     expect(investigatorSource).toContain('records.push(providerErrorRecord);');
     expect(investigatorSource).toContain("INVESTIGATOR_PROVIDER_ERROR");
-    expect(investigatorSource).toContain('return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation)');
+    expect(investigatorSource).toContain("return resultBase(status, i + 1, stopReason, lastObservation)");
   });
 
 
@@ -707,9 +708,10 @@ describe("Atlas control-plane contract regression", () => {
 
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.additionalProperties).toBe(false);
-    expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalTargetSource).toContain("validateAtlasOpeningRightHandReview(parsed)");
-    expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
+    expect(targetActOversightSource).toContain("validateTargetActRightHandAdvice");
+    expect(targetActOversightSource).toContain("validateAtlasOpeningRightHandReview(value)");
+    expect(targetActOversightSource).toContain("runGroqRightHandFreeJson(");
+    expect(targetActOversightSource).toContain("focusLanes");
   });
 
   it("defers opening Right-hand review until consequential evidence exists", () => {
@@ -724,7 +726,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
     expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
-    expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalTargetSource).toContain("reviewTargetInvestigationAct({");
+    expect(targetActOversightSource).toContain("Right-hand per-act review unavailable");
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
@@ -925,7 +928,7 @@ describe("discovery trajectory turn persistence", () => {
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
-    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
