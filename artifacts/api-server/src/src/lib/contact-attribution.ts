@@ -4,14 +4,14 @@
  * Evaluates a contact candidate on five independent dimensions and returns
  * an attribution score (0–1) alongside the per-dimension breakdown.
  *
- * A candidate is "attributed" when score ≥ THRESHOLD and at least one valid
- * contact vector (email or phone) is present.
+ * The numeric score is advisory context only. A person route is attributed only when
+ * the model explicitly classifies it as person-specific and exact fetched evidence binds identity and value.
  *
  * Dimensions:
  *   1. sourceAuthority   — how reliable is the most authoritative source?
  *   2. corroboration     — how many independent source families agree?
- *   3. validation        — does the contact pass structural + local-part checks?
- *   4. directness        — personal contact vs. organisation switchboard?
+ *   3. validation        — is the contact syntactically valid?
+ *   4. directness        — model-interpreted person route vs. organization/intermediary route?
  *   5. domainFit         — does the email domain match the resolved employer?
  *
  * Proximity evidence (shared club, event, asset, geography) may influence
@@ -124,7 +124,7 @@ export function scoreAttribution(params: {
   // 1 family = 0.33, 2 families = 0.67, 3+ = 1.0
   const corroboration = Math.min(families.size / 3, 1.0);
 
-  // 3. Validation — structural validity + not generic
+  // 3. Validation — structural email/phone validity only
   let validation = 0;
   // A generic-looking local part is a weak prior, not an attribution verdict.
   // When the model has explicitly attributed the route to this person and the
