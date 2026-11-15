@@ -54,6 +54,17 @@ describe("Western registry mass-seed admission", () => {
     expect(isPlaceholderRegistryName("")).toBe(true);
   });
 
+  it("does not discard SEC or Companies House names through a pre-LLM English/Latin classifier", () => {
+    const worker = readFileSync(new URL("../lib/western-hnwi-ingestion.ts", import.meta.url), "utf8");
+    // The deprecated helper remains for rollback, but only its definition may remain.
+    expect(worker.match(/looksLikePerson\(/gu) ?? []).toHaveLength(1);
+    expect(worker).toContain("allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name))");
+    expect(worker).toContain("if (!isStructurallyValidCandidateName(rawName)) continue;");
+    expect(worker).toContain("displayNames: allCleanNames");
+    expect(worker).not.toMatch(/isBoardDirector:\s*\/(?:director|chairman)/u);
+    expect(worker).toContain("isBoardDirector: false");
+  });
+
   it("persists a source-designated person as PersonCandidate without inferring HNWI or residence", () => {
     const { entity } = buildWesternRegistryPersonCandidate(candidate("Анастасия Довженко"));
     expect(entity.name).toBe("Анастасия Довженко");
