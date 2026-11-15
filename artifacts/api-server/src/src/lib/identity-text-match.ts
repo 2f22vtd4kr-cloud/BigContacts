@@ -24,7 +24,7 @@ export function candidateIdentityObserved(personName: string, observation: unkno
   // One-letter names need exact case and token boundaries so a common article
   // such as "a" cannot stand in for a person's name.
   if (Array.from(normalizedName).length === 1 && /^\p{Lu}$/u.test(rawName)) {
-    const tokens = rawText.match(/[\p{L}\p{M}\p{N}_]+/gu) ?? [];
+    const tokens: string[] = rawText.match(/[\p{L}\p{M}\p{N}_]+/gu) ?? [];
     return tokens.includes(rawName);
   }
 

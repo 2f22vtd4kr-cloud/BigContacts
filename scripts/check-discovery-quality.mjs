@@ -33,7 +33,9 @@ const checks = [
   [activeInvestigator, ["DISCOVERY LEAD HANDOFF","AUTHORITATIVE SAME-CASE SEARCH BUDGET","Preserve exact observed names and source URLs"], "agentic-web-research-core.ts"],
   [communityAttribution, ["isCommunityObservationSourceUrl","extractCommunityObservationMetadata","sanitizeCommunityObservationText","community_user_submitted_unverified"], "discovery-source-attribution.ts"],
   [researchIntelligence, ["COMMUNITY_OBSERVATION","sourceContributor?: string | null","originalObservedAt?: string | null"], "research-intelligence-engine.ts"],
-  [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth", "signals, role keywords and proximity are not admission gates.", "research tests materiality, identity, counter-evidence and routes."], "canonical-atlas-discovery.ts"],
+  [canonical, ["candidateRoleCorroborationSources", "Ownership terminology, wealth"], "canonical-atlas-discovery.ts"],
+  [candidateSources, ["exactQuote", "observation.observation.includes(quote)", "supporting.has(publisher)", "exact-quote-backed observations from successful page fetches"], "candidate-source-url-union.ts"],
+  [targetContact, ["finding.exactQuote", "finding.identityAssessment === \"same_person\"", "finding.promotionDecision === \"promote\""], "target-contact-agent.ts"],
   [reachability, ["TARGETABILITY CONTEXT", "MODEL DECISION AUTHORITY", "No fixed wealth cutoff, score, source-count minimum, growth-ranking penalty", "A missing contact route is an unresolved evidence gap", "exact-quote/provenance verification"], "reachability-realism.ts"],
   [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgement, not a publisher/path allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
 ];
