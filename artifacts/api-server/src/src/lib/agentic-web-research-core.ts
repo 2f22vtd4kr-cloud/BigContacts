@@ -4762,11 +4762,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another available action or stop.`
+    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed}/${MAX_DISCOVERY_SEARCH_ACTIONS}; remaining=${discoverySearchActionsRemaining}. At zero, no more web/registry searches; choose another action or stop.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF CONTRACT: Preserve exact names, scope and URLs for selected objective-fit leads as provisional review items. Include uncertainty; selection is not promotion. Boss approves material scope changes."
+    "DISCOVERY LEAD HANDOFF: Preserve exact names, scope and URLs for selected objective-fit leads as provisional review items. Include uncertainty; selection is not promotion. Boss approves material scope changes."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
