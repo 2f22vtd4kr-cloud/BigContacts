@@ -42,9 +42,9 @@ assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observ
 const doneRegion = parseStart >= 0 ? source.slice(parseStart, source.indexOf("async function callGroqJson(", parseStart)) : "";
 assert(/action === ["']done["']/.test(doneRegion), "action parser has no explicit done boundary for model-authored findings.");
 assert(/personName:\s*scope === ["']candidate["'] && typeof f\.personName/.test(doneRegion), "explicit done parser no longer preserves model-authored person identity after shared-inbox normalization.");
-assert(/const scope = sharedRoute \? ["']organization["'] : f\.scope === ["']candidate["']/.test(doneRegion), "explicit done parser no longer preserves model-authored candidate scope or organization-normalizes shared routes.");
+assert(doneRegion.includes('const scope = organizationRoute ? "organization" : f.scope === "candidate"'), "explicit done parser no longer preserves model-authored candidate scope or organization-normalizes department/shared/intermediary routes.");
 assert(/contactAttribution/.test(doneRegion) && /exactQuote/.test(doneRegion), "explicit done parser drops the model's contact attribution or exact source quote.");
-assert(/contactAttribution === ["']person_specific["'] && exactQuote/.test(doneRegion), "candidate promotion is not gated on explicit person-specific attribution and exact quote.");
+assert(doneRegion.includes('["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution)') && doneRegion.includes('f.identityAssessment === "same_person"') && doneRegion.includes("Boolean(cleanText(f.identityRationale, 800))"), "candidate promotion is not gated on person-specific attribution, exact quote, and explicit same-person rationale.");
 assert(/modelFindings:\s*AgenticFinding\[\]/.test(source), "modelFindings persistence boundary is missing from the canonical result type.");
 const partialStart = source.indexOf("function parsePartialFindings(");
 const partialEnd = partialStart >= 0 ? source.indexOf("function parseAction(", partialStart) : -1;
