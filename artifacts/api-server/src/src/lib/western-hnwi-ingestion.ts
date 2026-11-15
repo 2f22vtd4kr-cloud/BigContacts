@@ -16,6 +16,7 @@
  * Batch inserts (100 rows) keep DB pressure manageable.
  */
 
+import { createHash } from "node:crypto";
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
@@ -131,9 +132,56 @@ export function areCompatibleWesternRegistryEntityTypes(existingType: string, ca
   return existingIsPerson && candidateIsPerson ? true : existingType === candidateType;
 }
 
-/** Versioned dedup key: re-evaluate legacy rows after the new candidate policy. */
-function dedupKey(name: string, jurisdiction: string): string {
-  return `western:v2:${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
+function stableSerialize(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value !== "object") return JSON.stringify(value) ?? String(value);
+  if (Array.isArray(value)) return "[" + value.map(stableSerialize).join(",") + "]";
+  const record = value as Record<string, unknown>;
+  return "{" + Object.keys(record).sort().map((key) => JSON.stringify(key) + ":" + stableSerialize(record[key])).join(",") + "}";
+}
+
+/** Hash one source observation; equal names alone are never an identity or duplicate key. */
+function sourceRecordFingerprint(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>): string {
+  const sourceRecord = {
+    sourceRegistry: sourceRegistry.trim().toLocaleLowerCase(),
+    jurisdiction: jurisdiction.trim().toUpperCase(),
+    normalizedName: normalizeName(name),
+    rawMetadata,
+  };
+  return createHash("sha256").update(stableSerialize(sourceRecord)).digest("hex");
+}
+
+/** Versioned source-record key: preserves same-name people and independent registry observations. */
+function dedupKey(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>): string {
+  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata);
+}
+
+function westernRegistryEntitySourceKey(row: { name: string; metadata?: string | null; sourceRegistries?: string | null }): string | null {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = row.metadata ? JSON.parse(row.metadata) as unknown : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+  } catch { return null; }
+  const storedFingerprint = metadata.sourceRecordFingerprint;
+  if (typeof storedFingerprint === "string" && storedFingerprint.trim()) return "western:v3:" + storedFingerprint;
+
+  let sourceRegistry = typeof metadata.sourceRegistry === "string" ? metadata.sourceRegistry : "";
+  try {
+    const parsedSources = row.sourceRegistries ? JSON.parse(row.sourceRegistries) as unknown : [];
+    if (Array.isArray(parsedSources) && typeof parsedSources[0] === "string") sourceRegistry = parsedSources[0];
+  } catch { /* use metadata source label when legacy JSON is malformed */ }
+  const jurisdiction = typeof metadata.country === "string" ? metadata.country : "";
+  if (!sourceRegistry || !jurisdiction) return null;
+
+  const sourceMetadata = { ...metadata };
+  for (const key of [
+    "sourceRecordFingerprint", "lastVerified", "proximityScore", "country", "registryLocation",
+    "nameValidationStatus", "hnwiQualificationStatus", "confidence", "lastObservedAt",
+    "westernIngest", "liveSource", "needsEnrichment", "reviewOnly", "wealthStatus",
+  ]) delete sourceMetadata[key];
+  if (Object.keys(sourceMetadata).length === 0) return null;
+  return "western:v3:" + sourceRecordFingerprint(row.name, jurisdiction, sourceRegistry, sourceMetadata);
 }
 
 // ── Harvester 1: SEC EDGAR SC 13D/G — US beneficial owners ──────────────────
@@ -661,7 +709,9 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
 }
 
 export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
-  const key = dedupKey(person.name, person.signals.jurisdiction);
+  const sourceMetadata = { ...person.rawMetadata, ...(person.companyName ? { companyName: person.companyName } : {}) };
+  const fingerprint = sourceRecordFingerprint(person.name, person.signals.jurisdiction, person.sourceRegistry, sourceMetadata);
+  const key = "western:v3:" + fingerprint;
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
@@ -727,7 +777,8 @@ export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { 
     notes: noteFragments.join(" "),
     sourceRegistries: JSON.stringify([person.sourceRegistry]),
     metadata: JSON.stringify({
-      ...person.rawMetadata,
+      ...sourceMetadata,
+      sourceRecordFingerprint: fingerprint,
       lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
@@ -955,11 +1006,10 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         retainedEntities.has(entity) && isStructurallyValidCandidateName(entity.name),
       );
       const usableKeys = usable.map(({ key }) => key).filter(Boolean);
-      const seenNames = new Set<string>();
-      const deduped = usable.filter(({ entity }) => {
-        const key = `${entity.type}:${normalizeName(entity.name)}`;
-        if (seenNames.has(key)) return false;
-        seenNames.add(key);
+      const seenSourceRecords = new Set<string>();
+      const deduped = usable.filter(({ key }) => {
+        if (seenSourceRecords.has(key)) return false;
+        seenSourceRecords.add(key);
         return true;
       }).map(({ entity }) => entity);
 
@@ -983,20 +1033,22 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       const result = await db.transaction(async (tx) => {
         if (rowsToInsert.length === 0) return { insertedCount: 0, existingCount: 0 };
         const names = [...new Set(rowsToInsert.map((row) => row.name))];
-        const existing = await tx.select({ name: entitiesTable.name, type: entitiesTable.type })
-          .from(entitiesTable)
-          .where(inArray(entitiesTable.name, names));
+        const existing = await tx.select({
+          name: entitiesTable.name,
+          type: entitiesTable.type,
+          metadata: entitiesTable.metadata,
+          sourceRegistries: entitiesTable.sourceRegistries,
+        }).from(entitiesTable).where(inArray(entitiesTable.name, names));
+        const existingSourceKeys = new Set(existing
+          .map((prior) => westernRegistryEntitySourceKey(prior))
+          .filter((key): key is string => Boolean(key)));
         const batchKeys = new Set<string>();
         const fresh = rowsToInsert.filter((row) => {
-          const normalizedName = normalizeName(row.name);
-          const alreadyPersisted = existing.some((prior) =>
-            normalizeName(prior.name) === normalizedName
-            && areCompatibleWesternRegistryEntityTypes(prior.type, row.type),
-          );
-          const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(row.type) ? "PersonCandidate" : row.type;
-          const batchKey = `${canonicalType}:${normalizedName}`;
-          if (alreadyPersisted || batchKeys.has(batchKey)) return false;
-          batchKeys.add(batchKey);
+          const sourceKey = westernRegistryEntitySourceKey(row);
+          if (!sourceKey) return true; // no exact source identity: preserve rather than merge by name
+          const alreadyPersisted = existingSourceKeys.has(sourceKey);
+          if (alreadyPersisted || batchKeys.has(sourceKey)) return false;
+          batchKeys.add(sourceKey);
           return true;
         });
         const insertedRows = fresh.length > 0
