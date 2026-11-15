@@ -25,7 +25,7 @@ describe("target act evidence graph provenance", () => {
     const act = {
       turn: 2, model: "test", action: "react_episode", args: {}, execution: "success",
       observation: "retrieved source", observedUrls: ["https://example.com/team/jane"],
-      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", sourceUrls: ["https://example.com/team/jane"] }],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", contactAttribution: "professional_person_specific", exactQuote: "Jane Example — Founder — jane@example.com", identityAssessment: "same_person", identityRationale: "The retrieved team record binds Jane Example to the exact email.", sourceUrls: ["https://example.com/team/jane"] }],
       sourceRecords: [{ turn: 2, action: "visit", execution: "success", observation: "Jane Example — Founder — jane@example.com", observedUrls: ["https://example.com/team/jane"], findings: [] }],
     };
     expect(buildActEvidenceGraphs(1, act, 2, "run-visited", new Map([[2, 202]]))).toHaveLength(1);

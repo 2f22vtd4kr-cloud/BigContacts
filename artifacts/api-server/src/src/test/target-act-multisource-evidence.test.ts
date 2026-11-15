@@ -8,7 +8,7 @@ describe("target act multi-source evidence", () => {
       observation: "multi-source episode", observedUrls: ["https://example.com/team", "https://example.com/contact"],
       findings: [{
         vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder",
-        scope: "candidate", sourceUrls: ["https://example.com/team", "https://example.com/contact"],
+        scope: "candidate", contactAttribution: "professional_person_specific", exactQuote: "Jane Example — Founder — jane@example.com", identityAssessment: "same_person", identityRationale: "The team page explicitly binds Jane Example to the exact professional email.", sourceUrls: ["https://example.com/team", "https://example.com/contact"],
       }],
       sourceRecords: [
         { turn: 1, action: "visit", execution: "success", observation: "Jane Example — Founder", observedUrls: ["https://example.com/team"], findings: [] },

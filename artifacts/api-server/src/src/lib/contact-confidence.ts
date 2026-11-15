@@ -108,7 +108,7 @@ export function hasMeaningfulDirectContact(entity: {
   phoneSource?: string | null; contactOutcome?: string | null; emailSource?: string | null;
   metadata?: string | Record<string, unknown> | null; validatedDirectContact?: boolean;
 }): boolean {
-  return entity.validatedDirectContact === true && hasStrictPersonSpecificInvestigatorProvenance(entity);
+  return hasStrictPersonSpecificInvestigatorProvenance(entity);
 }
 
 export type ContactOutcome="none"|"evidence_only"|"social_only"|"organization_contact"|"direct_contact_candidate"|"direct_contact_verified";

@@ -23,6 +23,8 @@ const finding = (overrides: Partial<AgenticFinding> = {}): AgenticFinding => ({
   note: "named on the team page",
   contactAttribution: "person_specific",
   exactQuote: "Jane Example — Founder — jane@example.com",
+  identityAssessment: "same_person",
+  identityRationale: "The fetched page explicitly binds Jane Example to this exact professional email.",
   ...overrides,
 });
 
