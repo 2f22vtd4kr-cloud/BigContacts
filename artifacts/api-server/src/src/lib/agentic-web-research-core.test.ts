@@ -2556,7 +2556,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(true);
     // Source class is provenance, not admission policy. The model selects the
     // role and exact quote; code verifies same-run fetched/registry provenance.
-    expect(agenticCoreSource).toContain("isClaimGradeDiscoverySourceUrl");
+    expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: isClaimGradeDiscoverySourceUrl(sourceUrl) ? "fetched_source" : "search_result_lead"');
+    expect(canonicalAtlasDiscoverySource).toContain('if (finding.scope !== "candidate" || finding.promotionDecision === "reject") continue;');
+    expect(canonicalAtlasDiscoverySource).not.toContain("if (!isClaimGradeDiscoverySourceUrl(sourceUrl))");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasDiscoveryOwnershipLeadSignal");
