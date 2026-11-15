@@ -67,10 +67,10 @@ describe.sequential("Groq Investigator provider boundary", () => {
       GROQ_INVESTIGATOR_API_KEY_3: "key-4",
     } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-2",
       "groq-investigator-4",
-      "groq-investigator-20b",
     ]);
   });
   it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
@@ -273,7 +273,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     });
 
     expect(result.trajectoryRecords[0]?.action).toBe("browser_fetch");
-    expect(result.trajectoryRecords[0]?.execution).toBe("success");
+    expect(result.trajectoryRecords[0]?.execution).toBe("partial");
     expect(result.trajectoryRecords[0]?.observedUrls).toEqual([]);
     expect(result.trajectoryRecords[0]?.observation).toContain("SOURCE_URL_UNVERIFIED");
   });
