@@ -288,6 +288,15 @@ describe("live discovery semantic-authority boundary", () => {
     const targetPreflight = agenticCoreSource.slice(runStart, runPreflightEnd);
     expect(targetPreflight).toContain('if (!name && input.mode !== "discovery")');
     expect(targetPreflight).not.toContain("name.length < 2");
+    expect(agenticCoreSource).not.toContain("if (promotedCandidate && !role) return true;");
+    expect(agenticCoreSource).toContain("let roleBound = !promotedCandidate || !role;");
+
+    const candidateRoleStart = canonicalAtlasDiscoverySource.indexOf("const candidateRoles =");
+    const candidateRoleEnd = canonicalAtlasDiscoverySource.indexOf("let selectedRole", candidateRoleStart);
+    expect(candidateRoleStart).toBeGreaterThan(-1);
+    const candidateRoleSelection = canonicalAtlasDiscoverySource.slice(candidateRoleStart, candidateRoleEnd);
+    expect(candidateRoleSelection).not.toContain(".filter(Boolean)");
+    expect(candidateRoleSelection).toContain(': ""');
   });
 });
 
