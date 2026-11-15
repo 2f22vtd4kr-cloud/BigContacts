@@ -321,7 +321,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("expectedInformationGain is a finite number in [0,1]");
     expect(submitted).toContain("only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("Omit action-irrelevant optional fields rather than sending null placeholders");
-    expect(submitted).toContain("DISCOVERY LEAD HANDOFF");
+    expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(submitted).toContain("Do not impose criteria the human did not request");
     expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
     expect(submitted).toContain("Models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority");
@@ -340,7 +340,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
     expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(messages).toHaveLength(2);
   });
 
@@ -520,8 +520,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
-      type: ["string", "null"],
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
+      type: "string",
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders],
     });
     expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
   });
@@ -573,7 +573,7 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2", "groq-investigator-20b"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
@@ -583,8 +583,8 @@ describe("Groq Investigator runtime contract", () => {
   it("keeps the model-scoped 20B capability selectable when it shares the first 120B credential", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual([
-      "groq-investigator-1",
       "groq-investigator-20b",
+      "groq-investigator-1",
     ]);
     expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([
       "groq-investigator-20b",
