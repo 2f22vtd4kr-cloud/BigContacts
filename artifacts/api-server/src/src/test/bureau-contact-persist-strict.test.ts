@@ -195,7 +195,7 @@ describe("claim-grade observation boundary", () => {
 
 describe("same-source identity binding for candidate contact promotion", () => {
   const personEmailQuote = "Jane Example — direct email: jane@example.com";
-  const candidate = { scope: "candidate", personName: "Jane Example", contactAttribution: "person_specific" as const, exactQuote: personEmailQuote };
+  const candidate = { scope: "candidate", personName: "Jane Example", contactAttribution: "person_specific" as const, exactQuote: personEmailQuote, identityAssessment: "same_person" as const, identityRationale: "The exact source quote attributes this contact to Jane Example." };
 
   it("accepts an exact person identity and contact value in the same source observation", () => {
     expect(supportsCandidateContactOnSameObservation(
@@ -289,6 +289,8 @@ describe("multi-source candidate contact attribution", () => {
     personName: "Jane Example",
     contactAttribution: "person_specific" as const,
     exactQuote: "Jane Example — direct email: jane@example.com",
+    identityAssessment: "same_person" as const,
+    identityRationale: "The exact source quote attributes this contact to Jane Example.",
     sourceUrls: ["https://example.com/team/jane"],
   };
 
