@@ -137,7 +137,6 @@ export async function persistBureauContactsForEntity(
     seen.add(key);
 
     const scope = String(item.scope ?? item.tier ?? "unknown").toLowerCase();
-    const orgish = scope === "organization";
     let urls = Array.isArray(item.sourceUrls)
       ? item.sourceUrls.filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
@@ -474,7 +473,6 @@ async function lookupPublicEmailClaims(
   ];
   const out: Array<{ email: string; sourceUrl: string | null }> = [];
   const seen = new Set<string>();
-  const generic = /^(info|contact|office|press|hello|admin|sales|support|noreply|no-reply)@/i;
   for (const q of queries) {
     if (out.length >= 5) break;
     try {
@@ -494,9 +492,6 @@ async function lookupPublicEmailClaims(
       for (const raw of emailMatches) {
         const email = raw.toLowerCase();
         if (seen.has(email)) continue;
-        if (generic.test(email) && !name.split(/\s+/).some((p) => p.length > 2 && email.includes(p.toLowerCase()))) {
-          // Keep org emails but mark them; still visible as related.
-        }
         // Skip obvious trash
         if (/example\.com|domain\.com|email\.com|sentry\.io|wixpress|schema\.org/i.test(email)) continue;
         seen.add(email);
