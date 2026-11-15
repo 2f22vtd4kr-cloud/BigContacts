@@ -29,12 +29,30 @@ describe("safe entity merge contact-source binding", () => {
   it("uses the phone source belonging to the row whose phone was selected", () => {
     const selected = selectMergedContactEvidence(
       { phone: null, phoneSource: "EDGAR-Issuer-Phone" },
-      { phone: "+14154251234", phoneSource: "official-person-profile" },
+      {
+        phone: "+14154251234",
+        phoneSource: "official-person-profile",
+        metadata: JSON.stringify({
+          agenticContactProvenance: {
+            phone: {
+              value: "+14154251234",
+              personName: "Jane Example",
+              contactAttribution: "professional_person_specific",
+              exactQuote: "Jane Example published professional contact: +14154251234",
+              identityAssessment: "same_person",
+              identityRationale: "The fetched profile explicitly binds Jane Example to this phone.",
+              sourceUrls: ["https://example.org/jane"],
+              jobId: "contact-merge-test-job",
+            },
+          },
+        }),
+      },
     );
 
     expect(selected.phone).toBe("+14154251234");
     expect(selected.phoneSource).toBe("official-person-profile");
-    expect(computeContactOutcome({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource })).toBe("direct_contact_candidate");
-    expect(hasMeaningfulDirectContact({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource })).toBe(true);
+    expect(selected.phoneMetadata).toContain("agenticContactProvenance");
+    expect(computeContactOutcome({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource, metadata: selected.phoneMetadata })).toBe("direct_contact_candidate");
+    expect(hasMeaningfulDirectContact({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource, metadata: selected.phoneMetadata })).toBe(true);
   });
 });
