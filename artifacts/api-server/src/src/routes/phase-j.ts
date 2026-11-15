@@ -38,7 +38,7 @@ import {
 } from "../lib/contact-validation";
 import { resolveEmployerDomain } from "../lib/domain-resolver";
 import { discoverDigitalFootprint } from "../lib/digital-footprint";
-import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
+import { scoreAttribution } from "../lib/contact-attribution";
 import { logger } from "../lib/logger";
 import { canonicalizeUrl } from "../lib/evidence-ledger";
 import { shouldBlockIssuerOverwrite, isAgenticPhoneSource } from "../lib/phone-source-priority";
@@ -176,9 +176,10 @@ function sourceReliabilityScore(source: string): number {
   return 0.42;
 }
 
-function isOrgContact(entityType: string, email: string | null, _phone: string | null): boolean {
-  if (!["Corporation", "Trust"].includes(entityType)) return false;
-  return isGenericLocalPart(email ?? "");
+function isOrgContact(entityType: string, _email: string | null, _phone: string | null): boolean {
+  // The card's entity type is authoritative here; mailbox spelling cannot
+  // turn an individual contact into an organization/shared-inbox route.
+  return ["Corporation", "Corp", "Trust"].includes(entityType);
 }
 
 function correctedPersonalRunMetrics(run: {
