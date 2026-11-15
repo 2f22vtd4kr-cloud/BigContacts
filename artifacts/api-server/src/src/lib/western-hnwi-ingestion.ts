@@ -708,7 +708,7 @@ export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { 
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
-  // The source parser has already identified this as a person-role/registrant row.
+  // Preserve the source-designated entity type; the model resolves identity, roles and significance.
   // Preserve it as a provisional candidate; neither a name heuristic nor a registry
   // filing is enough to assert HNWI qualification.
   const registryAssessment = deriveRegistryIngestionAssessment(entityType);
@@ -1063,7 +1063,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       });
 
       // Dedup state is committed only after the DB transaction succeeded.
-      // If this write fails, the next run still has DB-level name dedup as a guard.
+      // If this write fails, the next run still has DB-level exact source-record dedup as a guard.
       if (usableKeys.length > 0) await batchMarkSeen(usableKeys);
       inserted += result.insertedCount;
       skipped += result.existingCount + (paired.length - usable.length) + (usable.length - deduped.length);
