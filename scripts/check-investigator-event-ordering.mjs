@@ -2,6 +2,7 @@ import fs from "node:fs";
 const target=fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts","utf8");
 const bureau=fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts","utf8");
 const entrypoint=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8");
+const runner=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8");
 const oversight=fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts","utf8");
 const checks=[
 ["target event callback is serialized",/investigationEventChain\s*=\s*investigationEventChain\.then/.test(target)],
@@ -11,7 +12,8 @@ const checks=[
 ["target no fire-and-forget investigation callback",!/void input\.onInvestigationAct\?\./.test(target)],
 ["bureau no fire-and-forget investigation callback",!/void input\.onInvestigationAct\?\./.test(bureau)],
 ["target Investigator is stepped one act at a time",/maxIterations:\s*1/.test(entrypoint)],
-["target act waits for Right Hand and Boss review",/await reviewTargetInvestigationAct\(/.test(entrypoint)],
+["target act preserves Boss control and conditionally invokes Right-hand for consequential decisions",/await reviewTargetInvestigationAct\(/.test(runner)&&/shouldReviewTargetActWithRightHand/.test(oversight)&&/previousBossDisposition: lastOversight\?\.action/.test(runner)&&/status: "deferred"/.test(oversight)&&/generateGroqBossText/.test(oversight)],
+["target opening defers Right-hand until Investigator observations",/rightHandOpening = \{ status: "deferred"/.test(runner)&&!/runGroqRightHandFreeJson/.test(runner)],
 ["target act lookup is tied to durable case state",/loadTargetActOversightContext\(input\.caseId, input\.targetName\)/.test(entrypoint)],
 ["discovery bypasses target per-act gate",/input\.mode === "discovery"/.test(entrypoint)],
 ["oversight has explicit continue redirect stop dispositions",/continue[\s\S]{0,200}redirect[\s\S]{0,200}stop/.test(oversight)],
