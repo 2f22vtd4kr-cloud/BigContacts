@@ -17,8 +17,6 @@ export type TargetFitnessOutcome =
 
 export type TargetFitnessResult = {
   fit: TargetFitnessOutcome;
-  /** Deprecated neutral placeholder; must not be used to rank or reject a target. */
-  score: number;
   reasons: string[];
   roleHints: string[];
 };
@@ -37,7 +35,6 @@ export function evaluateTargetFitness(input: {
   if (!name) {
     return {
       fit: "review",
-      score: 0.5,
       reasons: ["Target name is missing; request a valid target identifier before research."],
       roleHints: [],
     };
@@ -47,7 +44,6 @@ export function evaluateTargetFitness(input: {
     : null;
   return {
     fit: "review",
-    score: 0.5,
     reasons: [
       "Target-fitness heuristics are disabled. Assess this candidate against the human objective, source-backed identity, contextual role/relationship, uncertainty and expected information gain.",
       input.type ? "Stored entity type (unverified context): " + input.type.slice(0, 80) : "Entity type is unresolved.",
