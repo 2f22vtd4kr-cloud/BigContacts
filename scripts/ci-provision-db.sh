@@ -3,22 +3,12 @@ set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL must be set}"
 
-MIGRATION_DIR="./drizzle"
-rm -rf "$MIGRATION_DIR"
-trap 'rm -rf "$MIGRATION_DIR"' EXIT
+# CI must exercise the same complete, explicitly opted-in schema lifecycle as
+# Replit startup. This installs the Drizzle schema, invariants, and committed
+# Apex migrations 002–007 (including the durable LLM usage ledger).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "$REPO_ROOT"
 
-timeout 120s pnpm exec drizzle-kit generate \
-  --config ./drizzle.config.ts \
-  --name ci_schema
-
-shopt -s nullglob
-migrations=("$MIGRATION_DIR"/*.sql)
-if [ "${#migrations[@]}" -eq 0 ]; then
-  echo "CI database provisioning generated no migration SQL" >&2
-  exit 1
-fi
-
-for migration in "${migrations[@]}"; do
-  echo "Applying generated schema migration: ${migration}"
-  timeout 120s psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
-done
+export APEX_ALLOW_SCHEMA_PUSH=true
+bash scripts/initialize-apex-schema.sh
