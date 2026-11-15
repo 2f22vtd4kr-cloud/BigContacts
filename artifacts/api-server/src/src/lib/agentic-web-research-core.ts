@@ -4762,7 +4762,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed} used; ${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS} remain. At zero, no more web/registry searches; choose another available action or stop/park.`
+    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another available action or stop/park.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
@@ -4858,15 +4858,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "SPECIALIST OSINT: only AVAILABLE ACTIONS after fresh worker attestation.";
+  const compactWorkerCapabilityGuidance = "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
     ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `REGISTRY IDS: ${registryIdList}. Never invent IDs; records are leads, not beneficial-owner proof; withheld/failed is not a no-hit.`;
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Market=country; locale=language.";
-  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.";
+  const compactRegistryGuidance = `REGISTRY IDS: ${registryIdList}; listed IDs only; leads, not ownership proof; withheld/failed is not no-hit.`;
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson; locale=language; market=country.";
+  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown.";
 
   const composedPrompt = [
     assignment,
