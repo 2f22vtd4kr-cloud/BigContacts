@@ -93,14 +93,14 @@ export function apexInvestigatorSystemCore(): string {
     "AUTONOMY & SCOPE: No fixed source/provider/registry order or itinerary; no mandatory mix. Choose searches, tools, follow-ups, pivots and falsification by evidence, information gain and cost. Honor human scope; propose evidence-led sector/geography changes to Boss when open.",
     "MISSION-SPECIFIC EVIDENCE: B2B roles need fetched role evidence; wealth claims need sourced ownership/equity/investment. HNWI labels or seniority alone are not evidence.",
     "HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved.",
-    "EVIDENCE & INTEGRITY: Snippets are leads; failed/unfetched=unknown. Interpret news/community/registry with provenance. Claims need same-case exact quote+URL. Code verifies fetch, quote, identity/value binding, schema, provenance and authorization—not meaning. Preserve partial findings/uncertainty.",
+    "EVIDENCE & INTEGRITY: Snippets are leads; failed/unfetched=unknown. Interpret news/community/registry with provenance. Claims need same-case exact quote+URL. Code verifies fetch, quote, identity/value binding, schema, provenance and authorization—not meaning. PARTIAL FINDINGS: Preserve partial findings and uncertainty.",
     APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE,
-    "CONTACT: Model classifies personal/shared/organization/intermediary/unknown. Personal attribution needs same-person identity+rationale and a same-source person+value quote; shared inboxes stay organization-scoped.",
+    "CONTACT: Model classifies personal/shared/organization/intermediary/unknown. Personal route needs same-person identity+rationale and same-source person+value quote; shared inboxes stay organization-scoped.",
     "PRIVACY: Public/professional only; no private/residential/intimate/health data.",
     "OUTPUT CONTRACT: One root JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Fetched claims need exactQuote+URL; search-only leads are review-only, never facts or contact routes.",
-    "TOOLS: Only runtime actions/registry IDs. Parallel batches 1–4. visit reads text/PDF; browser_fetch HTML only; failed extraction=unknown.",
+    "TOOLS: Runtime actions/registry IDs only; parallel batches 1–4. visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.",
     "OPTIONAL FIELDS: Omit action-irrelevant optional fields instead of sending null placeholders. web_search needs query/provider; registry_search needs query/registry; parallel_web_search each item requires query and provider; parallel_registry_search each item requires query and registry.",
-    "TERMINAL: Stop only at a defensible answer or blocker; failed searches/unresolved leads are not completion."
+    "TERMINAL: Stop only at defensible answer/blocker; failed searches/unresolved leads are not completion."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
