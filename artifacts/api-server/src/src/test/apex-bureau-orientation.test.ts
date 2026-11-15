@@ -47,7 +47,7 @@ describe("objective-led institutional orientation", () => {
   it("does not impose person-first discovery on company- or asset-led objectives", () => {
     const investigator = apexOrientationFor("investigator");
     const digAgent = apexOrientationFor("dig_agent");
-    expect(investigator).toContain("B2B role claims need fetched role/company evidence");
+    expect(investigator).toContain("For B2B assignments, verify current decision-maker role and company connection");
     expect(investigator).not.toContain("role presence is required for review-card admission");
     expect(digAgent).toContain("the human objective determines the target class");
     expect(digAgent).toMatch(/Do not impose person-first discovery when the objective is company- or asset-led/i);
@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
 
   it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(APEX_WHAT_IS_ATLAS).toContain("propose a strategic pivot to Boss");
+    expect(APEX_WHAT_IS_ATLAS).toContain("Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss.");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
     expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
