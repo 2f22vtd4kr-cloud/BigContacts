@@ -124,7 +124,13 @@ export function getAvailableDistinctInvestigatorCapabilities(
   const fingerprintFor = (capability: InvestigatorCapability): string | null => {
     const keyName = investigatorCapabilityKeyName(capability);
     const credential = keyName ? env[keyName]?.trim() : undefined;
-    return credential ? digestDiagnosticText(credential) : null;
+    if (!credential) return null;
+    // Standard 120B capability slots sharing one key are aliases. The 20B
+    // capability deliberately reuses the first key but calls a different
+    // model with a separately observed/model-scoped quota, so it must remain
+    // selectable and must not be excluded when only a 120B slot is exhausted.
+    const modelLane = capability === GROQ_INVESTIGATOR_20B_CAPABILITY ? "20b" : "120b";
+    return modelLane + ":" + digestDiagnosticText(credential);
   };
   const excludedCredentials = new Set(
     excludedCapabilities.map(fingerprintFor).filter((value): value is string => value !== null),
