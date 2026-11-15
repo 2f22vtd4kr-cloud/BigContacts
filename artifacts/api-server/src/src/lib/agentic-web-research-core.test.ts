@@ -3110,7 +3110,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(responseFormat.type).toBe("json_schema");
     expect(schema?.additionalProperties).toBe(false);
     expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls", "note"]);
+    expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls"]);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
