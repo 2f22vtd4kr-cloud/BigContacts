@@ -79,12 +79,19 @@ describe("Groq Boss continuation prompt budget", () => {
 describe("Groq Boss token-window recovery", () => {
 
   beforeEach(() => {
+    // These tests mock provider responses; they must not persist simulated quota
+    // exhaustion into the shared CI database used by later integration tests.
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 
   afterEach(() => {
     delete process.env.GROQ_BOSS_API_KEY;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+    vi.unstubAllEnvs();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -360,6 +367,10 @@ describe("Groq Boss token-window recovery", () => {
 
 describe("Groq Boss context-compaction empty output recovery", () => {
   beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     delete process.env.GROQ_BOSS_API_KEY;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
@@ -367,6 +378,7 @@ describe("Groq Boss context-compaction empty output recovery", () => {
   afterEach(() => {
     delete process.env.GROQ_BOSS_API_KEY;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 

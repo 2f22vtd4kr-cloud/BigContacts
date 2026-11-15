@@ -36,7 +36,7 @@ describe("public contact quality guardrails", () => {
     expect(isGenericEmailPrefix("jane-sales")).toBe(false);
     expect(computeContactConfidence({ email: "info-sales@company.example" })).toBe(0);
     expect(hasMeaningfulDirectContact({ email: "info-sales@company.example" })).toBe(false);
-    expect(computeContactOutcome({ email: "info-sales@company.example" })).toBe("organization_contact");
+    expect(computeContactOutcome({ email: "info-sales@company.example" })).toBe("evidence_only");
   });
 
   it("rejects registry identifiers that look like phone numbers", () => {
@@ -67,7 +67,7 @@ describe("public contact quality guardrails", () => {
 
   it("requires a meaningful personal email or phone for hot status", () => {
     expect(hasMeaningfulDirectContact({ email: "info@venue.example" })).toBe(false);
-    expect(hasMeaningfulDirectContact({ phone: "415-555-2671" })).toBe(true);
+    expect(hasMeaningfulDirectContact({ phone: "415-555-2671" })).toBe(false);
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "EDGAR-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "CompaniesHouse-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ type: "Trust", phone: "+14155552671" })).toBe(false);
@@ -136,19 +136,19 @@ describe("public contact quality guardrails", () => {
     expect(result.mctsSteps[0]?.reasoning).toContain("direct access is not established");
   });
 
-  it("classifies registry phones as organization contact, never verified personal contact", async () => {
+  it("does not infer organization or personal attribution from registry phones alone", async () => {
     const { computeContactOutcome } = await import("../lib/contact-confidence");
     expect(computeContactOutcome({
       phone: "+14155552671",
       phoneSource: "EDGAR-Phone",
       email: "owner@example.org",
       validatedDirectContact: true,
-    })).toBe("organization_contact");
+    })).toBe("evidence_only");
     expect(computeContactOutcome({
       phone: "+14155552671",
       phoneSource: "CompaniesHouse-Phone",
       validatedDirectContact: true,
-    })).toBe("organization_contact");
+    })).toBe("evidence_only");
     expect(computeContactOutcome({
       phone: "+14155552671",
       validatedDirectContact: true,
@@ -166,31 +166,31 @@ describe("public contact quality guardrails", () => {
   });
 
 
-  it("agentic-web-org phone without personal email is organization_contact", async () => {
+  it("keeps an unassessed agentic organization phone as evidence only", async () => {
     const { computeContactOutcome } = await import("../lib/contact-confidence");
     expect(computeContactOutcome({
       type: "HNWI",
       phone: "+12125551212",
       phoneSource: "agentic-web-org",
-    })).toBe("organization_contact");
+    })).toBe("evidence_only");
     expect(computeContactOutcome({
       type: "HNWI",
       phone: "+12125551212",
       phoneSource: "agentic-web-org",
       email: "info@firm.example",
-    })).toBe("organization_contact");
+    })).toBe("evidence_only");
   });
 
-  it("agentic-web personal phone can be direct_contact_candidate", async () => {
+  it("does not infer a personal route from an agentic phone source label", async () => {
     const { computeContactOutcome } = await import("../lib/contact-confidence");
     expect(computeContactOutcome({
       type: "HNWI",
       phone: "+12125551212",
       phoneSource: "agentic-web",
-    })).toBe("direct_contact_candidate");
+    })).toBe("evidence_only");
   });
 
-  it("EDGAR-Notice-Phone is person-associated candidate not issuer org", async () => {
+  it("keeps EDGAR notice phone evidence unclassified until the Investigator attributes it", async () => {
     const { computeContactOutcome } = await import("../lib/contact-confidence");
     const out = computeContactOutcome({
       type: "HNWI",
@@ -198,15 +198,15 @@ describe("public contact quality guardrails", () => {
       phoneSource: "EDGAR-Notice-Phone",
     });
     expect(out).not.toBe("organization_contact");
-    expect(["direct_contact_candidate", "direct_contact_verified"]).toContain(out);
+    expect(out).toBe("evidence_only");
   });
 
-  it("generic inbox alone is organization_contact", async () => {
+  it("keeps a generic inbox unclassified until the Investigator attributes it", async () => {
     const { computeContactOutcome } = await import("../lib/contact-confidence");
     expect(computeContactOutcome({
       type: "HNWI",
       email: "info@acme.example",
-    })).toBe("organization_contact");
+    })).toBe("evidence_only");
   });
 
 

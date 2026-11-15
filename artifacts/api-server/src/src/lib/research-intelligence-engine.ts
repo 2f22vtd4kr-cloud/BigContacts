@@ -9,7 +9,7 @@ import { sanitizeUrlsInText } from "./url-privacy";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
-export type IntelligenceSourceClass = "REGULATORY" | "OFFICIAL_COMPANY" | "OFFICIAL_GOVERNANCE" | "OFFICIAL_PERSONAL" | "REPUTABLE_NEWS" | "PROFESSIONAL_DIRECTORY" | "SOCIAL_PROFILE" | "SEARCH_RESULT" | "AGGREGATOR" | "SCRAPED_DIRECTORY" | "UNKNOWN";
+export type IntelligenceSourceClass = "REGULATORY" | "OFFICIAL_COMPANY" | "OFFICIAL_GOVERNANCE" | "OFFICIAL_PERSONAL" | "REPUTABLE_NEWS" | "PROFESSIONAL_DIRECTORY" | "SOCIAL_PROFILE" | "SEARCH_RESULT" | "AGGREGATOR" | "SCRAPED_DIRECTORY" | "COMMUNITY_OBSERVATION" | "UNKNOWN";
 export type IntelligenceClaimStatus = "supported" | "contradicted" | "unresolved";
 export type ContactEvidenceState = "DISCOVERED" | "OBSERVED" | "ATTRIBUTED" | "CORROBORATED" | "VERIFIED" | "STALE" | "CONTRADICTED" | "REJECTED";
 
@@ -39,7 +39,18 @@ export interface IntelligenceEvidence {
   spanEnd?: number | null;
   spanBound?: boolean;
   spanBindingKind?: "identity" | "value" | "identity_and_value";
+  hypothesisLabel?: string | null;
+  hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null;
+  hypothesisRationale?: string | null;
+  relationshipType?: string | null;
+  temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null;
+  interpretationConfidence?: number | null;
+  ambiguityNotes?: string | null;
   sourceLineageId?: string;
+  sourceName?: string | null;
+  sourceContributor?: string | null;
+  originalObservedAt?: string | null;
+  sourceMechanism?: string | null;
   fingerprint: string;
 }
 
@@ -137,7 +148,7 @@ export interface IntelligenceContext {
   frontier: ReturnType<typeof assessResearchFrontier>;
   sourceIndependence: number;
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
-  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; attribution: string | null }>;
+  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceTier: IntelligenceSourceTier; sourceClass: IntelligenceSourceClass; sourceName?: string | null; sourceContributor?: string | null; originalObservedAt?: string | null; sourceMechanism?: string | null; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; hypothesisLabel?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
   /** Raw cumulative learning statistics; optional for older durable contexts. */
   actionYieldStats?: Array<[string, ActionYieldStat]>;
@@ -145,7 +156,7 @@ export interface IntelligenceContext {
   independentSourceUnits: number;
   discovery?: DiscoveryIntelligence;
   falsification: ReturnType<typeof assessFalsificationPlan>;
-  researchQuestions: Array<{ id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
+  researchQuestions: Array<{ id: string; question: string; importance: number | null; uncertainty: number | null; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -180,6 +191,7 @@ function sourceFamily(host: string | null): string {
 }
 function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (!host) return "UNKNOWN";
+  if (hostMatchesDomain(host, "virtualglobetrotting.com")) return "COMMUNITY_OBSERVATION";
   if (["companieshouse.gov.uk", "company-information.service.gov.uk", "sec.gov", "brreg.no", "bodacc.fr", "gleif.org"].some((domain) => hostMatchesDomain(host, domain))) return "REGULATORY";
   if (["linkedin.com", "x.com", "twitter.com", "instagram.com"].some((domain) => hostMatchesDomain(host, domain))) return "SOCIAL_PROFILE";
   if (["crunchbase.com", "pitchbook.com", "opencorporates.com"].some((domain) => hostMatchesDomain(host, domain))) return "PROFESSIONAL_DIRECTORY";
@@ -203,12 +215,10 @@ function tierForHost(host: string | null): IntelligenceSourceTier {
   if (isOfficialGovernmentHost(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
   if (/\.(edu|ac\.[a-z]{2})$/.test(host)) return "B";
   if (/linkedin\.com$|crunchbase\.com$|pitchbook\.com$|wikipedia\.org$/.test(host)) return "C";
-  return "B";
+  return "unknown";
 }
 function hash(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 function clamp(value: number, min = 0, max = 1): number { return Math.max(min, Math.min(max, value)); }
-function tokenize(value: string): string[] { return normalize(value).split(" ").filter((token) => token.length > 2 && !STOPWORDS.has(token)); }
-function overlap(a: string, b: string): number { const aa = new Set(tokenize(a)); const bb = new Set(tokenize(b)); if (!aa.size || !bb.size) return 0; let hit = 0; for (const token of aa) if (bb.has(token)) hit += 1; return hit / Math.max(aa.size, bb.size); }
 function extractPredicate(claim: string): { subject: string; predicate: string; object: string } {
   const text = claim.trim();
   const match = text.match(/^(.{2,100}?)(?:\s+is\s+|\s+works?\s+at\s+|\s+founded\s+|\s+owns?\s+|\s+email(?:s)?\s+|\s+phone(?:s)?\s+)(.{2,220})$/i);
@@ -216,24 +226,6 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
   const lower = text.toLowerCase();
   const predicate = lower.includes(" works at ") ? "works_at" : lower.includes(" founded ") ? "founded" : lower.includes(" owns ") ? "owns" : lower.includes(" email ") || lower.includes(" emails ") ? "email" : lower.includes(" phone ") || lower.includes(" phones ") ? "phone" : "is";
   return { subject: match[1]!.trim(), predicate, object: match[2]!.trim() };
-}
-
-function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
-  const parseableHypothesis = hypothesis
-    .replace(/\b(?:may|might|could|possibly|probably|likely|perhaps)\b/gi, " ")
-    .replace(/\b(?:the|a|an)\b/gi, " ")
-    .replace(/\bbe\b/gi, "is")
-    .replace(/\s+/g, " ")
-    .trim();
-  const hypothesisClaim = extractPredicate(parseableHypothesis);
-  const evidenceClaim = extractPredicate(claim);
-  if (hypothesisClaim.predicate !== "asserts" && evidenceClaim.predicate !== "asserts") {
-    if (normalize(hypothesisClaim.subject) !== normalize(evidenceClaim.subject)) return false;
-    if (hypothesisClaim.predicate !== evidenceClaim.predicate) return false;
-    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
-    if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
-  }
-  return overlap(hypothesis, claim) >= 0.35;
 }
 
 export class ResearchIntelligenceEngine {
@@ -250,8 +242,23 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
+    const sourceAttribution = input.args?.sourceAttribution && typeof input.args.sourceAttribution === "object"
+      ? input.args.sourceAttribution as Record<string, unknown>
+      : null;
+    const sourceMetadataForUrl = (url: string): Pick<IntelligenceEvidence, "sourceName" | "sourceContributor" | "originalObservedAt" | "sourceMechanism"> => {
+      if (!sourceAttribution) return {};
+      const expectedDomain = typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain.toLowerCase().replace(/^www\\./, "") : "";
+      const actualHost = hostOf(url) ?? "";
+      if (expectedDomain && actualHost !== expectedDomain && !actualHost.endsWith("." + expectedDomain)) return {};
+      return {
+        sourceName: typeof sourceAttribution.sourceName === "string" ? sourceAttribution.sourceName : null,
+        sourceContributor: typeof sourceAttribution.sourceContributor === "string" ? sourceAttribution.sourceContributor : null,
+        originalObservedAt: typeof sourceAttribution.originalObservedAt === "string" ? sourceAttribution.originalObservedAt : null,
+        sourceMechanism: typeof sourceAttribution.sourceMechanism === "string" ? sourceAttribution.sourceMechanism : null,
+      };
+    };
     const observationIsFetchedSource = input.execution === "success"
       && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
     const newHostCount = observationIsFetchedSource ? this.countNewHosts(urls) : 0;
@@ -291,14 +298,27 @@ export class ResearchIntelligenceEngine {
         let best: typeof supportedSources[number] | null = null;
         let bestRank = 0;
         for (const source of sourceObservationsByUrl.get(sourceUrl) ?? []) {
-          const combinedSpan = bindExactSourceSpan(source.observation, value, subject, 320);
           const valueSpan = bindExactSourceSpan(source.observation, value);
           const identitySpan = finding.personName ? bindExactSourceSpan(source.observation, finding.personName) : null;
-          const supportsSource = finding.personName ? Boolean(valueSpan?.exact || identitySpan?.exact) : Boolean(valueSpan?.exact);
+          const exactQuote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
+          const quoteSpan = exactQuote ? bindExactSourceSpan(source.observation, exactQuote) : null;
+          const quoteBindsIdentityAndValue = Boolean(
+            finding.personName
+            && quoteSpan?.exact
+            && bindExactSourceSpan(exactQuote, finding.personName)?.exact
+            && bindExactSourceSpan(exactQuote, value)?.exact,
+          );
+          const supportsSource = finding.personName
+            ? Boolean(valueSpan?.exact || identitySpan?.exact || quoteSpan?.exact)
+            : Boolean(valueSpan?.exact);
           if (!supportsSource) continue;
-          const span = combinedSpan?.exact ? combinedSpan : valueSpan?.exact ? valueSpan : identitySpan!;
-          const binding = combinedSpan?.exact ? "identity_and_value" as const : valueSpan?.exact ? "value" as const : "identity" as const;
-          const rank = combinedSpan?.exact ? 3 : valueSpan?.exact && identitySpan?.exact ? 2 : 1;
+          // Semantic attribution comes from the model's explicit quote. The
+          // runtime checks that the whole quote exists on this source and that
+          // it contains the exact identity and value; it applies no proximity
+          // window or English/Latin matching rule.
+          const span = quoteBindsIdentityAndValue ? quoteSpan! : valueSpan?.exact ? valueSpan : identitySpan!;
+          const binding = quoteBindsIdentityAndValue ? "identity_and_value" as const : valueSpan?.exact ? "value" as const : "identity" as const;
+          const rank = quoteBindsIdentityAndValue ? 3 : valueSpan?.exact && identitySpan?.exact ? 2 : 1;
           if (rank > bestRank || (rank === bestRank && best && source.turn > best.turn)) {
             best = { url: sourceUrl, turn: source.turn, action: source.action, span, binding };
             bestRank = rank;
@@ -312,13 +332,24 @@ export class ResearchIntelligenceEngine {
       findings.push(finding);
       for (const source of supportedSources) {
         // Separate identity and value mentions are review evidence, not a supported composed claim.
-        const wholeClaimSupported = !finding.personName || source.binding === "identity_and_value";
+        const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
+        const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
+        const wholeClaimSupported = !finding.personName
+          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || (["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "") && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim()))));
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
           value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
           turn: source.turn, action: source.action, execution: "success", passage: source.span.text,
+          ...sourceMetadataForUrl(source.url),
           spanStart: source.span.start, spanEnd: source.span.end, spanBindingKind: source.binding,
+          hypothesisLabel: typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() || null : null,
+          hypothesisRelation: wholeClaimSupported ? finding.hypothesisRelation ?? "unresolved" : "unresolved",
+          hypothesisRationale: finding.hypothesisRationale ?? null,
+          relationshipType: finding.relationshipType ?? null,
+          temporalStatus: finding.temporalStatus ?? "unclear",
+          interpretationConfidence: typeof finding.interpretationConfidence === "number" && Number.isFinite(finding.interpretationConfidence) ? clamp(finding.interpretationConfidence) : null,
+          ambiguityNotes: finding.ambiguityNotes ?? null,
           supports: wholeClaimSupported && finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
         });
         if (wholeClaimSupported) admittedFindingEvidenceIds.add(evidenceId);
@@ -327,7 +358,10 @@ export class ResearchIntelligenceEngine {
         .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
-        const locallyBound = supportedSources.some((source) => source.binding === "identity_and_value");
+        const locallyBound = ["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "")
+          && finding.identityAssessment === "same_person"
+          && Boolean(finding.identityRationale?.trim())
+          && supportedSources.some((source) => source.binding === "identity_and_value");
         const attributionUrls = supportedSources.filter((source) => source.binding === "identity_and_value").map((source) => source.url);
         this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
@@ -338,7 +372,7 @@ export class ResearchIntelligenceEngine {
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
     if (observationIsFetchedSource) {
-      for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
+      for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), ...sourceMetadataForUrl(url), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
     // Search results are leads, not source-backed evidence. A successful search
     // with many URLs must not look like a high-yield research step merely because
@@ -363,13 +397,18 @@ export class ResearchIntelligenceEngine {
         ...admittedFindingEvidenceIds,
         ...[...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim")).map((evidence) => evidence.id),
       ])];
-      const supportingEvidenceIds = candidateEvidenceIds.filter((evidenceId) => {
-        const evidence = this.evidenceByIdMap.get(evidenceId);
-        return Boolean(evidence && (evidence.kind === "finding" || evidence.kind === "claim")
-          && supportsHypothesisClaim(modelHypothesis, evidence.claim)
-          && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); }));
-      });
-      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds });
+      const linkedEvidence = candidateEvidenceIds
+        .map((evidenceId) => this.evidenceByIdMap.get(evidenceId))
+        .filter((evidence): evidence is IntelligenceEvidence => evidence !== undefined
+          && (evidence.kind === "finding" || evidence.kind === "claim")
+          && normalize(evidence.hypothesisLabel ?? "") === normalize(modelHypothesis));
+      const supportingEvidenceIds = linkedEvidence
+        .filter((evidence) => evidence.hypothesisRelation === "supports")
+        .map((evidence) => evidence.id);
+      const contradictingEvidenceIds = linkedEvidence
+        .filter((evidence) => evidence.hypothesisRelation === "contradicts")
+        .map((evidence) => evidence.id);
+      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, contradictingEvidenceIds });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
@@ -413,10 +452,17 @@ export class ResearchIntelligenceEngine {
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
       const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: restoredKind, claim: restoredClaim, value: parsed.object, sourceUrl, sourceHost,
-        sourceTier: tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
+        sourceTier: item.sourceTier ?? tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         spanBindingKind: item.spanBindingKind,
+        hypothesisLabel: item.hypothesisLabel ?? null,
+        hypothesisRelation: item.hypothesisRelation ?? null,
+        hypothesisRationale: item.hypothesisRationale ?? null,
+        relationshipType: item.relationshipType ?? null,
+        temporalStatus: item.temporalStatus ?? null,
+        interpretationConfidence: item.interpretationConfidence ?? null,
+        ambiguityNotes: item.ambiguityNotes ?? null,
         claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
         spanStart: item.spanBound === true && item.passage ? 0 : null, spanEnd: item.spanBound === true && item.passage ? item.passage.length : null, spanBound: item.spanBound === true,
         sourceLineageId: sourceLineage?.sourceId, fingerprint };
@@ -537,6 +583,25 @@ export class ResearchIntelligenceEngine {
       existing.supports = [...new Set([...existing.supports, ...input.supports])];
       existing.contradicts = [...new Set([...existing.contradicts, ...input.contradicts])];
       existing.attribution = existing.attribution ?? input.attribution ?? null;
+      if (input.hypothesisLabel) {
+        if (existing.hypothesisLabel && normalize(existing.hypothesisLabel) !== normalize(input.hypothesisLabel)) {
+          existing.hypothesisRelation = "ambiguous";
+          existing.hypothesisRationale = "The same observation was interpreted against different hypotheses; preserve both as unresolved context.";
+        } else {
+          existing.hypothesisLabel = input.hypothesisLabel;
+          if (existing.hypothesisRelation && input.hypothesisRelation && existing.hypothesisRelation !== input.hypothesisRelation) {
+            existing.hypothesisRelation = "ambiguous";
+            existing.hypothesisRationale = [existing.hypothesisRationale, input.hypothesisRationale, "Conflicting model interpretations of the same observation are preserved as ambiguous."].filter(Boolean).join(" ").slice(0, 1_200);
+          } else {
+            existing.hypothesisRelation = existing.hypothesisRelation ?? input.hypothesisRelation ?? null;
+            existing.hypothesisRationale = existing.hypothesisRationale ?? input.hypothesisRationale ?? null;
+          }
+        }
+      }
+      existing.relationshipType = existing.relationshipType ?? input.relationshipType ?? null;
+      existing.temporalStatus = existing.temporalStatus ?? input.temporalStatus ?? null;
+      existing.interpretationConfidence = existing.interpretationConfidence ?? input.interpretationConfidence ?? null;
+      existing.ambiguityNotes = existing.ambiguityNotes ?? input.ambiguityNotes ?? null;
       return existing.id;
     }
     const id = `ev_${fingerprint.slice(0, 20)}`;
@@ -606,31 +671,26 @@ export class ResearchIntelligenceEngine {
   private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); const newHosts = new Set(urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host))); return newHosts.size; }
 
   private reconcileContradictions(): void {
-    const grouped = new Map<string, IntelligenceEvidence[]>();
-    for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = grouped.get(key) ?? []; list.push(evidence); grouped.set(key, list); }
-    for (const evidence of this.evidence.values()) evidence.contradicts = [];
-    for (const list of grouped.values()) {
-      const objectById = new Map(list.map((item) => [item.id, normalize(extractPredicate(item.claim).object)]));
-      const distinctObjects = new Set(objectById.values());
-      const parsed = extractPredicate(list[0]?.claim ?? "");
-      if (["email", "phone", "social", "website"].includes(parsed.predicate)) continue;
-      if (distinctObjects.size < 2) continue;
-      // Every observation of one side must link to all conflicting objects,
-      // not only the last representative retained for each distinct value.
-      for (const current of list) {
-        current.contradicts = [...new Set(list
-          .filter((item) => objectById.get(item.id) !== objectById.get(current.id))
-          .map((item) => item.id))];
-      }
+    // The model's explicit hypothesisRelation is the semantic judgement.
+    // Preserve it; do not manufacture contradictions from differing strings
+    // that happen to share a subject and predicate.
+    const knownEvidenceIds = new Set([...this.evidence.values()].map((item) => item.id));
+    for (const evidence of this.evidence.values()) {
+      evidence.contradicts = [...new Set(evidence.contradicts)].filter((id) => knownEvidenceIds.has(id));
     }
-    for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; const predicate = claim.predicate; const key = normalize(`${claim.subject}|${predicate}`); const group = [...this.evidence.values()].filter((item) => { const parsed = extractPredicate(item.claim); return normalize(`${parsed.subject}|${parsed.predicate}`) === key; }); claim.status = group.some((item) => item.contradicts.length > 0) ? "contradicted" : related.length ? "supported" : "unresolved"; }
+    for (const claim of this.claims.values()) {
+      const related = claim.evidenceIds.some((id) => {
+        const evidence = this.evidenceByIdMap.get(id);
+        return evidence && (evidence.kind === "finding" || evidence.kind === "claim");
+      });
+      // A source-backed fact remains supported even when it contradicts a
+      // separate hypothesis; those are different epistemic dimensions.
+      claim.status = related ? "supported" : "unresolved";
+    }
   }
 
   private rankHypotheses(): void {
     for (const hypothesis of this.hypotheses.values()) {
-      const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidenceByIdMap.get(id)?.contradicts ?? []);
-      hypothesis.contradictingEvidenceIds = [...new Set([...hypothesis.contradictingEvidenceIds, ...linkedContradictions])]
-        .filter((id) => this.evidenceByIdMap.has(id));
       // A copied passage may be observed at many URLs, but the source-lineage
       // graph intentionally gives those copies one lineage ID. Keep at most one
       // posterior signal per lineage and direction so duplicate pages cannot
@@ -656,7 +716,9 @@ export class ResearchIntelligenceEngine {
               sourceHosts: evidence.sourceHost ? [evidence.sourceHost] : [],
               sourceClasses: [evidence.sourceClass],
             }),
-            identitySpecificity: overlap(hypothesis.entity, evidence.claim),
+            // Semantic confidence is supplied by the Investigator; absent
+            // interpretation remains neutral rather than inferred by token overlap.
+            identitySpecificity: evidence.interpretationConfidence ?? 0.5,
           };
           const strength = signal.sourceReliability * 0.45
             + signal.sourceIndependence * 0.35
@@ -676,12 +738,11 @@ export class ResearchIntelligenceEngine {
       const posterior = updateHypothesisPosterior(hypothesis.priorScore, signals);
       hypothesis.score = posterior.score;
       hypothesis.logOdds = posterior.logOdds;
-      if (hypothesis.score >= 0.75) hypothesis.missingDiscriminators = hypothesis.missingDiscriminators.filter((item) => item.trim());
       const discriminator = chooseBestDiscriminator({ missingDiscriminators: hypothesis.missingDiscriminators, contradictionPressure: posterior.contradictionWeight, unresolvedPressure: hypothesis.missingDiscriminators.length });
       if (discriminator && !hypothesis.missingDiscriminators.includes(discriminator)) hypothesis.missingDiscriminators.push(discriminator);
     }
     const ranked = [...this.hypotheses.values()].sort((a, b) => b.score - a.score);
-    ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : hypothesis.score < 0.2 ? "rejected" : "alternative"; });
+    ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : "alternative"; });
   }
 
   buildContext(): IntelligenceContext {
@@ -690,7 +751,21 @@ export class ResearchIntelligenceEngine {
     const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
     const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
     const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { if (!["ATTRIBUTED", "CORROBORATED", "VERIFIED"].includes(contact.state)) continue; const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
-    const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
+    const contradictionGroups = new Map<string, IntelligenceEvidence[]>();
+    for (const evidence of this.evidence.values()) {
+      if (!evidence.hypothesisLabel || evidence.hypothesisRelation !== "supports" && evidence.hypothesisRelation !== "contradicts") continue;
+      const key = normalize(evidence.hypothesisLabel);
+      const group = contradictionGroups.get(key) ?? [];
+      group.push(evidence);
+      contradictionGroups.set(key, group);
+    }
+    const contradictions = [...contradictionGroups.entries()]
+      .filter(([, group]) => group.some((evidence) => evidence.hypothesisRelation === "contradicts"))
+      .map(([hypothesis, group]) => ({
+        claim: hypothesis,
+        evidenceIds: [...new Set(group.map((item) => item.id))],
+        sources: [...new Set(group.map((item) => item.sourceHost).filter(Boolean) as string[])],
+      }));
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
     // Search-result URLs are discovery leads. They are retained in atomic
@@ -748,16 +823,28 @@ export class ResearchIntelligenceEngine {
         claim: evidence.claim,
         sourceUrl: evidence.sourceUrl,
         sourceHost: evidence.sourceHost,
+        sourceTier: evidence.sourceTier,
         sourceClass: evidence.sourceClass,
+        sourceName: evidence.sourceName ?? null,
+        sourceContributor: evidence.sourceContributor ?? null,
+        originalObservedAt: evidence.originalObservedAt ?? null,
+        sourceMechanism: evidence.sourceMechanism ?? null,
         passage: evidence.passage,
         spanBound: evidence.spanBound === true,
         spanBindingKind: evidence.spanBindingKind,
+        hypothesisLabel: evidence.hypothesisLabel ?? null,
+        hypothesisRelation: evidence.hypothesisRelation ?? null,
+        hypothesisRationale: evidence.hypothesisRationale ?? null,
+        relationshipType: evidence.relationshipType ?? null,
+        temporalStatus: evidence.temporalStatus ?? null,
+        interpretationConfidence: evidence.interpretationConfidence ?? null,
+        ambiguityNotes: evidence.ambiguityNotes ?? null,
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = rankLearnedActionYield(this.actionYield);
-    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
-    for (const [index, question] of openQuestions.entries()) {
-      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" });
+    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number | null; uncertainty: number | null; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
+    for (const question of openQuestions) {
+      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: null, uncertainty: null, discriminators: [question], status: "open" });
     }
     // The model-authored action rationale is useful research intent. Keep it in
     // the question projection without turning it into a deterministic terminal
@@ -773,8 +860,8 @@ export class ResearchIntelligenceEngine {
       researchQuestionMap.set(key, {
         id: "rq_" + hash(purpose).slice(0, 16),
         question: purpose.slice(0, 500),
-        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : 0.5,
-        uncertainty: 0.8,
+        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : null,
+        uncertainty: null,
         discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
         status: action.useful ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
       });
@@ -842,7 +929,7 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     target: context.target,
     objective: context.objective.slice(0, 1_500),
     facts: headTailItems(context.facts, 12).map((fact) => ({ claim: fact.claim.slice(0, 500), evidenceIds: headTailItems(fact.evidenceIds, 8), sources: headTailItems(fact.sources, 6) })),
-    hypotheses: [...context.hypotheses].sort((a, b) => b.score - a.score).slice(0, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: headTailItems(hypothesis.supportingEvidenceIds, 8), contradictingEvidenceIds: headTailItems(hypothesis.contradictingEvidenceIds, 8), missingDiscriminators: headTailItems(hypothesis.missingDiscriminators, 8).map((v) => v.slice(0, 300)) })),
+    hypotheses: headTailItems(context.hypotheses, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: headTailItems(hypothesis.supportingEvidenceIds, 8), contradictingEvidenceIds: headTailItems(hypothesis.contradictingEvidenceIds, 8), missingDiscriminators: headTailItems(hypothesis.missingDiscriminators, 8).map((v) => v.slice(0, 300)) })),
     contradictions: headTailItems(context.contradictions, 8).map((item) => ({ claim: item.claim.slice(0, 500), evidenceIds: headTailItems(item.evidenceIds, 8), sources: headTailItems(item.sources, 6) })),
     contacts: headTailItems(context.contacts, 10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: headTailItems(contact.sourceUrls, 6), sourceHosts: headTailItems(contact.sourceHosts, 6) })),
     negativeFindings: headTailItems(context.negativeFindings, 12).map((v) => v.slice(0, 400)),

@@ -65,6 +65,10 @@ jobs:
       - run: npm install -g pnpm@9.15.9
       - name: Install exactly the committed dependency graph
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+      - name: Initialize PostgreSQL schema for non-live regression tests
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
       - name: Run complete Apex/Bureau static audit suite
         run: pnpm run check:bureau
       - name: Check production boot safety

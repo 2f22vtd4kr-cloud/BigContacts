@@ -5,6 +5,10 @@ export type DurableInvestigatorEvent = { id: number; actorRole: string; eventTyp
 const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "partial", "http_error", "blocked", "timeout", "error", "cancelled"]);
 const VECTORS = new Set<AgenticFinding["vectorType"]>(["email", "phone", "linkedin", "website", "other", "social"]);
 const SCOPES = new Set<AgenticFinding["scope"]>(["organization", "candidate", "unknown"]);
+const CONTACT_ATTRIBUTIONS = new Set<NonNullable<AgenticFinding["contactAttribution"]>>(["person_specific", "direct_personal", "professional_person_specific", "department", "shared_inbox", "assistant_intermediary", "generic_contact_form", "organization", "unknown"]);
+const IDENTITY_ASSESSMENTS = new Set<NonNullable<AgenticFinding["identityAssessment"]>>(["same_person", "different_people", "unresolved"]);
+const HYPOTHESIS_RELATIONS = new Set<NonNullable<AgenticFinding["hypothesisRelation"]>>(["supports", "contradicts", "unrelated", "ambiguous", "unresolved"]);
+const TEMPORAL_STATUSES = new Set<NonNullable<AgenticFinding["temporalStatus"]>>(["current", "historical", "unclear", "not_applicable"]);
 const FAILURE_DOMAINS = new Set<NonNullable<AgenticTrajectoryRecord["failureDomain"]>>([
   "model_provider", "model_action", "tool_execution", "external_page_fetch", "persistence_database", "lease_job_state", "unexpected_programming_error",
 ]);
@@ -57,6 +61,17 @@ function parseFinding(value: unknown): AgenticFinding | null {
     personName: item.personName as string | null, role: item.role as string | null,
     scope: item.scope as AgenticFinding["scope"],
     sourceUrls: [...new Set(item.sourceUrls as string[])], note: item.note,
+    ...(typeof item.exactQuote === "string" ? { exactQuote: item.exactQuote } : {}),
+    ...(typeof item.contactAttribution === "string" && CONTACT_ATTRIBUTIONS.has(item.contactAttribution as NonNullable<AgenticFinding["contactAttribution"]>) ? { contactAttribution: item.contactAttribution as NonNullable<AgenticFinding["contactAttribution"]> } : {}),
+    ...(typeof item.identityAssessment === "string" && IDENTITY_ASSESSMENTS.has(item.identityAssessment as NonNullable<AgenticFinding["identityAssessment"]>) ? { identityAssessment: item.identityAssessment as NonNullable<AgenticFinding["identityAssessment"]> } : {}),
+    ...(typeof item.identityRationale === "string" ? { identityRationale: item.identityRationale } : {}),
+    ...(typeof item.hypothesisRelation === "string" && HYPOTHESIS_RELATIONS.has(item.hypothesisRelation as NonNullable<AgenticFinding["hypothesisRelation"]>) ? { hypothesisRelation: item.hypothesisRelation as NonNullable<AgenticFinding["hypothesisRelation"]> } : {}),
+    ...(typeof item.hypothesisRationale === "string" ? { hypothesisRationale: item.hypothesisRationale } : {}),
+    ...(typeof item.relationshipType === "string" ? { relationshipType: item.relationshipType } : {}),
+    ...(typeof item.temporalStatus === "string" && TEMPORAL_STATUSES.has(item.temporalStatus as NonNullable<AgenticFinding["temporalStatus"]>) ? { temporalStatus: item.temporalStatus as NonNullable<AgenticFinding["temporalStatus"]> } : {}),
+    ...(typeof item.interpretationConfidence === "number" && Number.isFinite(item.interpretationConfidence) ? { interpretationConfidence: Math.max(0, Math.min(1, item.interpretationConfidence)) } : {}),
+    ...(typeof item.ambiguityNotes === "string" ? { ambiguityNotes: item.ambiguityNotes } : {}),
+    ...(item.reviewOnly === true ? { reviewOnly: true as const } : {}),
     ...(item.promotionDecision === "promote" || item.promotionDecision === "reject" ? { promotionDecision: item.promotionDecision } : {}),
     ...(typeof item.promotionReason === "string" ? { promotionReason: item.promotionReason } : {}),
   };

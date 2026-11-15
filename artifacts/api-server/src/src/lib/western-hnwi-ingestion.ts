@@ -16,6 +16,7 @@
  * Batch inserts (100 rows) keep DB pressure manageable.
  */
 
+import { createHash } from "node:crypto";
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
@@ -37,6 +38,7 @@ import {
 
 export interface HarvestedPerson {
   name: string;
+  entityType?: "PersonCandidate" | "Corporation" | "Trust" | "Other";
   nationality: string;
   location?: string;
   sourceRegistry: string;
@@ -83,10 +85,10 @@ export function isPlaceholderRegistryName(name: string): boolean {
 function normalizeEdgarName(raw: string): string {
   // Preserve registry order; name-part parsing and identity resolution belong
   // to the Investigator, not a first-token surname heuristic.
-  return raw.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+  return raw.trim().replace(/\s+/g, " ").toLocaleLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_match, separator: string, letter: string) => separator + letter.toLocaleUpperCase());
 }
 
-/** Rough heuristic: does this look like a person name (not a fund/company)? */
+/** @deprecated Legacy semantic classifier retained for rollback only; active harvesters must not call it. */
 function looksLikePerson(name: string): boolean {
   // EDGAR display names use punctuation inconsistently: "L.P.", "Co.",
   // "S.A.", etc. Normalize separators before checking corporate suffixes so
@@ -131,9 +133,57 @@ export function areCompatibleWesternRegistryEntityTypes(existingType: string, ca
   return existingIsPerson && candidateIsPerson ? true : existingType === candidateType;
 }
 
-/** Versioned dedup key: re-evaluate legacy rows after the new candidate policy. */
-function dedupKey(name: string, jurisdiction: string): string {
-  return `western:v2:${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
+function stableSerialize(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value !== "object") return JSON.stringify(value) ?? String(value);
+  if (Array.isArray(value)) return "[" + value.map(stableSerialize).join(",") + "]";
+  const record = value as Record<string, unknown>;
+  return "{" + Object.keys(record).sort().map((key) => JSON.stringify(key) + ":" + stableSerialize(record[key])).join(",") + "}";
+}
+
+/** Hash one source observation; equal names alone are never an identity or duplicate key. */
+function sourceRecordFingerprint(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>): string {
+  const sourceRecord = {
+    sourceRegistry: sourceRegistry.trim().toLocaleLowerCase(),
+    jurisdiction: jurisdiction.trim().toUpperCase(),
+    normalizedName: normalizeName(name),
+    rawMetadata,
+  };
+  return createHash("sha256").update(stableSerialize(sourceRecord)).digest("hex");
+}
+
+/** Versioned source-record key: preserves same-name people and independent registry observations. */
+function dedupKey(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>, entityType: string = "PersonCandidate"): string {
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(entityType) ? "PersonCandidate" : entityType;
+  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata) + ":" + canonicalType;
+}
+
+function westernRegistryEntitySourceKey(row: { name: string; metadata?: string | null; sourceRegistries?: string | null }): string | null {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = row.metadata ? JSON.parse(row.metadata) as unknown : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+  } catch { return null; }
+  const storedFingerprint = metadata.sourceRecordFingerprint;
+  if (typeof storedFingerprint === "string" && storedFingerprint.trim()) return "western:v3:" + storedFingerprint;
+
+  let sourceRegistry = typeof metadata.sourceRegistry === "string" ? metadata.sourceRegistry : "";
+  try {
+    const parsedSources = row.sourceRegistries ? JSON.parse(row.sourceRegistries) as unknown : [];
+    if (Array.isArray(parsedSources) && typeof parsedSources[0] === "string") sourceRegistry = parsedSources[0];
+  } catch { /* use metadata source label when legacy JSON is malformed */ }
+  const jurisdiction = typeof metadata.country === "string" ? metadata.country : "";
+  if (!sourceRegistry || !jurisdiction) return null;
+
+  const sourceMetadata = { ...metadata };
+  for (const key of [
+    "sourceRecordFingerprint", "lastVerified", "proximityScore", "country", "registryLocation",
+    "nameValidationStatus", "hnwiQualificationStatus", "confidence", "lastObservedAt",
+    "westernIngest", "liveSource", "needsEnrichment", "reviewOnly", "wealthStatus",
+  ]) delete sourceMetadata[key];
+  if (Object.keys(sourceMetadata).length === 0) return null;
+  return "western:v3:" + sourceRecordFingerprint(row.name, jurisdiction, sourceRegistry, sourceMetadata);
 }
 
 // ── Harvester 1: SEC EDGAR SC 13D/G — US beneficial owners ──────────────────
@@ -159,203 +209,178 @@ function shuffleArray<T>(items: T[], rng: () => number = Math.random): T[] {
 }
 
 
-// Common phrases that appear in virtually all SC 13D/G filings — used as search
-// anchors to enumerate filers without a specific person query.
-const SC13_SEARCH_TERMS = [
-  '"sole voting power"',
-  '"aggregate beneficial ownership"',
-  '"beneficial owner of"',
-  '"shares of common stock beneficially"',
-  '"right to acquire"',
-];
-
 async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
-  // Rotate term order + page start so the first admitted person is not always
-  // the same SEC EFTS hit (e.g. a fixed "Andrew F Johnson" from from=0 of term 0).
-  const terms = shuffleArray(SC13_SEARCH_TERMS);
-  const pageStart = Math.floor(Math.random() * 40) * 10; // 0..390
+  const pageStart = Math.floor(Math.random() * 40) * 10; // rotate through filing pages between runs
 
-  for (const term of terms) {
-    if (yielded >= maxCount) break;
+  // Search the complete filing forms, not a fixed list of English legal phrases.
+  for (let from = pageStart; from < pageStart + 5000 && yielded < maxCount; from += 10) {
+    const url = "https://efts.sec.gov/LATEST/search-index"
+      + "?forms=SC+13D,SC+13D%2FA,SC+13G,SC+13G%2FA"
+      + "&dateRange=custom&startdt=2015-01-01"
+      + "&from=" + String(from);
 
-    // Paginate through results — EDGAR returns 10 per page by default
-    for (let from = pageStart; from < pageStart + 5000 && yielded < maxCount; from += 10) {
-      const url =
-        `https://efts.sec.gov/LATEST/search-index` +
-        `?q=${encodeURIComponent(term)}` +
-        `&forms=SC+13D,SC+13G` +
-        `&dateRange=custom&startdt=2015-01-01` +
-        `&from=${from}`;
-
-      let data: any;
-      try {
-        const resp = await fetch(url, {
-          headers: EDGAR_HEADERS,
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (!resp.ok) break;
-        data = await resp.json();
-      } catch {
-        break;
-      }
-
-      const hits: any[] = data?.hits?.hits ?? [];
-      if (hits.length === 0) break;
-
-      for (const hit of hits) {
-        if (yielded >= maxCount) break;
-        const src = hit?._source ?? {};
-
-        // EDGAR EFTS API uses display_names array: ["COMPANY (CIK xxx)", "PERSON NAME (CIK xxx)"]
-        // Extract all person-like names AND the issuer company name from the array
-        const displayNames: string[] = src?.display_names ?? [];
-        const allCleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
-        const personNames = allCleanNames.filter((n: string) => n && n.toLowerCase() !== "unknown" && looksLikePerson(n));
-        // The issuer is the non-person display_name — the company whose stock is being reported on
-        const companyIssuer = allCleanNames.find((n: string) => n && n.length > 2 && !looksLikePerson(n)) ?? null;
-
-        if (personNames.length === 0) continue;
-
-        const formType: string = (src?.root_forms?.[0] ?? src?.form ?? "SC 13D").trim();
-        const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string =
-          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
-
-        for (const rawName of personNames) {
-          if (yielded >= maxCount) break;
-          const nameKey = rawName.toLowerCase();
-          if (seen.has(nameKey)) continue;
-          seen.add(nameKey);
-
-          yielded++;
-          yield {
-            name: normalizeEdgarName(rawName),
-            nationality: "American",
-            location: bizLocation,
-            sourceRegistry: `SEC EDGAR — ${formType}`,
-            filingType: formType,
-            rawMetadata: {
-              source: "sec-edgar",
-              formType,
-              fileDate,
-              bizLocation,
-              entityName: rawName,
-              ...(companyIssuer ? { companyName: companyIssuer } : {}),
-              edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
-            },
-            signals: {
-              isLargeShareholder: true,
-              isBoardDirector: false,
-              isCompanyOfficer: false,
-              hasRecentFiling: fileDate >= "2022-01-01",
-              jurisdiction: "US",
-            },
-          };
-        }
-      }
-
-      await sleep(120); // respect EDGAR's 10 req/s limit
+    let data: any;
+    try {
+      const resp = await fetch(url, {
+        headers: EDGAR_HEADERS,
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!resp.ok) break;
+      data = await resp.json();
+    } catch {
+      break;
     }
-  }
-}
 
-// ── Harvester 2: SEC EDGAR DEF 14A — Board directors & named executives ─────
-//
-// DEF 14A (proxy statements) list real directors and named executive officers
-// of public US companies. These are confirmed high-level executives.
+    const hits: any[] = data?.hits?.hits ?? [];
+    if (hits.length === 0) break;
 
-const DEF14A_SEARCH_TERMS = [
-  '"director since"',
-  '"independent director"',
-  '"chief executive officer"',
-  '"non-executive director"',
-];
+    for (const hit of hits) {
+      if (yielded >= maxCount) break;
+      const src = hit?._source ?? {};
+      const displayNames: string[] = src?.display_names ?? [];
+      const allCleanNames = displayNames.map((displayName: string) => displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
+      // Structural validation only. The batch LLM decides which names are people.
+      const candidateNames = allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name));
+      if (candidateNames.length === 0) continue;
 
-async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<HarvestedPerson> {
-  let yielded = 0;
-  const seen = new Set<string>();
-  const terms = shuffleArray(DEF14A_SEARCH_TERMS);
-  const pageStart = Math.floor(Math.random() * 25) * 10; // 0..240
+      const formType: string = (src?.root_forms?.[0] ?? src?.form ?? "SC 13D").trim();
+      const fileDate: string = src?.file_date ?? "";
+      const bizLocation: string = (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+      const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "unidentified");
+      const sourceRegistry = "SEC EDGAR — " + formType;
 
-  for (const term of terms) {
-    if (yielded >= maxCount) break;
-
-    for (let from = pageStart; from < pageStart + 2000 && yielded < maxCount; from += 10) {
-      const url =
-        `https://efts.sec.gov/LATEST/search-index` +
-        `?q=${encodeURIComponent(term)}` +
-        `&forms=DEF+14A` +
-        `&dateRange=custom&startdt=2018-01-01` +
-        `&from=${from}`;
-
-      let data: any;
-      try {
-        const resp = await fetch(url, {
-          headers: EDGAR_HEADERS,
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (!resp.ok) break;
-        data = await resp.json();
-      } catch {
-        break;
-      }
-
-      const hits: any[] = data?.hits?.hits ?? [];
-      if (hits.length === 0) break;
-
-      for (const hit of hits) {
+      for (const rawName of candidateNames) {
         if (yielded >= maxCount) break;
-        const src = hit?._source ?? {};
-
-        // DEF 14A filer is the company — display_names[0] is the registrant.
-        // We store as Corporation type. Individual directors require full-text parsing.
-        const displayNames: string[] = src?.display_names ?? [];
-        const rawName: string = (displayNames[0] ?? "")
-          .replace(/\s*\(CIK\s*\d+\)\s*$/i, "")
-          .trim();
-        if (!rawName || rawName.toLowerCase() === "unknown") continue;
-        const nameKey = rawName.toLowerCase();
-        if (seen.has(nameKey)) continue;
-        seen.add(nameKey);
-
-        const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string =
-          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+        const rawMetadata: Record<string, unknown> = {
+          source: "sec-edgar",
+          sourceRecordId: "sec-edgar:" + accession + ":" + normalizeName(rawName),
+          accessionNumber: accession,
+          formType,
+          fileDate,
+          bizLocation,
+          entityName: rawName,
+          displayNames: allCleanNames,
+          edgarUrl: "https://www.sec.gov/cgi-bin/browse-edgar?company=" + encodeURIComponent(rawName)
+            + "&CIK=&type=" + encodeURIComponent(formType) + "&dateb=&owner=include&count=10&search_text=&action=getcompany",
+        };
+        const sourceKey = dedupKey(rawName, "US", sourceRegistry, rawMetadata);
+        if (seen.has(sourceKey)) continue;
+        seen.add(sourceKey);
 
         yielded++;
         yield {
           name: normalizeEdgarName(rawName),
           nationality: "American",
-          location: bizLocation || "United States",
-          sourceRegistry: "SEC EDGAR — DEF 14A (Proxy)",
-          filingType: "DEF 14A",
-          rawMetadata: {
-            source: "sec-edgar-def14a",
-            fileDate,
-            bizLocation,
-            entityName: rawName,
-          },
+          location: bizLocation,
+          sourceRegistry,
+          filingType: formType,
+          rawMetadata,
           signals: {
-            isLargeShareholder: false,
-            isBoardDirector: true,
+            isLargeShareholder: true,
+            isBoardDirector: false,
             isCompanyOfficer: false,
-            hasRecentFiling: fileDate >= "2021-01-01",
+            hasRecentFiling: fileDate >= "2022-01-01",
             jurisdiction: "US",
           },
         };
       }
-
-      await sleep(120);
     }
+
+    await sleep(120); // respect SEC request limits
+  }
+}
+
+// ── Harvester 2: SEC EDGAR DEF 14A — company registrants ─────────────────────
+//
+// DEF 14A (proxy statements) list real directors and named executive officers
+// of public US companies. These are confirmed high-level executives.
+
+async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<HarvestedPerson> {
+  let yielded = 0;
+  const seen = new Set<string>();
+  const pageStart = Math.floor(Math.random() * 25) * 10; // sample a different slice between runs
+
+  // Search all DEF 14A filings. Do not require a fixed English phrase to discover a registrant.
+  for (let from = pageStart; from < pageStart + 2000 && yielded < maxCount; from += 10) {
+    const url =
+      `https://efts.sec.gov/LATEST/search-index` +
+      `?forms=DEF+14A` +
+      `&dateRange=custom&startdt=2018-01-01` +
+      `&from=${from}`;
+
+    let data: any;
+    try {
+      const resp = await fetch(url, {
+        headers: EDGAR_HEADERS,
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!resp.ok) break;
+      data = await resp.json();
+    } catch {
+      break;
+    }
+
+    const hits: any[] = data?.hits?.hits ?? [];
+    if (hits.length === 0) break;
+
+    for (const hit of hits) {
+      if (yielded >= maxCount) break;
+      const src = hit?._source ?? {};
+      const displayNames: string[] = src?.display_names ?? [];
+      const displayName = displayNames[0] ?? "";
+      const cik = displayName.match(/\(CIK\s*(\d+)\)/i)?.[1] ?? "";
+      const rawName: string = displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
+      if (!isStructurallyValidCandidateName(rawName)) continue;
+
+      const fileDate: string = src?.file_date ?? "";
+      const bizLocation: string =
+        (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+      const sourceRegistry = "SEC EDGAR — DEF 14A (Proxy)";
+      const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "");
+      const rawMetadata: Record<string, unknown> = {
+        source: "sec-edgar-def14a",
+        sourceRecordId: "sec-def14a:" + accession + ":" + (cik || "unknown"),
+        cik: cik || undefined,
+        accessionNumber: accession || undefined,
+        fileDate,
+        bizLocation,
+        entityName: rawName,
+        displayNames,
+      };
+      const key = dedupKey(rawName, "US", sourceRegistry, rawMetadata, "Corporation");
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      yielded++;
+      yield {
+        entityType: "Corporation",
+        name: normalizeEdgarName(rawName),
+        nationality: "American",
+        location: bizLocation || "United States",
+        sourceRegistry,
+        role: "Company registrant (DEF 14A)",
+        filingType: "DEF 14A",
+        rawMetadata,
+        signals: {
+          isLargeShareholder: false,
+          isBoardDirector: false,
+          isCompanyOfficer: false,
+          hasRecentFiling: fileDate >= "2021-01-01",
+          jurisdiction: "US",
+        },
+      };
+    }
+
+    await sleep(120);
   }
 }
 
 // ── Harvester 3: BRREG Norway — Company directors (Enhetsregisteret) ─────────
 //
 // The Norwegian Business Registry (Brønnøysundregistrene) provides a free REST API
-// with no authentication. Municipality codes are used to target wealth centres.
+// with no authentication. Default municipalities are configurable; scope is not an eligibility rule.
 // https://data.brreg.no/enhetsregisteret/api/
 
 const BRREG_MUNICIPALITIES = [
@@ -379,20 +404,34 @@ const BRREG_ROLE_TRANSLATIONS: Record<string, string> = {
   KOMP: "General partner",
 };
 
+export function parseBrregMunicipalityScope(value?: string): Array<string | null> {
+  const configured = value?.trim();
+  if (!configured) return [...BRREG_MUNICIPALITIES];
+  if (configured.toLowerCase() === "all") return [null];
+  const codes = [...new Set(configured.split(",").map((code) => code.trim()).filter((code) => /^\d{4}$/u.test(code)))];
+  return codes.length > 0 ? codes : [...BRREG_MUNICIPALITIES];
+}
+
 async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
+  // Scope is operator-selectable: comma-separated municipality codes or "all".
+  const municipalities = parseBrregMunicipalityScope(process.env.APEX_BRREG_MUNICIPALITIES);
 
-  for (const municipality of BRREG_MUNICIPALITIES) {
+  const maxPages = Math.max(20, Math.ceil(maxCount / 25));
+  for (const municipality of municipalities) {
     if (yielded >= maxCount) break;
 
-    // Fetch companies in this municipality
-    for (let page = 0; page < 20 && yielded < maxCount; page++) {
+    // Fetch enough pages for the requested seed volume; maxCount remains the hard budget.
+    for (let page = 0; page < maxPages && yielded < maxCount; page++) {
       let companies: any[];
       try {
         const resp = await fetch(
-          `https://data.brreg.no/enhetsregisteret/api/enheter` +
-            `?kommunenummer=${municipality}&size=50&page=${page}`,
+          `https://data.brreg.no/enhetsregisteret/api/enheter?${new URLSearchParams({
+            ...(municipality ? { kommunenummer: municipality } : {}),
+            size: "50",
+            page: String(page),
+          }).toString()}`,
           {
             headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0" },
             signal: AbortSignal.timeout(12_000),
@@ -411,16 +450,10 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
         const orgnr: string = company?.organisasjonsnummer;
         if (!orgnr) continue;
 
-        // Skip micro-entities: sole proprietors (ENK) and small associations
-        // without meaningful employee counts — these are not HNWIs
+        // Preserve organization form and employee count as source context.
+        // They are prioritization signals for the Investigator, never eligibility gates.
         const orgForm: string = company?.organisasjonsform?.kode ?? "";
         const employees: number = company?.antallAnsatte ?? 0;
-        // ENK = Enkeltpersonforetak (sole trader), FLI = ideell forening (non-profit assoc)
-        // Only skip ENK/FLI with 0 employees; AS/ASA/SE companies always pass
-        if ((orgForm === "ENK" || orgForm === "FLI") && employees === 0) continue;
-        // Require meaningful scale for AS (private limited): at least 2 employees OR skip
-        // This filters out 1-person shell companies while keeping real operating businesses
-        if (orgForm === "AS" && employees < 2) continue;
 
         const companyName: string = company?.navn ?? "Unknown Company";
         const city: string =
@@ -467,13 +500,31 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               .join(" ")
               .trim();
 
-            if (!fullName || fullName.split(/\s+/).length < 2) continue;
+            if (!isStructurallyValidCandidateName(fullName)) continue;
 
             const roleCode: string = rolle?.type?.kode ?? "";
             const roleDesc: string =
               BRREG_ROLE_TRANSLATIONS[roleCode] ?? rolle?.type?.beskrivelse ?? roleCode;
 
-            const key = dedupKey(fullName, "NO");
+            const sourceRegistry = "BRREG Norway — Enhetsregisteret";
+            const rawMetadata: Record<string, unknown> = {
+              source: "brreg-norway",
+              sourceRecordId: "brreg:" + orgnr + ":" + roleCode + ":" + normalizeName(fullName) + ":" + String(rolle?.inntraadt ?? "") + ":" + String(rolle?.fratraadt ?? ""),
+              orgnr,
+              companyName,
+              municipality,
+              city,
+              organizationForm: orgForm,
+              employeeCount: employees,
+              roleCode,
+              roleDesc,
+              roleStartDate: rolle?.inntraadt ?? null,
+              roleEndDate: rolle?.fratraadt ?? null,
+              groupCode,
+              groupDesc,
+              brregUrl: "https://www.brreg.no/company/" + orgnr + "/",
+            };
+            const key = dedupKey(fullName, "NO", sourceRegistry, rawMetadata);
             if (seen.has(key)) continue;
             seen.add(key);
 
@@ -482,24 +533,13 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               name: fullName,
               nationality: "Norwegian",
               location: city,
-              sourceRegistry: "BRREG Norway — Enhetsregisteret",
+              sourceRegistry,
               role: roleDesc,
               companyName,
-              rawMetadata: {
-                source: "brreg-norway",
-                orgnr,
-                companyName,
-                municipality,
-                city,
-                roleCode,
-                roleDesc,
-                groupCode,
-                groupDesc,
-                brregUrl: `https://www.brreg.no/company/${orgnr}/`,
-              },
+              rawMetadata,
               signals: {
                 isLargeShareholder: false,
-                isBoardDirector: groupCode === "STYR" || roleCode === "LEDE",
+                isBoardDirector: false, // role codes remain in rawMetadata for model interpretation
                 isCompanyOfficer: true,
                 hasRecentFiling: true, // BRREG is always current
                 jurisdiction: "NO",
@@ -531,6 +571,15 @@ const CH_OFFICER_QUERIES = [
   "person with significant control",
 ];
 
+function parseConfiguredQueryList(value: string | undefined, fallback: readonly string[]): string[] {
+  const configured = value?.split("|").map((query) => query.trim()).filter(Boolean) ?? [];
+  return configured.length > 0 ? [...new Set(configured)] : [...fallback];
+}
+
+export function parseCompaniesHouseOfficerQueries(value?: string): string[] {
+  return parseConfiguredQueryList(value, CH_OFFICER_QUERIES);
+}
+
 async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<HarvestedPerson> {
   const apiKey = process.env["COMPANIES_HOUSE_API_KEY"];
   if (!apiKey) return;
@@ -539,7 +588,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
   let yielded = 0;
   const seen = new Set<string>();
 
-  for (const query of CH_OFFICER_QUERIES) {
+  for (const query of parseCompaniesHouseOfficerQueries(process.env.APEX_COMPANIES_HOUSE_OFFICER_QUERIES)) {
     if (yielded >= maxCount) break;
 
     for (let start = 0; start < 1000 && yielded < maxCount; start += 20) {
@@ -568,10 +617,26 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
         const rawName: string = sanitizeChName((item?.title ?? "").trim());
         if (!rawName) continue;
 
-        // Companies House officer search returns both people and companies — filter
-        if (!looksLikePerson(rawName)) continue;
+        // Keep structurally valid names for the batch LLM name-shape check; do not pre-judge personhood with English keywords.
+        if (!isStructurallyValidCandidateName(rawName)) continue;
 
-        const key = dedupKey(rawName, "GB");
+        const sourceRegistry = "Companies House UK — Officers Register";
+        const chUrl = item?.links?.self
+          ? "https://find-and-update.company-information.service.gov.uk" + item.links.self
+          : undefined;
+        const rawMetadata: Record<string, unknown> = {
+          source: "companies-house-officers",
+          sourceRecordId: chUrl,
+          officerRole: item?.officer_role,
+          nationality: item?.nationality,
+          occupation: item?.occupation,
+          appointedOn: item?.appointed_on,
+          dateOfBirth: item?.date_of_birth
+            ? `${item.date_of_birth.month}/${item.date_of_birth.year}`
+            : undefined,
+          chUrl,
+        };
+        const key = dedupKey(rawName, "GB", sourceRegistry, rawMetadata);
         if (seen.has(key)) continue;
         seen.add(key);
 
@@ -585,24 +650,13 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
           name: rawName,
           nationality: item?.nationality ?? "British",
           location,
-          sourceRegistry: "Companies House UK — Officers Register",
+          sourceRegistry,
           role: item?.officer_role,
-          rawMetadata: {
-            source: "companies-house-officers",
-            officerRole: item?.officer_role,
-            nationality: item?.nationality,
-            occupation: item?.occupation,
-            appointedOn: item?.appointed_on,
-            dateOfBirth: item?.date_of_birth
-              ? `${item.date_of_birth.month}/${item.date_of_birth.year}`
-              : undefined,
-            chUrl: item?.links?.self
-              ? `https://find-and-update.company-information.service.gov.uk${item.links.self}`
-              : undefined,
-          },
+          rawMetadata,
           signals: {
             isLargeShareholder: false,
-            isBoardDirector: /director|chairman/i.test(item?.officer_role ?? ""),
+            // Preserve the source role verbatim; the Investigator interprets whether it is a board role.
+            isBoardDirector: false,
             isCompanyOfficer: true,
             hasRecentFiling: (item?.appointed_on ?? "") >= "2018-01-01",
             jurisdiction: "GB",
@@ -617,6 +671,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
 
 // ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
 
+/** @deprecated Legacy keyword classifier retained for rollback only; active discovery must use contextual model judgement. */
 export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trust" {
   const n = name.trim();
   // Trusts and foundations first (highest specificity)
@@ -648,14 +703,17 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
 }
 
 export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
-  const key = dedupKey(person.name, person.signals.jurisdiction);
+  const sourceMetadata = { ...person.rawMetadata, ...(person.companyName ? { companyName: person.companyName } : {}) };
+  const fingerprint = sourceRecordFingerprint(person.name, person.signals.jurisdiction, person.sourceRegistry, sourceMetadata);
+  const entityType = person.entityType ?? "PersonCandidate";
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(entityType) ? "PersonCandidate" : entityType;
+  const key = "western:v3:" + fingerprint + ":" + canonicalType;
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
-  // The source parser has already identified this as a person-role/registrant row.
+  // Preserve the source-designated entity type; the model resolves identity, roles and significance.
   // Preserve it as a provisional candidate; neither a name heuristic nor a registry
   // filing is enough to assert HNWI qualification.
-  const entityType = "PersonCandidate";
   const registryAssessment = deriveRegistryIngestionAssessment(entityType);
   const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
@@ -683,7 +741,11 @@ export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { 
   // contact path in the Investigator's research context until a public route is
   // actually observed and attributed.
   let contactMethod: string;
-  if (person.signals.isLargeShareholder) {
+  if (entityType === "Corporation") {
+    contactMethod = "Public company registry lead — research officers, ownership and public contact channels";
+  } else if (entityType === "Trust") {
+    contactMethod = "Public trust registry lead — research trustees, control and public contact channels";
+  } else if (person.signals.isLargeShareholder) {
     contactMethod = "Beneficial-ownership filing lead — individual identity and contact path not verified";
   } else if (person.signals.isBoardDirector) {
     contactMethod = "Board-role registry lead — direct contact path not observed";
@@ -714,7 +776,8 @@ export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { 
     notes: noteFragments.join(" "),
     sourceRegistries: JSON.stringify([person.sourceRegistry]),
     metadata: JSON.stringify({
-      ...person.rawMetadata,
+      ...sourceMetadata,
+      sourceRecordFingerprint: fingerprint,
       lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
@@ -751,6 +814,10 @@ const RANDOM_REGISTRY_QUERIES = [
   "international",
   "real estate",
 ] as const;
+
+export function parseRegistrySeedQueries(value?: string): string[] {
+  return parseConfiguredQueryList(value, RANDOM_REGISTRY_QUERIES);
+}
 
 function pickRandom<T>(values: readonly T[]): T | undefined {
   return values[Math.floor(Math.random() * values.length)];
@@ -794,14 +861,16 @@ function buildRegistryEntity(
   const rawMetadata = (() => {
     try {
       const parsed = JSON.parse(result.metadata ?? "{}");
-      return parsed && typeof parsed === "object" ? parsed : {};
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
     } catch {
       return {};
     }
   })();
+  const fingerprint = sourceRecordFingerprint(result.name, jurisdiction, sourceLabel, rawMetadata);
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(persistedType) ? "PersonCandidate" : persistedType;
 
   return {
-    key: dedupKey(result.name, jurisdiction),
+    key: "western:v3:" + fingerprint + ":" + canonicalType,
     entity: {
       name: result.name,
       type: persistedType,
@@ -823,6 +892,7 @@ function buildRegistryEntity(
       sourceRegistries: result.sourceRegistries,
       metadata: JSON.stringify({
         ...rawMetadata,
+        sourceRecordFingerprint: fingerprint,
         lastVerified: undefined,
         source: rawMetadata.source ?? registry,
         registryId: registry,
@@ -942,11 +1012,10 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         retainedEntities.has(entity) && isStructurallyValidCandidateName(entity.name),
       );
       const usableKeys = usable.map(({ key }) => key).filter(Boolean);
-      const seenNames = new Set<string>();
-      const deduped = usable.filter(({ entity }) => {
-        const key = `${entity.type}:${normalizeName(entity.name)}`;
-        if (seenNames.has(key)) return false;
-        seenNames.add(key);
+      const seenSourceRecords = new Set<string>();
+      const deduped = usable.filter(({ key }) => {
+        if (seenSourceRecords.has(key)) return false;
+        seenSourceRecords.add(key);
         return true;
       }).map(({ entity }) => entity);
 
@@ -970,18 +1039,22 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       const result = await db.transaction(async (tx) => {
         if (rowsToInsert.length === 0) return { insertedCount: 0, existingCount: 0 };
         const names = [...new Set(rowsToInsert.map((row) => row.name))];
-        const existing = await tx.select({ name: entitiesTable.name, type: entitiesTable.type })
-          .from(entitiesTable)
-          .where(inArray(entitiesTable.name, names));
+        const existing = await tx.select({
+          name: entitiesTable.name,
+          type: entitiesTable.type,
+          metadata: entitiesTable.metadata,
+          sourceRegistries: entitiesTable.sourceRegistries,
+        }).from(entitiesTable).where(inArray(entitiesTable.name, names));
         const batchKeys = new Set<string>();
         const fresh = rowsToInsert.filter((row) => {
-          const normalizedName = normalizeName(row.name);
+          const sourceKey = westernRegistryEntitySourceKey(row);
+          if (!sourceKey) return true; // no exact source identity: preserve rather than merge by name
           const alreadyPersisted = existing.some((prior) =>
-            normalizeName(prior.name) === normalizedName
+            westernRegistryEntitySourceKey(prior) === sourceKey
             && areCompatibleWesternRegistryEntityTypes(prior.type, row.type),
           );
           const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(row.type) ? "PersonCandidate" : row.type;
-          const batchKey = `${canonicalType}:${normalizedName}`;
+          const batchKey = sourceKey + ":" + canonicalType;
           if (alreadyPersisted || batchKeys.has(batchKey)) return false;
           batchKeys.add(batchKey);
           return true;
@@ -993,7 +1066,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       });
 
       // Dedup state is committed only after the DB transaction succeeded.
-      // If this write fails, the next run still has DB-level name dedup as a guard.
+      // If this write fails, the next run still has DB-level exact source-record dedup as a guard.
       if (usableKeys.length > 0) await batchMarkSeen(usableKeys);
       inserted += result.insertedCount;
       skipped += result.existingCount + (paired.length - usable.length) + (usable.length - deduped.length);
@@ -1022,7 +1095,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         250,
       );
   const shuffledRegistries = [...randomDiscoveryRegistries].sort(() => Math.random() - 0.5);
-  const randomQueryOrder = [...RANDOM_REGISTRY_QUERIES].sort(() => Math.random() - 0.5);
+  const randomQueryOrder = parseRegistrySeedQueries(process.env.APEX_REGISTRY_SEED_QUERIES).sort(() => Math.random() - 0.5);
   let randomDiscoveryInserted = 0;
 
   for (const registry of shuffledRegistries) {

@@ -2,7 +2,9 @@ export type InvestigatorEpisodeFailureCode =
   | "investigator_episode_error"
   | "investigator_episode_unavailable_without_provider_record"
   | "investigator_oversight_unavailable"
-  | "investigator_episode_no_action";
+  | "investigator_episode_no_action"
+  | "investigator_daily_token_budget_exhausted"
+  | "investigator_usage_ledger_unavailable";
 
 export type InvestigatorEpisodeHealthInput = {
   status: string;
@@ -54,6 +56,12 @@ export function classifyInvestigatorEpisodeFailure(
   // Inputs are episode-local results from runBureauAgenticWebPass, not the
   // case's cumulative history. Every supplied record belongs to this episode.
   const episodeRecords = input.trajectoryRecords ?? [];
+  if (input.status === "budget_exhausted" || input.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") {
+    return { code: "investigator_daily_token_budget_exhausted" };
+  }
+  if (input.stopReason === "USAGE_LEDGER_UNAVAILABLE") {
+    return { code: "investigator_usage_ledger_unavailable" };
+  }
   if (input.status === "error") {
     const hasDurableTerminalParseFailure = input.stopReason === "PARSE_FAILURE" && episodeRecords.some((record) =>
       record.action === "parse_failure" &&

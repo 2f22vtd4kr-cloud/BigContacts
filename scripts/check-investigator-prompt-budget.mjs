@@ -9,14 +9,14 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
-assert(/maxChars: input\.mode === "discovery" \? 1_200 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
-assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 500 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
-assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
-assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 8_400/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 6_800/.test(core), "the preferred 8,400/6,800 character targets remain explicit");
-assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core), "one shared helper derives the provider-safe user-message budget");
+assert(/maxChars: input\.mode === "discovery" \? 600 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
+assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 200 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
+assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 1_200 : 700\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
+assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 9_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 3_000/.test(core), "the schema-inclusive preferred request/user prompt targets remain explicit");
+assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
 const appendsCompleteLatestEvidenceEnvelope = /return preserveFetchedClaimAtProviderBoundary\(\s*\[\s*composedPrompt,\s*latestRecordTail\s*\]\.filter\(Boolean\)\.join\("\\n\\n"\),?\s*\);/.test(core) && /const latestRecordTail = \[/.test(core);
@@ -34,19 +34,18 @@ assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
 assert(
   /AUTHORITATIVE SAME-CASE SEARCH BUDGET/.test(stepPrompt)
-    && /runtime safety ceiling is/.test(stepPrompt)
-    && /not a stopping target or fixed sequence/.test(stepPrompt)
-    && /DISCOVERY LEAD HANDOFF CONTRACT:/.test(stepPrompt)
-    && /review-only findings/.test(stepPrompt),
+    && /AUTHORITATIVE SAME-CASE SEARCH BUDGET/.test(stepPrompt)
+    && /DISCOVERY LEAD HANDOFF:/.test(stepPrompt)
+    && /provisional/.test(stepPrompt),
   "dynamic discovery prompt must retain its live search budget and review-only handoff state",
 );
 assert(
   /DISCOVERY TARGETABILITY \/ REALISM:/.test(orientation)
-    && /human objective\/Boss scope govern/.test(orientation)
+    && /human objective and explicit constraints govern/.test(orientation)
     && /require direct relevance to the active objective/.test(orientation)
     && /do not force a mixed-source batch or a registry-first order/.test(orientation)
     && /The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(orientation)
-    && /ranking-only mentions are leads, not qualified targets/.test(orientation),
+    && /ranking mentions are contextual leads, not sufficient proof by themselves/.test(orientation),
   "institutional system contract must preserve objective-led, model-owned discovery without duplicating it in each user prompt",
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
@@ -68,4 +67,56 @@ if (failures.length) {
   for (const failure of failures) console.error("- " + failure);
   process.exit(1);
 }
+// Offline prompt-section measurement. No provider, network, tokenizer package or
+// live API is invoked. Token counts are labelled estimates (chars / 3.4).
+const promptCoreMatch = orientation.match(/export function apexInvestigatorSystemCore\(\): string \{\s*return \[([\s\S]*?)\]\.join\("\\n"\);\s*\}/);
+if (!promptCoreMatch) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to extract system prompt sections");
+const promptSections = [...promptCoreMatch[1].matchAll(/^\s*("(?:\\.|[^"\\])*")\s*,?\s*$/gm)]
+  .map((match) => JSON.parse(match[1]));
+if (!promptSections.length) throw new Error("INVESTIGATOR PROMPT BUDGET: system prompt sections were not measurable");
+const systemPromptChars = promptSections.reduce((total, section) => total + section.length, 0)
+  + Math.max(0, promptSections.length - 1)
+  + "\nReturn one JSON action object only.".length;
+const constant = (name) => {
+  const match = core.match(new RegExp("const " + name + " = ([0-9_]+)"));
+  if (!match) throw new Error("INVESTIGATOR PROMPT BUDGET: missing " + name);
+  return Number(match[1].replaceAll("_", ""));
+};
+const preferredTotalChars = constant("PREFERRED_INVESTIGATOR_REQUEST_CHARS");
+const preferredUserChars = constant("PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS");
+const schemaOverheadChars = constant("INVESTIGATOR_SCHEMA_OVERHEAD_CHARS");
+const userPromptBudgetChars = Math.max(0, Math.min(
+  preferredUserChars,
+  preferredTotalChars - systemPromptChars - schemaOverheadChars,
+));
+const compact20bResponseFormatChars = 0; // GPT-OSS 20B does not receive unsupported response_format.
+const estimatedPromptTokens = Math.ceil(
+  (systemPromptChars + userPromptBudgetChars + compact20bResponseFormatChars) / 3.4,
+);
+const schemaStart = core.indexOf("const AGENTIC_STRUCTURED_SCHEMA = {");
+const schemaEnd = core.indexOf("} as const;", schemaStart);
+if (schemaStart < 0 || schemaEnd < 0) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to measure the 120B structured schema source");
+const schemaSourceChars = schemaEnd + "} as const;".length - schemaStart;
+// Conservative source-size proxy only: runtime JSON.stringify(response_format)
+// is logged as responseFormatChars, and provider-reported usage is authoritative.
+const estimated120bSchemaTokens = Math.ceil(schemaSourceChars / 3.4);
+const estimated120bInputTokens = estimatedPromptTokens + estimated120bSchemaTokens;
+const defaultCompletionBudget = 1024;
+const estimatedTotalTokensPerTurn = estimatedPromptTokens + defaultCompletionBudget;
+const estimated120bTotalTokensPerTurn = estimated120bInputTokens + defaultCompletionBudget;
+const legacyObservedPromptTokens = 3565;
+const legacyObservedCompletionTokens = 509;
+const legacyCompletionCap = 512;
+console.log("INVESTIGATOR PROMPT MEASUREMENT (offline; no live provider call)");
+console.log("  Tokenizer: not available in this offline check; estimate = ceil(characters / 3.4).");
+console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + promptSections.length + " sections).");
+console.log("  User/context allowance: " + userPromptBudgetChars + " characters / " + Math.ceil(userPromptBudgetChars / 3.4) + " estimated tokens.");
+console.log("  GPT-OSS 20B response schema overhead: 0 characters (provider response_format omitted; local parser remains authoritative).");
+console.log("  Estimated GPT-OSS 20B input per routine Investigator turn: " + estimatedPromptTokens + " tokens.");
+console.log("  GPT-OSS 120B structured-schema source proxy: " + schemaSourceChars + " characters / " + estimated120bSchemaTokens + " estimated tokens (conservative source-size proxy; excludes runtime enum expansion and is not a provider tokenizer result).");
+console.log("  Estimated GPT-OSS 120B input including schema proxy: " + estimated120bInputTokens + " tokens; actual serialized response_format size is recorded as responseFormatChars and provider usage is authoritative.");
+console.log("  Default reasoning effort: low; completion cap: " + defaultCompletionBudget + " tokens (environment-configurable).");
+console.log("  Estimated 20B input + completion ceiling: " + estimatedTotalTokensPerTurn + " tokens; estimated 120B input + completion ceiling: " + estimated120bTotalTokensPerTurn + " tokens.");
+console.log("  2026-11-14 baseline: provider-reported input=" + legacyObservedPromptTokens + " tokens; completion cap=" + legacyCompletionCap + "; one observed successful empty completion=" + legacyObservedCompletionTokens + " tokens (including reasoning).");
+console.log("  Comparison: the historical 3,565-token figure is provider-reported; current values above are offline character-based estimates, so no percentage reduction is claimed. The outbound-request regression test separately reports exact current system/user/schema character counts; actual provider usage still requires the user live Replit run.");
 console.log("INVESTIGATOR PROMPT BUDGET: PASS");

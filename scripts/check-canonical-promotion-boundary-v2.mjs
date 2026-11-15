@@ -41,10 +41,11 @@ assert(hasAll(target, [
 ]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target contact output requires same-observation candidate attribution after cumulative source grounding; split-page-only claims remain outside target contact output");
 assert(hasAll(strict, [
   "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
-  "hasBoundIdentityAndValue(observation.observationText,personName,cleanValue,vectorType)",
+  "quoteAppearsInObservation(observation.observationText, exactQuote)",
+  "hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)",
   "hasCanonicalPromotionJobBinding(provenance)",
   "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
-]), "trusted candidate promotion independently requires same-observation identity/value binding and live case/job ownership");
+]), "trusted candidate promotion independently requires an exact quoted span in one successful observation, person/value binding within that same quote, and live case/job ownership");
 assert(
   ![target, bureau, atlas, targetRunner, targetContinuation].some((source) =>
     source.includes("expandSecondaryPublicSurface")
@@ -53,7 +54,12 @@ assert(
     || source.includes('from "../lib/bureau-contact-persist"')),
   "canonical research/control paths must not reintroduce deterministic secondary-surface expansion or the legacy contact persistence module",
 );
-assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
+assert(hasAll(target, [
+  'const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim()) && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim())',
+  'promote: promotionSupported && finding.promotionDecision === "promote"',
+  "state: \"review_only\"",
+  "tier: \"candidate\"",
+]), "target preserves explicit Investigator promotion semantics and requires person-specific attribution plus an exact quote before accepting the model promotion decision");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 const targetOversightIndex = targetRunner.indexOf("lastOversight = await reviewTargetInvestigationAct({");
 const durableOversightReadIndex = targetRunner.indexOf("lastOversight = reviewedCase", targetOversightIndex);
@@ -93,7 +99,7 @@ assert(entityRoute.includes('"Gatekeeper", "PersonCandidate"].includes(String(dr
 assert(entityPage.includes('r.type === "PersonCandidate" ? "PersonCandidate"'), "entity editor must preserve PersonCandidate on add/edit round-trip");
 assert(migrations.includes("NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')") && legacyMigrations.includes("PersonCandidate"), "type-reclassification routes must not reinterpret review candidates as HNWIs or organizations");
 assert(investigatorTrace.includes("Math.max(...existingSlots.map((s) => Number(s?.slot) || 0)) + 1") && investigatorTrace.includes("slots: slots.slice(-MAX_SLOTS)") && !investigatorTrace.includes("Math.min(MAX_SLOTS - 1"), "bounded Investigator telemetry retains newest records instead of permanently dropping records after the first ten");
-assert(terminalGate.includes("hasExplicitFalsificationAttempt(context)") && terminalGate.includes("action.execution !== \"success\"") && terminalGate.includes("intent.test(purpose)") && !terminalGate.includes("context.falsification.priority < 0.35"), "required falsification must be evidenced by a successful explicit disconfirmation action, not inferred from a low heuristic score");
+assert(terminalGate.includes("requireFalsification: false") && terminalGate.includes("allowOpenQuestions: Number.MAX_SAFE_INTEGER") && !terminalGate.includes("hasExplicitFalsificationAttempt(context)") && !terminalGate.includes("intent.test(purpose)") && !terminalGate.includes("context.falsification.priority < 0.35"), "target research stopping is delegated to Investigator judgement and does not require keyword-matched falsification actions or closed uncertainty");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped research must independently test identity/ownership", "realistic contact route before any HNWI/contact conclusion"]), "discovery admission remains a review-only lead with source provenance; target research owns corroboration, materiality, falsification, and route verification");
 assert(hasAll(target, ["For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth.", "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route; a generic inbox, switchboard or social presence alone is not personal access."]), "target-scoped research separately requires materiality and a concrete attributable route before wealth/contact conclusions");

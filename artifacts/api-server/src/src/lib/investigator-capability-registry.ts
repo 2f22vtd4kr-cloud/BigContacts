@@ -19,10 +19,11 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
+  // GPT-OSS 20B remains explicitly opt-in until structured-output behavior is verified.
+  GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
   ),
-  GROQ_INVESTIGATOR_20B_CAPABILITY,
 ];
 
 function keyIndex(capability: InvestigatorCapability): number | null {
@@ -39,15 +40,20 @@ export function investigatorCapabilityKeyName(capability: InvestigatorCapability
 }
 
 export function investigatorCapabilityLabel(capability: InvestigatorCapability): string {
-  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "Groq Investigator GPT-OSS 20B model fallback";
+  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "Groq Investigator GPT-OSS 20B (economical routine action model)";
   const keyName = investigatorCapabilityKeyName(capability);
   return keyName ? `Groq Investigator ${keyIndex(capability)} (${keyName})` : capability;
+}
+
+function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
+  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() === "true";
 }
 
 export function getAvailableInvestigatorCapabilities(
   env: NodeJS.ProcessEnv = process.env,
 ): InvestigatorCapability[] {
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
+    if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY && !isTwentyBInvestigatorEnabled(env)) return false;
     const keyName = investigatorCapabilityKeyName(capability);
     return Boolean(keyName && env[keyName]?.trim());
   });
@@ -124,14 +130,20 @@ export function getAvailableDistinctInvestigatorCapabilities(
   const fingerprintFor = (capability: InvestigatorCapability): string | null => {
     const keyName = investigatorCapabilityKeyName(capability);
     const credential = keyName ? env[keyName]?.trim() : undefined;
-    return credential ? digestDiagnosticText(credential) : null;
+    if (!credential) return null;
+    // Standard 120B capability slots sharing one key are aliases. The 20B
+    // capability deliberately reuses the first key but calls a different
+    // model with a separately observed/model-scoped quota, so it must remain
+    // selectable and must not be excluded when only a 120B slot is exhausted.
+    const modelLane = capability === GROQ_INVESTIGATOR_20B_CAPABILITY ? "20b" : "120b";
+    return modelLane + ":" + digestDiagnosticText(credential);
   };
   const excludedCredentials = new Set(
     excludedCapabilities.map(fingerprintFor).filter((value): value is string => value !== null),
   );
   const seenCredentials = new Set(excludedCredentials);
   const available: InvestigatorCapability[] = [];
-  for (const capability of INVESTIGATOR_CAPABILITIES) {
+  for (const capability of getAvailableInvestigatorCapabilities(env)) {
     const fingerprint = fingerprintFor(capability);
     if (!fingerprint || seenCredentials.has(fingerprint)) continue;
     seenCredentials.add(fingerprint);

@@ -89,6 +89,8 @@ describe("target Investigator multi-source attribution", () => {
       personName: "John Smith",
       role: "CFO",
       scope: "candidate" as const,
+      contactAttribution: "person_specific" as const,
+      exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com",
       sourceUrls: ["https://company.example/leadership", "https://company.example/contact"],
       note: "model attributed the email to the named CFO across two observed pages",
       promotionDecision: "promote" as const,
@@ -133,8 +135,33 @@ describe("target Investigator multi-source attribution", () => {
     expect(backed[0]?.sourceUrls).toHaveLength(2);
   });
 
+  it("only treats direct or professional person-specific classes as promotable", () => {
+    const common = {
+      vectorType: "email",
+      value: "office@company.example",
+      personName: "Jane Example",
+      role: "Managing Director",
+      sourceUrls: ["https://company.example/team"],
+      note: "model-authored classification",
+      exactQuote: "Jane Example — office@company.example",
+      identityAssessment: "same_person" as const,
+      identityRationale: "The source labels this as Jane Example's professional contact.",
+      promotionDecision: "promote" as const,
+    };
+    for (const contactAttribution of ["direct_personal", "professional_person_specific"] as const) {
+      const [contact] = findingsToContacts([{ ...common, scope: "candidate", contactAttribution }], "Jane Example");
+      expect(contact?.scope).toBe("candidate");
+      expect(contact?.promote).toBe(true);
+    }
+    for (const contactAttribution of ["department", "shared_inbox", "assistant_intermediary", "generic_contact_form", "organization", "unknown"] as const) {
+      const [contact] = findingsToContacts([{ ...common, scope: "candidate", contactAttribution }], "Jane Example");
+      expect(contact?.scope).not.toBe("candidate");
+      expect(contact?.promote).toBe(false);
+    }
+  });
+
   it("rejects a claim when any cited attribution URL was not observed", () => {
-    const findings = [{ vectorType: "email" as const, value: "john.smith@example.com", personName: "John Smith", role: "CFO", scope: "candidate" as const, sourceUrls: ["https://company.example/leadership", "https://unseen.example/contact"], note: "model claim", promotionDecision: "promote" as const }];
+    const findings = [{ vectorType: "email" as const, value: "john.smith@example.com", personName: "John Smith", role: "CFO", scope: "candidate" as const, contactAttribution: "person_specific" as const, exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com", sourceUrls: ["https://company.example/leadership", "https://unseen.example/contact"], note: "model claim", promotionDecision: "promote" as const }];
     const records = [{ turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "John Smith is CFO of Example Corp. Contact: john.smith@example.com", observedUrls: ["https://company.example/leadership"], findings: [] }];
     const backed = sourceBackedFindings(findings, ["step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership"], records);
     expect(backed).toHaveLength(0);

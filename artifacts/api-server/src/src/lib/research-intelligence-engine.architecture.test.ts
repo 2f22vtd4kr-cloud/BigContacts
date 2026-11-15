@@ -21,7 +21,7 @@ describe("Research intelligence attribution architecture", () => {
         personName: "Alice Person",
         role: "Director",
         sourceUrls: ["https://example.org/alice"],
-        note: "Published on Alice's profile",
+        note: "Published on Alice's profile", contactAttribution: "person_specific", identityAssessment: "same_person", identityRationale: "The profile names Alice and publishes this email.", exactQuote: "Alice Person email shared@example.org",
       }],
     });
     engine.recordAction({
@@ -36,7 +36,7 @@ describe("Research intelligence attribution architecture", () => {
         personName: "Bob Person",
         role: "Director",
         sourceUrls: ["https://other.example/bob"],
-        note: "Published on Bob's profile",
+        note: "Published on Bob's profile", contactAttribution: "person_specific", identityAssessment: "same_person", identityRationale: "The profile names Bob and publishes this email.", exactQuote: "Bob Person email shared@example.org",
       }],
     });
 

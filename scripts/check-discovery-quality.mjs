@@ -19,22 +19,32 @@ const repair = fs.readFileSync(path.join(root, "scripts/apply-apex-identity-inte
 const canonical = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const activeInvestigator = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
 const targetContact = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"), "utf8");
+const reachability = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/reachability-realism.ts"), "utf8");
 const candidateSources = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/candidate-source-url-union.ts"), "utf8");
+const communityAttribution = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-source-attribution.ts"), "utf8");
+const researchIntelligence = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/research-intelligence-engine.ts"), "utf8");
 const checks = [
   [discovery, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent.ts"],
   [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-intake.ts"],
   [admit, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent-admit.ts"],
-  [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","A billionaire list is usually a low-yield lead, not a discovery strategy","Do not continue a weak search avenue just because it returns many results"], "apex-bureau-orientation.ts"],
+  [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","Evaluate lists, registries, articles, directories and other sources by their actual content","do not assume a source family is high- or low-yield in advance"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
-  [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles are evidence leads only, never targets or access routes"], "apex-bureau-orientation.ts"],
-  [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","runtime safety ceiling is","review-only findings"], "agentic-web-research-core.ts"],
-  [canonical, ["hasDiscoveryOwnershipLeadSignal", "claimGradeObservations", "target research must test that, falsify", "realistic route before any contact/wealth promotion"], "canonical-atlas-discovery.ts"],
-  [targetContact, ["REALISM / REACHABILITY CONTROL", "material business, ownership stake, investment, asset, exit or control role", "realistic public/professional/intermediary routes", "Prefer a directly published professional contact or documented assistant"], "target-contact-agent.ts"],
-  [candidateSources, ["export function isRealisticPersonRouteSourceUrl","DISCOVERY_PRESS_PUBLISHER_DOMAINS","News/blog/article pages are evidence leads, not an access route"], "candidate-source-url-union.ts"],
+  [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles may provide evidence, leads, named targets or a contact route when their actual content supports that interpretation"], "apex-bureau-orientation.ts"],
+  [activeInvestigator, ["DISCOVERY LEAD HANDOFF","AUTHORITATIVE SAME-CASE SEARCH BUDGET","Preserve exact observed names and source URLs"], "agentic-web-research-core.ts"],
+  [communityAttribution, ["isCommunityObservationSourceUrl","extractCommunityObservationMetadata","sanitizeCommunityObservationText","community_user_submitted_unverified"], "discovery-source-attribution.ts"],
+  [researchIntelligence, ["COMMUNITY_OBSERVATION","sourceContributor?: string | null","originalObservedAt?: string | null"], "research-intelligence-engine.ts"],
+  [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth", "signals, role keywords and proximity are not admission gates.", "research tests materiality, identity, counter-evidence and routes."], "canonical-atlas-discovery.ts"],
+  [reachability, ["TARGETABILITY CONTEXT", "MODEL DECISION AUTHORITY", "No fixed wealth cutoff, score, source-count minimum, growth-ranking penalty", "A missing contact route is an unresolved evidence gap", "exact-quote/provenance verification"], "reachability-realism.ts"],
+  [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgement, not a publisher/path allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
 ];
 // The active Investigator owns query strategy. Runtime query validation may
 // enforce syntax/placeholders and outbound safety, but must not encode publisher,
 // source-class, named-anchor, or other relevance/admission preferences.
+if (activeInvestigator.includes("isRestrictedCommunitySourceUrl")
+  || activeInvestigator.includes("RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE")) {
+  console.error("FAIL: active Investigator still withholds community observation page content");
+  process.exit(1);
+}
 if (activeInvestigator.includes("hasPressPublisherSiteFilter")
   || activeInvestigator.includes("DISCOVERY_PRESS_PUBLISHER_DOMAINS")
   || activeInvestigator.includes("broad press-publisher-only search without an exact named person/business anchor")) {
@@ -68,9 +78,11 @@ if (!discovery.includes("const slotCandidates = parsePersonFindings(admissionFin
 if (!discovery.includes("function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean")) failures.push("discovery-agent.ts missing observed-page provenance boundary");
 if (!discovery.includes("if (!hasObservedPageSource(sourceUrls, trajectory)) return;")) failures.push("discovery-agent.ts must require candidate source URL to match a visited/fetched page");
 const modelBranchStart = admit.indexOf("if (options.modelSelected)");
-const modelBranchEnd = admit.indexOf("const fitness =", modelBranchStart);
+const modelBranchEnd = admit.indexOf("const existing = await db", modelBranchStart);
 const modelBranch = modelBranchStart >= 0 && modelBranchEnd > modelBranchStart ? admit.slice(modelBranchStart, modelBranchEnd) : "";
+if (!modelBranch.includes('c.promotionDecision !== "promote"')) failures.push("model-selected admission must require an explicit Investigator promotion decision");
 if (!modelBranch.includes("isWellFormedPersonCandidate")) failures.push("model-selected admission is not visibly gated by identity/provenance validation");
+if (!modelBranch.includes("if (!isWellFormedPersonCandidate(c))")) failures.push("model-selected admission must reject malformed identity/provenance records");
 if (modelBranch.includes("evaluateTargetFitness") || modelBranch.includes("shouldRejectTarget")) failures.push("model-selected admission must not call target-fitness ranking/rejection");
 if (failures.length) { console.error("FAIL: discovery quality regression"); for (const failure of failures) console.error(` - ${failure}`); process.exit(1); }
 console.log("OK: canonical discovery remains model-selected with identity/provenance safety and Boss/Investigator separation");

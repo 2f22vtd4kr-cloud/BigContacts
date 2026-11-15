@@ -3,6 +3,7 @@ import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researc
 import { updateJob, clearActiveJobIfOwned, getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
+import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
@@ -28,7 +29,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
+import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { bindExactRegistryLeadName } from "./registry-result-source-binding";
@@ -279,19 +280,12 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (sources.length >= 1) { selectedRole = role; supportingSources = sources; break; }
     }
     if (supportingSources.length < 1) continue;
-    // This is a review-only target handoff, not an HNWI conclusion. Require one
-    // actually fetched, claim-grade source co-binding exact name and role plus
-    // an observable ownership/control clue. Do not require public evidence of
-    // business scale or materiality yet; target research must test that, falsify
-    // the lead, and establish a realistic route before any contact/wealth promotion.
-    const roleBoundSourceUrls = new Set(supportingSources.map((support) => support.sourceUrl));
-    const claimGradeObservations = observations.filter((observation) =>
-      observation.execution === "success"
-      && (observation.action === "visit" || observation.action === "browser_fetch")
-      && roleBoundSourceUrls.has(normalizeSourceUrl(observation.sourceUrl) ?? observation.sourceUrl)
-      && isClaimGradeDiscoverySourceUrl(observation.sourceUrl)
-    );
-    if (!hasDiscoveryOwnershipLeadSignal({ personName: name, role: selectedRole, observations: claimGradeObservations })) continue;
+    // This is a source-backed review-target handoff, not an HNWI conclusion.
+    // The model has selected the candidate/role and supplied an exact quotation;
+    // candidateRoleCorroborationSources verifies that quotation against the
+    // actual fetched observation and its URL. Ownership terminology, wealth
+    // signals, role keywords and proximity are not admission gates. Target
+    // research tests materiality, identity, counter-evidence and routes.
     const primarySupport = supportingSources[0];
     if (!primarySupport) continue;
 
@@ -889,7 +883,8 @@ async function materializePartialOrganizationLeadCards(input: {
       const observations: Array<{
         action: string; execution: string; verificationLevel: "fetched_source" | "search_result_lead";
         sourceUrl: string; observation: string; eventId: number; createdAt: Date; sourceUrlBoundByAdapter?: boolean;
-        sourceName?: string; sourceClass?: string; sourceContributor?: string | null;
+        sourceName?: string; sourceDomain?: string; sourceClass?: string; sourceContributor?: string | null;
+        originalObservedAt?: string | null;
       }> = [];
 
       // Registry adapter rows are supporting observations only. They may
@@ -933,6 +928,10 @@ async function materializePartialOrganizationLeadCards(input: {
         : searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length
           ? payload.leadUrls
           : [];
+      const rawSourceAttribution = payload.args?.sourceAttribution;
+      const sourceAttribution = rawSourceAttribution && typeof rawSourceAttribution === "object" && !Array.isArray(rawSourceAttribution)
+        ? rawSourceAttribution as Record<string, unknown>
+        : {};
       if (Array.isArray(sourceUrls)) {
         observations.push(...sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
           action,
@@ -942,6 +941,11 @@ async function materializePartialOrganizationLeadCards(input: {
           observation: typeof payload.observation === "string" ? payload.observation : "",
           eventId: event.id,
           createdAt: event.createdAt,
+          sourceName: typeof sourceAttribution.sourceName === "string" ? sourceAttribution.sourceName : undefined,
+          sourceDomain: typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain : undefined,
+          sourceClass: typeof sourceAttribution.sourceClass === "string" ? sourceAttribution.sourceClass : undefined,
+          sourceContributor: typeof sourceAttribution.sourceContributor === "string" ? sourceAttribution.sourceContributor : null,
+          originalObservedAt: typeof sourceAttribution.originalObservedAt === "string" ? sourceAttribution.originalObservedAt : null,
         })));
       }
       return observations;
@@ -969,7 +973,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; sourceUrlBoundByAdapter?: boolean; restrictedCommunitySource: boolean; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceDomain?: string; sourceClass?: string; sourceContributor?: string | null; originalObservedAt?: string | null; sourceUrlBoundByAdapter?: boolean; restrictedCommunitySource: boolean; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -999,7 +1003,8 @@ async function materializePartialOrganizationLeadCards(input: {
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
-          sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor,
+          sourceName: observation.sourceName, sourceDomain: observation.sourceDomain, sourceClass: observation.sourceClass,
+          sourceContributor: observation.sourceContributor, originalObservedAt: observation.originalObservedAt ?? null,
           sourceUrlBoundByAdapter: observation.sourceUrlBoundByAdapter === true,
           restrictedCommunitySource,
           spanText: exactSpan && span ? span.text : "",
@@ -1088,7 +1093,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.originalObservedAt, retrievedAt: support.createdAt, sourceName: support.sourceName, sourceDomain: support.sourceDomain, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.restrictedCommunitySource
           ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE
           : support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
@@ -1243,7 +1248,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       discoveryObjective = restored.baseObjective;
       activeDiscoveryObjective = restored.activeObjective;
     }
-    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → model-owned Investigator discovery; Right-hand reviews consequential decisions…" });
     const shouldCancelAtlasInvestigator = async (): Promise<boolean> => {
       const currentJob = await getJobStrict(atlasJobId);
       if (!currentJob) throw new Error("Canonical Atlas job record missing during Investigator discovery.");
@@ -1345,6 +1350,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       evidenceRows += result.evidenceRows;
     };
     let selectedInvestigator = boss.investigatorLlm;
+    let latestRightHandReviewContext: { status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null; reviewedAction: string } | null = null;
+    let rightHandReconsiderationUsed = false;
+    const rightHandReviewedDecisionKeys = new Set<string>();
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
@@ -1772,85 +1780,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. Right-hand advises; Boss
     // receives that advice and makes the final opening control decision.
-    failureStage = "right_hand_opening_review";
-    const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
-      runGroqRightHandFreeJson(
-        `Independently review the exact human objective and opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. LIVE RANDOMIZED REGISTRY CATALOG: ${atlasRegistryFeasibilityLaw()}. Recommend a small objective-compatible source mix in focusLanes using only runtime-callable IDs/families from this catalog (for example registry:<id> and public_web). Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead. The human mission and realistic-targetability rules govern. Assess whether a relevant registry/asset-register route should be combined with independent public-web discovery, and explain any concrete reason to omit either. Do not impose a fixed order or itinerary. The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point. You cannot browse and must not treat confidence as evidence. Do not select the Investigator or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start the normal mixed-source discovery phase or stop. A disagreement is advice, not a veto. Return exactly one JSON object with exactly these keys: decision (non-empty string), reason (non-empty string; use "reason", not "rationale"), focusLanes (array of at most 8 strings), and confidence (number from 0 to 1; do not use low/medium/high labels).`,
-        "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
-        ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
-        (raw) => {
-          try {
-            const value: unknown = JSON.parse(raw);
-            const parsed = value && typeof value === "object" && !Array.isArray(value)
-              ? value as Record<string, unknown>
-              : null;
-            return normalizeAtlasOpeningRightHandReview(parsed) !== null;
-          } catch {
-            return false;
-          }
-        },
-        { jobId: atlasJobId, caseId: discoveryCaseId },
-        {
-          maxCompletionTokens: 1_024,
-          reasoningEffort: "low",
-          maxAttempts: 4,
-          generationBudgetRecovery: {
-            maxCompletionTokens: 1_536,
-            reasoningEffort: "low",
-          },
-        },
-      ),
-    ).catch((error) => ({
-      status: "unavailable" as const,
+    // No source observations, candidates, proposed stops or pivots exist yet.
+    // Defer the independent Right-hand review until the Investigator creates a
+    // consequential decision worth challenging; avoid a low-information
+    // startup call that consumes the same daily model budget as research.
+    const rightHand = {
+      status: "deferred" as const,
       model: "none",
-      raw: null,
-      error: safeThrownErrorSummary("Groq Right-hand opening advice unavailable", error),
-    }));
-    await assertAtlasJobActive(atlasJobId);
-
-    let rightHand: {
-      status: "completed" | "unavailable";
-      model: string;
-      decision: string | null;
-      reason: string | null;
-      focusLanes: string[];
-      confidence: number | null;
-      error: string | null;
-    } = {
-      status: "unavailable",
-      model: rightHandRaw.model,
       decision: null,
-      reason: null,
-      focusLanes: [],
-      confidence: null,
-      error: rightHandRaw.error ?? "Right-hand returned no usable opening advice.",
+      reason: "Deferred until the Investigator produces source observations or a consequential stop, admission, pivot, identity, or contradiction decision.",
+      focusLanes: [] as string[],
+      confidence: null as number | null,
+      error: null as string | null,
     };
-    if (rightHandRaw.status === "completed" && rightHandRaw.raw?.trim()) {
-      try {
-        const value: unknown = JSON.parse(rightHandRaw.raw);
-        const parsed = value && typeof value === "object" && !Array.isArray(value)
-          ? value as Record<string, unknown>
-          : null;
-        const normalized = normalizeAtlasOpeningRightHandReview(parsed);
-        if (normalized) {
-          rightHand = {
-            status: "completed",
-            model: rightHandRaw.model,
-            decision: normalized.decision as string,
-            reason: normalized.reason as string,
-            focusLanes: normalized.focusLanes as string[],
-            confidence: normalized.confidence as number,
-            error: null,
-          };
-        } else {
-          rightHand.error = "Right-hand returned an invalid advisory review contract.";
-        }
-      } catch {
-        rightHand.error = "Right-hand returned invalid JSON.";
-      }
-    } else if (rightHandRaw.status === "completed") {
-      rightHand.error = "Right-hand returned an empty opening advice response.";
-    }
+    await assertAtlasJobActive(atlasJobId);
 
     // Persist the review exactly as an advisory observation. An unavailable
     // review is also recorded; it is not an automatic stop/veto.
@@ -1879,10 +1822,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         iteration: nextIteration,
         actorRole: "right_hand",
         eventType: "observation",
-        status: rightHand.status === "completed" ? "recorded" : "unavailable",
-        summary: rightHand.status === "completed"
-          ? "Groq Right-hand recorded independent advisory observations for Boss's opening decision; advice is not an authorization gate."
-          : "Groq Right-hand opening advice was unavailable; Boss remains responsible for the final opening decision.",
+        status: "deferred",
+        summary: "Groq Right-hand review was deferred because no Investigator observation or consequential decision exists yet.",
         correlationKey: `${atlasJobId}:right-hand-opening`,
         payload: JSON.stringify({
           jobId: atlasJobId,
@@ -1919,14 +1860,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         bossInitialReport: null,
         bossInitialDirections: [],
         bossUncertainties: [],
-        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand source-mix advice and make the final Boss decision: start the normal mixed-source discovery phase under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or target directions to adopt yet.",
+        instruction: "This is the opening adjudication before the first Investigator action. Make the final Boss decision: authorize the Investigator to begin research under the exact human objective, or stop only for a concrete blocker. No source-backed candidates or target directions exist yet; Right-hand review is deferred until a consequential decision emerges.",
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
         "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
-        "OPENING TARGET / SOURCE-MIX CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Evaluate the live randomized registry catalog and Right-hand source-mix advice; the opening discovery portfolio should combine a materially relevant callable registry/asset-register route with independent public-web discovery when both are available. This is a source-diversity expectation, not a fixed order or itinerary. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator chooses the target and exact source actions autonomously; do not assume a target class or jurisdiction.",
+        "OPENING RESEARCH CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not prescribe a source mix, source family, query sequence, target class, or jurisdiction. The Investigator independently chooses which runtime-enabled capability or source best tests the current mission and may pivot as observations warrant. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules govern. Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.",
       ].join("\n"),
@@ -1980,23 +1921,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: "done",
         progress: 100,
         atlasPhase: 0,
-        message: "Groq Boss chose to stop after evaluating the objective and Right-hand advice. No Investigator action was executed; the case is preserved for review.",
+        message: "Groq Boss chose to stop after evaluating the objective and current evidence; opening Right-hand review was deferred. No Investigator action was executed; the case is preserved for review.",
         outcome: "incomplete",
         result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0, evidenceBackedTerminal: false }),
         finishedAt: new Date().toISOString(),
       });
-      phaseSummary.assignment = "Boss chose stop after weighing Right-hand advice; no Investigator action was executed.";
+      phaseSummary.assignment = "Boss chose stop before the first Investigator action; opening Right-hand review was deferred.";
       await clearActiveJobIfOwned(lockKey, atlasJobId);
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS FINAL OPENING DECISION: the normal mixed-source discovery phase is authorized under the exact human objective; no candidate, target, query, or fixed source sequence was selected.",
+      "BOSS FINAL OPENING DECISION: autonomous discovery is authorized under the exact human objective; no candidate, target, query, source mix, or fixed source sequence was selected.",
       "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + openingBossDecision.reason,
-      "RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence): " + (rightHand.focusLanes.length ? rightHand.focusLanes.join(", ") : rightHand.reason ?? "No specific source lanes proposed.") + ". Verify every adapter against the live runtime catalog and objective fit.",
-      "OPENING SOURCE PORTFOLIO: choose a shuffled, objective-compatible mix from the live runtime registry/asset-register catalog and independent public-web routes. Include at least one materially relevant callable registry route and one independent public-web route when both are available; record a concrete reason if either source family is omitted. No fixed order, provider, query, target class, sector, or geography.",
-      "No source observations or admitted candidates exist yet. Select one useful person, company, or asset target from the mixed-source results; one observed target is enough to begin target-scoped research.",
+      "RIGHT-HAND STATUS (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until evidence-backed consequential decisions exist." : rightHand.reason ?? "No opening review was performed.") + ". The Investigator owns source selection.",
+      "OPENING RESEARCH CHOICE: independently select the capability, source, query, target and next action that best test the human objective. A registry, public-web source, both, or another available capability may be appropriate; no source family is mandatory and no source itinerary is prescribed.",
+      "No source observations or admitted candidates exist yet. Choose a useful person, company, asset, event, registry record, or other target appropriate to the mission; one source-backed observation is enough to inform the next decision.",
       "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, registry subset, provider, source, tool, visit, pivot, and stopping point yourself.",
       "Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes. Model hypotheses, confidence, Boss rationale, and Right-hand advice are not source evidence.",
     ].join("\n");
@@ -2034,7 +1975,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         actorRole: "head_investigator",
         eventType: "assignment",
         status: "recorded",
-        summary: "Canonical discovery Investigator mounted after Boss opening and Right-hand review.",
+        summary: "Canonical discovery Investigator mounted after Boss opening; Right-hand review is deferred until consequential evidence.",
         correlationKey: `${atlasJobId}:discovery-assignment`,
         payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
       });
@@ -2062,6 +2003,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoveryIterationCeiling,
       ),
     );
+    if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
+    if (discovery.stopReason === "USAGE_LEDGER_UNAVAILABLE") throw new Error("investigator_usage_ledger_unavailable");
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -2211,6 +2154,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
       const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
+        rightHandIndependentReview: latestRightHandReviewContext,
         controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss discovery direction at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected structured research direction or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
           : controlValidationFeedback.kind === "candidate_selection"
@@ -2261,6 +2205,105 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           failureKind: record.failureKind,
         })) ?? [],
       }, null, 2) });
+      // Independent review is valuable only after the Investigator has produced
+      // evidence and Boss is considering a consequential stop, candidate admission,
+      // or strategic pivot. It is advisory: it can challenge the decision but cannot
+      // authorize a candidate or override deterministic provenance/security checks.
+      const latestInvestigatorRecord = (discovery.trajectoryRecords ?? []).at(-1);
+      const investigatorProposedStop = latestInvestigatorRecord?.action === "done";
+      const investigatorProposedCandidate = (latestInvestigatorRecord?.findings ?? []).some((finding) =>
+        finding.scope === "candidate" && finding.promotionDecision === "promote" && Boolean(finding.personName?.trim()));
+      const bossConsequentialDecision = ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
+      const rightHandReviewKey = [
+        latestInvestigatorRecord?.turn ?? 0,
+        decision.action,
+        decision.candidateName ?? "",
+        decision.candidateType ?? "",
+        decision.direction ?? "",
+      ].join(":");
+      const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0
+        && (investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)
+        && !rightHandReviewedDecisionKeys.has(rightHandReviewKey);
+      if (requiresIndependentReview) {
+        rightHandReviewedDecisionKeys.add(rightHandReviewKey);
+        const reviewPrompt = [
+          "Review this consequential Apex Atlas discovery control decision independently.",
+          "Do not browse, invent evidence, or authorize a candidate. Identify material gaps, contradictions, alternative interpretations, and whether Boss should reconsider. Return concise structured advice only.",
+          "MISSION:", compactControlText(activeDiscoveryObjective, 900),
+          "INVESTIGATOR PROPOSED ACTION:", JSON.stringify(latestInvestigatorRecord ? { action: latestInvestigatorRecord.action, hypothesis: latestInvestigatorRecord.args?.hypothesis ?? null, thought: latestInvestigatorRecord.thought ?? null, findings: (latestInvestigatorRecord.findings ?? []).slice(0, 8).map((finding) => ({ personName: finding.personName ?? null, role: finding.role ?? null, promotionDecision: finding.promotionDecision ?? null, promotionReason: finding.promotionReason ?? null, exactQuote: finding.exactQuote ?? null, sourceUrls: finding.sourceUrls ?? [] })) } : null),
+          "BOSS DECISION:", JSON.stringify({ action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null }),
+          "ADMITTED CANDIDATES:", JSON.stringify(admittedCandidateSources.slice(0, 12).map(({ name, role, targetType, sourceUrls }) => ({ name, role, targetType, sourceUrls: sourceUrls.slice(0, 3) }))),
+          "LATEST INVESTIGATOR OBSERVATIONS:", JSON.stringify((discovery.trajectoryRecords ?? []).slice(-6).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: compactControlText(record.observation, 900), observedUrls: (record.observedUrls ?? []).slice(0, 4), failureDomain: record.failureDomain, failureKind: record.failureKind }))),
+          "Return JSON fields: assessment (support/challenge/unresolved), materialGaps (string[]), contradictions (string[]), alternativeInterpretation (string), recommendation (string), confidence (0..1).",
+        ].join("\n");
+        const reviewSchema = { type: "json_schema", json_schema: { name: "apex_right_hand_consequential_review", strict: true, schema: {
+          type: "object", properties: {
+            assessment: { type: "string", enum: ["support", "challenge", "unresolved"] },
+            materialGaps: { type: "array", items: { type: "string" } },
+            contradictions: { type: "array", items: { type: "string" } },
+            alternativeInterpretation: { type: "string" },
+            recommendation: { type: "string" },
+            confidence: { type: "number" },
+          }, required: ["assessment", "materialGaps", "contradictions", "alternativeInterpretation", "recommendation", "confidence"], additionalProperties: false,
+        } } };
+        const review = await runGroqRightHandFreeJson(
+          reviewPrompt,
+          "You are Apex Atlas Right-hand, an independent skeptical reviewer. Advise Boss only; never browse, fabricate facts, or treat an unverified lead as evidence.",
+          reviewSchema,
+          (raw) => { try { const value = JSON.parse(raw) as Record<string, unknown>; return ["support", "challenge", "unresolved"].includes(String(value.assessment)) && Array.isArray(value.materialGaps) && Array.isArray(value.contradictions) && typeof value.recommendation === "string" && typeof value.confidence === "number"; } catch { return false; } },
+          { jobId: atlasJobId, caseId: discoveryCaseId, iteration: controlTurns, cognitiveTask: "consequential_discovery_decision_review" },
+          { maxCompletionTokens: 512, reasoningEffort: "low", maxAttempts: 1, allowModelFallback: false },
+        );
+        latestRightHandReviewContext = { status: review.status, model: review.model, raw: review.raw, error: review.error, reviewedAction: decision.action };
+        let rightHandAssessment: string | null = null;
+        if (review.status === "completed" && review.raw) {
+          try {
+            const parsedReview = JSON.parse(review.raw) as Record<string, unknown>;
+            rightHandAssessment = typeof parsedReview.assessment === "string" ? parsedReview.assessment : null;
+          } catch { rightHandAssessment = null; }
+        }
+        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
+          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
+          && !rightHandReconsiderationUsed;
+        if (reviewChallengesConsequentialDecision) {
+          rightHandReconsiderationUsed = true;
+          rejectedControlDecision = {
+            controlTurn: controlTurns,
+            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
+            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
+          };
+          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
+          // Do not execute the challenged stop/admission/pivot yet. The next
+          // Boss call receives the durable Right-hand assessment above.
+          continue;
+        }
+        await assertAtlasJobActive(atlasJobId);
+        failureStage = "case_persistence";
+        await db.transaction(async (tx) => {
+          await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
+          const [lockedCase] = await tx.select({ status: researchCasesTable.status, iteration: researchCasesTable.iteration })
+            .from(researchCasesTable)
+            .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
+            .for("update").limit(1);
+          if (!lockedCase) throw new Error("Canonical discovery ownership was lost while recording Right-hand review.");
+          const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+            .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+            .orderBy(desc(researchCaseEventsTable.id)).limit(1);
+          const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
+          await tx.update(researchCasesTable).set({ iteration: nextIteration, updatedAt: new Date() })
+            .where(eq(researchCasesTable.id, discoveryCaseId));
+          await tx.insert(researchCaseEventsTable).values({
+            caseId: discoveryCaseId, iteration: nextIteration, actorRole: "right_hand",
+            eventType: "observation", status: review.status === "completed" ? "recorded" : "unavailable",
+            summary: review.status === "completed"
+              ? "Right-hand independently reviewed a consequential Investigator/Boss decision; advice is non-authoritative."
+              : "Right-hand independent review was unavailable; Boss decision remains recorded without independent advice.",
+            correlationKey: `${atlasJobId}:right-hand-consequential:${controlTurns}`,
+            payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, reviewedAction: decision.action, status: review.status, model: review.model, raw: review.raw, error: review.error, authority: "advisory_only" }),
+          }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+        }, { isolationLevel: "serializable" });
+        phaseSummary[`right_hand_review_${controlTurns}`] = review.status === "completed" ? "Independent consequential review recorded as advisory." : "Independent consequential review unavailable; Boss retains responsibility.";
+      }
       if (controlValidationFeedback) rejectedControlDecision = null;
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
@@ -2381,6 +2424,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
         const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities() });
+        if (targetResult.budgetExhausted) throw new Error("investigator_daily_token_budget_exhausted");
+        if (targetResult.usageLedgerUnavailable) throw new Error("investigator_usage_ledger_unavailable");
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
           await reassignInvestigatorAfterHardQuota(selectedInvestigator, "A target-scoped Investigator capability exhausted its upstream request quota during this Atlas job; the discovery capability is therefore also excluded for the remainder of this job.");
@@ -2569,7 +2614,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
-          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error");
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
@@ -2592,7 +2637,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const providerDiagnostic = describeThrownProviderError(underlyingError);
           const runtimeFailureDomain = runtimeFailureRecord?.failureDomain;
           const runtimeFailureKind = runtimeFailureRecord?.failureKind;
-          const diagnostic = runtimeFailureRecord?.action === "runtime_error" && runtimeFailureDomain && runtimeFailureKind
+          const diagnostic = runtimeFailureDomain && runtimeFailureKind
             ? { domain: runtimeFailureDomain, kind: runtimeFailureKind }
             : classifyCanonicalAtlasFailure({
               stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode",
@@ -2602,7 +2647,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight failed" : "Canonical Investigator continuation failed",
             underlyingError,
           );
-          const failureMessage = `${episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : "Canonical Investigator continuation stopped before a usable new research pass"}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
+          const failureLabel = episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "Canonical Investigator daily token budget exhausted; no further provider request was attempted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "Canonical Investigator stopped because the durable daily usage ledger was unavailable; provider egress was blocked" : "Canonical Investigator continuation stopped before a usable new research pass";
+          const failureMessage = `${failureLabel}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
             await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
@@ -2629,7 +2675,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
             await tx.update(researchCasesTable).set({
               status: "review",
-              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed",
+              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed",
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
@@ -2645,12 +2691,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               status: "error",
               summary: episodeFailure.code === "investigator_oversight_unavailable"
                 ? "Canonical Right-hand oversight unavailable; case parked for review."
-                : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
+                : episodeFailure.code === "investigator_daily_token_budget_exhausted"
+                  ? "Configured daily Investigator token budget exhausted; case preserved for resume after budget reset."
+                  : episodeFailure.code === "investigator_usage_ledger_unavailable"
+                    ? "Durable daily usage ledger unavailable; no provider request was sent and the case was preserved."
+                    : "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
               correlationKey: `${atlasJobId}:investigator-episode-failure:control:${controlTurns}`,
               payload: JSON.stringify({
                 jobId: atlasJobId,
                 controlTurn: controlTurns,
                 failureCode: episodeFailure.code,
+                budgetExhausted: episodeFailure.code === "investigator_daily_token_budget_exhausted",
+                usageLedgerUnavailable: episodeFailure.code === "investigator_usage_ledger_unavailable",
+                resumableAfterBudgetReset: episodeFailure.code === "investigator_daily_token_budget_exhausted",
                 reportedStatus: nextDiscovery.status,
                 stopReason: nextDiscovery.stopReason ?? null,
                 iterations: nextDiscovery.iterations,
@@ -2900,6 +2953,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const jobMissing = !jobStateUnavailable && !durableJob;
     const jobStateMismatch = !jobStateUnavailable && Boolean(durableJob) && durableJob?.status !== "running" && !cancelled;
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
+    const dailyTokenBudgetExhausted = /daily_token_budget_exhausted/i.test(rawMessage);
+    const usageLedgerUnavailable = /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(rawMessage);
     const recoverableRightHandOpeningFailure = isRecoverableRightHandOpeningFailure(failureStage, error);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -2911,7 +2966,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? "canonical-lease-lost"
             : recoverableRightHandOpeningFailure
               ? "groq-right-hand-unavailable"
-              : "canonical-atlas-failed";
+              : dailyTokenBudgetExhausted
+                ? "daily-token-budget-exhausted"
+                : usageLedgerUnavailable
+                  ? "daily-usage-ledger-unavailable"
+                  : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
@@ -2920,7 +2979,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
     const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
     const failureTerminalSnapshot = {
-      status: "incomplete",
+      status: dailyTokenBudgetExhausted ? "budget_exhausted" : "incomplete",
       jobStatus: cancelled ? "cancelled" : "failed",
       caseStatus: jobStateUnavailable ? "unknown" : "review",
       caseAction: currentAction,
@@ -2928,13 +2987,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failureDomain: failureDiagnostic.domain,
       failureKind: failureDiagnostic.kind,
       jobStateUnavailable,
+      budgetExhausted: dailyTokenBudgetExhausted,
+      usageLedgerUnavailable,
+      resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
         ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
-        : `${safeFailureSummary} (${diagnosticSuffix})`;
+        : dailyTokenBudgetExhausted
+          ? `Canonical Atlas Investigator daily token budget exhausted; no further provider request was attempted and the case is preserved for resume after the configured budget resets. (${diagnosticSuffix})`
+          : usageLedgerUnavailable
+            ? `Canonical Atlas stopped because the durable daily usage ledger was unavailable; provider egress was blocked and the case is preserved for review. (${diagnosticSuffix})`
+            : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({

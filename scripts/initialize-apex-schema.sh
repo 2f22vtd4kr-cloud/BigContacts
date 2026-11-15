@@ -31,6 +31,10 @@ pnpm --filter @workspace/db run harden
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/002-contact-outcome.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/003-atlas-review-candidate-type.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/004-registry-candidate-truth.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/005-agentic-llm-daily-usage.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/006-agentic-llm-rate-limit-headers.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/007-agentic-llm-attempt-context.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/008-contact-semantic-scores-unassessed.sql
 
 echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'
@@ -47,6 +51,7 @@ try {
     "research_run_events",
     "research_evidence",
     "contact_evidence",
+    "agentic_llm_daily_usage",
   ];
   const result = await pool.query(
     "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name = ANY($1::text[])",
@@ -55,7 +60,45 @@ try {
   const found = new Set(result.rows.map((row) => row.table_name));
   const missing = required.filter((name) => !found.has(name));
   if (missing.length) throw new Error(`Apex schema verification failed; missing: ${missing.join(", ")}`);
-  console.log("[apex-schema] required durable tables present.");
+  const quotaColumns = [
+    "last_rate_limit_remaining_tokens",
+    "last_rate_limit_reset_tokens_ms",
+    "last_rate_limit_remaining_requests",
+    "last_rate_limit_reset_requests_ms",
+    "reasoning_tokens",
+    "last_job_id",
+    "last_case_id",
+    "last_role",
+    "last_decision_id",
+    "last_cognitive_task",
+    "last_iteration",
+    "last_request_success",
+    "last_request_at",
+  ];
+  const columnResult = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='agentic_llm_daily_usage' AND column_name = ANY($1::text[])",
+    [quotaColumns],
+  );
+  const foundColumns = new Set(columnResult.rows.map((row) => row.column_name));
+  const missingColumns = quotaColumns.filter((name) => !foundColumns.has(name));
+  if (missingColumns.length) throw new Error(`Apex quota ledger verification failed; missing columns: ${missingColumns.join(", ")}`);
+  const semanticContactScores = ["source_reliability", "identity_match", "recency_score", "directness_score"];
+  const semanticScoreResult = await pool.query(
+    "SELECT column_name, is_nullable FROM information_schema.columns WHERE table_schema=\'public\' AND table_name=\'contact_evidence\' AND column_name = ANY($1::text[])",
+    [semanticContactScores],
+  );
+  const nullableScores = new Set(semanticScoreResult.rows.filter((row) => row.is_nullable === "YES").map((row) => row.column_name));
+  const nonNullableScores = semanticContactScores.filter((name) => !nullableScores.has(name));
+  if (nonNullableScores.length) throw new Error("Apex contact semantic-score verification failed; columns must be nullable/unassessed: " + nonNullableScores.join(", "));
+  const legacySemanticScoreColumns = ["legacy_source_reliability", "legacy_identity_match", "legacy_recency_score", "legacy_directness_score"];
+  const legacyScoreResult = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='contact_evidence' AND column_name = ANY($1::text[])",
+    [legacySemanticScoreColumns],
+  );
+  const foundLegacyScoreColumns = new Set(legacyScoreResult.rows.map((row) => row.column_name));
+  const missingLegacyScoreColumns = legacySemanticScoreColumns.filter((name) => !foundLegacyScoreColumns.has(name));
+  if (missingLegacyScoreColumns.length) throw new Error("Apex legacy contact-score preservation verification failed; missing columns: " + missingLegacyScoreColumns.join(", "));
+  console.log("[apex-schema] required durable tables, quota columns, preserved legacy scores and unassessed active contact-score columns present.");
 } finally {
   await pool.end();
 }

@@ -17,7 +17,7 @@ What is the human trying to find? What is observed fact vs lead, hypothesis, unk
 PHASE 1 — DISCOVERY
 Discovery finds plausible candidates and checks relevance, not full proof. The human objective defines target class, geography, and exclusions; do not impose HNWI, ownership, person-first, or geography criteria the human did not request.
 
-JURISDICTION + SECTOR: Preserve a sector/jurisdiction pair when the human objective or same-case evidence supplies both. Never infer or introduce a jurisdiction from examples or model memory. If no jurisdiction is supplied, use objective-compatible public-web evidence or a genuinely global register rather than inventing a market. A quick look at the strongest objective-fit lead is enough to hand off to target research; the Investigator chooses whether another source is more valuable.
+JURISDICTION + SECTOR: Honor explicit human geographic constraints. When geography is open, do not invent a market from examples or model memory; the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss. Sector and geography are contextual dimensions, not fixed filters or alias lists. A quick look at a useful objective-fit lead may be enough to hand off to target research; the Investigator decides whether another source or pivot has greater information value.
 
 DISCOVERY ECONOMY: use the adaptive per-case search budget; the runtime enforces a configurable safety ceiling (default 8 outbound search actions), not a goal or prescribed sequence. Do not stop merely because one or two searches have been used. The Investigator chooses whether to search, fetch, use a registry, pivot, or stop by expected information gain, evidence gaps, source independence, cost, and deadline. Public-web and registry routes are neutral options; do not force a mixed-source batch or registry-first order. Use parallel search when it is useful; a source class need not appear in every batch. Do not enumerate a candidate pool or launch broad provider/job-title fan-out. FAST HANDOFF: one strongest objective-fit lead can be handed to Boss when useful; the Investigator decides when the lead is useful enough to review. This is AI judgment, not a mandatory search-then-visit sequence.
 
@@ -27,7 +27,7 @@ Choose public-web search, an enabled registry, or a combination according to the
 Broad web discovery may seek relevant companies/people and publicly published professional contact routes, both direct and organization-level. Prioritize useful direct routes without discarding corporate routes. Snippets are leads, not verified facts; they do not establish identity, role, ownership, wealth, or contact attribution.
 
 QUICK CANDIDATE SANITY CHECK
-Before deep work ask: Is this an actual person/company/asset/relationship or just a topic, title, directory category, or malformed result? Does it fit the objective and geography? Could it be a homonym, brand, subsidiary, dissolved or unrelated entity? Is an observed public URL plausible/current? What cheap check could disprove it, and is a review-only card worthwhile?
+Before deep work ask: Is this an actual person/company/asset/relationship or just a topic, title, directory category, or malformed result? How does it relate to the objective and explicit constraints? If geography is open, could the source context support a jurisdiction hypothesis for Boss to authorize? Could it be a homonym, brand, subsidiary, dissolved or unrelated entity? Is an observed public URL plausible/current? What cheap check could disprove it, and is a review-only card worthwhile?
 
 Preserve useful partial discoveries before full proof: a company with uncertain ownership, a relevant non-HNWI decision-maker, unresolved identity, or conflicting sources may still matter. Keep exact observed names/URLs, relevance, and uncertainty. Do not card every result. A review card is not verification or promotion.
 
@@ -56,6 +56,9 @@ When professional reachability is in scope, preserve observed, attributable publ
 IDENTITY AND SOURCE QUALITY
 Names are not identities: bind a person to the exact entity and role with evidence. Similar names, shared domains, handles, or proximity are insufficient. Distinguish legal/trading names, brands, subsidiaries/parents, dissolved entities, and owner/director/officer/employee/adviser/investor/founder/former roles. Prefer primary sources, seek independent source families, preserve dates, and keep conflicts visible until resolved.
 
+COMMUNITY OBSERVATION SOURCES
+Virtual Globetrotting and similar community pages are a community-observation source class, not automatic exclusions. Preserve the page URL, displayed contributor, original observation date and retrieval timestamp when available. Treat the content as a lead, not verified ownership or identity; independently corroborate material claims. Do not copy images or retain precise residential coordinates, and do not expose private residential details.
+
 CARDS AND PARTIAL RESULTS
 Preserve useful company/person review cards with observed name/type, URLs, relevance, relationships, route clues, status, confidence, and open questions. HNWI is optional. Keep distinct candidate/resolved, fact/inference, verified/partial/unverified, strong/weak relationship, review-only/admitted, no-evidence/absence, failure/negative result, and insufficient/sufficient coverage. Confidence does not upgrade a card.
 
@@ -67,7 +70,7 @@ COMMON FAILURE SCENARIOS
 - Username/email/domain match: test meaning and false-positive risk; presence is not identity or ownership.
 - Repeated no-yield: identify repeated query/provider/locale/source/URL/hypothesis; vary a meaningful dimension or move on. New rationale alone is not new information.
 - 400/429/timeout/blocked/parse/provider failure: record exact failure; distinguish from no-hit; use bounded permitted recovery. Never invent results or silently switch roles/credentials/capabilities.
-- Scope block: identify failed dimension; correct within approved scope or ask Boss for explicit re-scope. Never route around the guard.
+- Scope concern: distinguish security/authorization violations (deterministic block) from semantic uncertainty (preserve the lead and ask Investigator/Boss to reconsider). Identify the failed dimension; correct within explicit constraints or ask Boss for a contextual re-scope. Never route around security controls.
 - Homonym/fake/stale/dissolved candidate: seek cheap disproof; reject or leave unresolved without erasing other evidence.
 - Identity conflict: keep hypotheses separate and seek discriminating evidence; do not merge prematurely.
 - Limited no-result: report insufficient coverage, not absence. Negative findings need a bounded question and adequate coverage.

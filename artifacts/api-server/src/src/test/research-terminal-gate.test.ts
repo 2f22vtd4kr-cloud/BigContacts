@@ -46,9 +46,9 @@ function context(independentSourceUnits: number, falsificationAttempt = false): 
     sourceIndependence: 0.7,
     providerDisagreements: [],
     atomicEvidence: [
-      { evidenceId: "e1", kind: "finding", claimId: "c1", claim: "claim 1", sourceUrl: "https://same.example/a", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 1", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
-      { evidenceId: "e2", kind: "finding", claimId: "c2", claim: "claim 2", sourceUrl: "https://same.example/b", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 2", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
-      { evidenceId: "e3", kind: "finding", claimId: "c3", claim: "claim 3", sourceUrl: "https://same.example/c", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 3", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
+      { evidenceId: "e1", kind: "finding", claimId: "c1", claim: "claim 1", sourceUrl: "https://same.example/a", sourceHost: "same.example", sourceTier: "A", sourceClass: "OFFICIAL_COMPANY", passage: "claim 1", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
+      { evidenceId: "e2", kind: "finding", claimId: "c2", claim: "claim 2", sourceUrl: "https://same.example/b", sourceHost: "same.example", sourceTier: "A", sourceClass: "OFFICIAL_COMPANY", passage: "claim 2", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
+      { evidenceId: "e3", kind: "finding", claimId: "c3", claim: "claim 3", sourceUrl: "https://same.example/c", sourceHost: "same.example", sourceTier: "A", sourceClass: "OFFICIAL_COMPANY", passage: "claim 3", spanBound: true, spanBindingKind: "identity_and_value", attribution: "Test Target" },
     ],
     actionYield: [],
     sourceLineage: [],

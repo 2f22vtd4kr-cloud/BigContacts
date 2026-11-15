@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
-import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
+import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
 import { hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection } from "../lib/investigator-episode-health";
@@ -13,6 +13,26 @@ const completeInvestigatorProviderPrompt = [
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
+  it("preserves the full fetched observation and schema at the final provider boundary", () => {
+    const latestQuote = "Jane Example — Managing Director can be reached directly at jane@example.org.";
+    const prompt = [
+      "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
+      "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
+      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+    ].join("\\n\\n");
+    const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
+    expect(preserved).toBe(prompt);
+    expect(preserved).toContain(latestQuote);
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+  });
+
+  it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
+    expect(investigatorUserPromptBudget(2_000)).toBe(4_000);
+    expect(2_000 + investigatorUserPromptBudget(2_000) + 3_000).toBeLessThanOrEqual(9_000);
+    // When system instructions alone leave no room after schema allowance,
+    // the optimizer returns zero rather than deleting authoritative context.
+    expect(investigatorUserPromptBudget(6_500)).toBe(0);
+  });
   it("downgrades a safe browser fetch with a stale provider label to visit", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "browser_fetch",
@@ -72,15 +92,29 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.market).toBeUndefined();
   });
 
-  it("rejects a parallel web-search item that omits the schema-required null registry field", () => {
+  it("accepts a minimal parallel web-search item without irrelevant null placeholders", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
       searches: [{ query: "company founder public profile", provider: "serper" }],
       hypothesis: "A public search may identify a relevant operating-company lead.",
-      purpose: "Verify the nested shared-schema contract locally.",
+      purpose: "Find source-backed candidate leads.",
       expectedInformationGain: 0.4,
     }));
-    expect(parsed).toBeNull();
+    expect(parsed?.action).toBe("parallel_web_search");
+    if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+    expect(parsed.searches[0]?.provider).toBe("serper");
+    expect(parsed.searches[0]?.locale).toBeUndefined();
+    expect(parsed.searches[0]?.market).toBeUndefined();
+
+    const wrongActionShape = JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "company founder public profile", provider: "serper", registry: "sec-edgar" }],
+      hypothesis: "A public search may identify a relevant operating-company lead.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+    });
+    expect(describeAgentActionParseFailure(wrongActionShape)).toBe("invalid_action_arguments action=parallel_web_search invalid=registry");
+    expect(parseAgentAction(wrongActionShape)).toBeNull();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
@@ -245,13 +279,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("searches");
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
-    expect(repair).toContain('"provider":null');
-    expect(repair).toContain('"locale":null');
-    expect(repair).toContain('"market":null');
-    expect(repair).toContain('"purpose"');
-    expect(repair).toContain("null only action-irrelevant scalar fields");
+    expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
+    expect(repair).toContain("Omit provider, locale and market");
+    expect(repair).toContain("nested purpose is optional");
+    expect(repair).not.toContain('"provider":null');
+    expect(repair).not.toContain('"locale":null');
+    expect(repair).not.toContain('"market":null');
+    expect(repair).toContain("Omit unused optional fields rather than sending null placeholders");
     expect(repair).toContain("never null these fields");
-    expect(repair).toContain("nested registry-search item");
   });
 
   it("explains the configured browser provider when browser_fetch action arguments are invalid", () => {
@@ -282,20 +317,30 @@ describe("Groq Investigator runtime contract", () => {
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty strings");
-    expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
-    expect(submitted).toContain("only done may null them");
-    expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
-    expect(submitted).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
-    expect(submitted).toContain("Human objective outranks advice; Boss scope governs; source class must match the objective and follow evidence.");
-    expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(submitted).toContain("url may be null when unused");
-    expect(submitted).toContain("Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose");
-    expect(submitted).toContain("Parallel registry searches need 1–4 objects, each with query/registry (a configured ID)/provider:null/locale:null/market:null/purpose");
-    expect(submitted).toContain("Each finding still needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
+    expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
+    expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
+    expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
+    expect(submitted).toContain("OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders).");
+    expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
+    expect(submitted).toContain("Apply mission-specific standards; adjectives/generic nouns are not queries.");
+    expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
+    expect(submitted).toContain("Model judges target/source relevance, identity, ownership, relationships, source meaning, contact attribution and priority");
+    expect(submitted).toContain("Fame, wealth, seniority, size, sector, geography, language and source class are context, not gates");
+    expect(submitted).toContain("TERMINAL: Stop only at a defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion.");
+    expect(submitted).toContain("parallel_web_search items require query and provider; locale/market are optional and registry is omitted.");
+    expect(submitted).toContain("parallel_registry_search items require query and registry; provider/locale/market are omitted.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
+      json_schema?: { schema?: {
+        required?: string[];
+        properties?: { searches?: { items?: { required?: string[]; properties?: Record<string, { type?: string }> } } };
+      } };
+    };
+    const actionSchema = responseFormat.json_schema?.schema;
+    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
     expect(messages).toHaveLength(2);
   });
 
@@ -345,10 +390,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages).toHaveLength(2);
     expect(messages.map((message) => message.content).join("\\n")).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(prompt).toContain("Czech Republic");
-    expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
     expect(prompt).toContain("source class");
-    expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(messages.map((message) => message.content).join("\n")).toContain("Apply objective criteria");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF:");
+    expect(messages.map((message) => message.content).join("\n")).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction.");
   });
 
   it("replays the 2026-11-14 captured Investigator request metadata and bounded recovery", () => {
@@ -385,12 +430,100 @@ describe("Groq Investigator runtime contract", () => {
       responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
       currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 512, completionTokensUsed: 509,
+      rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1024 });
+
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 512, completionTokensUsed: 300,
+      rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "retry_json_object" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
       responseFormat: "json_object", failureDetailsAvailable: false, completionBudgetRetryUsed: true,
       currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
     })).toEqual({ action: "fail" });
   });
+  it("rejects first-turn completion without evidence but allows completion after a real prior fetch", () => {
+    const premature = [{
+      action: "done",
+      execution: "success",
+      observation: "No evidence",
+      observedUrls: [],
+      findings: [],
+      turn: 1,
+      args: {},
+      model: "openai/gpt-oss-120b",
+      thought: null,
+      leadUrls: [],
+    }] as unknown as Parameters<typeof discoveryTerminalGate>[0];
+    expect(discoveryTerminalGate(premature)).toMatchObject({ allowed: false });
+
+    const afterFetch = [
+      {
+        action: "visit",
+        execution: "success",
+        observation: "Official organization page fetched.",
+        observedUrls: ["https://example.org/about"],
+        findings: [],
+        turn: 1,
+        args: { url: "https://example.org/about" },
+        model: "openai/gpt-oss-120b",
+        thought: null,
+        leadUrls: [],
+      },
+      {
+        action: "done",
+        execution: "success",
+        observation: "Research completed after inspecting a source.",
+        observedUrls: [],
+        findings: [],
+        turn: 2,
+        args: {},
+        model: "openai/gpt-oss-120b",
+        thought: null,
+        leadUrls: [],
+      },
+    ] as unknown as Parameters<typeof discoveryTerminalGate>[0];
+    expect(discoveryTerminalGate(afterFetch)).toMatchObject({ allowed: true, reason: null });
+    expect(hasUsableDiscoveryExternalObservation(afterFetch)).toBe(true);
+  });
+
+  it("requires model-resolved identity before parsing candidate contact promotion", () => {
+    const baseFinding = {
+      vectorType: "email",
+      value: "jane@acme.co.uk",
+      personName: "Jane Example",
+      role: "Director",
+      scope: "candidate",
+      sourceUrls: ["https://acme.co.uk/team"],
+      contactAttribution: "professional_person_specific",
+      exactQuote: "Jane Example — Director — jane@acme.co.uk",
+      promotionDecision: "promote",
+    };
+    const unresolved = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [{ ...baseFinding, identityAssessment: "unresolved", identityRationale: "The source does not distinguish the route." }],
+      thought: "The contact remains ambiguous.",
+    }));
+    expect(unresolved?.action).toBe("done");
+    if (unresolved?.action === "done") expect(unresolved.findings[0]?.promotionDecision).toBeUndefined();
+
+    const resolved = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [{ ...baseFinding, identityAssessment: "same_person", identityRationale: "The official page explicitly labels this address for Jane Example." }],
+      thought: "The fetched page binds the contact to this person.",
+    }));
+    expect(resolved?.action).toBe("done");
+    if (resolved?.action === "done") expect(resolved.findings[0]?.promotionDecision).toBe("promote");
+  });
+
   it("withholds discovery done until successful external observation", () => {
     const failure = [{ action: "investigator_provider_error", execution: "error", observation: "HTTP_400:json_validate_failed", observedUrls: [] }, { action: "done", execution: "blocked", observation: "No evidence", observedUrls: [] }];
     const emptySearch = [{ action: "web_search", execution: "success", observation: "No usable result returned; no hits", observedUrls: [] }];
@@ -475,8 +608,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
-      type: ["string", "null"],
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
+      type: "string",
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders],
     });
     expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
   });
@@ -528,11 +661,28 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2", "groq-investigator-20b"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
+  });
+
+  it("keeps the 20B capability opt-in until provider structured output is verified", () => {
+    const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
+    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(optedIn)).toContain("groq-investigator-20b");
+  });
+
+  it("keeps model-scoped 20B fallback opt-in when it shares the first 120B credential", () => {
+    const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([]);
+    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
@@ -561,4 +711,85 @@ describe("Groq Investigator runtime contract", () => {
     expect(inferResearchCognitiveTask({ nextMovePriority: "verify" })).toBe("identity_resolution");
     expect(inferResearchCognitiveTask({ terminal: true })).toBe("final_adjudication");
   });
+  it("preserves oversized Investigator prompts verbatim when the mandatory contract exceeds the advisory target", () => {
+    const prompt = [
+      "DISCOVERY MODE: investigate the case objective.",
+      "PRIMARY CASE OBJECTIVE: Find relevant privately held engineering businesses and identify evidence-backed owners.",
+      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): Investigate the DACH region, but follow credible evidence if it leads elsewhere and surface a strategic pivot to Boss.",
+      "AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.",
+      "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): companies_house, handelsregister.",
+      "CAPABILITY GUIDANCE:",
+      "Use available specialist OSINT tools only when attested. " + "capability detail ".repeat(90),
+      "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
+      "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
+      "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
+      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+    ].join("\n\n");
+    const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
+    expect(compacted).toBe(prompt);
+    expect(compacted.length).toBeGreaterThan(2_700);
+    expect(compacted).toContain("Find relevant privately held engineering businesses");
+    expect(compacted).toContain("DACH region");
+    expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
+    expect(compacted).toContain("https://registry.example.test/company/123");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+
+  });
+
+  it("routes by the Boss-selected capability without silently rotating models", () => {
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-20b" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");
+    expect(selectGroqInvestigatorModel({
+      capability: "groq-investigator-1", configuredModel: "custom/explicit-model",
+    })).toBe("custom/explicit-model");
+    expect(selectGroqInvestigatorModel({
+      capability: "groq-investigator-20b", configuredModel: "custom/explicit-model",
+    })).toBe("openai/gpt-oss-20b");
+  });
+
+  it("measures the actual outbound Investigator prompts offline against the 2026-11-14 baseline", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover evidence-backed public decision makers and ownership relationships for a named operating company.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "No research action has executed yet.",
+      findings: [],
+      intelligenceContext: "RESEARCH INTELLIGENCE STATE: no findings yet; hypotheses and source lineage are empty.",
+      mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "visit", "registry_search", "done"],
+    });
+    const buildMeasurement = (model: string) => {
+      const body = buildGroqInvestigatorRequestBody({ model, prompt, cognitiveTask: "discovery", promptMode: "discovery" });
+      const messages = body.messages as Array<{ role: string; content: string }>;
+      const systemPrompt = messages.find((message) => message.role === "system")?.content ?? "";
+      const userPrompt = messages.find((message) => message.role === "user")?.content ?? "";
+      const responseFormat = body.response_format ? JSON.stringify(body.response_format) : "";
+      const requestChars = systemPrompt.length + userPrompt.length + responseFormat.length;
+      const estimatedInputTokens = Math.ceil(requestChars / 3.4);
+      const completionCap = Number(body.max_completion_tokens ?? 0);
+      return { model, systemPromptChars: systemPrompt.length, userPromptChars: userPrompt.length, responseFormatChars: responseFormat.length, requestChars, estimatedInputTokens, completionCap, reasoningEffort: body.reasoning_effort ?? "unsupported" };
+    };
+    const twentyB = buildMeasurement("openai/gpt-oss-20b");
+    const oneTwentyB = buildMeasurement("openai/gpt-oss-120b");
+    const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
+      capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number };
+    };
+    console.info("APEX_INVESTIGATOR_PROMPT_MEASUREMENT " + JSON.stringify({
+      method: "offline character estimate (ceil(total request characters / 3.4)); not a provider tokenizer",
+      baseline2026_11_14: replay.capturedSuccessfulResponse,
+      representativeFirstTurn20B: twentyB,
+      representativeFirstTurn120B: oneTwentyB,
+    }));
+    expect(twentyB.systemPromptChars).toBeGreaterThan(0);
+    expect(twentyB.userPromptChars).toBeGreaterThan(0);
+    expect(oneTwentyB.responseFormatChars).toBeGreaterThan(0);
+    expect(twentyB.systemPromptChars).toBeLessThan(4_000);
+    expect(oneTwentyB.systemPromptChars).toBeLessThan(4_000);
+    expect(twentyB.reasoningEffort).toBe("low");
+    expect(oneTwentyB.reasoningEffort).toBe("low");
+    expect(twentyB.completionCap).toBe(1_024);
+    expect(oneTwentyB.completionCap).toBe(1_024);
+  });
+
 });

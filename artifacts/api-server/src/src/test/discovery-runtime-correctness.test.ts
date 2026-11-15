@@ -7,6 +7,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
+const orientationSource = fs.readFileSync(path.join(libDir, "apex-bureau-orientation.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
 const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
@@ -45,7 +46,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: the normal mixed-source discovery phase is authorized under the exact human objective; no candidate, target, query, or fixed source sequence was selected.");
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: autonomous discovery is authorized under the exact human objective; no candidate, target, query, source mix, or fixed source sequence was selected.");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
@@ -58,10 +59,10 @@ describe("discovery runtime architecture", () => {
     expect(bossDiscoverySource).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(bossDiscoverySource).toContain("Do not compare sectors, geographies, or strategies.");
     expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
-    expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
-    expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
-    expect(researchCoreSource).toContain("do not broaden geography");
-    expect(researchCoreSource).toContain("no named default, geography sweep, fixed order or registry-first rule");
+    expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
+    expect(orientationSource).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
+    expect(orientationSource).toContain("Preserve explicit human geographic constraints");
+    expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -69,35 +70,32 @@ describe("discovery runtime architecture", () => {
     expect(orchestratorSource).toBe("");
   });
 
-  it("uses bounded output-budget recovery for the canonical opening Right-hand review", () => {
-    const rightHandCall = canonicalDiscoverySource.indexOf("runGroqRightHandFreeJson(");
-    const nextControlBoundary = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandCall);
+  it("uses a small low-reasoning budget for consequential discovery Right-hand review", () => {
+    const rightHandCall = canonicalDiscoverySource.indexOf("const review = await runGroqRightHandFreeJson(");
+    const reviewEnd = canonicalDiscoverySource.indexOf("latestRightHandReviewContext =", rightHandCall);
     expect(rightHandCall).toBeGreaterThan(-1);
-    expect(nextControlBoundary).toBeGreaterThan(rightHandCall);
-    const openingCall = canonicalDiscoverySource.slice(rightHandCall, nextControlBoundary);
-    expect(openingCall).toContain("maxCompletionTokens: 1_024");
-    expect(openingCall).toContain('reasoningEffort: "low"');
-    expect(openingCall).toContain("maxAttempts: 4");
-    expect(openingCall).toContain("generationBudgetRecovery");
-    expect(openingCall).toContain("maxCompletionTokens: 1_536");
+    expect(reviewEnd).toBeGreaterThan(rightHandCall);
+    const reviewCall = canonicalDiscoverySource.slice(rightHandCall, reviewEnd);
+    expect(reviewCall).toContain("maxCompletionTokens: 512");
+    expect(reviewCall).toContain('reasoningEffort: "low"');
+    expect(reviewCall).toContain("maxAttempts: 1");
+    expect(reviewCall).toContain('cognitiveTask: "consequential_discovery_decision_review"');
   });
 
-  it("keeps the canonical opening order Boss first, Right-hand second", () => {
-    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    const bossIndex = canonicalSource.indexOf("const boss = await runGroqBossDiscovery(");
-    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./groq-right-hand-reasoning\")");
-    expect(bossIndex).toBeGreaterThan(-1);
-    expect(rightHandIndex).toBeGreaterThan(-1);
-    expect(bossIndex).toBeLessThan(rightHandIndex);
-    const bossCall = canonicalSource.indexOf("runGroqBossDiscovery({");
-    const rightHandCall = canonicalSource.indexOf("runGroqRightHandFreeJson(");
-    expect(bossCall).toBeGreaterThan(-1);
-    expect(rightHandCall).toBeGreaterThan(-1);
-    expect(bossCall).toBeLessThan(rightHandCall);
-    const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
-    expect(rightHandSource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
-    expect(rightHandSource).not.toContain("boss.report");
-    expect(rightHandSource).not.toContain("boss.nextDirections");
+  it("defers discovery Right-hand review until the Investigator and Boss reach a consequential decision", () => {
+    const openingBoss = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
+    const firstInvestigatorEpisode = canonicalDiscoverySource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
+    const rightHandCall = canonicalDiscoverySource.indexOf("const review = await runGroqRightHandFreeJson(");
+    expect(openingBoss).toBeGreaterThan(-1);
+    expect(firstInvestigatorEpisode).toBeGreaterThan(openingBoss);
+    expect(rightHandCall).toBeGreaterThan(firstInvestigatorEpisode);
+    expect(canonicalDiscoverySource).toContain("const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0");
+    expect(canonicalDiscoverySource).toContain("(investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)");
+    expect(canonicalDiscoverySource).toContain("rightHandReconsiderationUsed");
+    const rightHandSource = canonicalDiscoverySource.slice(rightHandCall, rightHandCall + 2600);
+    expect(rightHandSource).toContain("consequential_discovery_decision_review");
+    expect(rightHandSource).toContain("Right-hand independently challenged the consequential decision");
+    expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
   });
 
   it("preserves and narrowly recovers terminal Right-hand opening failures", () => {
@@ -121,8 +119,8 @@ describe("discovery runtime architecture", () => {
     expect(openingObjective).toContain("Only actual same-run Investigator tool observations may establish candidate names");
     expect(openingObjective).not.toContain("boss.report");
     expect(openingObjective).not.toContain("boss.nextDirections");
-    expect(openingObjective).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence)");
-    expect(openingObjective).toContain("rightHand.focusLanes");
+    expect(openingObjective).toContain("RIGHT-HAND STATUS (advisory only)");
+    expect(openingObjective).not.toContain("rightHand.focusLanes");
     expect(openingObjective).toContain("BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope)");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
@@ -154,29 +152,31 @@ describe("discovery runtime architecture", () => {
     expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
   });
 
-  it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
+  it("runs target Boss opening before act 1 and reviews only consequential acts", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
+    const oversight = fs.readFileSync(path.join(libDir, "target-act-oversight.ts"), "utf8");
     const bossOpening = runner.indexOf("runGroqBossDiscovery({");
-    const rightHandOpening = runner.indexOf("runGroqRightHandFreeJson(");
     const firstAct = runner.indexOf("latestResult = await runTargetContactAgent({");
+    const oversightCall = runner.indexOf("await reviewTargetInvestigationAct({");
     expect(bossOpening).toBeGreaterThan(-1);
-    expect(rightHandOpening).toBeGreaterThan(bossOpening);
-    expect(firstAct).toBeGreaterThan(rightHandOpening);
+    expect(firstAct).toBeGreaterThan(bossOpening);
+    expect(oversightCall).toBeGreaterThan(firstAct);
+    expect(oversight).toContain("shouldReviewTargetActWithRightHand");
+    expect(oversight).toContain('if (act.action === "done" && act.execution === "success") return true;');
+    expect(oversight).toContain("previousBossDisposition === \"redirect\"");
     expect(runner).toMatch(/actorRole: "groq_boss"/);
-    expect(runner).toMatch(/actorRole: "right_hand"/);
-    expect(runner).toMatch(/target-boss-opening/);
-    expect(runner).toMatch(/target-right-hand-opening/);
   });
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
     expect(canonicalSource).toContain("candidateRoleCorroborationSources");
     expect(canonicalSource).toContain("sources.length >= 1");
-    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalSource).toContain("claimGradeObservations");
     expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
     expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
-    expect(candidateSourcePolicy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
+    expect(candidateSourcePolicy).toContain("const exactQuote = modelQuotes.find");
+    expect(candidateSourcePolicy).toContain("observation.observation.includes(quote)");
   });
 
   it("records duplicate blocks and removes the blanket visited-URL stop", () => {
@@ -185,9 +185,9 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(researchCoreSource).toContain("This constrains scope, not tool or provider choice.");
+    expect(orientationSource).toContain("Do not use fixed industry/sector aliases or deterministic sector filters to decide relevance.");
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
-    expect(researchCoreSource).toContain("no fixed sequence");
+    expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
 
   it("blocks repeated successful page retrieval when only the model-authored rationale changes", async () => {
@@ -577,7 +577,7 @@ describe("discovery runtime architecture", () => {
       compactState: "Several state registry routes were inaccessible; no entity-level ownership evidence was observed.",
       rightHand: { status: "completed", decision: "pivot", reason: "Same source class repeatedly failed.", direction: "Evaluate a materially different public-source family.", confidence: 0.8, model: "test", error: null },
     });
-    expect(atlasSourceRouteRecoveryLaw()).toContain("Do not pivot only from one jurisdiction to another");
+    expect(atlasSourceRouteRecoveryLaw()).toContain("The Investigator may consider materially different public-source families or jurisdictions when the human objective and observations justify them");
     expect(rightHandPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
     expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
     expect(rightHandPrompt).toContain("Never evade access controls");
@@ -621,7 +621,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const validUrls = candidate.sourceUrls");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
     expect(canonicalSource).toContain("durableSourceCount >= 1");
-    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalSource).toContain("reviewOnly: true");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
     expect(canonicalSource).toContain('latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null');
@@ -961,8 +961,10 @@ describe("Boss-accepted discovery pivot scope", () => {
     expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
       query: "Just Love Coffee franchise owner",
     }, [])).toBeNull();
-    expect(researchCoreSource).toContain('discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)');
-    expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
+    const runtimeStart = researchCoreSource.indexOf("export async function runAgenticWebResearch");
+    const runtimeSource = researchCoreSource.slice(runtimeStart);
+    expect(runtimeSource).not.toContain("discoveryPivotAlignmentReason(");
+    expect(runtimeSource).not.toContain("pivot_alignment_guard");
   });
 });
 
@@ -1067,8 +1069,8 @@ describe("Apex research runtime readiness hardening", () => {
       ...base,
       searches: [],
     }))).toContain("searches_min=1");
-    expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
-    expect(researchCoreSource).toContain('registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null]');
+    expect(researchCoreSource).toContain('required: ["query"]');
+    expect(researchCoreSource).toContain('registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()]');
   });
 
 
@@ -1188,9 +1190,13 @@ describe("unapproved discovery geography guard", () => {
     )).toBeNull();
   });
 
-  it("is wired into the live discovery runtime before any outbound search", () => {
-    expect(researchCoreSource).toContain("discoveryUnscopedGeographyReason(input.objective ?? \"\", action.action, selectedArgs)");
-    expect(researchCoreSource).toContain("reason=unapproved_geography_guard");
+  it("does not let a deterministic geography heuristic veto model-selected discovery actions", () => {
+    const runtimeStart = researchCoreSource.indexOf("export async function runAgenticWebResearch");
+    const runtimeSource = researchCoreSource.slice(runtimeStart);
+    expect(runtimeSource).not.toContain("discoveryUnscopedGeographyReason(");
+    expect(runtimeSource).not.toContain("unapproved_geography_guard");
+    expect(orientationSource).toContain("Preserve explicit human geographic constraints");
+    expect(orientationSource).toContain("The Investigator chooses tools; providers only execute.");
   });
 });
 

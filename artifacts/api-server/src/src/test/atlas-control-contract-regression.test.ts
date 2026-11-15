@@ -15,6 +15,7 @@ const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+const targetActOversightSource = readFileSync(resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
 
 describe("conditional Right-hand review policy", () => {
   it("defers repeated empty-cycle reviews but invokes independent challenge for consequential decisions", () => {
@@ -48,7 +49,7 @@ describe("conditional Right-hand review policy", () => {
     })).toBe(true);
     expect(shouldInvokeAtlasRightHandReview({
       ...noEvidence,
-      trajectoryRecords: [{ action: "browser_fetch", findings: [{ value: "new finding" }] }],
+      trajectoryRecords: [{ action: "browser_fetch", findings: [{ value: "new finding", promotionDecision: "promote" }] }],
     })).toBe(true);
   });
 
@@ -81,9 +82,9 @@ describe("objective-aligned Boss control decisions", () => {
       humanObjective: objective,
       rightHand: { status: "completed", decision: "continue_discovery", reason: "The Investigator should begin objective-led discovery.", direction: null, confidence: 0.9, model: "test-model", error: null },
     });
-    expect(prompt).toContain("globally famous/household-name people are presumptively poor-access prospects");
-    expect(prompt).toContain("source-backed person-specific professional route");
-    expect(prompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(prompt).toContain("do not use fame, wealth, seniority, company size, listing status, ranking badges, industry labels or contact-route categories as deterministic eligibility gates.");
+    expect(prompt).toContain("Distinguish person-specific contact evidence from generic organization channels");
+    expect(prompt).toContain("Prominent people and public companies may be directly relevant to the mission.");
     expect(prompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference');
     expect(prompt).toContain(objective);
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
@@ -95,31 +96,20 @@ describe("objective-aligned Right-hand control guidance", () => {
       investigatorReport: "No source-backed B2B candidates have been admitted yet.",
       compactState: "Human objective: Find B2B software companies and their current decision-makers.",
     });
-    expect(prompt).toContain("Operating-company targets need evidence of current operations and objective fit");
-    expect(prompt).toContain("apply private/mid-market constraints only when the human explicitly requests them");
+    expect(prompt).toContain("Assess whether an operating business, investor, asset or individual is relevant using the actual mission and source observations");
+    expect(prompt).toContain("do not invent a private/mid-market preference");
     expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
   });
 });
 
-describe("canonical opening mixed-source discovery contract", () => {
-  it("gives Right-hand the live shuffled registry catalog and carries its advisory lanes into Investigator discovery", () => {
-    const rightHandStart = canonicalDiscoverySource.indexOf('failureStage = "right_hand_opening_review"');
-    const rightHandEnd = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandStart);
-    const rightHandOpening = canonicalDiscoverySource.slice(rightHandStart, rightHandEnd);
-    expect(rightHandOpening).toContain("LIVE RANDOMIZED REGISTRY CATALOG");
-    expect(rightHandOpening).toContain("atlasRegistryFeasibilityLaw()");
-    expect(rightHandOpening).toContain("Recommend a small objective-compatible source mix in focusLanes");
-    expect(rightHandOpening).not.toContain("Do not propose a named person, company, asset, registry");
-
-    const openingObjectiveStart = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
-    const openingObjectiveEnd = canonicalDiscoverySource.indexOf('failureStage = "job_state_or_lease";', openingObjectiveStart);
-    const openingObjective = canonicalDiscoverySource.slice(openingObjectiveStart, openingObjectiveEnd);
-    expect(openingObjective).toContain("openingBossDecision.reason");
-    expect(openingObjective).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
-    expect(openingObjective).toContain("OPENING SOURCE PORTFOLIO");
-    expect(openingObjective).toContain("at least one materially relevant callable registry route and one independent public-web route");
-    expect(openingObjective).toContain("No fixed order, provider, query, target class, sector, or geography");
-    expect(canonicalDiscoverySource).toContain("Advisory source-mix lanes:");
+describe("canonical opening discovery contract", () => {
+  it("keeps the opening control call source-neutral and exposes runtime-callable capabilities to the Investigator", () => {
+    expect(canonicalDiscoverySource).not.toContain('failureStage = "right_hand_opening_review"');
+    expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE");
+    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = [");
+    expect(agenticCoreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
+    expect(agenticCoreSource).toContain("These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use.");
   });
 });
 
@@ -365,11 +355,11 @@ describe("Atlas control-plane contract regression", () => {
     const bossPrompt = buildAtlasBossControlPrompt({ investigatorReport, compactState: "Current discovery case state.", rightHand: { status: "completed", decision: "await_anchor", reason: "Control-only review; no new evidence.", direction: null, confidence: 0.9, model: "openai/gpt-oss-120b", error: null } });
     expect(rightHandPrompt).toContain(feedback);
     expect(bossPrompt).toContain(feedback);
-    expect(rightHandPrompt).toContain("realism/targetability constraints outrank Boss suggestions");
-    expect(bossPrompt).toContain("Mission priority: the human objective governs target class and any reachability constraints.");
-    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
-    expect(bossPrompt).toContain("person-specific professional route");
-    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
+    expect(rightHandPrompt).toContain("The complete human objective and explicit constraints govern.");
+    expect(bossPrompt).toContain("Mission priority: the complete human objective and explicit constraints govern.");
+    expect(bossPrompt).toContain("do not use fame, wealth, seniority, company size, listing status, ranking badges, industry labels or contact-route categories as deterministic eligibility gates.");
+    expect(bossPrompt).toContain("Distinguish person-specific contact evidence from generic organization channels");
+    expect(bossPrompt).toContain("Prominent people and public companies may be directly relevant to the mission.");
     expect(bossPrompt).not.toContain('Do not invent a "less-public", anti-famous, or private-company preference.');
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
@@ -378,7 +368,7 @@ describe("Atlas control-plane contract regression", () => {
     const investigatorReport = "No-progress scope-recovery feedback: six actions were blocked before any outbound request.";
     const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState: "No source-backed findings or admitted candidates." });
     expect(rightHandPrompt).toContain("name the concrete subject or unresolved evidence question");
-    expect(rightHandPrompt).toContain("do not invent, compare, or broaden geography");
+    expect(rightHandPrompt).toContain("Honor explicit geographic constraints; where geography is open or the evidence justifies a different jurisdiction, ask Boss to authorize the contextual pivot.");
     expect(rightHandPrompt).not.toContain("a chosen region");
 
     const bossPrompt = buildAtlasBossControlPrompt({
@@ -386,20 +376,16 @@ describe("Atlas control-plane contract regression", () => {
       compactState: "No source-backed findings or admitted candidates.",
       rightHand: { status: "completed", decision: "pivot_discovery", reason: "The current scope is blocked.", direction: "Shift to a sector-specific approach in a chosen region.", confidence: 0.8, model: "openai/gpt-oss-120b", error: null },
     });
-    expect(bossPrompt).toContain("A pivot must be self-contained and executable");
-    expect(bossPrompt).toContain("do not broaden or switch jurisdictions as a discovery exercise");
+    expect(bossPrompt).toContain("A pivot must be self-contained and evidence-led:");
+    expect(bossPrompt).toContain("where geography is open or evidence justifies a different jurisdiction, the model may propose a contextual pivot for Boss authorization.");
   });
 
-  it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
-    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and opening control state.");
-    expect(canonicalDiscoverySource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
-    expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
-    expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
-    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules govern.");
-    expect(canonicalDiscoverySource).toContain("Do not propose a named person, company, asset, target hypothesis, search query, country, or jurisdiction.");
-    expect(canonicalDiscoverySource).toContain("The Investigator retains control of the exact target, queries, providers, tools, pivots, and stopping point.");
-    expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
+  it("keeps opening scope with Boss and gives ongoing Right-hand independent review guidance", () => {
+    expect(canonicalDiscoverySource).not.toContain('failureStage = "right_hand_opening_review"');
+    expect(controlSource).toContain("The complete human objective and explicit constraints govern.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
+    expect(controlSource).toContain("PIVOT CONTRACT: name the concrete subject or unresolved evidence question");
+    expect(controlSource).toContain("Right-hand advises only; the Investigator chooses each research action.");
   });
 
   it("preserves the Investigator terminal reason and failure class within the bounded control report", () => {
@@ -448,7 +434,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(investigatorSource).toContain('action: "investigator_provider_error"');
     expect(investigatorSource).toContain('records.push(providerErrorRecord);');
     expect(investigatorSource).toContain("INVESTIGATOR_PROVIDER_ERROR");
-    expect(investigatorSource).toContain('return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation)');
+    expect(investigatorSource).toContain("return resultBase(status, i + 1, stopReason, lastObservation)");
   });
 
 
@@ -722,52 +708,30 @@ describe("Atlas control-plane contract regression", () => {
 
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.additionalProperties).toBe(false);
-    expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalTargetSource).toContain("validateAtlasOpeningRightHandReview(parsed)");
-    expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
+    expect(targetActOversightSource).toContain("validateTargetActRightHandAdvice");
+    expect(targetActOversightSource).toContain("validateAtlasOpeningRightHandReview(value)");
+    expect(targetActOversightSource).toContain("runGroqRightHandFreeJson(");
+    expect(targetActOversightSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(targetActOversightSource).toContain("maxCompletionTokens:512");
+    expect(targetActOversightSource).toContain('reasoningEffort:"low"');
+    expect(targetActOversightSource).toContain("focusLanes");
   });
 
-  it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
-    const valid = {
-      decision: "Start the normal mixed-source discovery phase.",
-      reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["registry:sec-edgar", "public_web"],
+  it("defers opening Right-hand review until consequential evidence exists", () => {
+    expect(validateAtlasOpeningRightHandReview({
+      decision: "Review a consequential target decision.",
+      reason: "Independent challenge is warranted by source-backed evidence.",
+      focusLanes: [],
       confidence: 0.86,
-    };
-    expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
-    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
-    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("normalizeAtlasOpeningRightHandReview(parsed) !== null");
-    expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
-    expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
-    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
-    expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: null");
-    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
-    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
-    const reviewCall = canonicalDiscoverySource.indexOf("const rightHandRaw = await import");
-    const bossDecisionCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
-    const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({");
-    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
-    expect(reviewCall).toBeGreaterThan(-1);
-    expect(bossDecisionCall).toBeGreaterThan(reviewCall);
-    expect(openingResolution).toBeGreaterThan(bossDecisionCall);
-    expect(investigatorObjective).toBeGreaterThan(openingResolution);
-    const reviewToBoss = canonicalDiscoverySource.slice(reviewCall, bossDecisionCall);
-    const reviewProviderAndParse = reviewToBoss.slice(0, reviewToBoss.indexOf('failureStage = "case_persistence";'));
-    expect(reviewToBoss).not.toContain('if (rightHandRaw.status !== "completed")');
-    expect(reviewProviderAndParse).not.toContain("throw new Error");
-    // Cancellation during durable review-event persistence remains fail-closed;
-    // provider outage or malformed advisory JSON must instead reach Boss as advice.
-    expect(reviewToBoss).toContain("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
-    expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
-    expect(controlSource).toContain("if (input.rightHandOverride)");
-    expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
+    })).toBe(true);
+    expect(canonicalDiscoverySource).not.toContain("normalizeAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
+    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
     expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
-    expect(controlSource).toContain("status: \"deferred\"");
-    expect(controlSource).toContain("reviewDeferred: input.rightHand.status === \"deferred\"");
-    expect(controlSource).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride)');
+    expect(canonicalTargetSource).toContain("reviewTargetInvestigationAct({");
+    expect(targetActOversightSource).toContain("shouldReviewTargetActWithRightHand");
+    expect(targetActOversightSource).toContain("Right-hand per-act review unavailable");
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
@@ -941,7 +905,8 @@ describe("Run 04 search-lead and route-recovery regression", () => {
       rightHand: { status: "completed", decision: "reassess", reason: "The current source route has not yielded entity-level data.", direction: null, confidence: 0.8, model: "test-model", error: null },
     });
 
-    expect(atlasSourceRouteRecoveryLaw()).toContain("Do not pivot only from one jurisdiction to another");
+    expect(atlasSourceRouteRecoveryLaw()).toContain("do not retry the exact same route merely by changing rationale");
+    expect(atlasSourceRouteRecoveryLaw()).toContain("materially different public-source families or jurisdictions when the human objective and observations justify them");
     expect(rightHandPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
     expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
     expect(rightHandPrompt).toContain("Never evade access controls");
@@ -967,7 +932,7 @@ describe("discovery trajectory turn persistence", () => {
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
-    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
@@ -1076,7 +1041,7 @@ describe("Boss-adjudicated opening direction", () => {
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
+    expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
     expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
   });
@@ -1086,7 +1051,7 @@ describe("Boss-adjudicated opening direction", () => {
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
     expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
     expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
+    expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
@@ -1124,7 +1089,7 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
+    expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
@@ -1138,7 +1103,8 @@ describe("model-request audit correlation", () => {
     expect(rightHandSource).toContain("caseId:auditContext?.caseId??null");
     expect(controlSource).toContain('{ jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_advisory" }');
     expect(controlSource).toContain('jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision"');
-    expect(canonicalDiscoverySource).toContain("{ jobId: atlasJobId, caseId: discoveryCaseId }");
+    expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
+    expect(canonicalDiscoverySource).toContain("caseId: discoveryCaseId");
     expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
     expect(canonicalDiscoverySource).toContain("caseId: opts.discoveryCaseId ?? null");
   });

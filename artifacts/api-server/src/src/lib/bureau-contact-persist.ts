@@ -112,10 +112,10 @@ export async function persistBureauContactsForEntity(
     source: string;
     sourceUrl: string | null;
     extractionMethod: string;
-    sourceReliability: number;
-    identityMatch: number;
-    recencyScore: number;
-    directnessScore: number;
+    sourceReliability: number | null;
+    identityMatch: number | null;
+    recencyScore: number | null;
+    directnessScore: number | null;
     independentCorroboration: number;
     validationStatus: "candidate";
     rejectionReason: null;
@@ -137,8 +137,6 @@ export async function persistBureauContactsForEntity(
     seen.add(key);
 
     const scope = String(item.scope ?? item.tier ?? "unknown").toLowerCase();
-    const orgish = scope.includes("organization") || scope.includes("org")
-      || /^(info|contact|office|press|hello|admin|sales)@/i.test(value);
     let urls = Array.isArray(item.sourceUrls)
       ? item.sourceUrls.filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
@@ -159,12 +157,7 @@ export async function persistBureauContactsForEntity(
       sourceUrls: urls,
       note: item.note ?? null,
     });
-    // Org-scoped vectors stay orgish; collision-prone personal vectors get demoted not dropped
-    // (visibility law: show as weak candidate, never hide silently, never promote as personal).
-    const forceOrg =
-      collision.risk && (vectorType === "email" || vectorType === "phone" || vectorType === "linkedin");
-    const scopeOrgish = orgish || forceOrg;
-    const identityMatch = scopeOrgish ? Math.min(0.35, collision.identityMatch) : collision.identityMatch;
+    // This legacy path has no persisted model attribution contract. Preserve the supplied scope as context, but do not infer person/org routing or score it.
     rows.push({
       entityId,
       vectorType,
@@ -172,16 +165,16 @@ export async function persistBureauContactsForEntity(
       source,
       sourceUrl: urls[0] ?? null,
       extractionMethod: "case-bureau-contact",
-      sourceReliability: collision.risk ? 0.28 : 0.55,
-      identityMatch,
-      recencyScore: 0.7,
-      directnessScore: scopeOrgish ? 0.3 : (vectorType === "email" || vectorType === "phone" ? 0.5 : 0.4),
+      sourceReliability: null,
+      identityMatch: null,
+      recencyScore: null,
+      directnessScore: null,
       independentCorroboration: countIndependentSourceHosts(urls),
       validationStatus: "candidate",
       rejectionReason: null,
       observedAt: new Date(),
       metadata: JSON.stringify({
-        scope: scopeOrgish ? "organization" : (scope || "unknown"),
+        scope: scope || "unknown",
         personName: item.personName ?? null,
         role: item.role ?? null,
         note: item.note ?? null,
@@ -190,7 +183,11 @@ export async function persistBureauContactsForEntity(
         fromBureau: true,
         identityCollisionRisk: collision.risk,
         identityCollisionReason: collision.reason,
-        forcedOrgDueToCollision: forceOrg || undefined,
+        sourceReliabilityAssessment: "unassessed",
+        identityAssessment: "unresolved",
+        recencyAssessment: "unassessed",
+        directnessAssessment: "unassessed",
+        verificationScope: "syntax_only",
       }),
     });
   }
@@ -476,7 +473,6 @@ async function lookupPublicEmailClaims(
   ];
   const out: Array<{ email: string; sourceUrl: string | null }> = [];
   const seen = new Set<string>();
-  const generic = /^(info|contact|office|press|hello|admin|sales|support|noreply|no-reply)@/i;
   for (const q of queries) {
     if (out.length >= 5) break;
     try {
@@ -496,9 +492,6 @@ async function lookupPublicEmailClaims(
       for (const raw of emailMatches) {
         const email = raw.toLowerCase();
         if (seen.has(email)) continue;
-        if (generic.test(email) && !name.split(/\s+/).some((p) => p.length > 2 && email.includes(p.toLowerCase()))) {
-          // Keep org emails but mark them; still visible as related.
-        }
         // Skip obvious trash
         if (/example\.com|domain\.com|email\.com|sentry\.io|wixpress|schema\.org/i.test(email)) continue;
         seen.add(email);

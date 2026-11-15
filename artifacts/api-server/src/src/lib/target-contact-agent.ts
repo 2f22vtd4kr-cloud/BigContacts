@@ -14,7 +14,7 @@ import { isValidPublicEmail } from "./contact-validation";
 import { digSpanStatusFromExecutionStatus, publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { buildClaimSupportGraph, graphHasIndependentCorroboration, observationsFromSourceUrls, validateClaimSupportGraph, type EvidenceGraph } from "./source-corroboration";
 import { sanitizeUrlForEvidence } from "./url-privacy";
-export type TargetContactAgentResult = { stopReason?: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR"; iterations: number; status: "completed" | "timeout" | "unavailable" | "error" | "cancelled" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; evidenceGraphs: EvidenceGraph[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null; executionId?: string; promotionCandidates?: BureauContactLike[]; observedSourceUrls?: string[]; promotionProvenance?: InvestigatorPromotionProvenance };
+export type TargetContactAgentResult = { stopReason?: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; iterations: number; status: "completed" | "timeout" | "unavailable" | "error" | "cancelled" | "skipped" | "budget_exhausted"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; evidenceGraphs: EvidenceGraph[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null; executionId?: string; promotionCandidates?: BureauContactLike[]; observedSourceUrls?: string[]; promotionProvenance?: InvestigatorPromotionProvenance };
 type InvestigationAct = { action: string; provider?: string; query?: string; url?: string; summary?: string };
 function normalizeObservedUrl(raw: string): string | null { try { const safe = sanitizeUrlForEvidence(raw); if (safe.startsWith("[")) return null; const url = new URL(safe); if (url.protocol !== "https:") return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
 function observedUrlsFromTrajectory(trajectory: string[], records: AgenticTrajectoryRecord[] = []): Set<string> {
@@ -122,28 +122,54 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
     return graph;
   }).filter((graph): graph is EvidenceGraph => Boolean(graph && graph.edges.length > 0));
 }
-export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] { return findings.filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url)))).map((f) => { const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : ""; const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0; return { vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization", personName: isExplicitCandidate ? explicitPersonName : null, role: f.role, sourceUrls: f.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))), note: `target-agent:${f.note}`, tier: "candidate", state: "review_only", promote: isExplicitCandidate && f.promotionDecision === "promote" }; }); }
+export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url))))
+    .map((finding) => {
+      const attribution = finding.contactAttribution ?? "unknown";
+      const personSpecific = ["person_specific", "direct_personal", "professional_person_specific"].includes(attribution);
+      const organizationRoute = ["department", "shared_inbox", "assistant_intermediary", "generic_contact_form", "organization"].includes(attribution);
+      const explicitPersonName = typeof finding.personName === "string" ? finding.personName.trim() : "";
+      const isCandidate = finding.scope === "candidate" && explicitPersonName.length > 0 && personSpecific;
+      const reviewScope = isCandidate ? "candidate" : organizationRoute ? "organization" : "unknown";
+      const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim()) && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim());
+      return {
+        vectorType: finding.vectorType,
+        value: finding.value,
+        scope: reviewScope,
+        personName: isCandidate ? explicitPersonName : null,
+        role: isCandidate ? finding.role : null,
+        sourceUrls: finding.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))),
+        note: `target-agent:${finding.note}`,
+        contactAttribution: attribution,
+        exactQuote: finding.exactQuote ?? null,
+        identityAssessment: finding.identityAssessment ?? null,
+        identityRationale: finding.identityRationale ?? null,
+        tier: "candidate",
+        state: "review_only",
+        promote: promotionSupported && finding.promotionDecision === "promote",
+      };
+    });
+}
 async function validateTargetCaseBinding(caseId: number | undefined, entityId: number, jobId?: string): Promise<Record<string, unknown> | null> { if (caseId == null || !Number.isSafeInteger(caseId) || caseId <= 0 || !jobId?.trim()) return null; const [row] = await db.select({ targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row || row.caseType !== "target" || row.targetEntityId !== entityId || !row.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; if (parsed.atlasJobId === jobId) return parsed; return null; } catch { return null; } }
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
 function compactReachabilityControl(raw: string): string {
-  const value = raw.replace(/\s+/g, " ").trim();
-  const fallback = "REALISM / REACHABILITY CONTROL: prefer a realistic, source-backed public/professional/intermediary route; prominence is not access.";
-  if (!value) return fallback;
-  if (value.length <= 220) return value;
-
-  const status = value.match(/\bStatus:\s*([A-Z_]+)/i);
-  const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) (?:target|reachability pass)\./i);
-  const score = value.match(/practical access score\s+(\d+)\/100/i);
-  const blockers = value.match(/Known blockers:\s*([^\n]+)/i);
-  const route = value.match(/prioritize [^.\n]+/i);
-  const compact = [
-    "REALISM / REACHABILITY CONTROL:",
-    status ? `Status ${status[1]!.toUpperCase()}${score ? ` (access score ${score[1]}/100)` : ""}.` : "",
-    targetMode?.[0] ?? "",
-    route?.[0] ?? "",
-    blockers ? `Known blockers: ${blockers[1]!.slice(0, 70)}` : "",
-  ].filter(Boolean).join(" ");
-  return compact.length > 180 ? compact.slice(0, 177).trimEnd() + "..." : compact || fallback;
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  // Preserve the actual mode/score and one useful route instruction; the case
+  // file retains the complete durable diagnostics.
+  const statusLine = lines.find((line) => /^Status:\s*(TARGETED|BOUNDED)/i.test(line));
+  const statusMatch = statusLine?.match(/^Status:\s*(TARGETED|BOUNDED)(?:\s*[·,;]\s*practical access score\s*(\d+\/100))?/i);
+  const status = statusMatch
+    ? `Status ${statusMatch[1]!.toUpperCase()}${statusMatch[2] ? ` (access score ${statusMatch[2]}).` : "."}`
+    : "";
+  const modeLine = lines.find((line) => /^(?:This is a TARGETED|This is a BOUNDED)/i.test(line));
+  const observations = lines
+    .filter((line) => line.startsWith("- ") || line.startsWith("TARGETABILITY CONTEXT"))
+    .slice(0, 1)
+    .map((line) => line.slice(0, 125));
+  const facts = [status, modeLine?.slice(0, 180) ?? "", ...observations].filter(Boolean);
+  const authority = "MODEL DECISION: judge relevance, priority and direct/shared/assistant/intermediary routes against the exact objective and source context. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contact values are not person-specific without exact-quote attribution.";
+  return [...facts, authority].join("\n");
 }
 
 export function buildTargetContactInvestigatorObjective(input: {
@@ -154,8 +180,8 @@ export function buildTargetContactInvestigatorObjective(input: {
 }): string {
   // Bound the identity labels and realism annotation before composing the prompt.
   // The substantive research and provenance clauses below are fixed, not sliced.
-  const targetName = input.targetName.trim();
-  const companyName = input.companyName?.trim();
+  const targetName = input.targetName.trim().replace(/\s+/g, " ").slice(0, 180);
+  const companyName = input.companyName?.trim().replace(/\s+/g, " ").slice(0, 140);
   if (input.targetType === "asset") {
     const assetObjective = [
       `Research the exact public asset or asset record ${targetName}${companyName ? ` (associated in the seed record with ${companyName})` : ""}.`,
@@ -163,7 +189,7 @@ export function buildTargetContactInvestigatorObjective(input: {
       "Establish the asset's public identity, type, manufacturer/model or registration identifier, jurisdiction, status and source freshness from attributable sources. Preserve historical versus current records.",
       "Distinguish registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared/fractional interests. A registrant or operator is not automatically the beneficial owner. Follow entity/person links only when sources explicitly support them; do not infer a natural person from an asset registration.",
       "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses official registries, operator/issuer publications or other useful public sources based on observed evidence. Preserve exact source URLs and contradictions. Never infer private residence, movements, beneficial ownership, personal wealth or identity from a location or asset alone.",
-      "Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence.",
+      "Classify each contact semantically: direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization, or unknown. Legacy person_specific is accepted. Only direct_personal, professional_person_specific, or legacy person_specific may be proposed as candidate contacts, and only with a verbatim exactQuote tying the named person to the exact value on a fetched source. Department, shared inbox, assistant/intermediary, generic contact form, and organization routes must remain organization/review routes and must never be promoted as personal contact. Unknown remains unclassified. Use exact URLs; snippets are leads.",
     ].join("\n");
     if (assetObjective.length > 1_900) throw new Error("Asset Investigator objective exceeds its hard prompt budget.");
     return assetObjective;
@@ -174,7 +200,7 @@ export function buildTargetContactInvestigatorObjective(input: {
       compactReachabilityControl(input.reachabilityControl),
       "First establish what this subject actually represents from the supplied case context and attributable public sources. Preserve its source-record type, identifiers, jurisdiction, date and uncertainty; distinguish people, companies, legal entities, assets, events and transactions rather than coercing one into another.",
       "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses which useful public records, relationships and contradictions to pursue. Do not infer identity, ownership, beneficial ownership, wealth, family ties or contact routes from a label or association alone. Keep source-backed partial findings reviewable and state what remains unknown.",
-      "Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence.",
+      "Classify as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown; only the first two (or legacy person_specific) may be promoted with exact-quote source proof.",
     ].join("\n");
     if (generalObjective.length > 1_900) throw new Error("General target Investigator objective exceeds its hard prompt budget.");
     return generalObjective;
@@ -185,7 +211,7 @@ export function buildTargetContactInvestigatorObjective(input: {
       compactReachabilityControl(input.reachabilityControl),
       "Investigate the organization itself, not a guessed person. Verify legal/trading identity, jurisdiction, aliases, operating status, and official website using attributable sources.",
       "Trace directly sourced owners/beneficial owners, controllers, directors/officers, parent/subsidiary links, investments, exits, assets, filings, and material business activity. Distinguish ownership/control from an officer title; do not infer wealth or targetability merely from company size, fame, or a person's role. A relevant person is a separate lead whose name, role, and evidence must remain attributable to that person.",
-      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses the next action from observed evidence. Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence. Never invent or infer owners, relationships, contacts, assets, or URLs. Keep source-backed company information reviewable even if no person qualifies.",
+      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses the next action from observed evidence. Classify as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown; only the first two (or legacy person_specific) may be promoted with exact-quote source proof. Never invent or infer owners, relationships, contacts, assets, or URLs. Keep source-backed company information reviewable even if no person qualifies.",
     ].join("\n");
     if (organizationObjective.length > 1_900) throw new Error("Organization Investigator objective exceeds its hard prompt budget.");
     return organizationObjective;
@@ -196,7 +222,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Use public beneficial-owner registries and director registries, filings, investment/deal/property records, trade coverage and local-language reporting, with English corroboration when useful. Follow evidence to exact people and ownership/control links; no fixed checklist.",
     "After identity/role verification, seek public, attributable profiles on relevant platforms such as LinkedIn, Facebook, Instagram, X/Twitter or Telegram, plus personal/business websites and official bios through available search/fetch actions; corroborate each profile by exact name plus role/company/location before attributing it. Follow publicly documented family or associate relationships only when a credible public source explicitly states the tie and it clarifies ownership/control, investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route; a generic inbox, switchboard or social presence alone is not personal access.",
-    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
+    "Every contact needs its exact public source URL. Classify as direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization or unknown. Only direct/professional routes can be promoted, with identityAssessment=same_person, a rationale and an exact quote binding name to value on the fetched source. No mailbox-name or Latin-boundary inference. Preserve relationshipType, temporalStatus, hypothesisRelation (supports/contradicts/unrelated/ambiguous/unresolved), rationale and ambiguity where relevant. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
   ];
   const objective = sections.join("\n");
   if (objective.length <= 1_900) return objective;
@@ -204,12 +230,12 @@ export function buildTargetContactInvestigatorObjective(input: {
   // This fallback keeps the evidence/identity laws intact and only shortens
   // optional route detail; never cut a policy sentence at an arbitrary offset.
   const compactSections = [
-    `Target: ${targetName}. Company context is in the case; investigate public identity, business interests and professional routes.`,
+    `Target: ${targetName}. Company context: ${companyName || "case record"}. Research public identity, business interests and professional routes.`,
     sections[1]!,
     "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
     "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity.",
-    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, ties, contacts or URLs. Do not promote when identity or person/value binding is uncertain; pivot or stop when evidence/routes warrant.",
+    "Classify contact routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Keep other/unknown routes review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
   if (compactObjective.length > 1_900) {
@@ -292,7 +318,7 @@ export async function runTargetContactAgent(input: { entityId: number; caseId?: 
   if (input.jobId) { const promotionJob = await getJobStrict(input.jobId); if (!promotionJob) throw new Error("Target job record missing; refusing contact promotion while job state is unknown."); if (promotionJob.status === "cancelled") return { iterations: agentic.iterations, status: "cancelled", model: agentic.model, findings: 0, searches: 0, visits: 0, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null, executionId: agentic.executionId }; if (promotionJob.status !== "running") throw new Error("Target job is not running; refusing contact promotion."); }
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId, observedSourceUrls, provenance, { deferCardPromotion: input.oversightMode === "caller" });
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1); const ent = rows[0]; let outcome: string | null = null; if (ent) { let meta: Record<string, unknown> = {}; try { meta = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {}; } catch {} outcome = computeContactOutcome({ type: ent.type, email: isValidPublicEmail(ent.email) ? ent.email : null, phone: ent.phone, phoneSource: ent.phoneSource, emailSource: typeof meta.emailSource === "string" ? meta.emailSource : null, linkedinUrl: ent.linkedinUrl, twitterHandle: ent.twitterHandle, instagramHandle: ent.instagramHandle, telegramHandle: ent.telegramHandle, website: typeof meta.website === "string" ? meta.website : ent.personalWebsite, metadata: ent.metadata }); }
-  const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "cancelled" ? "cancelled" : agentic.status === "unavailable" ? "unavailable" : "error"; return { iterations: agentic.iterations, status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs, phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome, stopReason: agentic.stopReason, executionId: agentic.executionId, promotionCandidates: input.oversightMode === "caller" ? contacts.filter((item) => item.promote === true) : [], observedSourceUrls, promotionProvenance: provenance };
+  const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "cancelled" ? "cancelled" : agentic.status === "budget_exhausted" ? "budget_exhausted" : agentic.status === "unavailable" ? "unavailable" : "error"; return { iterations: agentic.iterations, status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs, phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome, stopReason: agentic.stopReason, executionId: agentic.executionId, promotionCandidates: input.oversightMode === "caller" ? contacts.filter((item) => item.promote === true) : [], observedSourceUrls, promotionProvenance: provenance };
 }
 
 

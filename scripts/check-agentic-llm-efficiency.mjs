@@ -8,26 +8,42 @@ const telemetry = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/
 const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/groq-boss.ts"), "utf8");
 const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const control = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/atlas-control-decision.ts"), "utf8");
+const providerGate = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/provider-gate.ts"), "utf8");
+const statusRoute = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/system-status.ts"), "utf8");
+const dailyUsageMigration = fs.readFileSync(path.join(root, "lib/db/migrations/005-agentic-llm-daily-usage.sql"), "utf8");
 
 const required = [
   'from "./agentic-llm-telemetry"',
   "recordAgenticLlmAttempt({",
   "async function callGroqJson",
-  "rankGroqModelsForTask",
+  "selectGroqInvestigatorModel",
   "if (response.status === 401 || response.status === 403) break;",
   "response.status === 429",
   "investigatorCapabilityKeyName(selectedInvestigatorLlm)",
   "fallback: []",
   "investigatorCapabilityKeyName(investigatorCapability)",
-  "promptTokens: data.usage?.prompt_tokens",
-  "cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens",
+  "readGroqUsageMetrics(data.usage)",
+  "...usageMetrics",
+  "promptMeasurement.totalRequestChars",
+  "promptMeasurement.estimatedPromptTokens",
+  "INVESTIGATOR_SCHEMA_OVERHEAD_CHARS",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
 }
 
 const telemetryCount = (source.match(/recordAgenticLlmAttempt\(\{/g) || []).length;
-if (!/promptTokens\?: number/.test(telemetry) || !/cachedPromptTokens\?: number/.test(telemetry)) throw new Error("agentic LLM efficiency guard failed: token telemetry fields are missing");
+if (!/promptTokens\?: number/.test(telemetry)
+  || !/completionTokens\?: number/.test(telemetry)
+  || !/reasoningTokens\?: number/.test(telemetry)
+  || !/totalTokens\?: number/.test(telemetry)
+  || !/responseFormatChars\?: number/.test(telemetry)
+  || !/totalRequestChars\?: number/.test(telemetry)
+  || !/estimatedPromptTokens\?: number/.test(telemetry)
+  || !/function readGroqUsageMetrics/.test(telemetry)
+  || !/completionDetails\.reasoning_tokens/.test(telemetry)) {
+  throw new Error("agentic LLM efficiency guard failed: provider token/reasoning telemetry fields are missing");
+}
 
 if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
 
@@ -47,12 +63,41 @@ for (const marker of ["role?:", "jobId?:", "caseId?:", "targetDigest?:", "iterat
 }
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
-// Routing may choose among Groq models, but it must never change provider role.
+// The Boss-selected capability pins the Groq model; no silent model or provider rotation is allowed.
 if (!/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: direct selected-provider boundary is missing");
 }
 if (!/return \{ \.\.\.result, fallback: \[\] \}/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: provider fallback telemetry must remain empty");
+}
+
+
+for (const marker of [
+  'const groqWindowKey = groqRequest ? "groq-model:" + groqRequest.model : "";',
+  "reserveGroqTokenWindow(groqWindowKey",
+]) {
+  if (!providerGate.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing per-model TPM reservation marker ${marker}`);
+}
+
+for (const marker of [
+  "llmUsageLedger",
+  "remaining_configured_budget_tokens",
+  "budget_exhausted",
+  "last_job_id",
+  "last_case_id",
+  "last_rate_limit_remaining_tokens",
+  "last_rate_limit_remaining_requests",
+  'period: "UTC day"',
+]) {
+  if (!statusRoute.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: status readback lacks ${marker}`);
+}
+for (const marker of [
+  "UNIQUE (usage_date, provider, model)",
+  "reserved_tokens",
+  "daily_budget_tokens",
+  "budget_exhausted",
+]) {
+  if (!dailyUsageMigration.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: durable daily ledger migration lacks ${marker}`);
 }
 
 console.log("agentic LLM efficiency guard: PASS — selected-provider calls are bounded, instrumented, and fail closed without cross-provider fallback");

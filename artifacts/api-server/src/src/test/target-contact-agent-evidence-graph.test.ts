@@ -18,7 +18,7 @@ vi.mock("../lib/dig-span", () => ({
 }));
 vi.mock("../lib/canonical-job-lock", () => ({ isCanonicalJobOwner: vi.fn() }));
 
-import { buildEvidenceGraphs, buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
+import { buildEvidenceGraphs, buildTargetContactInvestigatorObjective, findingsToContacts } from "../lib/target-contact-agent";
 import { isClaimGradeObservationAction } from "../lib/bureau-contact-persist-strict";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
@@ -104,4 +104,27 @@ describe("target contact evidence graph source-action parity", () => {
       "run-evidence-graph-test",
     )).toEqual([]);
   });
+  it("keeps shared inboxes as organization routes instead of person-specific promotion candidates", () => {
+    const contacts = findingsToContacts([{
+      vectorType: "email",
+      value: "info@example.org",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "The page labels this as the shared company inbox.",
+      contactAttribution: "shared_inbox",
+      exactQuote: "Jane Example — shared company inbox: info@example.org",
+      promotionDecision: "promote",
+    }], "Jane Example");
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]).toMatchObject({
+      scope: "organization",
+      personName: null,
+      role: null,
+      contactAttribution: "shared_inbox",
+      promote: false,
+    });
+  });
+
 });

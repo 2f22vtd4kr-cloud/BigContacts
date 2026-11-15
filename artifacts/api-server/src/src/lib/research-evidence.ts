@@ -29,7 +29,6 @@ export function buildResearchEvidenceRows(input: {
   path: PathNode[];
   steps: MctsStep[];
   hybridMeta?: Partial<HybridSearchMeta>;
-  reachability?: { status?: string; score?: number; reasons?: string[]; blockers?: string[] };
 }): InsertResearchEvidence[] {
   const rows: InsertResearchEvidence[] = [];
   const add = (row: Omit<InsertResearchEvidence, "sessionId" | "entityId">) => {
@@ -123,20 +122,6 @@ export function buildResearchEvidenceRows(input: {
     });
   }
 
-  if (input.reachability) {
-    addClaim({
-      claimType: "access",
-      claim: `Reachability preflight: ${input.reachability.status ?? "unknown"}`,
-      value: input.reachability.status ?? null,
-      sourceName: "Apex Atlas reachability preflight",
-      confidence: Math.max(0, Math.min(1, (input.reachability.score ?? 0) / 100)),
-      observedAt,
-      freshnessScore: computeFreshnessScore(observedAt, observedAt),
-      rejectionReason: input.reachability.blockers?.join("; ") || null,
-      metadata: JSON.stringify({ reasons: input.reachability.reasons ?? [], blockers: input.reachability.blockers ?? [] }),
-      negativeReason: input.reachability.status === "reachable" ? null : input.reachability.blockers?.join("; ") || "No validated direct or intermediary route was established.",
-    });
-  }
 
   return rows;
 }

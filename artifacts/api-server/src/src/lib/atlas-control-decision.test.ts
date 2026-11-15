@@ -16,6 +16,7 @@ import {
   compactAtlasInvestigatorReport,
   normalizeAtlasOpeningRightHandApprovalReview,
   normalizeAtlasOpeningRightHandReview,
+  shouldInvokeAtlasRightHandReview,
   validateAtlasOpeningRightHandReview,
   validateAtlasOpeningRightHandApprovalReview,
 } from "./atlas-control-decision";
@@ -784,6 +785,62 @@ describe("Atlas Right-hand opening review normalization", () => {
     expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, reason: 12 })).toBeNull();
     expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, focusLanes: ["ok", 12] })).toBeNull();
     expect(normalizeAtlasOpeningRightHandApprovalReview({ decision: "x", reason: "y" })).toBeNull();
+  });
+});
+
+describe("Right-hand invocation economics", () => {
+  const base = {
+    admittedCandidates: [],
+    discoveryFindings: [],
+    trajectoryRecords: [],
+  };
+
+  it("does not call Right-hand for an ordinary fetched fact", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "visit", findings: [{ value: "director of Alpha", personName: "Jane Example" }] }],
+    })).toBe(false);
+  });
+
+  it("calls Right-hand for Investigator-proposed promotion", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "visit", findings: [{ scope: "candidate", promotionDecision: "promote" }] }],
+    })).toBe(true);
+  });
+
+  it("calls Right-hand for a model-authored contradiction or identity ambiguity", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "visit", findings: [{ hypothesisRelation: "contradicts" }] }],
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "visit", findings: [{ identityAssessment: "unresolved", identityRationale: "Two plausible records conflict." }] }],
+    })).toBe(true);
+  });
+
+  it("independently challenges the first proposed stop but not repeated identical empty stops", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "done", findings: [] }],
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      trajectoryRecords: [{ action: "done", findings: [] }, { action: "done", findings: [] }],
+    })).toBe(false);
+  });
+
+  it("always reviews a strategic pivot and ignores stale cumulative findings", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      priorAction: "pivot_discovery",
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      ...base,
+      discoveryFindings: [{ promotionDecision: "promote" }],
+      trajectoryRecords: [{ action: "visit", findings: [{ value: "ordinary fact" }] }],
+    })).toBe(false);
   });
 });
 

@@ -4,7 +4,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { ProviderQuotaError, getGroqTokenMaxWaitMs, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
-import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
+import { AgenticDailyTokenBudgetError, readGroqRateLimitHeaders, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -324,15 +324,27 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     const body=JSON.stringify(requestBody);
    const attemptStartedAt=Date.now();
    let attemptTelemetryRecorded=false;
+   let dailyReservationDate: string | null = null;
+   let dailyReservationTokens = 0;
+   let dailyBudgetTokens = 0;
+   let providerRequestSent = false;
+   const estimatedTokens = Math.ceil((systemPrompt.length + currentUser.length) / 3.4) + currentCompletionTokens;
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
     let modelAuditResponseRecorded=false;
    try{
     await waitForGroqRightHandRequestSlot(controller.signal);
+    const reservation = await reserveAgenticLlmDailyBudget({ provider: "groq", model: candidate.model, estimatedTokens });
+    dailyReservationDate = reservation.usageDate;
+    dailyReservationTokens = reservation.reservedTokens;
+    dailyBudgetTokens = reservation.dailyBudgetTokens;
     outboundAttemptCount++;
-    const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
+    const response=await withProviderRetryOwnership("groq","caller",()=>{
+      providerRequestSent = true;
+      return fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
+    });
     const responseBody=await response.text();
-     const usage=(()=>{try{const parsed=JSON.parse(responseBody) as {usage?:Record<string,unknown>};const u=parsed.usage??{};const details=u.prompt_tokens_details as Record<string,unknown>|undefined;return{promptTokens:typeof u.prompt_tokens==="number"?u.prompt_tokens:undefined,completionTokens:typeof u.completion_tokens==="number"?u.completion_tokens:undefined,totalTokens:typeof u.total_tokens==="number"?u.total_tokens:undefined,cachedPromptTokens:typeof details?.cached_tokens==="number"?details.cached_tokens:undefined};}catch{return{};}})();
-     recordAgenticLlmAttempt({...telemetryContext,provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:response.status,success:response.ok,...usage,latencyMs:Date.now()-attemptStartedAt,retryIndex:outboundAttemptCount,reason:response.ok?undefined:response.status===429?"rate_limited":"provider_rejected",providerErrorCode:providerErrorCode(responseBody)});
+     const usage=(()=>{try{const parsed=JSON.parse(responseBody) as {usage?:unknown};return readGroqUsageMetrics(parsed.usage);}catch{return{};}})();
+     recordAgenticLlmAttempt({...telemetryContext,dailyReservationDate,dailyReservationTokens,dailyBudgetTokens,estimatedTokens,providerRequestSent,budgetExhausted:isTokenPerDayQuotaError(response.status,responseBody),provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:response.status,success:response.ok,...usage,...readGroqRateLimitHeaders(response.headers),latencyMs:Date.now()-attemptStartedAt,retryIndex:outboundAttemptCount,reason:response.ok?undefined:response.status===429?"rate_limited":"provider_rejected",providerErrorCode:providerErrorCode(responseBody)});
      attemptTelemetryRecorded=true;
      modelAuditResponseRecorded=emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
      if(isModelPromptAuditCaptureEnabled()&&!modelAuditResponseRecorded)throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Right-hand response");
@@ -383,7 +395,9 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      }
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
    }catch(error){
-      if(!attemptTelemetryRecorded)recordAgenticLlmAttempt({...telemetryContext,provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:"error",success:false,latencyMs:Date.now()-attemptStartedAt,retryIndex:Math.max(1,outboundAttemptCount),reason:error instanceof ProviderQuotaError?"rate_limited":error instanceof Error&&error.name==="AbortError"?"timeout":"exception",providerErrorCode:error instanceof ProviderQuotaError?error.code:undefined});
+      const dailyBudgetFailure = error instanceof AgenticDailyTokenBudgetError ? error : null;
+      if(!attemptTelemetryRecorded)recordAgenticLlmAttempt({...telemetryContext,dailyReservationDate,dailyReservationTokens,dailyBudgetTokens,estimatedTokens,providerRequestSent,budgetExhausted:dailyBudgetFailure?.code==="daily_token_budget_exhausted",provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:"error",success:false,latencyMs:Date.now()-attemptStartedAt,retryIndex:Math.max(1,outboundAttemptCount),reason:dailyBudgetFailure?.code??(error instanceof ProviderQuotaError?"rate_limited":error instanceof Error&&error.name==="AbortError"?"timeout":"exception"),providerErrorCode:error instanceof ProviderQuotaError?error.code:undefined});
+      if(dailyBudgetFailure)return {raw:"",error:dailyBudgetFailure.code,model:candidate.model};
      if(!modelAuditResponseRecorded){const auditCaptureFailed=error instanceof Error&&error.message.startsWith("model_prompt_audit_response_capture_failed");emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,transportFailure:auditCaptureFailed?undefined:error instanceof Error?error.name:"unknown_error",auditCaptureFailure:auditCaptureFailed?"response_write_failed":undefined});}
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
     const localTokenWindowQuota = error instanceof ProviderQuotaError && error.quotaKind === "tokens";

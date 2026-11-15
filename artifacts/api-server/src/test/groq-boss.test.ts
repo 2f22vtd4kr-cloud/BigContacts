@@ -7,8 +7,13 @@ import {
 
 describe("Groq Boss control-plane adapter", () => {
   const originalKey = process.env.GROQ_BOSS_API_KEY;
+  const originalDatabaseUrl = process.env.DATABASE_URL;
 
   beforeEach(() => {
+    // These tests simulate provider responses; durable TPD state is covered by
+    // the dedicated PostgreSQL ledger integration test. Never let a simulated
+    // 429 poison the shared CI database for unrelated test files.
+    process.env.DATABASE_URL = "";
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 
@@ -16,6 +21,8 @@ describe("Groq Boss control-plane adapter", () => {
     vi.restoreAllMocks();
     if (originalKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
     else process.env.GROQ_BOSS_API_KEY = originalKey;
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 

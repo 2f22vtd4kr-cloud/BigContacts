@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
+import { AgenticDailyTokenBudgetError, readGroqRateLimitHeaders, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
@@ -397,8 +397,19 @@ async function generateGroqBossTextImpl(
         const attemptStartedAt = Date.now();
         let attemptTelemetryRecorded = false;
 
+        let dailyReservationDate: string | null = null;
+        let dailyReservationTokens = 0;
+        let dailyBudgetTokens = 0;
+        let providerRequestSent = false;
+        const estimatedTokens = Math.ceil(boundedPrompt.length / 3.4) + Number(requestBody.max_completion_tokens ?? 0);
         try {
-          const response = await withProviderRetryOwnership("groq", "caller", () => fetch(GROQ_BOSS_CHAT_API, {
+          const reservation = await reserveAgenticLlmDailyBudget({ provider: "groq", model, estimatedTokens });
+          dailyReservationDate = reservation.usageDate;
+          dailyReservationTokens = reservation.reservedTokens;
+          dailyBudgetTokens = reservation.dailyBudgetTokens;
+          const response = await withProviderRetryOwnership("groq", "caller", () => {
+            providerRequestSent = true;
+            return fetch(GROQ_BOSS_CHAT_API, {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -407,10 +418,11 @@ async function generateGroqBossTextImpl(
             },
             body,
             signal: controller.signal,
-          }));
+          });
+          });
           const responseBody = await response.text();
-          const usage = (() => { try { const parsed = JSON.parse(responseBody) as { usage?: Record<string, unknown> }; const u = parsed.usage ?? {}; return { promptTokens: typeof u.prompt_tokens === "number" ? u.prompt_tokens : undefined, completionTokens: typeof u.completion_tokens === "number" ? u.completion_tokens : undefined, totalTokens: typeof u.total_tokens === "number" ? u.total_tokens : undefined, cachedPromptTokens: typeof (u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens === "number" ? (u.prompt_tokens_details as Record<string, number>).cached_tokens : undefined }; } catch { return {}; } })();
-          recordAgenticLlmAttempt({ ...telemetryContext, provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
+          const usage = (() => { try { const parsed = JSON.parse(responseBody) as { usage?: unknown }; return readGroqUsageMetrics(parsed.usage); } catch { return {}; } })();
+          recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: isTokenPerDayQuotaError(response.status, responseBody), provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, ...readGroqRateLimitHeaders(response.headers), latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
           attemptTelemetryRecorded = true;
           modelAuditResponseRecorded = emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
@@ -566,7 +578,8 @@ async function generateGroqBossTextImpl(
           }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
-          if (!attemptTelemetryRecorded) recordAgenticLlmAttempt({ ...telemetryContext, provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: "error", success: false, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: error instanceof Error && error.name === "AbortError" ? "timeout" : "exception" });
+          if (!attemptTelemetryRecorded) recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: error instanceof AgenticDailyTokenBudgetError && error.code === "daily_token_budget_exhausted", provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: "error", success: false, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: error instanceof AgenticDailyTokenBudgetError ? error.code : error instanceof Error && error.name === "AbortError" ? "timeout" : "exception" });
+          if (error instanceof AgenticDailyTokenBudgetError) return { model, raw: null, error: error.code, attempts };
           if (!modelAuditResponseRecorded) {
             const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
             emitModelPromptAuditResponse({

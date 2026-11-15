@@ -13,7 +13,7 @@ describe("durable Investigator intelligence replay", () => {
         payload: JSON.stringify({
           turn: index + 1, model: "test-model", action: "visit", args: { purpose: `verify ${value}` },
           execution: "success", observation: `Alex Example is associated with ${value}.`, observedUrls: [url],
-          findings: [{ vectorType: "other", value, personName: "Alex Example", role: null, scope: "candidate", sourceUrls: [url], note: "Observed in public source." }],
+          findings: [{ vectorType: "other", value, personName: "Alex Example", role: null, scope: "candidate", sourceUrls: [url], note: "Observed in public source.", exactQuote: `Alex Example is associated with ${value}.` }],
         }),
       };
     });

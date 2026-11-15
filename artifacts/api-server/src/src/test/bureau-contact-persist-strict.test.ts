@@ -10,7 +10,37 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, isImmutablePromotionObservationEventType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { hasCanonicalPromotionJobBinding, isOrganizationContactRoute, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, isImmutablePromotionObservationEventType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+
+describe("model-attributed generic inbox handling", () => {
+  it("preserves a generic-looking address as person-specific only when the model supplies an exact quote", () => {
+    const quote = "Jane Example — direct professional email: info@example.org";
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "person_specific",
+      exactQuote: quote,
+    })).toBe(false);
+  });
+
+  it("keeps explicitly shared inboxes organization-only even when a person is named nearby", () => {
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "shared_inbox",
+      exactQuote: "Jane Example — shared team inbox: info@example.org",
+    })).toBe(true);
+  });
+
+  it("does not infer organization or person attribution from a generic-looking address", () => {
+    expect(isOrganizationContactRoute({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "unknown",
+      exactQuote: "Jane Example — info@example.org",
+    })).toBe(false);
+  });
+});
 
 describe("contact promotion entity-type eligibility", () => {
   it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
@@ -164,15 +194,35 @@ describe("claim-grade observation boundary", () => {
 
 
 describe("same-source identity binding for candidate contact promotion", () => {
-  const candidate = { scope: "candidate", personName: "Jane Example" };
+  const personEmailQuote = "Jane Example — direct email: jane@example.com";
+  const candidate = { scope: "candidate", personName: "Jane Example", contactAttribution: "person_specific" as const, exactQuote: personEmailQuote, identityAssessment: "same_person" as const, identityRationale: "The exact source quote attributes this contact to Jane Example." };
 
   it("accepts an exact person identity and contact value in the same source observation", () => {
     expect(supportsCandidateContactOnSameObservation(
-      "Our team: Jane Example — jane@example.com",
+      `Our team: ${personEmailQuote}`,
       candidate,
       "jane@example.com",
       "email",
     )).toBe(true);
+  });
+
+  it("rejects a shared inbox even when the page also names the person", () => {
+    const sharedQuote = "Jane Example — shared company inbox: info@example.org";
+    expect(supportsCandidateContactOnSameObservation(sharedQuote, {
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "shared_inbox",
+      exactQuote: sharedQuote,
+    }, "info@example.org", "email")).toBe(false);
+  });
+
+  it("rejects a person-specific quote that is not present verbatim in the fetched observation", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Example — direct email jane@example.com",
+      { ...candidate, exactQuote: "Jane Example — direct email: jane@example.com" },
+      "jane@example.com",
+      "email",
+    )).toBe(false);
   });
 
   it("rejects identity and contact details when each appears only on a different source", () => {
@@ -203,7 +253,8 @@ describe("same-source identity binding for candidate contact promotion", () => {
   it("requires a phone number to be locally bound to the same person", () => {
     const noisyPage = "Jane Example — Founder. " + "Other people and their biographies. ".repeat(14) + "Direct line +1 (212) 555-0199";
     expect(supportsCandidateContactOnSameObservation(noisyPage,candidate,"+1 212 555 0199","phone")).toBe(false);
-    expect(supportsCandidateContactOnSameObservation("Jane Example — direct line +1 (212) 555-0199",candidate,"+1 212 555 0199","phone")).toBe(true);
+    const phoneCandidate = { ...candidate, exactQuote: "Jane Example — direct line +1 (212) 555-0199" };
+    expect(supportsCandidateContactOnSameObservation(phoneCandidate.exactQuote,phoneCandidate,"+1 212 555 0199","phone")).toBe(true);
   });
 
   it("requires exact identity and contact token boundaries", () => {
@@ -221,19 +272,11 @@ describe("same-source identity binding for candidate contact promotion", () => {
     )).toBe(false);
   });
 
-  it("also binds phone promotions to the same identity-bearing observation", () => {
-    expect(supportsCandidateContactOnSameObservation(
-      "Jane Example, direct line +1 (212) 555-0199",
-      candidate,
-      "+1 212 555 0199",
-      "phone",
-    )).toBe(true);
-    expect(supportsCandidateContactOnSameObservation(
-      "Jane Example, direct line not provided",
-      candidate,
-      "+1 212 555 0199",
-      "phone",
-    )).toBe(false);
+  it("also binds phone promotions to an exact person-specific quote", () => {
+    const phoneQuote = "Jane Example, direct line +1 (212) 555-0199";
+    const phoneCandidate = { ...candidate, exactQuote: phoneQuote };
+    expect(supportsCandidateContactOnSameObservation(phoneQuote, phoneCandidate, "+1 212 555 0199", "phone")).toBe(true);
+    expect(supportsCandidateContactOnSameObservation("Jane Example, direct line not provided", phoneCandidate, "+1 212 555 0199", "phone")).toBe(false);
   });
 });
 
@@ -244,7 +287,11 @@ describe("multi-source candidate contact attribution", () => {
     value: "jane@example.com",
     scope: "candidate",
     personName: "Jane Example",
-    sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
+    contactAttribution: "person_specific" as const,
+    exactQuote: "Jane Example — direct email: jane@example.com",
+    identityAssessment: "same_person" as const,
+    identityRationale: "The exact source quote attributes this contact to Jane Example.",
+    sourceUrls: ["https://example.com/team/jane"],
   };
 
   it("rejects identity and contact value split across separate pages at the trusted promotion boundary", () => {
@@ -256,7 +303,7 @@ describe("multi-source candidate contact attribution", () => {
 
   it("accepts a candidate contact when one observed page binds identity and value exactly", () => {
     expect(supportsContactClaimAcrossObservations([
-      { observationText: "Jane Example — Founder — jane@example.com", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Jane Example — direct email: jane@example.com", sourceUrls: ["https://example.com/team/jane"] },
       { observationText: "Contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
     ], item, "jane@example.com", "email")).toBe(true);
   });

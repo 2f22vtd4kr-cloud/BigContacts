@@ -465,6 +465,7 @@ const openingCapabilitySelectionOrientation = [
   "Follow the exact human objective and Boss-approved scope; do not impose wealth, ownership, sector or geography requirements the objective did not request.",
   "Boss cannot browse or execute research tools. This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.",
   "Select only from the supplied available capabilities and never select an excluded or unavailable capability.",
+  "MODEL ROUTING: When listed, groq-investigator-20b runs GPT-OSS 20B on the first Investigator credential and is the economical choice for ordinary public-source discovery and action selection. Standard groq-investigator-N capabilities use the configured canonical Investigator model (GPT-OSS 120B by default). Prefer 20B for a routine discovery mission; choose a standard capability when the objective genuinely needs the stronger model. This is an execution-cost decision, not a research sequence. The runtime never silently rotates models after failure.",
 ].join("\n");
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
@@ -472,6 +473,8 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
   return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
+
+Investigator model economy: prefer groq-investigator-20b for routine discovery and action selection because the reduced action contract is designed for this economical model. Choose a 120B Investigator capability only when the objective is unusually complex or high-stakes and the expected reasoning benefit justifies its larger token cost. This is a capability choice, not a research itinerary; the Investigator still decides every research action. Boss strategic control and independent Right-hand review remain on their separate control/review model lanes.
 
 The Investigator will begin the canonical mixed-source discovery phase under the exact human objective after this assignment. Discovery combines a randomized, runtime-callable registry/asset-register catalog with independent public-web routes when relevant adapters exist; no target, query, provider, or source itinerary is predetermined. This call selects only the execution capability; the opening control pass evaluates the live source catalog and the Investigator chooses the exact hypotheses, target class, sources, queries, tools, pivots, and stopping point from actual returned observations. Do not add geographic scope or a target preference.
 

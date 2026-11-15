@@ -66,10 +66,24 @@ export function normalizeAtlasControlAction(value: unknown): AtlasControlAction 
 
 /** Match a model-selected target by both identity and declared entity kind. */
 /**
- * Right-hand is invoked for consequential reviews, not routine empty retries.
- * The first stop proposal is independently challenged; repeated blocked stops
- * with no new observation do not incur an identical call.
+ * Right-hand is invoked for consequential independent reviews, not routine
+ * Investigator observations. The model's own semantic findings trigger review
+ * when they propose promotion, surface contradiction/ambiguity, or make a
+ * consequential identity decision. Ordinary page facts do not trigger another
+ * model call. The first stop proposal and strategic pivots remain reviewable.
  */
+function isConsequentialInvestigatorFinding(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const finding = value as Record<string, unknown>;
+  const promotion = typeof finding.promotionDecision === "string" ? finding.promotionDecision : "";
+  if (promotion === "promote" || promotion === "reject") return true;
+  const relation = typeof finding.hypothesisRelation === "string" ? finding.hypothesisRelation : "";
+  if (relation === "contradicts" || relation === "ambiguous") return true;
+  const identity = typeof finding.identityAssessment === "string" ? finding.identityAssessment : "";
+  const identityRationale = typeof finding.identityRationale === "string" ? finding.identityRationale.trim() : "";
+  return Boolean(identityRationale && (identity === "different_people" || identity === "unresolved"));
+}
+
 export function shouldInvokeAtlasRightHandReview(input: {
   admittedCandidates: readonly AtlasAdmittedTargetInput[];
   discoveryFindings: readonly unknown[];
@@ -84,10 +98,17 @@ export function shouldInvokeAtlasRightHandReview(input: {
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
   const previousName = input.priorCandidate?.trim().toLocaleLowerCase() ?? null;
-  if (input.admittedCandidates.some((candidate) => candidate.name.trim().toLocaleLowerCase() !== previousName)) return true;
+  // A newly admitted, source-attributed review target is a consequential handoff
+  // candidate. Ask Right-hand for an independent challenge once per new target,
+  // but do not repeatedly review the same candidate on every continuation turn.
+  const hasNewAdmittedCandidate = input.admittedCandidates.some((candidate) => {
+    const name = candidate.name.trim().toLocaleLowerCase();
+    return Boolean(name) && name !== previousName;
+  });
+  if (hasNewAdmittedCandidate) return true;
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
-  if (latest?.findings?.length) return true;
-  if (input.discoveryFindings.length && !["research_candidate", "revisit_candidate"].includes(input.priorAction ?? "")) return true;
+  const latestFindings = latest?.findings ?? [];
+  if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
@@ -427,7 +448,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   const ids = available.length ? available.join(", ") : "(none currently available)";
   return [
     `RUNTIME-CALLABLE REGISTRY IDS (randomized): ${ids}. Only these IDs are callable native registry/asset-register adapters in this process.`,
-    "SOURCE-MIX CONTRACT: When relevant routes exist, the opening portfolio should include a callable registry/asset-register lane and independent public-web discovery; explain any omission. Boss/Right-hand advise lanes; Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping. No fixed itinerary. A jurisdiction-specific registry is eligible only when its jurisdiction is grounded in the human objective or same-case evidence; if no jurisdiction is supplied, do not create one; use objective-compatible public web or a genuinely global register. Never invent a country, company or market.",
+    "SOURCE AUTONOMY: No source family or mix is mandatory. Boss/Right-hand advise; Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping from the capabilities actually available. Use jurisdiction-specific sources when the human objective or same-case observations support their relevance; when geography is open, the Investigator may discover and propose a jurisdiction from evidence and Boss may authorize the strategic pivot. Do not invent unsupported facts about a country, company or market.",
     "Do not infer searchable fields or ownership from an adapter ID; detailed per-adapter coverage is in the Investigator schema. GLEIF is a global LEI entity-identity register with parent/relationship data only where reported; it is not a natural-person shareholder or beneficial-owner search and must never be described as surfacing disclosed owners/shareholders. Generic agency pages are web sources, not native registry adapters. A generic agency landing page does not prove that a dedicated register exists or is searchable. Never infer wealth/contactability from seniority alone.",
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
@@ -437,7 +458,7 @@ export function atlasLeadUtilizationLaw(): string {
 
 /** Prevent jurisdiction-only churn when the current source route has demonstrably failed. */
 export function atlasSourceRouteRecoveryLaw(): string {
-  return "SOURCE-ROUTE RECOVERY JUDGMENT: distinguish a failed/inaccessible source route from evidence that no suitable people exist. After an observed HTTP 403, repeated-retrieval guard, generic agency landing page, or successful fetch that exposes no entity-level search/record surface, treat that specific route as currently inaccessible or low-yield; do not retry the same route merely by changing rationale. Do not pivot only from one jurisdiction to another while preserving the same unsupported source-class premise unless observed evidence shows a materially different, executable records interface or disclosure model. Consider materially different public-source families compatible with the human objective and the observed leads (for example company/association directories, licensing or permit lists, sector bodies, official filings, acquisition/asset reporting, or company disclosures), but these are alternatives to evaluate, not an ordered or required sequence. The Investigator remains autonomous; stop/park when no defensible alternative is available. Never evade access controls or infer absence of owners from a failed route.";
+  return "SOURCE-ROUTE RECOVERY JUDGMENT: distinguish a failed/inaccessible source route from evidence that no suitable people exist. After an observed HTTP 403, repeated-retrieval guard, generic agency landing page, or successful fetch that exposes no entity-level search/record surface, treat that specific route as currently inaccessible or low-yield; do not retry the exact same route merely by changing rationale. The Investigator may consider materially different public-source families or jurisdictions when the human objective and observations justify them; Boss authorizes strategic scope changes. Examples such as company/association directories, licensing or permit lists, sector bodies, official filings, acquisition/asset reporting, or company disclosures are possibilities, not an ordered or required sequence. The Investigator remains autonomous; stop/park when no defensible alternative is available. Never evade access controls or infer absence of owners from a failed route.";
 }
 
 /** Clarify the distinction between local episode limits and mission exhaustion. */
@@ -579,7 +600,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   // always have space. Never middle-trim the complete prompt or silently drop pinned state.
   const fixedPrefix = [
     "APEX ATLAS CONTROL: Boss owns continue/research/revisit/pivot/stop; Right-hand advises only; the Investigator chooses each research action. Never invent candidates or evidence. Internal memory, storage, and workflow terminology is not a research lead.",
-    "Human objective/scope and realism/targetability constraints outrank Boss suggestions; do not invent, compare, or broaden geography. PERSON REALISM: globally famous/household-name individuals are presumptively poor practical prospects; only an explicit human request or sourced actionable person-specific professional route qualifies; generic corporate, press or IR channels are not personal access. COMPANY REALISM: well-known brands remain eligible when objective-fit; well-known/public companies remain eligible when objective-fit. Inc. 5000/fast-growth/unicorn rankings alone are poor-fit signals; ranking-only mentions are leads, not qualified targets. Operating-company targets need evidence of current operations and objective fit; apply private/mid-market constraints only when the human explicitly requests them. Investor firms need evidence of capital capacity and mandate fit.",
+    "The complete human objective and explicit constraints govern. Make contextual, evidence-led targetability judgements rather than applying fame, wealth, seniority, company size, listing status, industry labels, ranking badges, or contact-route categories as eligibility rules. A prominent person or public company may be exactly relevant to the mission. Distinguish a person-specific route from a generic organization channel, but preserve generic channels and intermediaries as leads where useful. Assess whether an operating business, investor, asset or individual is relevant using the actual mission and source observations; do not invent a private/mid-market preference or reject a target merely because a particular contact route has not yet been found.",
     "EARLY REVIEW-TARGET JUDGMENT: If a useful source-attributed company/person/asset target is already available, recommend investigating it now. Do not delay for broad discovery, a larger pool or geography comparison. Only exact admitted name/type pairs may be recommended; Right-hand advises, never selects/authorizes.",
     "Assess feasibility against observed public-source access/status; do not assume private/registry access without runtime evidence. For every source lane, assume no nonpublic filings, private records or registry coverage without runtime evidence.",
     atlasRegistryFeasibilityLaw(),
@@ -587,7 +608,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
     "SOURCE-ROUTE RECOVERY JUDGMENT: distinguish access failure from no suitable people. Preflight block made no request; failed fetch is not observation. Do not repeat unchanged blocked routes or switch jurisdictions for the same unsupported premise. Never infer owner absence from access failure.",
     "INVESTIGATOR BUDGET SEMANTICS: episodeStopReason=ITERATION_BUDGET and episodeLimitReached=true are local. Do not claim global budget exhaustion while actionsRemaining is greater than zero and missionLimitReached is false; global exhaustion requires actionsRemaining=0 and missionLimitReached=true.",
     "SOURCE AND FAILURE DISTINCTIONS: A blocked request cannot support a claim that a registry or sector lacks ownership information. Never evade access controls. Distinguish blocked, failed-fetch, and successfully observed sources.",
-    "PIVOT CONTRACT: name the concrete subject or unresolved evidence question and relevant executable source class; preserve human-stated geography. Do not prescribe a fixed provider, registry, tool, query, or action sequence.",
+    "PIVOT CONTRACT: name the concrete subject or unresolved evidence question and explain how the pivot advances the human objective. Honor explicit geographic constraints; where geography is open or the evidence justifies a different jurisdiction, ask Boss to authorize the contextual pivot. Do not prescribe a fixed provider, registry, tool, query, or action sequence.",
     "Return exactly decision, reason, direction, confidence; decision ∈ [continue_discovery, research_candidate, revisit_candidate, pivot_discovery, stop]. Confidence is 0–1. Use direction=null unless a concrete pivot helps. Keep reason/direction ≤500 characters."
   ].join("\n\n");
   const reportLabel = "\n\nLATEST REPORT — INVESTIGATOR TEXT REPORT:\n";
@@ -714,8 +735,8 @@ Allowed actions: continue_discovery | research_candidate | revisit_candidate | p
 - For research/revisit, candidateName AND candidateType must exactly match one supplied review target (person or organization). Only exact admitted name/type pairs may be recommended. generic corporate, press or IR channels do not qualify as individual access. Never invent targets, URLs, relationships, contacts or evidence.
 - Right-hand is advisory, never an approval gate. If status is deferred, the separate review was intentionally not requested because no review trigger was present; do not mistake this for provider outage. If status is unavailable, review was attempted but failed. In either case, make an independent Boss decision from the objective and durable evidence. Only the structured direction field changes accepted scope.
 - On later turns, null keeps the accepted scope; an explicit structured direction activates a new scope. Do not silently repeat a scope after a rejected action when the preceding Investigator episode executed no external research action.
-- A pivot must be self-contained and executable: name a concrete subject/evidence question and relevant executable source class. Preserve human-supplied geography; do not broaden or switch jurisdictions as a discovery exercise.
-- Mission priority: the human objective governs target class and any reachability constraints. PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor practical prospects; do not select them solely for wealth or visibility. Consider them only when the human explicitly names or requests prominent public figures, or reliable source evidence demonstrates an actionable person-specific professional route. Generic corporate, press or investor-relations channels do not qualify as individual access. This is objective-led, not a name blacklist. COMPANY PROMINENCE: well-known brands remain eligible when objective-fit; well-known/public companies remain eligible when objective-fit; do not invent a less-public or private-company preference for companies. For B2B discovery, relevant decision-makers still require a source-backed person-specific professional route. Fame, prestige, seniority, size or listing neither qualifies nor disqualifies a person. Apply private/mid-market constraints only when the human explicitly requests them. Operating-company targets need evidence of current operations and objective fit. Never infer wealth/contactability from seniority.
+- A pivot must be self-contained and evidence-led: name the concrete subject/evidence question and explain mission relevance. Preserve explicit human geographic constraints; where geography is open or evidence justifies a different jurisdiction, the model may propose a contextual pivot for Boss authorization.
+- Mission priority: the complete human objective and explicit constraints govern. Make contextual, evidence-led targetability judgements; do not use fame, wealth, seniority, company size, listing status, ranking badges, industry labels or contact-route categories as deterministic eligibility gates. Prominent people and public companies may be directly relevant to the mission. Distinguish person-specific contact evidence from generic organization channels without discarding the latter as possible leads or intermediaries. Assess operating businesses, investors, assets and individuals against the actual mission and observations; do not invent private/mid-market preferences. Never infer wealth or personal contactability from seniority alone.
 - ${atlasRegistryFeasibilityLaw()}
 - CONTROL VALIDATION: a rejected URL/tool destination means no request was made and is not evidence about the public world. When supplied scope-recovery feedback reports repeated preflight blocks, treat them as control state, not negative evidence; do not repeat unchanged blocked routes or infer source/owner absence. A blocked request cannot support a claim that a registry or sector lacks ownership information.
 - ${atlasLeadUtilizationLaw()}

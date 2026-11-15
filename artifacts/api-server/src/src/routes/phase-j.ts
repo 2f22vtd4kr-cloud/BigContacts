@@ -38,7 +38,7 @@ import {
 } from "../lib/contact-validation";
 import { resolveEmployerDomain } from "../lib/domain-resolver";
 import { discoverDigitalFootprint } from "../lib/digital-footprint";
-import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
+import { scoreAttribution } from "../lib/contact-attribution";
 import { logger } from "../lib/logger";
 import { canonicalizeUrl } from "../lib/evidence-ledger";
 import { shouldBlockIssuerOverwrite, isAgenticPhoneSource } from "../lib/phone-source-priority";
@@ -166,21 +166,6 @@ function normalizePhone(val: string | null | undefined): string | null {
   return digits.length >= 7 && digits.length <= 15 ? raw.replace(/[^\d+\-\s().]/g, "") : null;
 }
 
-function sourceReliabilityScore(source: string): number {
-  if (/^(Wikidata|EDGAR|CompaniesHouse|BRREG|ProPublica)/i.test(source)) return 0.90;
-  if (/^(GLEIF|ORCID|GitHub)/i.test(source)) return 0.83;
-  if (/^ContactPage/i.test(source)) return 0.79;
-  if (/^(Wikipedia|Wayback)/i.test(source)) return 0.58;
-  if (/^DDG/i.test(source)) return 0.52;
-  if (/^GraphNeighbour/i.test(source)) return 0.65;
-  return 0.42;
-}
-
-function isOrgContact(entityType: string, email: string | null, _phone: string | null): boolean {
-  if (!["Corporation", "Trust"].includes(entityType)) return false;
-  return isGenericLocalPart(email ?? "");
-}
-
 function correctedPersonalRunMetrics(run: {
   byEntityType?: string | null;
   directConfirmed?: number;
@@ -288,16 +273,26 @@ async function persistEvidence(
     return {
       entityId, runId,
       source: src,
-      sourceReliability: sourceReliabilityScore(src),
-      // These are intentionally conservative defaults. The evidence row must
-      // carry its own URL and metadata rather than inheriting a score from the
-      // merged winner or from provider repetition.
-      identityMatch: 0.50,
-      recencyScore: 0.50,
+      // Phase J is a legacy enrichment path, not a semantic attribution model.
+      // Zero means "unassessed" (see metadata), never a publisher-quality verdict.
+      sourceReliability: null,
+      identityMatch: null,
+      recencyScore: null,
+      directnessScore: null,
       independentCorroboration: corroboration,
-      validationStatus,
+      validationStatus: "candidate",
       sourceUrl,
-      metadata: JSON.stringify({ sources, entityType, ...extra }),
+      metadata: JSON.stringify({
+        sources,
+        entityType,
+        sourceReliabilityAssessment: "unassessed",
+        identityAssessment: "unresolved",
+        recencyAssessment: "unassessed",
+        directnessAssessment: "unassessed",
+        syntaxValidated: validationStatus === "verified",
+        verificationScope: "syntax_only",
+        ...extra,
+      }),
     };
   }
 
@@ -317,10 +312,11 @@ async function persistEvidence(
         ...baseRow(evidence.source, validationStatus, sourceUrl, {
           queryTemplate: evidence.queryTemplate ?? null,
           evidenceDetails: evidence.details ?? null,
+          sourceReportedConfidence: evidence.confidence,
         }),
         vectorType,
         value,
-        directnessScore: verified ? Math.min(0.95, evidence.confidence) : Math.min(0.75, evidence.confidence),
+        directnessScore: null,
         extractionMethod: evidence.extractionMethod ?? "public-source-parser",
       });
     }
@@ -331,7 +327,7 @@ async function persistEvidence(
         }),
         vectorType,
         value,
-        directnessScore: 0.25,
+        directnessScore: null,
         extractionMethod: "merged-result-without-source-row",
       });
     }
@@ -341,12 +337,12 @@ async function persistEvidence(
   addContactVector("phone", phone, sources[0] ?? "phase-j");
   if (linkedinUrl) rows.push({
     ...baseRow("LinkedIn", "candidate", canonicalizeUrl(linkedinUrl), { vector: "social" }),
-    vectorType: "social", value: linkedinUrl, directnessScore: 0.20,
+    vectorType: "social", value: linkedinUrl, directnessScore: null,
     extractionMethod: "public-profile-discovery",
   });
   if (domain) rows.push({
     ...baseRow("domain-resolver", "candidate", canonicalizeUrl(`https://${domain}`), { vector: "domain" }),
-    vectorType: "domain", value: domain, directnessScore: 0.10,
+    vectorType: "domain", value: domain, directnessScore: null,
     extractionMethod: "J4-domain-resolution",
   });
 
@@ -359,14 +355,14 @@ async function persistEvidence(
         vectorType: fe.type === "linkedin" ? "social" : fe.type,
         value: fe.value,
         sourceUrl: canonicalizeUrl(fe.sourceUrl),
-        sourceReliability: sourceReliabilityScore(fe.source),
-        identityMatch: 0.50,
-        recencyScore: 0.50,
-        directnessScore: fe.confidence,
+        sourceReliability: null,
+        identityMatch: null,
+        recencyScore: null,
+        directnessScore: null,
         independentCorroboration: 1,
         validationStatus: "candidate",
         extractionMethod: fe.extractionMethod ?? `J5-${fe.queryTemplate ?? "discovery"}`,
-        metadata: JSON.stringify({ queryTemplate: fe.queryTemplate ?? null, entityType, details: fe.details ?? null }),
+        metadata: JSON.stringify({ queryTemplate: fe.queryTemplate ?? null, entityType, details: fe.details ?? null, sourceReportedConfidence: fe.confidence, sourceReliabilityAssessment: "unassessed", identityAssessment: "unresolved", recencyAssessment: "unassessed", directnessAssessment: "unassessed", verificationScope: "syntax_only" }),
       });
     }
   }
@@ -657,17 +653,18 @@ async function runPhaseJPass(
         targetType: entity.type,
         toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
         activeToolId: "graph",
-        inputSummary: `${mergedSources.length} evidence sources · ${neighbourNames.length} graph neighbours · attribution score ${(attribution.score * 100).toFixed(0)}/100`,
+        inputSummary: `${mergedSources.length} evidence sources · ${neighbourNames.length} graph neighbours · attribution ${attribution.score === null ? "unassessed" : "model confidence " + Math.round(attribution.score * 100) + "/100"}`,
         sources: mergedSources.length,
         evidence: footprint.evidence.length + inHouseResult.evidence.length,
         contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,
       });
 
       // Determine outcome
-      const orgContact = isOrgContact(entity.type, bestEmail, bestPhone);
-      const outcome: ContactOutcome = orgContact
-        ? "organization_contact"
-        : computeContactOutcome({
+      // Legacy enrichment cannot make a semantic person/shared-inbox decision.
+      // Preserve these values as evidence-only until the canonical Investigator
+      // supplies an exact, model-attributed person/value claim.
+      const outcome: ContactOutcome = attribution.attributed
+        ? computeContactOutcome({
           email: activeEmail,
           phone: bestPhone,
           phoneSource: inHouseResult.phoneSource ?? (meta["phoneSource"] as string | null | undefined),
@@ -687,13 +684,12 @@ async function runPhaseJPass(
               J6attributed: attribution.attributed,
             },
           },
-        });
+        })
+        : "evidence_only";
 
        // ── Track totals ───────────────────────────────────────────────────────
-       // Validated evidence and personal direct reachability are separate
-       // measurements. Organization inboxes/switchboards may be structurally
-       // valid and even attribution-scored, but must never inflate the
-       // personal direct-contact counters.
+       // Legacy Phase J rows remain evidence-only unless a model attribution
+       // and exact fetched-source person/value binding are explicitly supplied.
        const personalOutcome = isPersonalContactOutcome(outcome);
       if (inHouseResult.email || inHouseResult.phone || inHouseResult.linkedinUrl || footprint.evidence.length > 0) totals.found += 1;
        if (personalOutcome) totals.direct += 1;
@@ -812,7 +808,7 @@ async function runPhaseJPass(
         lastOutcome: outcome,
         lastAttemptAt: new Date(),
         nextAttemptAt: retry,
-        retryReason: attribution.attributed ? null : `J6-score:${attribution.score.toFixed(2)}`,
+        retryReason: attribution.attributed ? null : `J6-score:${attribution.score === null ? "unassessed" : attribution.score.toFixed(2)}`,
         sourceCooldowns: JSON.stringify(updatedCooldowns),
         graphContext: JSON.stringify(graphEdges),
         updatedAt: new Date(),
@@ -827,7 +823,7 @@ async function runPhaseJPass(
           lastOutcome: outcome,
           lastAttemptAt: new Date(),
           nextAttemptAt: retry,
-          retryReason: attribution.attributed ? null : `J6-score:${attribution.score.toFixed(2)}`,
+          retryReason: attribution.attributed ? null : `J6-score:${attribution.score === null ? "unassessed" : attribution.score.toFixed(2)}`,
           sourceCooldowns: JSON.stringify(updatedCooldowns),
           graphContext: JSON.stringify(graphEdges),
           updatedAt: new Date(),

@@ -40,6 +40,37 @@ describe("Apex research intelligence", () => {
     expect(quality.find((item) => item.sourceClass === "SOCIAL_PROFILE")?.count).toBeGreaterThan(0);
   });
 
+  it("records community observations as an explicit source class with unknown authority tier", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "community-observation-source", target: "public asset lead", objective: "evaluate public asset observations" });
+    const url = "https://www.virtualglobetrotting.com/map/example-property/";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: [url],
+      observation: "COMMUNITY SOURCE LEAD: user-submitted observation. Preserve contributor/date/page and corroborate material claims.",
+      args: {
+        sourceAttribution: {
+          sourceName: "Virtual Globetrotting",
+          sourceDomain: "www.virtualglobetrotting.com",
+          sourceClass: "community_user_submitted_unverified",
+          sourceContributor: "Alice Example",
+          originalObservedAt: "2024-01-02T00:00:00.000Z",
+          sourceMechanism: "visit",
+        },
+      },
+    });
+    const evidence = engine.buildContext().atomicEvidence.find((item) => item.sourceUrl === "https://www.virtualglobetrotting.com/map/example-property");
+    expect(evidence?.sourceClass).toBe("COMMUNITY_OBSERVATION");
+    expect(evidence?.sourceTier).toBe("unknown");
+    expect(evidence).toMatchObject({
+      sourceName: "Virtual Globetrotting",
+      sourceContributor: "Alice Example",
+      originalObservedAt: "2024-01-02T00:00:00.000Z",
+      sourceMechanism: "visit",
+    });
+  });
+
   it("keeps cross-page identity and contact evidence review-only until one source binds them", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-span-binding", target: "John Smith", objective: "verify identity and contact" });
     const identityUrl = "https://company.example/leadership";
@@ -67,7 +98,7 @@ describe("Apex research intelligence", () => {
     const identityUrl = "https://company.example/team";
     const valueUrl = "https://support.example.net/contact";
     const boundUrl = "https://industry.example.org/leadership";
-    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl] };
+    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl], contactAttribution: "person_specific" as const, identityAssessment: "same_person" as const, identityRationale: "The same fetched passage explicitly binds Jane Smith to her personal email.", exactQuote: "Jane Smith — CFO; email: jane.smith@company.example" };
     const history = [
       { turn: 1, action: "visit", execution: "success", observation: "Jane Smith is CFO.", urls: [identityUrl] },
       { turn: 2, action: "visit", execution: "success", observation: "Email: jane.smith@company.example", urls: [valueUrl] },
@@ -84,7 +115,7 @@ describe("Apex research intelligence", () => {
       turn: 4, action: "visit", execution: "success", args: {},
       observation: "Jane Smith is CFO. Direct email: jane.smith@company.example",
       urls: [secondBoundUrl],
-      findings: [{ ...contactFinding, sourceUrls: [secondBoundUrl] }],
+      findings: [{ ...contactFinding, sourceUrls: [secondBoundUrl], exactQuote: "Jane Smith is CFO. Direct email: jane.smith@company.example" }],
     });
     contact = engine.buildContext().contacts.find((item) => item.value === contactFinding.value);
     expect(contact?.state).toBe("CORROBORATED");
@@ -111,7 +142,7 @@ describe("Apex research intelligence", () => {
   it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "evidence-span-upgrade", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/leadership";
-    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl] };
+    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl], contactAttribution: "person_specific" as const, exactQuote: "John Smith is CFO of Example Corp. Contact: john.smith@example.com" };
     engine.recordAction({
       turn: 1, action: "visit", execution: "success",
       urls: [sourceUrl], observation: "John Smith is CFO of Example Corp.",
@@ -169,6 +200,8 @@ describe("Apex research intelligence", () => {
     expect(state.evidenceCount).toBe(0);
     expect(state.recentActions[0]?.useful).toBe(false);
     expect(question?.status).toBe("open");
+    expect(question?.importance).toBe(0.8);
+    expect(question?.uncertainty).toBeNull();
   });
 
   it("answers a research question only after a fetched source binds a useful finding", () => {
@@ -203,8 +236,8 @@ describe("Apex research intelligence", () => {
 
   it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
-    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The registry explicitly attributes the directorship to Alex." }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "This independent source records a different directorship and contradicts the Alpha hypothesis." }] });
     engine.recordAction({ turn: 3, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] });
     const state = engine.buildContext();
     expect(state.evidenceCount).toBeGreaterThan(0);
@@ -235,8 +268,8 @@ describe("Apex research intelligence", () => {
 
   it("does not treat multiple attributable emails as contradictory and refreshes evidence timestamps", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-contact", target: "Example Target", objective: "find public contacts" });
-    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/a"], observation: "Example Target email one@example.com", findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"] }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.org/b"], observation: "Example Target email two@example.com", findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/a"], observation: "Example Target email one@example.com", findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"], contactAttribution: "person_specific", identityAssessment: "same_person", identityRationale: "The fetched source explicitly names the target and the email.", exactQuote: "Example Target email one@example.com" }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.org/b"], observation: "Example Target email two@example.com", findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"], contactAttribution: "person_specific", identityAssessment: "same_person", identityRationale: "The fetched source explicitly names the target and the email.", exactQuote: "Example Target email two@example.com" }] });
     const state = engine.buildContext();
     expect(state.contradictions).toHaveLength(0);
     expect(state.facts.some((fact) => fact.claim.includes("email one@example.com"))).toBe(true);
@@ -298,7 +331,7 @@ describe("Apex research intelligence", () => {
     engine.addHypothesis({ label: "H2", entity: "Jordan Example B", score: 0.1 });
     const state = engine.buildContext();
     expect(state.hypotheses.find((h) => h.label === "H1")?.status).toBe("leading");
-    expect(state.hypotheses.find((h) => h.label === "H2")?.status).toBe("rejected");
+    expect(state.hypotheses.find((h) => h.label === "H2")?.status).toBe("alternative");
   });
 
   it("does not promote failed executions or failed URLs into positive evidence", () => {
@@ -335,7 +368,7 @@ describe("Apex research intelligence", () => {
     engine.recordAction({
       turn: 1, action: "visit", execution: "success", urls: [url],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url], exactQuote: "Jordan Example is director of Alpha" }],
     });
     const evidenceId = engine.buildContext().atomicEvidence[0]?.evidenceId;
     expect(evidenceId).toBeTruthy();
@@ -353,12 +386,12 @@ describe("Apex research intelligence", () => {
     engine.recordAction({
       turn: 1, action: "visit", execution: "success", urls: [firstUrl],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [firstUrl] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [firstUrl], exactQuote: "Jordan Example is director of Alpha" }],
     });
     engine.recordAction({
       turn: 2, action: "visit", execution: "success", urls: [secondUrl],
       observation: "Jordan Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl], exactQuote: "Jordan Example is director of Alpha" }],
     });
     const evidenceIds = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").map((item) => item.evidenceId);
     expect(evidenceIds).toHaveLength(2);
@@ -414,14 +447,14 @@ describe("Apex research intelligence", () => {
       turn: 1, action: "visit", execution: "success",
       args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
       urls: [alphaUrl], observation: "Alex Example is director of Alpha",
-      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl] }],
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The official registry directly records the Alpha directorship." }],
     });
     const prior = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha")?.score;
     engine.recordAction({
       turn: 2, action: "visit", execution: "success",
       args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the director role" },
       urls: [betaUrl], observation: "Alex Example is director of Beta",
-      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl] }],
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "The independent source reports a different directorship and challenges the Alpha hypothesis." }],
     });
     const state = engine.buildContext();
     const updated = state.hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
@@ -471,7 +504,7 @@ describe("Apex research intelligence", () => {
       execution: "success",
       urls: [url],
       observation: "Alex Example is director of Alpha",
-      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Alex Example", sourceUrls: [url] }],
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Alex Example", sourceUrls: [url], exactQuote: "Alex Example is director of Alpha" }],
     });
     const persisted = original.buildContext();
     const staleProjection = {
@@ -542,7 +575,7 @@ describe("Apex research intelligence", () => {
       urls: [registryUrl], args: { query: "Alex Example Example Labs" },
       findings: [{
         vectorType: "other", value: "director at Example Labs", personName: "Alex Example", role: "director",
-        sourceUrls: [registryUrl], note: "Official company register entry.",
+        sourceUrls: [registryUrl], note: "Official company register entry.", exactQuote: "Alex Example is listed as a director at Example Labs.",
       }],
     });
     const state = engine.buildContext();
@@ -572,6 +605,22 @@ describe("Apex research intelligence", () => {
     expect(rendered).not.toContain(signatureSecret);
     expect(rendered).toContain("REDACTED");
     expect(rendered).toContain("state=keep");
+  });
+
+
+  it("does not reject low-posterior hypotheses or hide their discriminators from the Investigator", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-review-not-vetoed", target: "Example Person", objective: "assess competing public identity hypotheses" });
+    engine.addHypothesis({ label: "low-posterior alternative", entity: "Example Person", score: 0.1, missingDiscriminators: ["check the alternative employer and date"] });
+    for (let index = 1; index <= 8; index += 1) {
+      engine.addHypothesis({ label: "higher posterior hypothesis " + index, entity: "Example Person", score: 0.8 + index * 0.01, missingDiscriminators: ["test contradictory evidence " + index] });
+    }
+    const state = engine.buildContext();
+    const low = state.hypotheses.find((item) => item.label === "low-posterior alternative");
+    const high = state.hypotheses.find((item) => item.label === "higher posterior hypothesis 8");
+    expect(low?.status).toBe("alternative");
+    expect(low?.missingDiscriminators).toContain("check the alternative employer and date");
+    expect(high?.missingDiscriminators).toContain("test contradictory evidence 8");
+    expect(renderIntelligenceContext(state, 6_000)).toContain("low-posterior alternative");
   });
 
 

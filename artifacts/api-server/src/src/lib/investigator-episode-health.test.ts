@@ -2,6 +2,23 @@ import { describe, expect, it } from "vitest";
 import { classifyInvestigatorEpisodeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 
 describe("canonical Investigator continuation health", () => {
+  it("surfaces configured daily token budget exhaustion as a resumable budget stop", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "budget_exhausted",
+      iterations: 1,
+      stopReason: "DAILY_TOKEN_BUDGET_EXHAUSTED",
+      trajectoryRecords: [{ action: "investigator_provider_error", execution: "error", failureDomain: "model_provider", failureKind: "local_provider_budget_exhausted" }],
+    })).toEqual({ code: "investigator_daily_token_budget_exhausted" });
+  });
+
+  it("surfaces a missing durable usage ledger distinctly from provider outage", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "unavailable",
+      iterations: 1,
+      stopReason: "USAGE_LEDGER_UNAVAILABLE",
+      trajectoryRecords: [{ action: "investigator_provider_error", execution: "error", failureDomain: "persistence_database", failureKind: "request_failure" }],
+    })).toEqual({ code: "investigator_usage_ledger_unavailable" });
+  });
   it("fails closed when the pass wrapper reports an unexpected error with no persisted acts", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "error",

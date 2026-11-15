@@ -5,6 +5,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 const BASE = `http://localhost:${process.env.PORT ?? 8080}`;
 const API_TOKEN = process.env.APEX_API_AUTH_TOKEN?.trim();
 const LIVE_API_TESTS = process.env.RUN_LIVE_API_TESTS === "true";
+const LIVE_PROVIDER_TESTS = process.env.RUN_LIVE_PROVIDER_TESTS === "true";
 type JsonBody = any;
 
 function authHeaders(contentType?: string): Record<string, string> {
@@ -99,7 +100,7 @@ describe.skipIf(!LIVE_API_TESTS)("GET /api/dashboard/stats", () => {
   });
 });
 
-describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/occrp", () => {
+describe.skipIf(!LIVE_PROVIDER_TESTS)("GET /api/entities/:id/occrp", () => {
   let firstEntityId: number | null = null;
   beforeAll(async () => {
     const { body } = await get("/api/entities?limit=1");
@@ -116,7 +117,7 @@ describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/occrp", () => {
   it("returns 404 for a non-existent entity", async () => expect((await get("/api/entities/9999999/occrp")).status).toBe(404));
 });
 
-describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/opensky", () => {
+describe.skipIf(!LIVE_PROVIDER_TESTS)("GET /api/entities/:id/opensky", () => {
   let firstEntityId: number | null = null;
   beforeAll(async () => {
     const { body } = await get("/api/entities?limit=1");
@@ -132,17 +133,20 @@ describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/opensky", () => {
   it("returns 400 for a non-numeric id", async () => expect((await get("/api/entities/xyz/opensky")).status).toBe(400));
 });
 
-describe.skipIf(!LIVE_API_TESTS)("POST /api/registry-search", () => {
+describe.skipIf(!LIVE_API_TESTS)("POST /api/registry-search validation", () => {
+  it("returns 400 for a missing query body without invoking a registry provider", async () => {
+    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({}) });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe.skipIf(!LIVE_PROVIDER_TESTS)("POST /api/registry-search provider", () => {
   it("is reachable and either serves the provider or fails closed with JSON", async () => {
     const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }) });
     const body: unknown = await res.json();
     expect([200, 503]).toContain(res.status);
     expect(typeof body).toBe("object");
     expect(body).not.toBeNull();
-  });
-  it("returns 400 for a missing query body", async () => {
-    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({}) });
-    expect(res.status).toBe(400);
   });
 });
 

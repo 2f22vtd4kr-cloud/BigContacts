@@ -12,6 +12,9 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("PHASE 1 — DISCOVERY");
     expect(APEX_BUREAU_PLAYBOOK).toContain("SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST");
     expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("COMMUNITY OBSERVATION SOURCES");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Virtual Globetrotting and similar community pages are a community-observation source class");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("original observation date and retrieval timestamp");
     expect(APEX_BUREAU_PLAYBOOK).toContain("This is guidance, not a workflow engine.");
 
     const boss = apexOrientationCompact("boss");
@@ -28,7 +31,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("people, operating companies, and assets");
     expect(APEX_WHAT_IS_ATLAS).toContain("HNWI is an optional classification");
     expect(APEX_WHAT_IS_ATLAS).toContain("do not impose wealth, ownership, or investor qualification unless the objective requires it");
-    expect(APEX_WHAT_IS_ATLAS).toContain("Let the human objective determine whether discovery targets are people, operating companies, assets, or relationships");
+    expect(APEX_WHAT_IS_ATLAS).toContain("Let the human objective determine which people, operating companies, assets, relationships or events matter");
     expect(APEX_WHAT_IS_ATLAS).not.toContain("GOAL: Find real, publicly documented contact routes to high-net-worth individuals");
   });
 
@@ -36,8 +39,8 @@ describe("objective-led institutional orientation", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("the exact human objective");
-      expect(prompt).toContain("HNWI is an optional classification");
-      expect(prompt).toContain("do not impose wealth or ownership criteria unless requested");
+      expect(prompt).toContain("HNWI is optional; do not impose extra qualification criteria unless requested");
+      expect(prompt).toMatch(/do not impose extra qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
   });
 
@@ -45,47 +48,35 @@ describe("objective-led institutional orientation", () => {
     const investigator = apexOrientationFor("investigator");
     const digAgent = apexOrientationFor("dig_agent");
     expect(investigator).toContain("For B2B assignments, verify current decision-maker role and company connection");
-    expect(digAgent).toContain("the human objective determines target class");
-    expect(digAgent).toMatch(/do not impose person-first discovery when the objective is company- or asset-led/i);
+    expect(digAgent).toContain("the human objective determines the target class");
+    expect(digAgent).toMatch(/Do not impose person-first discovery when the objective is company- or asset-led/i);
   });
 
-  it("filters unrealistic household-name prospects unless explicitly requested or individually reachable", () => {
-    const mission = APEX_WHAT_IS_ATLAS;
-    expect(mission).toContain("globally famous/household-name public figures");
-    expect(mission).toContain("do not select or surface them as prospect cards");
-    expect(mission).toContain("the human explicitly names them or explicitly requests them as prominent public figures");
-    expect(mission).toContain("an actionable person-specific professional route");
-    expect(mission).toContain("A general company switchboard, corporate inbox, investor-relations/press contact");
-    expect(mission).toContain("not a name list or permanent exclusion");
-    expect(mission).toContain("Inc. 5000/fast-growth/unicorn rankings");
-    expect(mission).toContain("For potential-investor firms, require independent evidence of capital capacity or actual investment activity");
-    expect(mission).toContain("do not prefer private or mid-market status unless the human objective asks for it");
-    for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
+  it("does not apply deterministic fame, ranking, publisher or route eligibility priors", () => {
+    expect(APEX_WHAT_IS_ATLAS).toContain("Fame, wealth, title, prestige, company size, visibility, and listing status are contextual signals, never automatic qualifications or exclusions");
+    expect(APEX_WHAT_IS_ATLAS).toContain("no fixed score, domain fit, name proximity or route category may veto an explicit exact-quote-backed model attribution");
+    expect(APEX_WHAT_IS_ATLAS).not.toContain("globally famous/household-name public figures");
+    expect(APEX_WHAT_IS_ATLAS).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
+    for (const role of ["boss", "right_hand", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain("globally famous/household-name");
-      expect(prompt).toContain("person-specific professional route");
-      expect(prompt).toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
-      expect(prompt).toContain("explicitly requests them");
-      expect(prompt).toContain("COMPANY REALISM");
-      expect(prompt).toContain("Ranking-only mentions are leads, not qualified targets");
-      expect(prompt).toContain("capital capacity or actual investment activity");
-      expect(prompt).not.toContain("neither qualify nor disqualify");
-      expect(prompt).not.toContain("Apply less-public");
+      expect(prompt).toMatch(/fame, wealth, (?:title, prestige, company size, visibility, and listing status|seniority, size, listing status and route type) are contextual signals/i);
+      expect(prompt).not.toContain("globally famous/household-name");
+      expect(prompt).not.toContain("Ranking-only mentions are leads, not qualified targets");
+      expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("PERSON REALISM: in generic prospect discovery, globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(apexInvestigatorSystemCore()).toContain("fame, wealth, seniority, company size, listing status");
+    expect(apexInvestigatorSystemCore()).not.toContain("PERSON REALISM");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
-  it("preserves sector and jurisdiction together and bounds the discovery search economy", () => {
+  it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).not.toContain("casinos in Slovenia");
-    expect(core).toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("JURISDICTION + SECTOR");
-    expect(APEX_BUREAU_PLAYBOOK).not.toContain("casinos in Slovenia");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("Never infer or introduce a jurisdiction from examples or model memory");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("genuinely global register");
+    expect(core).toContain("propose evidence-led scope changes to Boss when geography/sector is open");
+    expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
+    expect(core).toContain("Apply only mission-specific evidence standards; do not invent extra criteria");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
+    expect(APEX_BUREAU_PLAYBOOK).not.toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("runtime enforces a configurable safety ceiling (default 8 outbound search actions)");
     expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
     expect(APEX_BUREAU_PLAYBOOK).toContain("one strongest objective-fit lead can be handed to Boss when useful");
@@ -95,15 +86,12 @@ describe("objective-led institutional orientation", () => {
     expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
   });
 
-  it("applies qualification criteria only when required by the human objective", () => {
+  it("keeps qualification and wealth interpretation mission-specific", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("Apply only requested criteria");
-    expect(core).toContain("B2B needs fetched role/company evidence");
-    expect(core).toContain("wealth objectives need sourced ownership/equity/investment");
-    expect(core).toContain("Never infer wealth from seniority");
-    expect(core).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
-    expect(core).toContain("single strongest objective-fit lead, not a shortlist");
-    expect(core).toContain("AUTONOMY: Investigator owns targets, queries, sources, tools, pivots and stopping; no fixed recovery sequence.");
-    expect(core).toContain("Investigator owns targets, queries, sources, tools, pivots and stopping");
+    expect(core).toContain("Do not impose criteria the human did not request");
+    expect(core).toContain("HNWI/wealth/success labels are not evidence");
+    expect(core).toContain("Never infer wealth from seniority or prestige alone");
+    expect(core).toContain("No fixed source/provider/registry order or itinerary");
+    expect(core).toContain("Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification");
   });
 });
