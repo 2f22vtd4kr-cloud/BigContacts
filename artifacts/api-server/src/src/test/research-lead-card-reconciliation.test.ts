@@ -23,16 +23,16 @@ describe("terminal review-card reconciliation", () => {
   });
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
-    expect(orientation).toContain("registry search and public-web search are equal, neutral first-discovery options");
-    expect(orientation).toContain("Preserve geographic scope only when the human supplied it");
+    expect(orientation).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
+    expect(orientation).toContain("Preserve explicit human geographic constraints");
     expect(orientation).not.toContain("Companies House");
-    expect(orientation).toContain("Any enabled registry may seed the first company, person, or asset candidate");
+    expect(orientation).toContain("public-web search, registries and other attested capabilities are neutral options");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
-    expect(orientation).toContain("Inc. 5000/fast-growth/unicorn rankings");
-    expect(orientation).toContain("Ranking-only mentions are leads, not qualified targets");
+    expect(orientation).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions");
+    expect(orientation).toContain("A ranking or search result alone is a lead, not a verified claim");
     expect(orientation).toContain("do not prefer private or mid-market status unless the human objective asks for it");
-    expect(orientation).toContain("verify current operations, objective fit, identifiable decision-makers and practical public/professional routes");
-    expect(orientation).toContain("For potential-investor firms");
+    expect(orientation).toContain("Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission");
+    expect(orientation).toContain("No private/mid-market preference or company blacklist unless the human explicitly specifies it");
   });
 
   it("keeps registry rows as supporting observations and never lets adapters select cards", () => {
@@ -137,12 +137,12 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
-    expect(agenticCore).toContain("Do not wait for a fetch, ownership clue, wealth proof or HNWI qualification");
-    expect(agenticCore).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
-    expect(agenticCore).toContain("Search snippets remain leads, not evidence");
-    expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
-    expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
+    expect(orientation).toContain("DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that names a concrete objective-fit company or person");
+    expect(orientation).toContain("One useful result can justify a card; do not wait for fetch, ownership, wealth or HNWI proof");
+    expect(orientation).toContain("scope=organization/candidate, associated public result URL");
+    expect(orientation).toContain("Keep exactQuote=null for search-only leads");
+    expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
+    expect(orientation).toContain("no fixed sequence");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
     expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
