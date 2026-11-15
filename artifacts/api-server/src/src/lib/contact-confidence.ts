@@ -17,6 +17,7 @@ if(input.emailSource&&HEURISTIC_EMAIL_SOURCE_RE.test(input.emailSource))return t
 const sources=[...(Array.isArray(meta.enrichmentSources)?meta.enrichmentSources.map(String):[]),...Object.entries(meta.sourceHits&&typeof meta.sourceHits==="object"?meta.sourceHits:{}).filter(([,hit])=>Boolean(hit)).map(([source])=>source)];return sources.some((source)=>HEURISTIC_EMAIL_SOURCE_RE.test(source));}
 type PersistedInvestigatorContactAttribution = {
   value?: unknown;
+  personName?: unknown;
   contactAttribution?: unknown;
   exactQuote?: unknown;
   identityAssessment?: unknown;
@@ -64,7 +65,8 @@ function hasStrictPersonSpecificInvestigatorProvenance(input: {
   return Boolean(
     attribution
     && ["person_specific","direct_personal","professional_person_specific"].includes(String(attribution.contactAttribution ?? ""))
-    && typeof attribution.exactQuote === "string" && attribution.exactQuote.trim()
+    && typeof attribution.personName === "string" && attribution.personName.trim()
+    && typeof attribution.exactQuote === "string" && attribution.exactQuote.includes(attribution.personName) && attribution.exactQuote.includes(String(attribution.value ?? ""))
     && attribution.identityAssessment === "same_person"
     && typeof attribution.identityRationale === "string" && attribution.identityRationale.trim()
     && Array.isArray(attribution.sourceUrls) && attribution.sourceUrls.length > 0
