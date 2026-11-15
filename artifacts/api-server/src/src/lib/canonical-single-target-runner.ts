@@ -83,7 +83,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
     return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? targetObjective };
   }
   const objective = targetObjective;
-  const [created] = await tx.insert(researchCasesTable).values({ targetEntityId: target.id, caseType: "target", status: "active", directorMode: "groq_boss_pending", directorProvider: "groq", directorModel: "auto-low-cost-pending", objective, motivation: "Target-scoped Apex Atlas investigation with continuous Groq Boss + Groq Right-hand oversight.", openingPrompt: objective, caseFile: JSON.stringify({ version: 2, target: { id: target.id, name: target.name, type: target.type }, atlasJobId, parentDiscoveryObjective: objectiveOverride?.trim() || null, investigatorActOversight: [] }), currentAction: "groq-boss-opening-assignment", iteration: 0 }).returning({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile });
+  const [created] = await tx.insert(researchCasesTable).values({ targetEntityId: target.id, caseType: "target", status: "active", directorMode: "groq_boss_pending", directorProvider: "groq", directorModel: "auto-low-cost-pending", objective, motivation: "Target-scoped Apex Atlas investigation with continuous Groq Boss + Groq Right-hand oversight.", openingPrompt: objective, caseFile: JSON.stringify({ version: 2, target: { id: target.id, name: target.name, type: target.type }, atlasJobId, parentDiscoveryObjective: objectiveOverride?.trim() || null, investigatorActOversight: [], rightHandOpening: { status: "deferred", model: "none", reason: "Deferred until the Investigator produces source observations or a consequential decision." } }), currentAction: "groq-boss-opening-assignment", iteration: 0 }).returning({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile });
   if (!created?.targetEntityId) throw new Error(`Unable to create investigation case for ${target.name}.`);
   await linkTargetCase(created.id);
   return { ...created, targetEntityId: created.targetEntityId, iteration: Number(created.iteration ?? 0), objective: created.objective ?? objective };
@@ -618,7 +618,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       ? readOversight(parseCaseFile(reviewedCase.caseFile), latestResult.executionId ?? null, actNumber)
       : null;
     // The target agent may persist review-only candidate evidence before this point,
-    // but strict card-field promotion must wait until Boss/Right-hand oversight has
+    // but strict card-field promotion must wait until the Boss control decision and any required Right-hand review have
     // durably written the immutable control-decision evidence graph for this run.
     if (
       latestResult.status === "completed"
