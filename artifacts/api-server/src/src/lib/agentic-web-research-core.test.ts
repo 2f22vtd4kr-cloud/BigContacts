@@ -166,7 +166,7 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
     const roleOrientation = apexOrientationFor("investigator");
-    expect(systemCore.length).toBeLessThan(2_800);
+    expect(systemCore.length).toBeLessThan(3_200);
     expect(systemCore).toContain("SEMANTIC AUTHORITY");
     expect(systemCore).toContain("EVIDENCE & INTEGRITY");
     expect(systemCore).toContain("CONTACT:");

@@ -5263,7 +5263,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   );
   const userPromptBudget = Math.min(
     investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
-    2_800,
+    2_400,
   );
   return providerBoundedPrompt.length <= userPromptBudget
     ? providerBoundedPrompt
