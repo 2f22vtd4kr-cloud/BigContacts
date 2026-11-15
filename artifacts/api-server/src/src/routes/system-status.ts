@@ -57,7 +57,38 @@ router.get("/system/status", async (_req,res) => {
     try{const t0=Date.now();await db.execute(sql`SELECT 1`);pgLatencyMs=Date.now()-t0;}catch{pgStatus="error";}
     const localInfo=getLocalRedisStatus(); const localLatencyMs=localInfo.status==="ready"?await pingRedis():null;
     const upstash=getPermanentClientStatuses(); const lanesHonesty=buildLanesHonestySnapshot();
-    const payload={ai,pythonTools,groqBoss,groqRightHand:bureauReasoning,groqRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
+    // Small, read-only projection of the durable per-UTC-day model ledger.
+    // A missing migration is reported as unavailable without taking down status.
+    let llmUsageLedger: { status: "available"; usageDate: string; period: "UTC day"; models: unknown[] } | { status: "unavailable"; reason: "ledger_not_available" } = { status: "unavailable", reason: "ledger_not_available" };
+    try {
+      const ledger = await db.execute(sql`
+        SELECT usage_date::text AS usage_date, provider, model, request_count,
+          success_count, failure_count, prompt_tokens, cached_prompt_tokens,
+          completion_tokens, reasoning_tokens, total_tokens, estimated_tokens,
+          reserved_tokens, daily_budget_tokens,
+          CASE WHEN daily_budget_tokens > 0
+            THEN GREATEST(daily_budget_tokens - total_tokens - reserved_tokens, 0)
+            ELSE NULL
+          END AS remaining_configured_budget_tokens,
+          budget_exhausted, last_provider_status, last_provider_error_code,
+          last_job_id, last_case_id, last_role, last_cognitive_task, last_iteration,
+          last_request_success, last_request_at, last_rate_limit_remaining_tokens,
+          last_rate_limit_reset_tokens_ms, last_rate_limit_remaining_requests,
+          last_rate_limit_reset_requests_ms
+        FROM public.agentic_llm_daily_usage
+        WHERE usage_date = (now() AT TIME ZONE 'UTC')::date
+        ORDER BY provider, model
+      `);
+      llmUsageLedger = {
+        status: "available",
+        usageDate: new Date().toISOString().slice(0, 10),
+        period: "UTC day",
+        models: ledger.rows,
+      };
+    } catch {
+      // Status remains usable when an installation has not applied ledger migrations.
+    }
+    const payload={ai,pythonTools,groqBoss,groqRightHand:bureauReasoning,groqRightHandLatency,llmUsageLedger,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
     _cached=payload;_cachedAt=Date.now();return res.json(payload);
   }catch(err:any){return res.status(500).json({error:err?.message??"Unknown error"});}
 });router.post("/system/diagnostics/groq-readiness", async (_req,res) => {
