@@ -47,7 +47,7 @@ describe("objective-led institutional orientation", () => {
   it("does not impose person-first discovery on company- or asset-led objectives", () => {
     const investigator = apexOrientationFor("investigator");
     const digAgent = apexOrientationFor("dig_agent");
-    expect(investigator).toContain("B2B needs fetched role/company evidence");
+    expect(investigator).toContain("B2B role claims need fetched role/company evidence");
     expect(investigator).not.toContain("role presence is required for review-card admission");
     expect(digAgent).toContain("the human objective determines the target class");
     expect(digAgent).toMatch(/Do not impose person-first discovery when the objective is company- or asset-led/i);
