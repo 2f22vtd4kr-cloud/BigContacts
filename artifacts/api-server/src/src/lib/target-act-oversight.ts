@@ -19,10 +19,12 @@ export type TargetActOversight={status:"completed"|"unavailable";action:"continu
 
 /** Right-hand is reserved for consequential independent review, not routine turns. */
 export function shouldReviewTargetActWithRightHand(
-  act: { action: string; stopReason?: string | null; findings?: unknown[] },
+  act: { action: string; execution?: string | null; stopReason?: string | null; findings?: unknown[] },
   previousBossDisposition?: string | null,
 ): boolean {
-  if (act.action === "done" || Boolean(act.stopReason) || previousBossDisposition === "redirect") return true;
+  if (act.action === "done" && act.execution === "success") return true;
+  if (Boolean(act.stopReason) && act.execution === "success") return true;
+  if (previousBossDisposition === "redirect" && act.execution === "success") return true;
   for (const raw of act.findings ?? []) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const finding = raw as Record<string, unknown>;
