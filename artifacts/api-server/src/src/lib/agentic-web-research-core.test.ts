@@ -1529,7 +1529,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Names from brief or same-case observations; no homonym guesses.");
-    expect(modelPrompt).toContain("CONTACT: Model classifies personal/professional-person, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("CONTACT: Model classifies personal/professional, shared, organization, intermediary or unknown.");
     expect(modelPrompt).toMatch(/Verify role, relationship, materiality, counter-evidence and route before promotion/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
