@@ -4032,6 +4032,30 @@ describe("Groq Investigator structured-output recovery", () => {
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
   });
 
+  it("treats json_validate_failed without failed_generation as ambiguous possible truncation and retries once within observed TPM headroom", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "Failed to validate JSON",
+      responseFormat: "json_schema",
+      failureDetailsAvailable: false,
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+      rateLimitRemainingTokens: 8_000,
+      promptTokenEstimate: 2_000,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "Failed to validate JSON",
+      responseFormat: "json_schema",
+      failureDetailsAvailable: false,
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    })).toEqual({ action: "retry_json_object" });
+  });
+
   it("refuses a truncation retry that would exceed provider-reported remaining TPM headroom", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 200,
