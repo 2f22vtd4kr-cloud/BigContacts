@@ -365,37 +365,45 @@ async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<Harveste
         if (yielded >= maxCount) break;
         const src = hit?._source ?? {};
 
-        // DEF 14A filer is the company — display_names[0] is the registrant.
-        // We store as Corporation type. Individual directors require full-text parsing.
+        // DEF 14A filer is the company registrant; preserve it as a company candidate.
         const displayNames: string[] = src?.display_names ?? [];
-        const rawName: string = (displayNames[0] ?? "")
-          .replace(/\s*\(CIK\s*\d+\)\s*$/i, "")
-          .trim();
-        if (!rawName || rawName.toLowerCase() === "unknown") continue;
-        const nameKey = rawName.toLowerCase();
-        if (seen.has(nameKey)) continue;
-        seen.add(nameKey);
+        const displayName = displayNames[0] ?? "";
+        const cik = displayName.match(/\(CIK\s*(\d+)\)/i)?.[1] ?? "";
+        const rawName: string = displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
+        if (!isStructurallyValidCandidateName(rawName)) continue;
 
         const fileDate: string = src?.file_date ?? "";
         const bizLocation: string =
           (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+        const sourceRegistry = "SEC EDGAR — DEF 14A (Proxy)";
+        const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "");
+        const rawMetadata: Record<string, unknown> = {
+          source: "sec-edgar-def14a",
+          sourceRecordId: cik ? "sec-cik:" + cik : "sec-def14a:" + accession,
+          cik: cik || undefined,
+          accessionNumber: accession || undefined,
+          fileDate,
+          bizLocation,
+          entityName: rawName,
+          displayNames,
+        };
+        const key = dedupKey(rawName, "US", sourceRegistry, rawMetadata, "Corporation");
+        if (seen.has(key)) continue;
+        seen.add(key);
 
         yielded++;
         yield {
+          entityType: "Corporation",
           name: normalizeEdgarName(rawName),
           nationality: "American",
           location: bizLocation || "United States",
-          sourceRegistry: "SEC EDGAR — DEF 14A (Proxy)",
+          sourceRegistry,
+          role: "Company registrant (DEF 14A)",
           filingType: "DEF 14A",
-          rawMetadata: {
-            source: "sec-edgar-def14a",
-            fileDate,
-            bizLocation,
-            entityName: rawName,
-          },
+          rawMetadata,
           signals: {
             isLargeShareholder: false,
-            isBoardDirector: true,
+            isBoardDirector: false,
             isCompanyOfficer: false,
             hasRecentFiling: fileDate >= "2021-01-01",
             jurisdiction: "US",
