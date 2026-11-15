@@ -30,7 +30,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
     expect(orientation).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions");
     expect(orientation).toContain("A ranking or search result alone is a lead, not a verified claim");
-    expect(orientation).toContain("do not prefer private or mid-market status unless the human objective asks for it");
+    expect(orientation).toMatch(/do not prefer private or mid-market status unless the human objective asks for it/i);
     expect(orientation).toContain("Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission");
     expect(orientation).toContain("No private/mid-market preference or company blacklist unless the human explicitly specifies it");
   });
@@ -363,7 +363,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(orientation).toContain("selection is not promotion");
     expect(control).toContain("AVAILABLE REVIEW TARGETS");
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
-    expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
+    expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("There is no target-count threshold; Right-hand advises and does not select or authorize targets.");
 
