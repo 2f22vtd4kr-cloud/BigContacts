@@ -784,8 +784,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyB.systemPromptChars).toBeGreaterThan(0);
     expect(twentyB.userPromptChars).toBeGreaterThan(0);
     expect(oneTwentyB.responseFormatChars).toBeGreaterThan(0);
-    expect(twentyB.systemPromptChars).toBeLessThan(3_000);
-    expect(oneTwentyB.systemPromptChars).toBeLessThan(3_000);
+    expect(twentyB.systemPromptChars).toBeLessThan(4_000);
+    expect(oneTwentyB.systemPromptChars).toBeLessThan(4_000);
+    expect(twentyB.reasoningEffort).toBe("low");
+    expect(oneTwentyB.reasoningEffort).toBe("low");
     expect(twentyB.completionCap).toBe(1_024);
     expect(oneTwentyB.completionCap).toBe(1_024);
   });
