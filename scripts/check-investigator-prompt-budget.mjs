@@ -9,13 +9,13 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 6_800/.test(core), "provider prompt size must be represented as a preferred optimization target");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
 assert(/maxChars: input\.mode === "discovery" \? 900 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 350 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 1_600 : 800\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 6_800/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
-assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 6_800/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_200/.test(core), "the preferred 7,200/4,800 character targets remain explicit");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
+assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 9_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core), "the preferred 7,200/4,800 character targets remain explicit");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core), "one shared helper derives the provider-safe user-message budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
