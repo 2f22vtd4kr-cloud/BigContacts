@@ -13,7 +13,6 @@
  * - Real public signals only; never invent openness or contacts
  */
 
-import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
 
 export type DiscoverySourceKind = "broad" | "registry" | "faa";
 
@@ -96,129 +95,20 @@ export function buildSourcesToRun(input: {
 }
 
 /**
- * Deprecated legacy ranking helper. Canonical Apex admission/relevance is AI-owned.
- * This helper must not make fame/celebrity decisions; it only preserves non-person
- * shape handling for old callers. It is not part of the canonical launch path.
+ * Deprecated compatibility helpers. The canonical Investigator owns
+ * relevance, targetability, role and ordering decisions. Legacy callers retain
+ * their input order and receive no synthetic score or deterministic veto.
  */
-export function scoreApproachableCandidate(input: {
-  name: string;
-  snippet?: string | null;
-  query?: string | null;
-  notes?: string | null;
-}): number {
-  const fitness = evaluateTargetFitness({
-    name: input.name,
-    snippet: input.snippet,
-    notes: `${input.query ?? ""}\n${input.notes ?? ""}`,
-    personScoped: true,
-  });
-  if (shouldRejectTarget(fitness)) {
-    return 0;
-  }
-
-  const text = `${input.name}\n${input.snippet ?? ""}\n${input.query ?? ""}\n${input.notes ?? ""}`.toLowerCase();
-  let score = 0.3;
-
-  if (/\b(founder|co-founder|cofounder|operator|managing partner|general partner|ceo|chief executive|owner-operator|proprietor)\b/i.test(text)) {
-    score += 0.25;
-  }
-  // E residual: prefer officer / director / shareholder person recipes over corp shells.
-  if (/\b(officer|director|board member|non-executive|shareholder|psc|beneficial owner|partner)\b/i.test(text)) {
-    score += 0.18;
-  }
-  if (/\b(founder|operator|managing partner|gp)\b/i.test(input.name) === false && /\b(founded|launched|built|started)\b/i.test(text)) {
-    score += 0.1;
-  }
-
-  if (/\b(angel investor|seed investor|early investor|portfolio company|interview|keynote|conference|summit|podcast)\b/i.test(text)) {
-    score += 0.15;
-  }
-  if (/\b(family office|private equity|venture|growth equity)\b/i.test(text)) {
-    score += 0.08;
-  }
-
-  if (/\b(contact|team@|info@|linkedin\.com\/in\/|about us|leadership)\b/i.test(text)) {
-    score += 0.12;
-  }
-
-  if (/\b(anonymous|undisclosed owner|shell company only)\b/i.test(text)) {
-    score -= 0.2;
-  }
-
-  const nameParts = input.name.trim().split(/\s+/);
-  if (nameParts.length >= 2 && nameParts.length <= 4 && /^[A-Za-zÀ-ÿ'\u2019\-]+$/.test(nameParts[0] ?? "")) {
-    score += 0.05;
-  }
-
-  // Legacy-only signal blend. Famous-person relevance is intentionally not scored here.
-  score = score * 0.7 + fitness.score * 0.3;
-
-  return Math.max(0, Math.min(1, Number(score.toFixed(3))));
+export function rankCandidatesForAdmission<T>(candidates: T[]): T[] {
+  return [...candidates];
 }
 
-/** Sort candidates best-first for admission under a tight maxEntities budget. */
-export function rankCandidatesForAdmission<T extends { name: string; snippet?: string; query?: string }>(
-  candidates: T[],
-): T[] {
-  return [...candidates].sort((a, b) => {
-    const sb = scoreApproachableCandidate(b);
-    const sa = scoreApproachableCandidate(a);
-    return sb - sa;
-  });
+/** Preserve every supplied lead for model review; do not infer entity shape. */
+export function filterDiscoveryCandidatesByFitness<T>(candidates: T[]): T[] {
+  return [...candidates];
 }
 
-/**
- * Legacy shape annotation only. Fame-based filtering is intentionally absent.
- * Pure corp shells are kept but annotated so operators reframe to officers —
- * never presented as person targets without a person path.
- */
-export function filterDiscoveryCandidatesByFitness<T extends {
-  name: string;
-  type?: string | null;
-  relevance?: string | null;
-  reachability?: string | null;
-}>(candidates: T[]): T[] {
-  const kept: T[] = [];
-  for (const candidate of candidates) {
-    const fitness = evaluateTargetFitness({
-      name: candidate.name,
-      type: candidate.type,
-      snippet: `${candidate.relevance ?? ""} ${candidate.reachability ?? ""}`,
-      personScoped: true,
-    });
-    if (fitness.fit === "reject_non_person") {
-      const relevance = String(candidate.relevance ?? "").trim();
-      const note = "Corp/shell under person-scoped discovery — reframe to named officers/directors/shareholders before admission.";
-      kept.push({
-        ...candidate,
-        relevance: relevance.includes("reframe") ? relevance : `${relevance ? `${relevance} ` : ""}${note}`.trim(),
-        reachability: candidate.reachability
-          ? String(candidate.reachability)
-          : "Organization shell only; no person path claimed.",
-      });
-      continue;
-    }
-    kept.push(candidate);
-  }
-  return kept;
-}
-
-/** Rank discovery review candidates: approachable principals first, shells last. */
-export function rankDiscoveryReviewCandidates<T extends {
-  name: string;
-  type?: string | null;
-  relevance?: string | null;
-  reachability?: string | null;
-}>(candidates: T[]): T[] {
-  return [...candidates].sort((a, b) => {
-    const sb = scoreApproachableCandidate({
-      name: b.name,
-      snippet: `${b.relevance ?? ""} ${b.reachability ?? ""}`,
-    });
-    const sa = scoreApproachableCandidate({
-      name: a.name,
-      snippet: `${a.relevance ?? ""} ${a.reachability ?? ""}`,
-    });
-    return sb - sa;
-  });
+/** Preserve the discovery model's chosen order; no keyword-based re-ranking. */
+export function rankDiscoveryReviewCandidates<T>(candidates: T[]): T[] {
+  return [...candidates];
 }
