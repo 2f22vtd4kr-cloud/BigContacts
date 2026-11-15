@@ -1189,13 +1189,12 @@ async function materializePartialOrganizationLeadCards(input: {
         && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
       candidates.push({
         ...persisted.candidate,
-        // A model-selected review lead is not automatically a research target.
-        // Require the Investigator's explicit promote decision AND either a
-        // claim-grade fetched page or a structured registry adapter record that
-        // binds this exact name to its returned source URL.
+        // Target research is the verification stage: an Investigator-selected
+        // lead with an exact same-case name/source binding may be researched even
+        // when its source is still a search result or aggregator. This remains a
+        // review-only lead; it does not establish identity, ownership or a claim.
         targetEligibleForResearch: explicitlyPromotedByInvestigator && [...supports.values()].some((support) =>
-          !support.restrictedCommunitySource
-          && (support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true)),
+          !support.restrictedCommunitySource && (support.spanVerified || support.sourceUrlBoundByAdapter === true)),
       });
     }
     wroteDurableState ||= persisted.changed;
