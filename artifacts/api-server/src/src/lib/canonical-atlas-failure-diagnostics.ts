@@ -177,7 +177,8 @@ export function classifyInvestigatorProviderError(value: string): { domain: Atla
   if (code === "upstream_token_quota_exhausted") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
-  if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  if (code === "local_provider_budget_exhausted" || code === "daily_token_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  if (code === "daily_usage_ledger_unavailable") return { domain: "persistence_database", kind: "request_failure" };
   if (code === "upstream_rate_limited" || code === "rate_limited" || /^http_429(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_rate_limited" };
   if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "upstream_request_size_rejected" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
   if (/^http_(401|403)(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_auth_failure" };
@@ -210,6 +211,14 @@ export function classifyCanonicalAtlasFailure(input: {
   }
   if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
     return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
+  }
+  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
+    && /daily_token_budget_exhausted|investigator_daily_token_budget_exhausted/i.test(error.message)) {
+    return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  }
+  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
+    && /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(error.message)) {
+    return { domain: "persistence_database", kind: "request_failure" };
   }
   if ((input.stage === "investigator_episode" || input.stage === "orchestration")
     && /\binvestigator_episode_no_action\b/.test(error.message)) {
