@@ -51,6 +51,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
 
+      - name: Initialize PostgreSQL schema for non-live regression tests
+        env:
+          APEX_ALLOW_SCHEMA_PUSH: "true"
+        run: bash scripts/initialize-apex-schema.sh
+
       - name: Typecheck workspace libraries
         run: pnpm run typecheck:libs
 
