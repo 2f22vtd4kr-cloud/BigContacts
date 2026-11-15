@@ -255,6 +255,35 @@ describe("model-owned discovery relevance reasoning", () => {
   });
 });
 
+describe("live discovery semantic-authority boundary", () => {
+  it("keeps lexical pivot/geography/source-class diagnostics out of live action admission", () => {
+    const runtimeStart = agenticCoreSource.indexOf("const selectedArgs = { ...action } as Record<string, unknown>;");
+    expect(runtimeStart).toBeGreaterThan(-1);
+    for (const diagnostic of [
+      "discoveryPivotAlignmentReason(",
+      "repeatedPivotBlockedActionReason(",
+      "discoveryUnscopedGeographyReason(",
+      "findUnsupportedDiscoverySectorTerms(",
+      "partitionParallelWebSearchesByPivotScope(",
+      "partitionParallelRegistrySearchesByPivotScope(",
+    ]) {
+      expect(agenticCoreSource.indexOf(diagnostic, runtimeStart), diagnostic).toBe(-1);
+    }
+
+    const validatorStart = agenticCoreSource.indexOf("export function validateDiscoverySearchQuery");
+    const validatorEnd = agenticCoreSource.indexOf("export function validateDiscoveryDomainLookup", validatorStart);
+    expect(validatorStart).toBeGreaterThan(-1);
+    expect(validatorEnd).toBeGreaterThan(validatorStart);
+    const validator = agenticCoreSource.slice(validatorStart, validatorEnd);
+    expect(validator).toContain("Structural/provider-syntax checks only.");
+    expect(validator).toContain("Query content and source class are model-owned research choices");
+    expect(validator).not.toContain("geographicScopeMention");
+    expect(validator).not.toContain("findUnsupportedDiscoverySectorTerms");
+    expect(validateDiscoverySearchQuery("Mongolian renewable-energy founders and public ownership records").allowed).toBe(true);
+    expect(validateDiscoverySearchQuery("Singapore deep-tech operators, regional filings and investor relationships").allowed).toBe(true);
+  });
+});
+
 describe("schema-inclusive Investigator prompt measurement", () => {
   it("keeps a representative first discovery request near the 2,000-token target", () => {
     const objective = "Investigate publicly documented people and companies relevant to private business ownership and asset control. Find useful source-backed leads, preserve uncertainty, and let the Investigator decide which hypotheses, sectors, sources and follow-ups can advance the objective. Explicitly exclude private residential and sensitive personal data. Boss retains authority over material scope changes.";
