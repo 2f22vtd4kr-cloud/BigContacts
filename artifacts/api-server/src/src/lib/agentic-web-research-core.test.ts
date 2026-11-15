@@ -2485,16 +2485,16 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
   });
 
-  it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
+  it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
     const { isClaimGradeDiscoverySourceUrl } = await import("./candidate-source-url-union");
     expect(isClaimGradeDiscoverySourceUrl("https://www.naatp.org/staff")).toBe(true);
-    expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(false);
-    // Source eligibility is not HNWI promotion: only an explicit model-promoted,
-    // same-source identity/role plus wealth-potential lead can be materialized.
-    // Independent corroboration and the realistic contact route remain target-stage work.
+    expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(true);
+    // Source class is provenance, not admission policy. The model selects the
+    // role and exact quote; code verifies same-run fetched/registry provenance.
     expect(agenticCoreSource).toContain("Apply objective criteria");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
-    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
+    expect(canonicalAtlasDiscoverySource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
     expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted. Discovery remains capped at");
     expect(canonicalAtlasDiscoverySource).toContain("the protected target-research reserve is not released for additional broad discovery");
