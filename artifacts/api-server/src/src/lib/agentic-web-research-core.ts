@@ -4759,9 +4759,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
-  const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another action or stop.`
+    ? `SEARCH ACTIVITY (informational only; no fixed search cap): ${discoverySearchActionsUsed} outbound search actions observed. The Investigator chooses further searches, fetches, pivots and stopping by expected information gain.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
@@ -5311,11 +5310,6 @@ export function discoveryLeadInspectionRequirement(
   return null;
 }
 
-export const MAX_DISCOVERY_SEARCH_ACTIONS = boundedPositiveNumber(process.env.APEX_DISCOVERY_MAX_SEARCH_ACTIONS, 8, 2, 20);
-
-export function discoverySearchBudgetExhaustionObservation(used: number): string {
-  return "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached (" + used + "/" + MAX_DISCOVERY_SEARCH_ACTIONS + " actions used across this case). No further search/provider/registry request was sent. Decide whether any objective-justified non-search action, target-scoped handoff, or stopping is warranted; the next action remains your decision.";
-}
 const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
 
 /** Count only outbound search attempts; runtime-blocked and unexecuted selections do not consume the discovery search budget. */
@@ -6004,20 +5998,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
 // reconstructed from keyword/geography/source-class aliases in the executor.
 // Keep this field only for technical provider-availability diagnostics below.
 let scopeFilterSummary: string | null = null;
-if (input.mode === "discovery" && DISCOVERY_SEARCH_ACTIONS.has(action.action)) {
-  const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);
-  if (discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
-    record.execution = "blocked";
-    record.failureDomain = "tool_execution";
-    record.failureKind = "request_failure";
-    record.observation = discoverySearchBudgetExhaustionObservation(discoverySearchActionsUsed);
-    lastObservation = record.observation;
-    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_search_budget_exhausted");
-    await emitSanitizedTrajectoryRecord(record);
-    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted at the configured ceiling." });
-    continue;
-  }
-}
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
