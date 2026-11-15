@@ -31,7 +31,7 @@ export function shouldReviewTargetActWithRightHand(
     const promotion = finding.promotionDecision;
     const identity = finding.identityAssessment;
     const relation = finding.hypothesisRelation;
-    if ((scope === "candidate" || scope === "organization") && (personName || typeof finding.value === "string" && finding.value.trim())) return true;
+    if (scope === "candidate" && personName) return true;
     if (promotion === "promote" || promotion === "reject") return true;
     if (identity === "different_people" || identity === "unresolved") return true;
     if (relation === "contradicts" || relation === "ambiguous") return true;
