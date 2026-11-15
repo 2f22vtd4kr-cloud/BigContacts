@@ -101,11 +101,13 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     const policy = read("src/src/lib/candidate-source-url-union.ts");
     expect(discovery).toContain("candidateRoleCorroborationSources");
     expect(discovery).toContain("sources.length >= 1");
-    expect(discovery).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(discovery).toContain("Ownership terminology, wealth signals, role keywords and proximity are not admission gates.");
     expect(discovery).toContain("claimGradeObservations");
     expect(discovery).toContain("durableSourceCount >= 1");
     expect(discovery).toContain("reviewOnly: true");
-    expect(policy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
+    expect(policy).toContain("const exactQuote = modelQuotes.find");
+    expect(policy).toContain("observation.observation.includes(quote)");
+    expect(policy).toContain("normalizeCandidateIdentityName(quote).includes(normalizeCandidateIdentityName(input.personName))");
     expect(policy).toContain("supporting.has(publisher)");
     expect(policy).toContain('observation.execution !== "success"');
     expect(policy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
