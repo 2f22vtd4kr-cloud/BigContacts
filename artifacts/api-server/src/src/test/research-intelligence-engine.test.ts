@@ -49,10 +49,26 @@ describe("Apex research intelligence", () => {
       execution: "success",
       urls: [url],
       observation: "COMMUNITY SOURCE LEAD: user-submitted observation. Preserve contributor/date/page and corroborate material claims.",
+      args: {
+        sourceAttribution: {
+          sourceName: "Virtual Globetrotting",
+          sourceDomain: "www.virtualglobetrotting.com",
+          sourceClass: "community_user_submitted_unverified",
+          sourceContributor: "Alice Example",
+          originalObservedAt: "2024-01-02T00:00:00.000Z",
+          sourceMechanism: "visit",
+        },
+      },
     });
     const evidence = engine.buildContext().atomicEvidence.find((item) => item.sourceUrl === url);
     expect(evidence?.sourceClass).toBe("COMMUNITY_OBSERVATION");
     expect(evidence?.sourceTier).toBe("unknown");
+    expect(evidence).toMatchObject({
+      sourceName: "Virtual Globetrotting",
+      sourceContributor: "Alice Example",
+      originalObservedAt: "2024-01-02T00:00:00.000Z",
+      sourceMechanism: "visit",
+    });
   });
 
   it("keeps cross-page identity and contact evidence review-only until one source binds them", () => {
