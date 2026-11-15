@@ -282,11 +282,9 @@ export async function reserveAgenticLlmDailyBudget(input: {
       import("drizzle-orm"),
     ]);
     const table = agenticLlmDailyUsageTable;
-    const existing = await db.select({ budgetExhausted: table.budgetExhausted })
-      .from(table)
-      .where(and(eq(table.usageDate, usageDate), eq(table.provider, input.provider), eq(table.model, input.model)))
-      .limit(1);
-    if (existing[0]?.budgetExhausted) throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
+    // The atomic INSERT/ON CONFLICT reservation below is the source of truth.
+    // A pre-read is both racy and unnecessary: the WHERE clause also rejects
+    // rows already marked budget_exhausted.
     if (dailyBudgetTokens <= 0) return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
     if (estimatedTokens > dailyBudgetTokens) {
       await db.insert(table).values({ usageDate, provider: input.provider, model: input.model, dailyBudgetTokens, budgetExhausted: true })
@@ -310,8 +308,9 @@ export async function reserveAgenticLlmDailyBudget(input: {
     `);
     const rows = (result as { rows?: unknown[] }).rows ?? [];
     if (!rows.length) {
-      await db.insert(table).values({ usageDate, provider: input.provider, model: input.model, dailyBudgetTokens, budgetExhausted: true })
-        .onConflictDoUpdate({ target: [table.usageDate, table.provider, table.model], set: { dailyBudgetTokens, budgetExhausted: true, updatedAt: new Date() } });
+      // A rejected reservation does not mean the daily budget is exhausted:
+      // a smaller later request may still fit the remaining capacity. Never
+      // poison the durable budget_exhausted flag on a failed reservation.
       throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
     }
     return { usageDate, reservedTokens: estimatedTokens, dailyBudgetTokens };
