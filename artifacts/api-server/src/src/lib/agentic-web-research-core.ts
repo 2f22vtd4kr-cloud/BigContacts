@@ -4696,11 +4696,10 @@ export function buildDiscoveryScopeAdvisory(
     + " Investigator retains semantic judgement; explain the relevance and expected information gain, and raise a strategic scope change to Boss/Right-hand when appropriate.";
 }
 
-// SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.
-// SOURCE-NEUTRAL MIXED TARGET DISCOVERY: choose among enabled web/registry evidence routes by fit and yield.
-// YOU decide whether any observed organization is worth preserving as a provisional review card; never admit every result.
-// All enabled registries and public-web search are neutral options; no named default, geography sweep, fixed order or registry-first rule.
-// Leave promotionDecision unset for a review-only person lead; explain any material deviation from the active Boss scope.
+// AUTONOMOUS DISCOVERY: do not prescribe source families, sectors, jurisdictions or action order.
+// Investigator chooses targets and evidence routes from the mission, observations, runtime capabilities and cost.
+// Boss retains authority over strategic scope changes; preserve explicit human constraints and propose evidence-led pivots when scope is open.
+// Preserve useful model-selected review leads without treating them as verified claims.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
@@ -4714,8 +4713,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
     "DISCOVERY SEARCH ECONOMY: max " + MAX_DISCOVERY_SEARCH_ACTIONS + " outbound searches per case; this is a cost guard, not a sequence or stopping target. At zero, choose another callable action or stop/park. Investigator chooses by expected information gain; no forced mixed-source batch or registry-first order.",
-    "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD: exact observed name, stated role or null, associated public HTTPS URL; no ownership/wealth/relationship/HNWI/contact claim. VALID COMPANY REVIEW-LEAD SHAPE: scope=organization; personName=null; role=null. COMPANY REVIEW: preserve a concrete company explicitly named in a same-case search observation as a review-only organization lead; do not wait for fetch, ownership clue, wealth proof or HNWI qualification.",
-    "DISCOVERY LEAD HANDOFF CONTRACT: preserve only selected objective-fit leads. Target research verifies role/relationship/materiality, counter-evidence and route before promotion; target-scoped research independently corroborates or falsifies claims required by the active objective."
+    "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD: preserve the model-selected exact observed name, stated role or null, source URLs and any quote-backed claims with uncertainty. Review-only status is not verification; never invent claims or routes. VALID COMPANY REVIEW-LEAD SHAPE: scope=organization; personName=null; role=null. COMPANY REVIEW: a concrete company named in a same-case search observation may be preserved as a review-only organization lead; do not require a prior fetch, ownership clue, wealth proof or HNWI qualification. Sourced ownership/wealth hypotheses may be recorded with their evidence and uncertainty.",
+    "DISCOVERY LEAD HANDOFF: preserve useful model-selected leads. Target research and independent review determine which claims are corroborated, contradicted, material or ready for promotion according to the human objective; no universal ownership, wealth, role or route checklist."
 
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
