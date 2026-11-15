@@ -16,9 +16,15 @@ describe("target act Right-hand review economy", () => {
   it("reviews a proposed terminal decision", () => {
     expect(shouldReviewTargetActWithRightHand({
       action: "done",
+      execution: "success",
       stopReason: "MODEL_DECIDED_DONE",
       findings: [],
     })).toBe(true);
+    expect(shouldReviewTargetActWithRightHand({
+      action: "done",
+      execution: "blocked",
+      findings: [],
+    })).toBe(false);
   });
 
   it("reviews candidate admission and explicit promotion decisions", () => {
@@ -58,6 +64,7 @@ describe("target act Right-hand review economy", () => {
   it("reviews the first Investigator act after a Boss-authorized strategic redirect", () => {
     expect(shouldReviewTargetActWithRightHand({
       action: "web_search",
+      execution: "success",
       findings: [],
     }, "redirect")).toBe(true);
     expect(shouldReviewTargetActWithRightHand({
