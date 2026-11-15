@@ -236,20 +236,25 @@ describe("discovery source evidence policy", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(false);
   });
 
-  it("accepts official registry observations as exact-quote-backed candidate evidence", () => {
-    const url = "https://registry.example.test/search/person?id=123";
+  it("keeps registry search results as leads until the underlying record page is fetched", () => {
+    const url = "https://registry.example.test/records/person/123";
     const quote = "Anna Example is listed as managing director of Example GmbH.";
-    const result = candidateRoleCorroborationSources({
+    const input = {
       personName: "Anna Example",
       role: "Managing Director",
       findings: [{
         personName: "Anna Example",
         role: "Managing Director",
-        promotionDecision: "promote",
-        scope: "candidate",
+        promotionDecision: "promote" as const,
+        scope: "candidate" as const,
         sourceUrls: [url],
         exactQuote: quote,
       }],
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
+      normalizeSourceUrl,
+    };
+    expect(candidateRoleCorroborationSources({
+      ...input,
       observations: [{
         action: "registry_search",
         execution: "success",
@@ -257,10 +262,17 @@ describe("discovery source evidence policy", () => {
         observation: quote,
         eventId: 41,
       }],
-      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
-      normalizeSourceUrl: normalizeSourceUrl,
-    });
-    expect(result).toEqual([{ sourceUrl: url, publisher: "registry.example.test", eventId: 41 }]);
+    })).toEqual([]);
+    expect(candidateRoleCorroborationSources({
+      ...input,
+      observations: [{
+        action: "visit",
+        execution: "success",
+        sourceUrl: url,
+        observation: quote,
+        eventId: 42,
+      }],
+    })).toEqual([{ sourceUrl: url, publisher: "registry.example.test", eventId: 42 }]);
   });
 
   it("preserves short but non-empty model-selected identities in the durable source union", () => {
