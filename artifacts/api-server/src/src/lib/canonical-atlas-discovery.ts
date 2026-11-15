@@ -2176,7 +2176,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }),
           discoveryActionsRemaining: controlBudgetState.discoveryActionsRemaining,
           discoverySearchActionsUsed: controlBudgetState.discoverySearchActionsUsed,
-          discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining,
           targetResearchReserveRemaining: controlBudgetState.targetResearchReserveRemaining,
         },
         errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
