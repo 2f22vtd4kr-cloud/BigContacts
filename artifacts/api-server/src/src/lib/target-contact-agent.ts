@@ -234,7 +234,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     sections[1]!,
     "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
     "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Relationships require explicit credible public evidence and a relevant ownership/control or documented intermediary purpose; never infer from surnames, co-location, follows or social proximity.",
+    "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social proximity.",
     "Classify contact routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Keep other/unknown routes review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
