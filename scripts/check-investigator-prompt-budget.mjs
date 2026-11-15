@@ -118,5 +118,5 @@ console.log("  Estimated GPT-OSS 120B input including schema proxy: " + estimate
 console.log("  Default reasoning effort: low; completion cap: " + defaultCompletionBudget + " tokens (environment-configurable).");
 console.log("  Estimated 20B input + completion ceiling: " + estimatedTotalTokensPerTurn + " tokens; estimated 120B input + completion ceiling: " + estimated120bTotalTokensPerTurn + " tokens.");
 console.log("  2026-11-14 baseline: provider-reported input=" + legacyObservedPromptTokens + " tokens; completion cap=" + legacyCompletionCap + "; one observed successful empty completion=" + legacyObservedCompletionTokens + " tokens (including reasoning).");
-console.log("  Comparison: estimated new prompt allowance is " + Math.round((1 - estimatedPromptTokens / legacyObservedPromptTokens) * 100) + "% below the captured baseline input; actual post-patch usage requires the user's live Replit run.");
+console.log("  Comparison: estimated 20B input is " + Math.round((1 - estimatedPromptTokens / legacyObservedPromptTokens) * 100) + "% below baseline; the conservative 120B schema-proxy input is " + Math.round((1 - estimated120bInputTokens / legacyObservedPromptTokens) * 100) + "% below baseline. Actual post-patch provider usage still requires the user's live Replit run.");
 console.log("INVESTIGATOR PROMPT BUDGET: PASS");
