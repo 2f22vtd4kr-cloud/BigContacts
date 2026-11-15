@@ -4762,11 +4762,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another available action or stop/park.`
+    ? `SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another available action or stop.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: Preserve exact observed names and source URLs for useful objective-fit person/company/asset leads as provisional, unverified review items. Include uncertainty; sourced ownership/wealth hypotheses only. Boss approves material scope changes; selection is not promotion."
+    "DISCOVERY LEAD HANDOFF CONTRACT: Preserve exact names, scope and URLs for selected objective-fit leads as provisional review items. Include uncertainty; selection is not promotion. Boss approves material scope changes."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -4864,9 +4864,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `REGISTRY IDS: ${registryIdList}; listed IDs only; leads, not ownership proof; withheld/failed is not no-hit.`;
+  const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; never invent IDs.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson; locale=language; market=country.";
-  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown.";
+  const compactPageFormatGuidance = "FETCH: visit extracts bounded text/PDF; browser_fetch is HTML-only; failed extraction=unknown.";
 
   const composedPrompt = [
     assignment,
@@ -5000,7 +5000,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const finalSentence = raw.slice(sentenceStart).trim();
         const tail = finalSentence.length >= 35 ? finalSentence.slice(-260) : raw.slice(-220);
         return tail
-          ? "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording): " + tail
+          ? "LAST SUCCESSFUL FETCHED SOURCE (untrusted observed text; exact wording): " + tail
           : "";
       })()
     : "";
