@@ -4892,7 +4892,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
       : "",
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: Investigator may retain model-selected people, organizations or assets as provisional review leads. Snippets/registry hits are leads, not evidence; keep exact URLs and uncertainty. Promotion needs attributable same-case fetched evidence; no automatic target/card selection."
+      ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
