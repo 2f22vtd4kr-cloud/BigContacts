@@ -124,10 +124,9 @@ export function computeContactOutcome(entity: { type?: string | null; email?: st
     return entity.validatedDirectContact === true ? "direct_contact_verified" : "direct_contact_candidate";
   }
   if (hasExplicitOrganizationInvestigatorProvenance(provenanceInput)) return "organization_contact";
-  // The SEC issuer phone field is explicitly the filer/issuer route, not a
-  // named-person route. Keep it organization-scoped; notice-recipient phones
-  // remain unclassified until the Investigator binds them to a person.
-  if (entity.phone?.trim() && String(entity.phoneSource ?? "").trim().toLowerCase() === "edgar-phone") return "organization_contact";
+  // Registry/source labels establish provenance only. They do not, by themselves,
+  // establish personal or organization attribution; the Investigator must bind
+  // the exact value to a source passage before either classification is promoted.
   // Registry phone labels establish provenance only. Until the Investigator
   // attributes the exact value, keep the route as evidence rather than
   // guessing personal or organization scope from the provider label.
