@@ -6,7 +6,7 @@
 /** Version the standing institutional contract independently from any case. */
 import { APEX_BUREAU_PLAYBOOK } from "./apex-bureau-playbook";
 
-export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-11.1";
+export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-15.1";
 
 export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY CONTEXT: Judge every company against the actual human objective and source evidence. Rankings, valuation headlines, prestige, size, listing status and growth are contextual signals, not automatic qualifications or exclusions. Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission. A ranking or search result alone is a lead, not a verified claim; preserve uncertainty and let the Investigator decide what corroboration is needed. No private/mid-market preference or company blacklist unless the human explicitly specifies it.";
 export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY CONTEXT: assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only when material to the human objective. Rankings, valuation, prestige, size and growth are context, not automatic qualification or exclusion. Do not invent private/mid-market preferences.";
