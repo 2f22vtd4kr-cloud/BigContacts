@@ -1341,6 +1341,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let selectedInvestigator = boss.investigatorLlm;
     let latestRightHandReviewContext: { status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null; reviewedAction: string } | null = null;
     let rightHandReconsiderationUsed = false;
+    const rightHandReviewedDecisionKeys = new Set<string>();
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
@@ -2200,10 +2201,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const investigatorProposedCandidate = (latestInvestigatorRecord?.findings ?? []).some((finding) =>
         finding.scope === "candidate" && finding.promotionDecision === "promote" && Boolean(finding.personName?.trim()));
       const bossConsequentialDecision = ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
+      const rightHandReviewKey = [
+        latestInvestigatorRecord?.turn ?? 0,
+        decision.action,
+        decision.candidateName ?? "",
+        decision.candidateType ?? "",
+        decision.direction ?? "",
+      ].join(":");
       const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0
         && (investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)
-        && (!rightHandReconsiderationUsed || decision.action !== "stop");
+        && !rightHandReviewedDecisionKeys.has(rightHandReviewKey);
       if (requiresIndependentReview) {
+        rightHandReviewedDecisionKeys.add(rightHandReviewKey);
         const reviewPrompt = [
           "Review this consequential Apex Atlas discovery control decision independently.",
           "Do not browse, invent evidence, or authorize a candidate. Identify material gaps, contradictions, alternative interpretations, and whether Boss should reconsider. Return concise structured advice only.",
