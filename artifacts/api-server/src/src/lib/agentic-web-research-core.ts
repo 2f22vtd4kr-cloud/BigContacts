@@ -407,8 +407,8 @@ export function investigatorUserPromptBudget(systemPromptChars: number): number 
   const systemChars = Number.isFinite(systemPromptChars) ? Math.max(0, Math.floor(systemPromptChars)) : PREFERRED_INVESTIGATOR_REQUEST_CHARS;
   return Math.max(0, Math.min(
     PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS,
-    PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - 240,
-    PREFERRED_PROVIDER_PROMPT_CHARS - systemChars - 240,
+    PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS,
+    PREFERRED_PROVIDER_PROMPT_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS,
   ));
 }
 const MIN_GROQ_INFERENCE_BUDGET_MS = 30_000;
@@ -2464,10 +2464,21 @@ async function callGroqJson(
       let dailyEstimatedTokens = 0;
       let providerRequestSent = false;
       try {
+        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
+        const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
+        const responseFormatChars = responseFormat.type === "none" ? 0 : JSON.stringify(responseFormat).length;
+        const promptMeasurement = {
+          systemPromptChars,
+          userPromptChars: workingPrompt.length,
+          totalPromptChars: workingPrompt.length + systemPromptChars,
+          responseFormatChars,
+          totalRequestChars: workingPrompt.length + systemPromptChars + responseFormatChars,
+          estimatedPromptTokens: groqPromptTokenEstimate(workingPrompt.length + systemPromptChars + responseFormatChars),
+        };
         const quotaReadiness = await waitForKnownGroqTokenWindow(
           quotaAccount,
           model,
-          workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+          promptMeasurement.totalRequestChars,
           completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
         );
@@ -2476,7 +2487,7 @@ async function callGroqJson(
           return { model, raw: "", error: lastProviderError };
         }
         const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
-        dailyEstimatedTokens = groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length) + completionBudgetForReservation;
+        dailyEstimatedTokens = promptMeasurement.estimatedPromptTokens + completionBudgetForReservation;
         const reservation = await reserveAgenticLlmDailyBudget({
           provider: "groq",
           model,
@@ -2485,7 +2496,6 @@ async function callGroqJson(
         dailyReservationDate = reservation.usageDate;
         dailyReservationTokens = reservation.reservedTokens;
         dailyBudgetTokens = reservation.dailyBudgetTokens;
-        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
@@ -2568,9 +2578,7 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-            userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            ...promptMeasurement,
             status: 429,
             success: false,
             latencyMs: Date.now() - started,
@@ -2642,9 +2650,7 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-            userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            ...promptMeasurement,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -2738,9 +2744,7 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-            userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            ...promptMeasurement,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -2764,9 +2768,7 @@ async function callGroqJson(
           provider: "groq",
           model,
           promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-            userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            ...promptMeasurement,
           status: response.status,
           success: Boolean(raw) && finishReason !== "length",
           ...usageMetrics,
@@ -2840,9 +2842,7 @@ async function callGroqJson(
             dailyReservationTokens,
             dailyBudgetTokens,
             providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-            userPromptChars: workingPrompt.length,
-            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
+            ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
         // A local provider-gate quota/cooldown is already a provider-wide stop
         // signal for this role. Do not waste the remaining key/model matrix on
