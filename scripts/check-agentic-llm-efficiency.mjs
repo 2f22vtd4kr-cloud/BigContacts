@@ -8,6 +8,9 @@ const telemetry = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/
 const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/groq-boss.ts"), "utf8");
 const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const control = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/atlas-control-decision.ts"), "utf8");
+const providerGate = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/provider-gate.ts"), "utf8");
+const statusRoute = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/system-status.ts"), "utf8");
+const dailyUsageMigration = fs.readFileSync(path.join(root, "lib/db/migrations/005-agentic-llm-daily-usage.sql"), "utf8");
 
 const required = [
   'from "./agentic-llm-telemetry"',
@@ -66,6 +69,35 @@ if (!/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selec
 }
 if (!/return \{ \.\.\.result, fallback: \[\] \}/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: provider fallback telemetry must remain empty");
+}
+
+
+for (const marker of [
+  'const groqWindowKey = groqRequest ? "groq-model:" + groqRequest.model : "";',
+  "reserveGroqTokenWindow(groqWindowKey",
+]) {
+  if (!providerGate.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing per-model TPM reservation marker ${marker}`);
+}
+
+for (const marker of [
+  "llmUsageLedger",
+  "remaining_configured_budget_tokens",
+  "budget_exhausted",
+  "last_job_id",
+  "last_case_id",
+  "last_rate_limit_remaining_tokens",
+  "last_rate_limit_remaining_requests",
+  'period: "UTC day"',
+]) {
+  if (!statusRoute.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: status readback lacks ${marker}`);
+}
+for (const marker of [
+  "UNIQUE (usage_date, provider, model)",
+  "reserved_tokens",
+  "daily_budget_tokens",
+  "budget_exhausted",
+]) {
+  if (!dailyUsageMigration.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: durable daily ledger migration lacks ${marker}`);
 }
 
 console.log("agentic LLM efficiency guard: PASS — selected-provider calls are bounded, instrumented, and fail closed without cross-provider fallback");
