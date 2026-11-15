@@ -103,7 +103,7 @@ describe("value-bound selected email provenance", () => {
       email: "jane@officialcompany.com",
       emailSource: "pattern-generated",
       metadata,
-    })).toBe("direct_contact_candidate");
+    })).toBe("evidence_only");
   });
 
   it("keeps a selected heuristic email review-only when its value matches the provenance record", () => {
