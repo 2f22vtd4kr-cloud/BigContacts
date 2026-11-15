@@ -20,6 +20,8 @@ const canonical = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/
 const activeInvestigator = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
 const targetContact = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"), "utf8");
 const candidateSources = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/candidate-source-url-union.ts"), "utf8");
+const communityAttribution = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-source-attribution.ts"), "utf8");
+const researchIntelligence = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/research-intelligence-engine.ts"), "utf8");
 const checks = [
   [discovery, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent.ts"],
   [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-intake.ts"],
@@ -27,7 +29,9 @@ const checks = [
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","Evaluate lists, registries, articles, directories and other sources by their actual content","do not assume a source family is high- or low-yield in advance"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles may provide evidence, leads, named targets or a contact route when their actual content supports that interpretation"], "apex-bureau-orientation.ts"],
-  [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","runtime safety ceiling is","review-only findings"], "agentic-web-research-core.ts"],
+  [activeInvestigator, ["DISCOVERY LEAD HANDOFF","AUTHORITATIVE SAME-CASE SEARCH BUDGET","Preserve exact observed names and source URLs"], "agentic-web-research-core.ts"],
+  [communityAttribution, ["isCommunityObservationSourceUrl","extractCommunityObservationMetadata","sanitizeCommunityObservationText","community_user_submitted_unverified"], "discovery-source-attribution.ts"],
+  [researchIntelligence, ["COMMUNITY_OBSERVATION","sourceContributor?: string | null","originalObservedAt?: string | null"], "research-intelligence-engine.ts"],
   [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth", "signals, role keywords and proximity are not admission gates.", "research tests materiality, identity, counter-evidence and routes."], "canonical-atlas-discovery.ts"],
   [targetContact, ["REALISM / REACHABILITY CONTROL", "material business, ownership stake, investment, asset, exit or control role", "realistic public/professional/intermediary routes", "Prefer a directly published professional contact or documented assistant"], "target-contact-agent.ts"],
   [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgement, not a publisher/path allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
@@ -35,6 +39,11 @@ const checks = [
 // The active Investigator owns query strategy. Runtime query validation may
 // enforce syntax/placeholders and outbound safety, but must not encode publisher,
 // source-class, named-anchor, or other relevance/admission preferences.
+if (activeInvestigator.includes("isRestrictedCommunitySourceUrl")
+  || activeInvestigator.includes("RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE")) {
+  console.error("FAIL: active Investigator still withholds community observation page content");
+  process.exit(1);
+}
 if (activeInvestigator.includes("hasPressPublisherSiteFilter")
   || activeInvestigator.includes("DISCOVERY_PRESS_PUBLISHER_DOMAINS")
   || activeInvestigator.includes("broad press-publisher-only search without an exact named person/business anchor")) {
