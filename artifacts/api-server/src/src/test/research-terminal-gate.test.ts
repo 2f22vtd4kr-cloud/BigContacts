@@ -186,6 +186,27 @@ describe("research terminal gate", () => {
     expect(evaluateResearchTerminal(sample, "target").reasons).toContain("required_falsification_not_satisfied");
   });
 
+  it("counts a successfully completed empty counterevidence search as an attempt", () => {
+    const sample = context(2);
+    sample.recentActions = [{
+      turn: 8,
+      action: "parallel_web_search",
+      args: {
+        searches: [{ query: "find evidence that could disprove the current executive role", provider: "serper" }],
+        searchOutcomes: [{ query: "find evidence that could disprove the current executive role", provider: "serper", status: "empty", urls: [] }],
+      },
+      execution: "success",
+      observation: "Search completed with no matching pages.",
+      urls: [],
+      findingCount: 0,
+      useful: false,
+      informationGain: 0.2,
+      findingNames: [],
+      findingRoles: [],
+    }];
+    expect(evaluateResearchTerminal(sample, "target").allowed).toBe(true);
+  });
+
   it("does not count a failed nested falsification query hidden by a successful sibling", () => {
     const sample = context(2);
     sample.recentActions = [{

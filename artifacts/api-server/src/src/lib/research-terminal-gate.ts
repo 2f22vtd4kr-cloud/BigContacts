@@ -48,7 +48,7 @@ export function hasSuccessfulFalsificationAttempt(context: IntelligenceContext):
           const outcome = outcomes.find((candidate) => candidate && typeof candidate === "object"
             && !Array.isArray(candidate)
             && actionText((candidate as Record<string, unknown>).query) === query);
-          if (!outcome || (outcome as Record<string, unknown>).status !== "success") continue;
+          if (!outcome || (outcome as Record<string, unknown>).status === "error") continue;
         }
         return true;
       }
