@@ -2199,7 +2199,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       // evidence and Boss is considering a consequential stop, candidate admission,
       // or strategic pivot. It is advisory: it can challenge the decision but cannot
       // authorize a candidate or override deterministic provenance/security checks.
-      const requiresIndependentReview = discovery.trajectoryRecords.length > 0
+      const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0
         && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
       if (requiresIndependentReview) {
         const reviewPrompt = [
