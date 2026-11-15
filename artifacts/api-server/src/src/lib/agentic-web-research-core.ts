@@ -4862,7 +4862,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
   const compactWorkerCapabilityGuidance = hasAvailableSpecialistOsintAction
-    ? "SPECIALIST OSINT (attested, optional): " + [
+    ? "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS. Attested this turn (optional): " + [
         ["harvest_domain", "theHarvester"], ["footprint_email", "email footprint"],
         ["footprint_username_maigret", "Maigret"], ["footprint_username_sherlock", "Sherlock"], ["footprint_spiderfoot", "SpiderFoot"],
       ].filter(([action]) => availablePythonActions.has(action)).map(([action, label]) => action + " (" + label + ")").join("; ") + ". Model selects by expected information gain."
@@ -4872,7 +4872,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only; never invent adapter IDs.`;
+  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson; locale=language; market=country.";
   const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown. Scanned/image-only PDFs require OCR (unavailable) or another readable source.";
 
