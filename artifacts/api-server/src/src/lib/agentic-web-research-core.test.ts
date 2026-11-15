@@ -10,6 +10,7 @@ import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 import { getGroqTokenRequest } from "./provider-gate";
+import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
@@ -4642,11 +4643,25 @@ describe("community source lead handling and evidence-led scope", () => {
     expect(source).not.toContain("hasRestrictedCommunityUrl");
     expect(source).not.toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
   });
+  it("keeps original community observation date separate from retrieval time", () => {
+    const metadata = extractCommunityObservationMetadata("Uploaded by Jane Example on 2024-02-15");
+    const attribution = buildDiscoverySourceAttribution({
+      sourceUrl: "https://virtualglobetrotting.com/map/public-place/",
+      action: "visit",
+      sourceContributor: metadata.sourceContributor,
+      observedAt: metadata.originalObservedAt,
+      retrievedAt: "2026-11-15T00:00:00.000Z",
+    });
+    expect(attribution.sourceClass).toBe("community_user_submitted_unverified");
+    expect(attribution.sourceContributor).toBe("Jane Example");
+    expect(attribution.originalObservedAt).toBe("2024-02-15T00:00:00.000Z");
+    expect(attribution.retrievedAt).toBe("2026-11-15T00:00:00.000Z");
+  });
   it("preserves community contributor and original observation date through canonical review-lead projection", () => {
     const canonical = readFileSync(new URL("./canonical-atlas-discovery.ts", import.meta.url), "utf8");
     expect(canonical).toContain("const rawSourceAttribution = payload.args?.sourceAttribution");
     expect(canonical).toContain("sourceContributor: observation.sourceContributor");
-    expect(canonical).toContain("observedAt: support.originalObservedAt ?? support.createdAt");
+    expect(canonical).toContain("observedAt: support.originalObservedAt, retrievedAt: support.createdAt");
     expect(canonical).not.toContain("sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor");
     expect(canonical).not.toContain("sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor");
   });
