@@ -188,7 +188,7 @@ export function buildActEvidenceGraphs(caseId:number,act:ActRecord,eventId:numbe
     if(candidateScoped&&!personName)continue;
     const claim={id:`claim:${runId}:turn:${act.turn}:${index+1}`,subject:personName??"organization",predicate:typeof finding.vectorType==="string"?finding.vectorType:"other",object:typeof finding.value==="string"?finding.value.trim():"",scope:finding.scope==="candidate"||finding.scope==="target"?finding.scope:"organization",personName,confidence:null} as const;
     if(!claim.object)continue;
-    const bindingItem:BureauContactLike={scope:candidateScoped?"candidate":"organization",personName,vectorType:claim.predicate,value:claim.object,sourceUrls:urls};
+    const bindingItem:BureauContactLike={scope:candidateScoped?"candidate":"organization",personName,vectorType:claim.predicate,value:claim.object,sourceUrls:urls,contactAttribution:typeof finding.contactAttribution==="string"?finding.contactAttribution as BureauContactLike["contactAttribution"]:null,exactQuote:typeof finding.exactQuote==="string"?finding.exactQuote:null,identityAssessment:typeof finding.identityAssessment==="string"?finding.identityAssessment as BureauContactLike["identityAssessment"]:null,identityRationale:typeof finding.identityRationale==="string"?finding.identityRationale:null};
     const excerptByUrl:Record<string,string>={},eventIdByUrl:Record<string,number>={},turnByUrl:Record<string,number>={};
     for(const url of urls){
       const source=sourceRecords.find((record)=>{
