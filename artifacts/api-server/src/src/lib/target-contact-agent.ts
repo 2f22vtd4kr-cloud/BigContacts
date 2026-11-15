@@ -168,7 +168,7 @@ function compactReachabilityControl(raw: string): string {
     .slice(0, 1)
     .map((line) => line.slice(0, 125));
   const facts = [status, modeLine?.slice(0, 180) ?? "", ...observations].filter(Boolean);
-  const authority = "MODEL DECISION: judge relevance, priority and direct/shared/assistant/intermediary routes against the exact objective and source context. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contact values are not person-specific without exact-quote attribution.";
+  const authority = "MODEL DECISION: Judge relevance and routes against the human objective and source context. Missing routes are evidence gaps. No fixed wealth, score, source-count or growth gates. Stored contact values need exact-quote person attribution.";
   return [...facts, authority].join("\n");
 }
 
@@ -232,9 +232,9 @@ export function buildTargetContactInvestigatorObjective(input: {
   const compactSections = [
     `Target: ${targetName}. Company: ${companyName || "case record"}. Investigate the person, not generic company contacts.`,
     sections[1]!,
-    "Verify identity, role, employer, jurisdiction and aliases. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings, investment/deal records and local-language reporting. No fixed checklist; Investigator chooses sources and actions from evidence.",
+    "Verify identity, role, employer and aliases. For wealth potential, require a public source documenting a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting. No fixed checklist; Investigator chooses actions from evidence.",
     "Seek public, attributable profiles on LinkedIn, Facebook, Instagram, X/Twitter, Telegram, official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Follow family/associate ties only when credible public sources explicitly document them and they clarify ownership/control or a documented intermediary route. Never infer from surnames, co-location, follows or social proximity.",
+    "Follow documented family/associate ties only when they clarify ownership/control or an intermediary route; never infer from surnames, co-location, follows or social proximity.",
     "Classify routes explicitly. Only direct_personal or professional_person_specific (legacy person_specific) may be promoted with identityAssessment=same_person, rationale, verbatim exactQuote and a fetched source. Shared/unknown routes remain review-only. Do not promote when identity or person/value binding is uncertain. Use the exact URL where observed; never invent identities, wealth, ties, contacts or URLs.",
   ];
   const compactObjective = compactSections.join("\n");
