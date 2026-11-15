@@ -5264,7 +5264,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
-  const userPromptBudget = investigatorUserPromptBudget(apexInvestigatorSystemCore().length);
+  const userPromptBudget = Math.min(
+    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
+    2_400,
+  );
   if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
 
   // The output schema and latest durable evidence are a single mandatory suffix:
