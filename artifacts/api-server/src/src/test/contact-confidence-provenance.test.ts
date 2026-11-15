@@ -6,6 +6,73 @@ import {
   isHeuristicEmailEvidence,
 } from "../lib/contact-confidence";
 
+describe("durable Investigator contact attribution", () => {
+  it("recognizes an exactly value-bound person-specific promotion even for an unusual mailbox local part", () => {
+    const entity = {
+      type: "HNWI",
+      email: "info@official-example.org",
+      metadata: {
+        agenticContactProvenance: {
+          email: {
+            value: "info@official-example.org",
+            personName: "Jane Example",
+            contactAttribution: "person_specific",
+            exactQuote: "Jane Example — personal contact: info@official-example.org",
+            identityAssessment: "same_person",
+            sourceUrls: ["https://official-example.org/team"],
+            jobId: "atlas-job-1",
+          },
+        },
+      },
+    };
+    expect(computeContactOutcome(entity)).toBe("direct_contact_verified");
+    expect(computeContactConfidence(entity)).toBe(100);
+    expect(hasMeaningfulDirectContact(entity)).toBe(true);
+  });
+
+  it("keeps an explicitly model-attributed shared inbox organizational", () => {
+    const entity = {
+      type: "HNWI",
+      email: "info@official-example.org",
+      metadata: {
+        agenticContactProvenance: {
+          email: {
+            value: "info@official-example.org",
+            personName: null,
+            contactAttribution: "shared_inbox",
+            exactQuote: "Contact: info@official-example.org",
+            identityAssessment: "unresolved",
+            sourceUrls: ["https://official-example.org/contact"],
+            jobId: "atlas-job-2",
+          },
+        },
+      },
+    };
+    expect(computeContactOutcome(entity)).toBe("organization_contact");
+    expect(hasMeaningfulDirectContact(entity)).toBe(false);
+  });
+
+  it("does not apply model attribution to a different current value", () => {
+    const entity = {
+      type: "HNWI",
+      email: "jane@official-example.org",
+      metadata: {
+        agenticContactProvenance: {
+          email: {
+            value: "info@official-example.org",
+            contactAttribution: "person_specific",
+            exactQuote: "Jane Example — info@official-example.org",
+            identityAssessment: "same_person",
+            sourceUrls: ["https://official-example.org/team"],
+            jobId: "atlas-job-3",
+          },
+        },
+      },
+    };
+    expect(computeContactOutcome(entity)).toBe("direct_contact_candidate");
+  });
+});
+
 describe("value-bound selected email provenance", () => {
   it("does not let an unselected row's aggregate heuristic metadata taint the selected primary email", () => {
     const metadata = {
