@@ -5189,6 +5189,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (activeBossScopeSection && activeBossDirection && !repaired.includes(activeBossDirection)) {
       appendBeforeSchema(activeBossScopeSection);
     }
+    if (discoverySearchBudgetGuidance && !repaired.includes(discoverySearchBudgetGuidance)) {
+      appendBeforeSchema(discoverySearchBudgetGuidance);
+    }
     if (blockedScopeRecoveryMarker && !repaired.includes(blockedScopeRecoveryMarker)) {
       appendBeforeSchema(blockedScopeRecoveryMarker);
     }
