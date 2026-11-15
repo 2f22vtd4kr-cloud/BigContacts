@@ -94,7 +94,7 @@ export type CandidateRoleObservation = {
   action: string; execution: string; sourceUrl: string; observation: string; eventId: number;
 };
 
-/** Only Investigator-promoted, exact-quote-backed observations from successful page or registry reads count. */
+/** Only Investigator-promoted, exact-quote-backed observations from successful page fetches count; search/registry result rows remain leads until fetched. */
 export function candidateRoleCorroborationSources(input: {
   personName: string;
   role: string | null | undefined;
@@ -113,7 +113,7 @@ export function candidateRoleCorroborationSources(input: {
   const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
   const observedLineages = new Set<string>();
   for (const observation of input.observations) {
-    if (!["visit", "browser_fetch", "registry_search", "parallel_registry_search"].includes(observation.action) || observation.execution !== "success") continue;
+    if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
     // The Investigator selects the contextual passage; code verifies only
