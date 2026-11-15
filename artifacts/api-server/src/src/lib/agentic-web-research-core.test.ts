@@ -3793,14 +3793,18 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
 
-  it("preserves one- and two-character names only with exact source-bound role context", () => {
+  it("matches short Latin names as exact tokens without requiring a role to establish identity", () => {
     expect(candidateIdentitySourceBound("Li", "CEO", "Li is the CEO of Example Holdings.")).toBe(true);
-    expect(candidateIdentitySourceBound("Li", "", "Li is mentioned in an unrelated sentence.")).toBe(false);
-    expect(candidateIdentitySourceBound("Li", "CEO", "Li is mentioned. The CEO is described in a different sentence.")).toBe(false);
+    expect(candidateIdentitySourceBound("Li", "", "Li is mentioned in an unrelated sentence.")).toBe(true);
+    // Identity and role are separate bindings: promotion still checks the role
+    // against the same source independently.
+    expect(candidateIdentitySourceBound("Li", "CEO", "Li is mentioned. The CEO is described in a different sentence.")).toBe(true);
     expect(candidateIdentitySourceBound("李", "董事长", "李董事长出席了公司年度会议。")).toBe(true);
-    expect(candidateIdentitySourceBound("A", "CEO", "A is the CEO of Example Holdings.")).toBe(false);
+    expect(candidateIdentitySourceBound("A", "", "A is the CEO of Example Holdings.")).toBe(true);
+    expect(candidateIdentitySourceBound("A", "", "a is the CEO of Example Holdings.")).toBe(false);
     expect(candidateIdentitySourceBound("Li", "CEO", "Liability insurance is required for the CEO.")).toBe(false);
     expect(candidateIdentitySourceBound("Jane Doe", "", "Jane Doe is listed in the public company leadership page.")).toBe(true);
+    expect(agenticCoreSource).toContain("const hasRole = promotedCandidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);");
   });
 
   it("does not discard non-empty short names before source-backed identity validation", () => {
