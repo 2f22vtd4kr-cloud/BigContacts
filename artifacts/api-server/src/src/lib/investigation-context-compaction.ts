@@ -524,7 +524,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   }
 
   const findings = headTail(input.findings, 6).map((finding) => compactFinding(finding, 500)).filter(Boolean);
-  sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
+  sections.push(fitSection("PARTIAL FINDINGS / LEADS (model-selected; provisional until source-backed)\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
 
   const actionSummary = records.slice(-8).map((record) => ({
     action: record.action,
