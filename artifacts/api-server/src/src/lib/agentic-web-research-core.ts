@@ -4761,7 +4761,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed}/${MAX_DISCOVERY_SEARCH_ACTIONS}; remaining=${discoverySearchActionsRemaining}. At zero, no more web/registry searches; choose another action or stop.`
+    ? `SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, no more web/registry searches; choose another action or stop.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
@@ -4872,7 +4872,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; Never invent adapter IDs.`;
+  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only; never invent adapter IDs.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson; locale=language; market=country.";
   const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown. Scanned/image-only PDFs require OCR (unavailable) or another readable source.";
 
@@ -4889,7 +4889,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     capabilityGuidance,
     terminalContractGuidance,
     compactPageFormatGuidance,
-    "TARGET NAMES: exact names only from the human objective or observed source material; no homonym guesses.",
+    "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
     APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     ...compactEmergencyDiscoveryContractParts,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
@@ -5254,15 +5254,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     return repaired;
   };
 
-  // Prompt-size guidance is advisory. Preserve the complete model-authored
-  // mission and evidence context; actual provider context/token limits remain
-  // the only hard size boundary.
-  // Attach the bounded, scope-aware durable latest-act envelope. It carries
-  // complete URL tokens and explicit omission counts; without this tail the
-  // provider-boundary repair had been reattaching raw trajectory URL arrays.
-  return preserveFetchedClaimAtProviderBoundary(
+  // Enforce one predictable user-prompt budget after preserving the human
+  // objective, active Boss direction, current action schema, and newest durable
+  // act envelope. URL tokens are retained whole; omitted middle context is
+  // explicitly unknown and remains in the immutable event ledger.
+  const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
+  const userPromptBudget = Math.min(
+    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
+    2_800,
+  );
+  return providerBoundedPrompt.length <= userPromptBudget
+    ? providerBoundedPrompt
+    : compactPromptSectionPreservingUrlTokens(
+        providerBoundedPrompt,
+        userPromptBudget,
+        "[INVESTIGATOR PROMPT BOUND: the human objective, Boss-approved scope, action schema and newest durable evidence take priority; omitted middle context is unknown, not negative evidence. Full history remains in the immutable event ledger.]",
+      );
 }
 
 /**
