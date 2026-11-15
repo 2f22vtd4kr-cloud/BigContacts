@@ -5,6 +5,8 @@ import {
   buildWesternRegistryPersonCandidate,
   isPlaceholderRegistryName,
   parseBrregMunicipalityScope,
+  parseCompaniesHouseOfficerQueries,
+  parseRegistrySeedQueries,
   type HarvestedPerson,
 } from "../lib/western-hnwi-ingestion";
 
@@ -81,6 +83,13 @@ describe("Western registry mass-seed admission", () => {
     expect(parseBrregMunicipalityScope("all")).toEqual([null]);
     expect(parseBrregMunicipalityScope("0301, 5001, 1103")).toEqual(["0301", "5001", "1103"]);
     expect(parseBrregMunicipalityScope("invalid")).toEqual(["0301", "1201", "5001", "1103", "4601", "1505", "1804"]);
+  });
+
+  it("allows operator-selected multilingual bulk registry query scopes", () => {
+    expect(parseCompaniesHouseOfficerQueries("directeur|gerente|administrador")).toEqual(["directeur", "gerente", "administrador"]);
+    expect(parseRegistrySeedQueries("family office|investment office|holding company")).toEqual(["family office", "investment office", "holding company"]);
+    expect(parseCompaniesHouseOfficerQueries(" | ")).toContain("director");
+    expect(parseRegistrySeedQueries("")).toContain("holdings");
   });
 
   it("keeps same-name people separate when their source records differ", () => {
