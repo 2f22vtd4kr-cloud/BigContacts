@@ -43,6 +43,14 @@ describe("Investigator quota diagnostics", () => {
       domain: "model_provider",
       kind: "provider_capacity_exhausted",
     });
+    expect(classifyInvestigatorProviderError("daily_token_budget_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_budget_exhausted",
+    });
+    expect(classifyInvestigatorProviderError("daily_usage_ledger_unavailable")).toEqual({
+      domain: "persistence_database",
+      kind: "request_failure",
+    });
   });
 });
 
@@ -90,6 +98,20 @@ describe("canonical Atlas lease-read diagnostics", () => {
       stage: "job_state_or_lease",
       error: new Error("Permanent Redis job-state read failed; job record state is unknown."),
     })).toEqual({ domain: "lease_job_state", kind: "job_state_unavailable" });
+  });
+
+  it("classifies a daily token budget stop as a provider budget outcome", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_daily_token_budget_exhausted"),
+    })).toEqual({ domain: "model_provider", kind: "local_provider_budget_exhausted" });
+  });
+
+  it("classifies an unavailable usage ledger as a persistence failure", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_usage_ledger_unavailable"),
+    })).toEqual({ domain: "persistence_database", kind: "request_failure" });
   });
 
   it("labels an exhausted no-action Investigator episode as a model-action outcome", () => {
