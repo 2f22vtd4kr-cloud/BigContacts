@@ -245,7 +245,7 @@ describe("discovery source evidence policy", () => {
       findings: [{
         personName: "Alice Example",
         role: "Contributor",
-        promotionDecision: "review",
+        promotionDecision: "promote",
         scope: "candidate",
         sourceUrls: [url],
         exactQuote: quote,
