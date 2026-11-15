@@ -532,17 +532,16 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
   });
 
-  it("keeps the Right-hand focused on an available target and does not request geography expansion", () => {
+  it("lets supervisors weigh a review target against continued discovery without a forced handoff", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
       compactState: "One official registry result identifies a potentially relevant company.",
       pinnedControlState: "One source-attributed organization review target is available.",
     });
-    expect(prompt).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
-    expect(prompt).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
-    expect(prompt).toContain("do not invent, compare, or broaden geography");
-    expect(prompt).not.toContain("broader discovery has greater expected information gain");
-    expect(prompt).not.toContain("one actual geography/jurisdiction");
+    expect(prompt).toContain("There is no target-count threshold");
+    expect(prompt).toContain("The Investigator chooses the action");
+    expect(prompt).not.toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
+    expect(prompt).not.toContain("recommend investigating it now");
   });
 
   it("bounds the post-discovery Right-hand control prompt and rationale contract", () => {
