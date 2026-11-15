@@ -149,7 +149,7 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).not.toContain("SEARCH ACTIVITY");
+    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
     expect(prompt).not.toContain("At zero, no more web/registry searches");
   });
 });
@@ -171,7 +171,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("required root fields action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(systemCore).toContain("MISSION EVIDENCE");
+    expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Omit irrelevant optional fields.");
     expect(systemCore).toContain("PARALLEL SHAPES: web items require query+provider; registry items require query+registry.");
     expect(systemCore).toContain("registry_search=query/registry");
@@ -1405,7 +1405,7 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; falsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
@@ -2885,7 +2885,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
-    expect(modelPrompt).toContain("context, not eligibility rules");
+    expect(modelPrompt).toContain("context, not gates");
     expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
@@ -3608,7 +3608,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/CALLABLE REGISTRY IDS:/);
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
-    expect(prompt).toMatch(/Never invent adapter IDs/i);
+    expect(prompt).toMatch(/Never invent IDs/i);
     expect(prompt).toContain("Never assume records expose owners, shareholders, members or managers without observed documentation");
   });
 
