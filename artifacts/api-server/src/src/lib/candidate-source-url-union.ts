@@ -8,6 +8,7 @@ export type CandidateSourceFinding = {
   promotionDecision?: "promote" | "reject";
   scope: "organization" | "candidate" | "unknown";
   sourceUrls?: readonly string[] | null;
+  exactQuote?: string | null;
 };
 
 /**
@@ -81,33 +82,11 @@ const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
  * cited page; it does not choose a candidate or a research itinerary.
  */
 export function isRealisticPersonRouteSourceUrl(value: unknown): value is string {
-  if (!isClaimGradeDiscoverySourceUrl(value)) return false;
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
-    if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => host === domain || host.endsWith("." + domain))) return false;
-
-    let path: string;
-    try {
-      // Decode once before interpreting path semantics so percent-encoded
-      // editorial segments cannot masquerade as an ordinary team/profile route.
-      path = decodeURIComponent(url.pathname).toLowerCase().replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
-    } catch {
-      // Malformed percent-encoding is not a trustworthy access route.
-      return false;
-    }
-    // A government filing can prove ownership but is not, alone, a contact route.
-    if (/(?:^|\.)(?:gov|gov\.[a-z]{2})$/i.test(host) && /\/(?:archives\/edgar|company\/|companies\/|registry|registr)/i.test(path)) return false;
-
-    // News/blog/article pages are evidence leads, not an access route, even when
-    // a small publisher is not on the explicit press-domain list above.
-    if (/(?:^|\/)(?:blog|news|press|story|stories|article|articles|insights|research|reports|report|opinion|analysis|markets|investing)(?:\/|$)/i.test(path)
-      || /\/(?:19|20)\d{2}\/\d{1,2}\/\d{1,2}(?:\/|$)/i.test(path)) return false;
-
-    return /(?:^|\/)(?:team|leadership|management|about|people|profile|person|founder|owner|director|officer|board|partner|portfolio|investor|contact|company|bio|our-team|executives?|ownership|governance|members|staff|professionals|principal|firm)(?:[-_a-z0-9]*)(?:\/|$)/i.test(path);
-  } catch {
-    return false;
-  }
+  // Whether a page is a useful person-specific route is a contextual model
+  // judgement, not a publisher/path allowlist. Keep only technical source
+  // eligibility here: a valid claim-grade HTTPS source, excluding search
+  // result endpoints and known aggregators via isClaimGradeDiscoverySourceUrl.
+  return isClaimGradeDiscoverySourceUrl(value);
 }
 
 export function hasRealisticPersonRouteSource(sourceUrls: readonly unknown[]): boolean {
@@ -142,11 +121,24 @@ export function candidateRoleCorroborationSources(input: {
     if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
-    const span = bindExactSourceSpan(observation.observation, role, input.personName, 320);
-    if (!span?.exact) continue;
-    // The same co-binding passage copied to a second domain is not independent
-    // corroboration; use the exact bounded passage as a content-lineage key.
-    const passageFingerprint = span.text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+    // The Investigator selects the contextual passage; code verifies only
+    // that the exact quotation is present in this successfully fetched source
+    // and that it contains the named person. Do not impose a fixed character
+    // window or require the model's semantic role interpretation to match a
+    // hard-coded English/Latin role string.
+    const modelQuotes = input.findings
+      .filter((finding) => normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(input.personName)
+        && normalizeCandidateIdentityName(finding.role ?? "") === normalizeCandidateIdentityName(role)
+        && finding.promotionDecision === "promote" && finding.scope === "candidate"
+        && (finding.sourceUrls ?? []).some((url) => input.normalizeSourceUrl(url) === sourceUrl))
+      .map((finding) => typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "")
+      .filter(Boolean);
+    const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote)
+      && normalizeCandidateIdentityName(quote).includes(normalizeCandidateIdentityName(input.personName)));
+    if (!exactQuote) continue;
+    // The same exact quoted passage copied to a second domain is not independent
+    // corroboration; use the model-selected, source-verified quotation as lineage.
+    const passageFingerprint = exactQuote.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
     const lineageId = sourceLineageId(sourceUrl, passageFingerprint);
     if (observedLineages.has(lineageId)) continue;
     let host = "";
