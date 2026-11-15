@@ -148,6 +148,7 @@ describe("research intelligence atomic evidence", () => {
         vectorType: "is",
         value: "founder of Example Labs",
         personName: "Alice Example",
+        exactQuote: hypothesis,
         sourceUrls: [url],
       }],
     });

@@ -17,8 +17,20 @@ export type IdentityCollisionResult = {
 };
 
 export function identityNameTokens(value: string | null | undefined): string[] {
-  return String(value ?? "").normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/)
+  const decomposed = String(value ?? "").normalize("NFKD").toLowerCase();
+  let preserved = "";
+  let previousBase = "";
+  for (const character of decomposed) {
+    if (/\p{M}/u.test(character)) {
+      // Remove Latin accent marks for fuzzy matching, but preserve meaningful
+      // marks in other scripts (e.g. the Ukrainian breve in й).
+      if (!previousBase || !/\p{Script=Latin}/u.test(previousBase)) preserved += character;
+      continue;
+    }
+    preserved += character;
+    previousBase = character;
+  }
+  return preserved.normalize("NFC").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/)
     .map((token) => token.trim())
     .filter((token) => Array.from(token).length >= 2 && !NAME_STOP_WORDS.has(token));
 }
