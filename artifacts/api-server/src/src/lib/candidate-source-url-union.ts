@@ -138,9 +138,8 @@ export function candidateRoleCorroborationSources(input: {
     if (observedLineages.has(lineageId)) continue;
     let host = "";
     try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
-    if (isAggregatorHost(host)) continue;
     const publisher = publisherDomain(host);
-    if (!publisher || isAggregatorHost(publisher)) continue;
+    if (!publisher) continue;
     observedLineages.add(lineageId);
     if (supporting.has(publisher)) continue;
     supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
