@@ -40,6 +40,21 @@ describe("Apex research intelligence", () => {
     expect(quality.find((item) => item.sourceClass === "SOCIAL_PROFILE")?.count).toBeGreaterThan(0);
   });
 
+  it("records community observations as an explicit source class with unknown authority tier", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "community-observation-source", target: "public asset lead", objective: "evaluate public asset observations" });
+    const url = "https://www.virtualglobetrotting.com/map/example-property/";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: [url],
+      observation: "COMMUNITY SOURCE LEAD: user-submitted observation. Preserve contributor/date/page and corroborate material claims.",
+    });
+    const evidence = engine.buildContext().atomicEvidence.find((item) => item.sourceUrl === url);
+    expect(evidence?.sourceClass).toBe("COMMUNITY_OBSERVATION");
+    expect(evidence?.sourceTier).toBe("unknown");
+  });
+
   it("keeps cross-page identity and contact evidence review-only until one source binds them", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-span-binding", target: "John Smith", objective: "verify identity and contact" });
     const identityUrl = "https://company.example/leadership";
