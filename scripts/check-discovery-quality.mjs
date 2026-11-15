@@ -30,7 +30,7 @@ const checks = [
   [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","runtime safety ceiling is","review-only findings"], "agentic-web-research-core.ts"],
   [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth signals, role keywords and proximity are not admission gates", "target research tests materiality, identity, counter-evidence and routes"], "canonical-atlas-discovery.ts"],
   [targetContact, ["REALISM / REACHABILITY CONTROL", "material business, ownership stake, investment, asset, exit or control role", "realistic public/professional/intermediary routes", "Prefer a directly published professional contact or documented assistant"], "target-contact-agent.ts"],
-  [candidateSources, ["export function isRealisticPersonRouteSourceUrl","DISCOVERY_PRESS_PUBLISHER_DOMAINS","News/blog/article pages are evidence leads, not an access route"], "candidate-source-url-union.ts"],
+  [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model judgement", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
 ];
 // The active Investigator owns query strategy. Runtime query validation may
 // enforce syntax/placeholders and outbound safety, but must not encode publisher,
