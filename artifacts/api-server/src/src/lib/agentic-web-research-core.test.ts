@@ -4630,20 +4630,24 @@ describe("AI research-memory compaction transport", () => {
 });
 
 
-describe("restricted community source content boundary", () => {
-  it("withholds Virtual Globetrotting content at search and fetch boundaries", () => {
+describe("community source lead handling and evidence-led scope", () => {
+  it("preserves Virtual Globetrotting page text as a provenance-labelled lead", () => {
     const source = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
-    expect(source).toContain("isRestrictedCommunitySourceUrl");
-    expect(source).toContain("RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE");
-    expect(source).toContain("hasRestrictedCommunityUrl");
-    expect(source).toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
-    expect(source).toContain("observedPageIdentity: restrictedCommunitySource ? null");
+    expect(source).toContain("isCommunityObservationSourceUrl");
+    expect(source).toContain("COMMUNITY_SOURCE_OBSERVATION_NOTE");
+    expect(source).toContain("sanitizeCommunityObservationText");
+    expect(source).toContain("extractCommunityObservationMetadata");
+    expect(source).toContain("buildDiscoverySourceAttribution");
+    expect(source).toContain("sourceAttribution:");
+    expect(source).not.toContain("hasRestrictedCommunityUrl");
+    expect(source).not.toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
   });
-  it("keeps discovery cross-sector when the human objective does not name an industry", () => {
+  it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
-    expect(system).toContain("when no sector is specified, keep discovery cross-sector");
-    expect(system).toContain("when no sector is specified, keep discovery cross-sector");
+    expect(system).toContain("where sector/geography is open, propose evidence-led changes to Boss");
+    expect(system).toContain("Boss sets strategy");
+    expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
+    expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
     expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
   });
