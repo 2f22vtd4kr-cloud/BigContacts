@@ -5,10 +5,12 @@ describe("target act Right-hand review economy", () => {
   it("defers ordinary successful research actions", () => {
     expect(shouldReviewTargetActWithRightHand({
       action: "web_search",
+      execution: "success",
       findings: [],
     })).toBe(false);
     expect(shouldReviewTargetActWithRightHand({
       action: "visit",
+      execution: "success",
       findings: [],
     }, "continue")).toBe(false);
   });
