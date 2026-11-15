@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, MAX_DISCOVERY_SEARCH_ACTIONS, discoverySearchBudgetExhaustionObservation, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -2814,15 +2814,25 @@ Choose each next action yourself from the available capabilities and observed ev
     ])).toBeNull();
   });
 
-  it("reports the configured discovery ceiling rather than a stale fixed search count", () => {
-    const ceiling = MAX_DISCOVERY_SEARCH_ACTIONS;
-    const observation = discoverySearchBudgetExhaustionObservation(ceiling);
-    expect(observation).toContain(`(${ceiling}/${ceiling} actions used across this case)`);
-    expect(observation).not.toContain("two outbound search actions");
-    expect(observation).toContain("the next action remains your decision");
+  it("reports discovery search activity without imposing a fixed search-action ceiling", () => {
+    const records = Array.from({ length: 24 }, (_, index) => ({
+      ...livenessRecord("web_search", "success"),
+      turn: index + 1,
+    }));
+    expect(countDiscoverySearchActions(records)).toBe(24);
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find objective-relevant companies.",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap): 24 outbound search actions observed.");
   });
 
-  it("keeps the adaptive discovery search budget bounded and excludes blocked/preflight attempts", () => {
+  it("counts only executed outbound searches for observability, without blocking later model-selected searches", () => {
     const records = [
       { ...livenessRecord("web_search", "success"), leadUrls: ["https://www.ohiosos.gov/business/search"] },
       livenessRecord("parallel_registry_search", "blocked"),
@@ -2830,19 +2840,10 @@ Choose each next action yourself from the available capabilities and observed ev
       livenessRecord("registry_search", "error"),
       livenessRecord("web_search", "blocked"),
       livenessRecord("parallel_web_search", "blocked"),
+      ...Array.from({ length: 30 }, (_, index) => ({ ...livenessRecord("web_search", "success"), turn: index + 10 })),
     ];
-    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(2);
-    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeLessThanOrEqual(20);
-    expect(countDiscoverySearchActions(records)).toBe(2);
-    const agedHistory = [
-      ...records,
-      ...Array.from({ length: 100 }, (_, index) => ({
-        ...livenessRecord("visit", "success"),
-        turn: index + 10,
-      })),
-    ];
-    expect(countDiscoverySearchActions(agedHistory)).toBe(2);
-    expect(discoveryLeadInspectionRequirement(agedHistory)).toBeNull();
+    expect(countDiscoverySearchActions(records)).toBe(31);
+    expect(discoveryLeadInspectionRequirement(records)).toBeNull();
   });
 
   it("does not inject an example geography into an unscoped discovery prompt", () => {
@@ -2858,8 +2859,8 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain(objective);
-    expect(prompt).toContain("SEARCH BUDGET:");
-    expect(prompt).toContain("runtime safety ceiling is 8 outbound search actions per case");
+    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
+    expect(prompt).toContain("The Investigator chooses further searches, fetches, pivots and stopping by expected information gain.");
     expect(modelPrompt).toContain("do not force a mixed-source batch or a registry-first order");
     expect(modelPrompt).toContain("FAST HANDOFF: when useful, the Investigator may choose the single strongest objective-fit lead, not a shortlist");
     expect(prompt).not.toContain("DISCOVERY LEAD-INSPECTION GATE");
@@ -2909,15 +2910,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).toContain("reconcileGroqTokenResponse(response, body)");
   });
 
-  it("keeps discovery search bounded while allowing mixed-source batches", () => {
-    const budgetCount = agenticCoreSource.indexOf("const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);");
-    const budgetGuard = agenticCoreSource.indexOf("if (discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS)", budgetCount);
-    const registryDispatch = agenticCoreSource.indexOf('if (action.action === "parallel_registry_search") {', budgetGuard);
-    expect(budgetCount).toBeGreaterThan(-1);
-    expect(budgetGuard).toBeGreaterThan(budgetCount);
-    expect(registryDispatch).toBeGreaterThan(budgetGuard);
+  it("keeps search activity informational and does not impose a deterministic discovery search cap", () => {
+    expect(agenticCoreSource).toContain("countDiscoverySearchActions");
+    expect(agenticCoreSource).not.toContain("MAX_DISCOVERY_SEARCH_ACTIONS");
+    expect(agenticCoreSource).not.toContain("discoverySearchBudgetExhaustionObservation");
+    expect(agenticCoreSource).not.toContain("discovery_search_budget_exhausted");
+    expect(agenticCoreSource).not.toContain("if (discoverySearchActionsUsed >=");
+    expect(agenticCoreSource).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-INSPECTION GATE:");
-    expect(agenticCoreSource).toContain("DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached");
   });
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
@@ -4804,7 +4804,7 @@ describe("community source lead handling and evidence-led scope", () => {
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
-    expect(MAX_DISCOVERY_SEARCH_ACTIONS).toBeGreaterThanOrEqual(8);
+    expect(system).toContain("No fixed source/provider/registry order, mix or itinerary.");
   });
 
   it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {
