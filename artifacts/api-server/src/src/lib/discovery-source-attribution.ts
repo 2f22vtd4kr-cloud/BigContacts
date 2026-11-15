@@ -37,8 +37,9 @@ export function sanitizeCommunityObservationText(text: string): string {
 /** Extract only explicit page attribution/date labels; absence remains unknown. */
 export function extractCommunityObservationMetadata(text: string): { sourceContributor: string | null; originalObservedAt: string | null } {
   const contributorMatch = text.match(/(?:submitted|uploaded|contributed|posted|added)\s+by\s+([^\n|;,]{2,100})/i);
-  const sourceContributor = contributorMatch?.[1]?.trim().replace(/\s{2,}/g, " ").slice(0, 100) || null;
-  const dateMatch = text.match(/(?:submitted|uploaded|contributed|posted|added|observed|updated)\s+(?:on\s+)?(\d{4}-\d{2}-\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4})/i);
+  const datePattern = "(\\d{4}-\\d{2}-\\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\s+\\d{1,2},?\\s+\\d{4})";
+  const sourceContributor = contributorMatch?.[1]?.trim().replace(new RegExp("\\s+(?:on|at)\\s+" + datePattern + "\\.?$", "i"), "").replace(/\\s{2,}/g, " ").slice(0, 100) || null;
+  const dateMatch = text.match(new RegExp("(?:submitted|uploaded|contributed|posted|added|observed|updated)\\s+(?:by\\s+[^.\\n|;,]{2,100}?\\s+)?(?:on\\s+)?" + datePattern, "i"));
   const parsed = dateMatch?.[1] ? new Date(dateMatch[1]) : null;
   const originalObservedAt = parsed && Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
   return { sourceContributor, originalObservedAt };
