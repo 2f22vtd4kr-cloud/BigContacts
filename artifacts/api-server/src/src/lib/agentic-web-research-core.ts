@@ -2070,7 +2070,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         temporalStatus: ["current","historical","unclear","not_applicable"].includes(cleanText(f.temporalStatus, 30)) ? cleanText(f.temporalStatus, 30) as AgenticFinding["temporalStatus"] : undefined,
         interpretationConfidence: typeof f.interpretationConfidence === "number" && Number.isFinite(f.interpretationConfidence) ? Math.max(0, Math.min(1, f.interpretationConfidence)) : undefined,
         ambiguityNotes: cleanText(f.ambiguityNotes, 800) || undefined,
-        promotionDecision: scope === "candidate" && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution) && exactQuote && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
+        promotionDecision: scope === "candidate" && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution) && exactQuote && f.identityAssessment === "same_person" && Boolean(cleanText(f.identityRationale, 800)) && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
     }
