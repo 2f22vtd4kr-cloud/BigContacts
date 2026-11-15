@@ -4691,12 +4691,13 @@ describe("community source lead handling and evidence-led scope", () => {
     const searchOnly: AgenticTrajectoryRecord[] = [{ turn: 1, model: "openai/gpt-oss-120b", action: "web_search", args: { query: "renewable energy" }, execution: "success", observation: "Search snippets mention renewable energy.", observedUrls: [], findings: [], providerFallback: [] }];
     expect(findUnsupportedDiscoverySectorTerms(query, objective, searchOnly)).toEqual(["renewable energy"]);
   });
-  it("blocks same-route discovery searches that only reword the same hypothesis", () => {
+  it("blocks only exact duplicate discovery requests and preserves model-selected query pivots", () => {
     const first = "private renewable energy company founder equity stake";
     const nearDuplicate = "renewable energy founder ownership stake";
     expect(discoveryQueriesAreNearDuplicates(first, nearDuplicate)).toBe(true);
     expect(discoveryQueriesAreNearDuplicates(first, "renewable energy company investor list")).toBe(false);
     const prior: AgenticTrajectoryRecord[] = [{ turn: 1, model: "openai/gpt-oss-120b", action: "web_search", args: { query: first, provider: "serper", locale: "en", market: null }, execution: "success", observation: "Search results returned only a generic sector tracker.", observedUrls: [], findings: [], providerFallback: [] }];
-    expect(repeatedDiscoverySearchReason({ query: nearDuplicate, provider: "serper", locale: "en", market: undefined }, prior)).toContain("near-duplicate discovery search");
+    expect(repeatedDiscoverySearchReason({ query: nearDuplicate, provider: "serper", locale: "en", market: undefined }, prior)).toBeNull();
+    expect(repeatedDiscoverySearchReason({ query: first, provider: "serper", locale: "en", market: undefined }, prior)).toContain("exact normalized duplicate");
   });
 });
