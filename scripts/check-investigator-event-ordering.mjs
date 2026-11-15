@@ -17,7 +17,7 @@ const checks=[
 ["target act lookup is tied to durable case state",/loadTargetActOversightContext\(input\.caseId, input\.targetName\)/.test(entrypoint)],
 ["discovery bypasses target per-act gate",/input\.mode === "discovery"/.test(entrypoint)],
 ["oversight has explicit continue redirect stop dispositions",/continue[\s\S]{0,200}redirect[\s\S]{0,200}stop/.test(oversight)],
-["oversight fail-closes when Gemini is unavailable",/action\s*:\s*"stop"/.test(oversight)&&/fail-closed/.test(oversight)],
+["consequential Right-hand unavailability fails closed while routine turns defer review",/rightHand.status!==\"completed\"/.test(oversight)&&/shouldReviewTargetActWithRightHand/.test(oversight)&&/status: \"deferred\"/.test(oversight)&&/fail-closed/.test(oversight)],
 ["oversight persists control decisions",/eventType\s*:\s*"control_decision"/.test(oversight)&&/investigatorActOversight/.test(oversight)],
 ["target oversight allocates monotonic durable event iterations",/nextResearchCaseEventIteration/.test(oversight)&&/MAX\(\$\{researchCaseEventsTable\.iteration\}\)/.test(oversight)&&/eventIterationFloor=nextResearchCaseEventIteration\(sourceTurn,eventIterationFloor\)/.test(oversight)],
 ["target replay writes historical source observations before current act and Boss decision",oversight.indexOf("const sourceEventIds")<oversight.indexOf("const inserted=await tx.insert(researchCaseEventsTable)")&&oversight.indexOf("eventType:\"tool_observation\"")<oversight.indexOf("eventType:\"control_decision\"")&&/sourceRecord of \[\.\.\.\(safeAct\.sourceRecords\?\?\[\]\)\]\.sort\(\(a,b\)=>a\.turn-b\.turn\)/.test(oversight)],
