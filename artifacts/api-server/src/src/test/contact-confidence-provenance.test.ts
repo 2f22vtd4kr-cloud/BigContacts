@@ -70,7 +70,7 @@ describe("durable Investigator contact attribution", () => {
         },
       },
     };
-    expect(computeContactOutcome(entity)).toBe("direct_contact_candidate");
+    expect(computeContactOutcome(entity)).toBe("evidence_only");
   });
 });
 
@@ -93,12 +93,12 @@ describe("value-bound selected email provenance", () => {
       email: "jane@officialcompany.com",
       emailSource: "pattern-generated",
       metadata,
-    })).toBe(35);
+    })).toBe(0);
     expect(hasMeaningfulDirectContact({
       email: "jane@officialcompany.com",
       emailSource: "pattern-generated",
       metadata,
-    })).toBe(true);
+    })).toBe(false);
     expect(computeContactOutcome({
       email: "jane@officialcompany.com",
       emailSource: "pattern-generated",
