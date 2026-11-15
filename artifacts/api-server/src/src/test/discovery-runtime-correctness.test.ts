@@ -171,11 +171,12 @@ describe("discovery runtime architecture", () => {
     const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
     expect(canonicalSource).toContain("candidateRoleCorroborationSources");
     expect(canonicalSource).toContain("sources.length >= 1");
-    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalSource).toContain("claimGradeObservations");
     expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
     expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
-    expect(candidateSourcePolicy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
+    expect(candidateSourcePolicy).toContain("const exactQuote = modelQuotes.find");
+    expect(candidateSourcePolicy).toContain("observation.observation.includes(quote)");
   });
 
   it("records duplicate blocks and removes the blanket visited-URL stop", () => {
@@ -620,7 +621,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const validUrls = candidate.sourceUrls");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
     expect(canonicalSource).toContain("durableSourceCount >= 1");
-    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalSource).toContain("reviewOnly: true");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
     expect(canonicalSource).toContain('latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null');
@@ -960,8 +961,10 @@ describe("Boss-accepted discovery pivot scope", () => {
     expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
       query: "Just Love Coffee franchise owner",
     }, [])).toBeNull();
-    expect(researchCoreSource).toContain('discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)');
-    expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
+    const runtimeStart = researchCoreSource.indexOf("export async function runAgenticWebResearch");
+    const runtimeSource = researchCoreSource.slice(runtimeStart);
+    expect(runtimeSource).not.toContain("discoveryPivotAlignmentReason(");
+    expect(runtimeSource).not.toContain("pivot_alignment_guard");
   });
 });
 
@@ -1187,10 +1190,14 @@ describe("unapproved discovery geography guard", () => {
     )).toBeNull();
   });
 
-  it("is wired into the live discovery runtime before any outbound search", () => {
-    expect(researchCoreSource).toContain("discoveryUnscopedGeographyReason(input.objective ?? \"\", action.action, selectedArgs)");
-    expect(researchCoreSource).toContain("reason=unapproved_geography_guard");
-  });
+  it("does not let a deterministic geography heuristic veto model-selected discovery actions", () => {
+    const runtimeStart = researchCoreSource.indexOf("export async function runAgenticWebResearch");
+    const runtimeSource = researchCoreSource.slice(runtimeStart);
+    expect(runtimeSource).not.toContain("discoveryUnscopedGeographyReason(");
+    expect(runtimeSource).not.toContain("unapproved_geography_guard");
+    expect(orientationSource).toContain("Preserve explicit human geographic constraints");
+    expect(orientationSource).toContain("The Investigator remains autonomous");
+  });;
 });
 
 
