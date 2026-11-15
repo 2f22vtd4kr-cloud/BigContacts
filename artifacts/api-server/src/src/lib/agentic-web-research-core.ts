@@ -4712,7 +4712,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: choose targets, sources and actions from the objective, evidence, information gain and cost; no mandatory source mix or order. Preserve useful person/company/asset leads as provisional, with exact names, source URLs, quote-backed claims and uncertainty. Sourced ownership/wealth hypotheses may be recorded; never invent facts or routes. Propose material scope changes to Boss."
+    "DISCOVERY LEAD HANDOFF: choose targets, sources and actions from the objective, evidence, information gain and cost; no mandatory source mix or order. Preserve exact observed names and source URLs for useful provisional person/company/asset leads, with quote-backed claims and uncertainty. Sourced ownership/wealth hypotheses may be recorded; never invent facts or routes. Propose material scope changes to Boss."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
