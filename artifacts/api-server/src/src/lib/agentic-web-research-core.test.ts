@@ -1524,7 +1524,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toMatch(/wealth needs sourced ownership\\/equity\\/investment/i);
+    expect(modelPrompt).toMatch(/wealth claims need sourced ownership\\/equity\\/investment/i);
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
