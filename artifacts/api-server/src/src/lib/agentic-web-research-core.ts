@@ -4759,7 +4759,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "SCOPE GUARD BLOCKED ACTION: prior request was blocked before execution; not evidence. Preserve Boss scope; revise the failed dimension or ask Boss."
+    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: a prior request was blocked before execution by an earlier deterministic alignment policy; this is not evidence and its keyword criteria are not authoritative. Reassess the proposed research independently against the human objective and the current Boss-approved direction. If it genuinely advances the mission within that direction, choose an appropriate action; do not mechanically repeat geography, source-class or subject wording. If it would change strategic scope, ask Boss."
     : "";
   const activeBossScopeSection = activeBossDirection
     ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
