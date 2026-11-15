@@ -87,7 +87,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("https://source.example/search-result");
       expect(prompt).toContain("https://source.example/lead-1");
       expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
-      expect(modelPrompt).toContain("MISSION & ROLES: Human objective and constraints govern. Boss sets strategy; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research, interpretation and stopping.");
+      expect(modelPrompt).toContain("MISSION: The human objective and explicit constraints govern. Boss directs strategy; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.");
       expect(modelPrompt).toContain("B2B roles need fetched role evidence");
       expect(modelPrompt).toContain("wealth claims need sourced ownership/equity/investment");
       expect(prompt).not.toContain("people are the ultimate mission");
