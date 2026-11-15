@@ -20,6 +20,7 @@ assert(init.includes("005-agentic-llm-daily-usage.sql"), "explicit Apex schema i
 assert(init.includes("006-agentic-llm-rate-limit-headers.sql"), "explicit Apex schema initialization must install provider rate-limit header columns");
 assert(init.includes("007-agentic-llm-attempt-context.sql"), "explicit Apex schema initialization must install reasoning and attempt context columns");
 assert(init.includes("008-contact-semantic-scores-unassessed.sql"), "explicit Apex schema initialization must clear legacy semantic contact scores");
+assert(init.includes("semanticContactScores") && init.includes("is_nullable") && init.includes("nullable/unassessed"), "explicit Apex schema initialization must verify semantic contact score columns are nullable after migrations");
 const orderedMigrations = ["002-contact-outcome.sql", "003-atlas-review-candidate-type.sql", "004-registry-candidate-truth.sql", "005-agentic-llm-daily-usage.sql", "006-agentic-llm-rate-limit-headers.sql", "007-agentic-llm-attempt-context.sql", "008-contact-semantic-scores-unassessed.sql"];
 assert(orderedMigrations.every((name, index) => index === 0 || init.indexOf(orderedMigrations[index - 1]) < init.indexOf(name)), "Apex compatibility and daily ledger migrations must be applied in committed order");
 assert(boot.includes('bash scripts/initialize-apex-schema.sh'), "explicit Replit schema initialization must delegate to the complete Apex initializer");
