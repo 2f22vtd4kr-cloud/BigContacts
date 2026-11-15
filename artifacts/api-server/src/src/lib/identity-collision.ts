@@ -47,8 +47,8 @@ export function assessIdentityCollision(input: {
   };
   const personName = input.personName?.trim() ?? "";
   const value = String(input.value ?? "").trim();
-  const contactLike = /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(value)
-    || /^(?:\\+?\\d[\\d\s().-]{6,})$/.test(value);
+  const contactLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    || /^(?:\+?\d[\d\s().-]{6,})$/.test(value);
 
   if (!personName) {
     return {
