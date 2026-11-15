@@ -236,6 +236,34 @@ describe("discovery source evidence policy", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(false);
   });
 
+  it("allows a fetched Virtual Globetrotting observation to be evaluated as a community lead", () => {
+    const url = "https://www.virtualglobetrotting.com/map/example-property/";
+    const quote = "The estate was documented by contributor Alice Example on 2024-01-02.";
+    const result = candidateRoleCorroborationSources({
+      personName: "Alice Example",
+      role: "Contributor",
+      findings: [{
+        personName: "Alice Example",
+        role: "Contributor",
+        promotionDecision: "review",
+        scope: "candidate",
+        sourceUrls: [url],
+        exactQuote: quote,
+      }],
+      observations: [{
+        action: "visit",
+        execution: "success",
+        sourceUrl: url,
+        observation: quote + " COMMUNITY SOURCE LEAD: independent corroboration required.",
+        eventId: 43,
+      }],
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
+      normalizeSourceUrl,
+    });
+    expect(isClaimGradeDiscoverySourceUrl(url)).toBe(true);
+    expect(result).toEqual([{ sourceUrl: url, publisher: "virtualglobetrotting.com", eventId: 43 }]);
+  });
+
   it("keeps registry search results as leads until the underlying record page is fetched", () => {
     const url = "https://registry.example.test/records/person/123";
     const quote = "Anna Example is listed as managing director of Example GmbH.";
