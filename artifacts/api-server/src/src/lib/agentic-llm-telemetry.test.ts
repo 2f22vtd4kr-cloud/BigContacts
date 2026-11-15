@@ -184,13 +184,13 @@ describe("Investigator LLM telemetry privacy", () => {
         reservedTokens: 0, requestCount: 0, successCount: 0, failureCount: 0, estimatedTokens: 600,
       });
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
-        .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+        .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
     } finally {
       await db.delete(agenticLlmDailyUsageTable).where(where);
     }
   });
 
-  (process.env.DATABASE_URL ? it : it.skip)("does not count a provider-rejected TPM 429 as daily token consumption", async () => {
+  (process.env.DATABASE_URL ? it : it.skip)("conservatively accounts for a provider-rejected TPM 429 without usage metadata", async () => {
     const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
       import("@workspace/db"),
       import("drizzle-orm"),
@@ -217,7 +217,7 @@ describe("Investigator LLM telemetry privacy", () => {
       await flushAgenticLlmUsageLedger();
       const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
       expect(row).toMatchObject({
-        requestCount: 1, successCount: 0, failureCount: 1, totalTokens: 0, reservedTokens: 0,
+        requestCount: 1, successCount: 0, failureCount: 1, totalTokens: 600, reservedTokens: 0,
       });
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
         .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
