@@ -1,5 +1,5 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { bindExactSourceSpan, sourceLineageId } from "./research-epistemic-vnext";
+import { sourceLineageId } from "./research-epistemic-vnext";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
