@@ -808,12 +808,12 @@ const SPECIALISTS: BureauSpecialist[] = [
 ];
 
 export const DEFAULT_DISCOVERY_OBJECTIVE =
-  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people. Do not assume or expand a geographic scope unless the human supplies one.";
+  "Find potential investor routes for a startup founder seeking conversations with relevant, evidence-supported people and organizations. Where geography is open, the Investigator may propose evidence-led jurisdiction hypotheses to Boss for authorization.";
 
 export const DEFAULT_DISCOVERY_MOTIVATION =
   "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors. Identify objective-fit people, companies, relationships and professional routes using observed evidence.";
 
-export const DEFAULT_DISCOVERY_GEOGRAPHY = "No geographic restriction supplied; do not invent or broaden one.";
+export const DEFAULT_DISCOVERY_GEOGRAPHY = "No geographic restriction supplied; the Investigator may propose evidence-led jurisdiction hypotheses to Boss for authorization.";
 
 export const DEFAULT_DISCOVERY_EXCLUSIONS = [
   "Do not invent people, companies, wealth, contact details, relationships, or source claims.",
