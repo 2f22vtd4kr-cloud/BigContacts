@@ -67,4 +67,45 @@ if (failures.length) {
   for (const failure of failures) console.error("- " + failure);
   process.exit(1);
 }
+// Offline prompt-section measurement. No provider, network, tokenizer package or
+// live API is invoked. Token counts are labelled estimates (chars / 3.4).
+const promptCoreMatch = orientation.match(/export function apexInvestigatorSystemCore\(\): string \{\\s*return \[([\\s\\S]*?)\]\\.join\("\\n"\);\\s*\}/);
+if (!promptCoreMatch) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to extract system prompt sections");
+const promptSections = [...promptCoreMatch[1].matchAll(/^\\s*("(?:\\\\.|[^"\\\\])*")\\s*,?\\s*$/gm)]
+  .map((match) => JSON.parse(match[1]));
+if (!promptSections.length) throw new Error("INVESTIGATOR PROMPT BUDGET: system prompt sections were not measurable");
+const systemPromptChars = promptSections.reduce((total, section) => total + section.length, 0)
+  + Math.max(0, promptSections.length - 1)
+  + "\\nReturn one JSON action object only.".length;
+const constant = (name) => {
+  const match = core.match(new RegExp("const " + name + " = ([0-9_]+)"));
+  if (!match) throw new Error("INVESTIGATOR PROMPT BUDGET: missing " + name);
+  return Number(match[1].replaceAll("_", ""));
+};
+const preferredTotalChars = constant("PREFERRED_INVESTIGATOR_REQUEST_CHARS");
+const preferredUserChars = constant("PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS");
+const schemaOverheadChars = constant("INVESTIGATOR_SCHEMA_OVERHEAD_CHARS");
+const userPromptBudgetChars = Math.max(0, Math.min(
+  preferredUserChars,
+  preferredTotalChars - systemPromptChars - schemaOverheadChars,
+));
+const compact20bResponseFormatChars = 0; // GPT-OSS 20B does not receive unsupported response_format.
+const estimatedPromptTokens = Math.ceil(
+  (systemPromptChars + userPromptBudgetChars + compact20bResponseFormatChars) / 3.4,
+);
+const defaultCompletionBudget = 1024;
+const estimatedTotalTokensPerTurn = estimatedPromptTokens + defaultCompletionBudget;
+const legacyObservedPromptTokens = 3565;
+const legacyObservedCompletionTokens = 509;
+const legacyCompletionCap = 512;
+console.log("INVESTIGATOR PROMPT MEASUREMENT (offline; no live provider call)");
+console.log("  Tokenizer: not available in this offline check; estimate = ceil(characters / 3.4).");
+console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + promptSections.length + " sections).");
+console.log("  User/context allowance: " + userPromptBudgetChars + " characters / " + Math.ceil(userPromptBudgetChars / 3.4) + " estimated tokens.");
+console.log("  Response schema overhead: 0 characters for the GPT-OSS 20B compatibility request (provider response_format omitted).");
+console.log("  Estimated input per 20B Investigator turn at configured prompt allowance: " + estimatedPromptTokens + " tokens.");
+console.log("  Default reasoning effort: low; completion cap: " + defaultCompletionBudget + " tokens (environment-configurable).");
+console.log("  Estimated input + completion ceiling per turn: " + estimatedTotalTokensPerTurn + " tokens; this is a reservation ceiling, not actual use.");
+console.log("  2026-11-14 baseline: provider-reported input=" + legacyObservedPromptTokens + " tokens; completion cap=" + legacyCompletionCap + "; one observed successful empty completion=" + legacyObservedCompletionTokens + " tokens (including reasoning).");
+console.log("  Comparison: estimated new prompt allowance is " + Math.round((1 - estimatedPromptTokens / legacyObservedPromptTokens) * 100) + "% below the captured baseline input; actual post-patch usage requires the user's live Replit run.");
 console.log("INVESTIGATOR PROMPT BUDGET: PASS");
