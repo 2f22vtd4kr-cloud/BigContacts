@@ -231,9 +231,9 @@ describe("model-owned discovery relevance reasoning", () => {
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
-    expect(modelPrompt).toContain("MODEL-OWNED: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(modelPrompt).toContain("No human-unrequested criteria; adjectives/nouns are not queries.");
-    expect(modelPrompt).toContain("Wealth, fame, seniority, size, listing, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE:
+    expect(modelPrompt).toContain("Apply only mission-specific evidence standards; do not invent extra criteria. Adjectives/generic nouns are not queries."); // replace entire line
+    expect(modelPrompt).toContain("Fame, wealth, seniority, company size, listing status, sector, geography, language and source classes are context, not gates.");
     expect(modelPrompt).toContain("Snippets/registry hits are leads; failed/unfetched=unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or itinerary");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
@@ -246,7 +246,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(modelPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
-    expect(targetPrompt).not.toContain("MODEL-OWNED: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE:
     expect(targetPrompt).toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only");
     expect(targetPrompt).toContain("COMPANY CONTEXT:");
     expect(targetPrompt).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions.");
