@@ -122,19 +122,21 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
     return graph;
   }).filter((graph): graph is EvidenceGraph => Boolean(graph && graph.edges.length > 0));
 }
-export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
+export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
   return findings
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url))))
     .map((finding) => {
       const attribution = finding.contactAttribution ?? "unknown";
-      const sharedRoute = attribution === "shared_inbox" || attribution === "organization";
+      const personSpecific = ["person_specific", "direct_personal", "professional_person_specific"].includes(attribution);
+      const organizationRoute = ["department", "shared_inbox", "assistant_intermediary", "generic_contact_form", "organization"].includes(attribution);
       const explicitPersonName = typeof finding.personName === "string" ? finding.personName.trim() : "";
-      const isCandidate = finding.scope === "candidate" && explicitPersonName.length > 0 && !sharedRoute;
-      const promotionSupported = isCandidate && attribution === "person_specific" && Boolean(finding.exactQuote?.trim());
+      const isCandidate = finding.scope === "candidate" && explicitPersonName.length > 0 && personSpecific;
+      const reviewScope = isCandidate ? "candidate" : organizationRoute ? "organization" : "unknown";
+      const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim());
       return {
         vectorType: finding.vectorType,
         value: finding.value,
-        scope: isCandidate ? "candidate" : "organization",
+        scope: reviewScope,
         personName: isCandidate ? explicitPersonName : null,
         role: isCandidate ? finding.role : null,
         sourceUrls: finding.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))),
@@ -181,7 +183,7 @@ export function buildTargetContactInvestigatorObjective(input: {
       "Establish the asset's public identity, type, manufacturer/model or registration identifier, jurisdiction, status and source freshness from attributable sources. Preserve historical versus current records.",
       "Distinguish registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared/fractional interests. A registrant or operator is not automatically the beneficial owner. Follow entity/person links only when sources explicitly support them; do not infer a natural person from an asset registration.",
       "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses official registries, operator/issuer publications or other useful public sources based on observed evidence. Preserve exact source URLs and contradictions. Never infer private residence, movements, beneficial ownership, personal wealth or identity from a location or asset alone.",
-      "Person route requires contactAttribution=person_specific and verbatim exactQuote tying name to value. Shared inbox requires shared_inbox + scope=organization; never personal promotion. Use the exact URL where observed; snippets are leads.",
+      "Classify each contact semantically: direct_personal, professional_person_specific, department, shared_inbox, assistant_intermediary, generic_contact_form, organization, or unknown. Legacy person_specific is accepted. Only direct_personal, professional_person_specific, or legacy person_specific may be proposed as candidate contacts, and only with a verbatim exactQuote tying the named person to the exact value on a fetched source. Department, shared inbox, assistant/intermediary, generic contact form, and organization routes must remain organization/review routes and must never be promoted as personal contact. Unknown remains unclassified. Use exact URLs; snippets are leads.",
     ].join("\n");
     if (assetObjective.length > 1_900) throw new Error("Asset Investigator objective exceeds its hard prompt budget.");
     return assetObjective;
