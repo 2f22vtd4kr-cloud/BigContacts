@@ -5264,10 +5264,41 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
-  // The preferred message size is an optimization target, not a hard cap. Never
-  // clip the latest durable evidence or the complete action schema to hit it;
-  // the serialized request and token reservation are measured at the provider boundary.
-  return providerBoundedPrompt;
+  // Compact auxiliary context toward a preferred size, but never cut the
+  // authoritative objective, Boss scope, live action allowlist, exact registry
+  // availability, terminal contract, complete output schema or newest durable act.
+  const userPromptBudget = Math.min(
+    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
+    4_000,
+  );
+  if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
+
+  const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
+  if (outputContractIndex < 0) return providerBoundedPrompt;
+  const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
+  const pinnedContext = [
+    activeBossScopeSection,
+    availableActionsGuidance,
+    discoverySearchBudgetGuidance,
+    compactRegistryGuidance,
+    terminalContractGuidance,
+    compactPageFormatGuidance,
+    blockedScopeRecoveryMarker,
+  ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
+  let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
+  for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
+  const requiredTail = [...pinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+  const marker = "[INVESTIGATOR PROMPT COMPACTION: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
+  const prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+  // If mandatory evidence itself exceeds the preferred size, preserve the full
+  // request and let provider/token accounting handle its actual serialized cost.
+  if (prefixBudget < 0) return providerBoundedPrompt;
+  const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
+  const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
+  if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
+    return providerBoundedPrompt;
+  }
+  return boundedPrompt;
 }
 
 /**
