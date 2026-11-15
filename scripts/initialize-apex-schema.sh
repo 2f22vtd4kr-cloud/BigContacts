@@ -90,7 +90,15 @@ try {
   const nullableScores = new Set(semanticScoreResult.rows.filter((row) => row.is_nullable === "YES").map((row) => row.column_name));
   const nonNullableScores = semanticContactScores.filter((name) => !nullableScores.has(name));
   if (nonNullableScores.length) throw new Error("Apex contact semantic-score verification failed; columns must be nullable/unassessed: " + nonNullableScores.join(", "));
-  console.log("[apex-schema] required durable tables, quota columns and unassessed contact-score columns present.");
+  const legacySemanticScoreColumns = ["legacy_source_reliability", "legacy_identity_match", "legacy_recency_score", "legacy_directness_score"];
+  const legacyScoreResult = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='contact_evidence' AND column_name = ANY($1::text[])",
+    [legacySemanticScoreColumns],
+  );
+  const foundLegacyScoreColumns = new Set(legacyScoreResult.rows.map((row) => row.column_name));
+  const missingLegacyScoreColumns = legacySemanticScoreColumns.filter((name) => !foundLegacyScoreColumns.has(name));
+  if (missingLegacyScoreColumns.length) throw new Error("Apex legacy contact-score preservation verification failed; missing columns: " + missingLegacyScoreColumns.join(", "));
+  console.log("[apex-schema] required durable tables, quota columns, preserved legacy scores and unassessed active contact-score columns present.");
 } finally {
   await pool.end();
 }
