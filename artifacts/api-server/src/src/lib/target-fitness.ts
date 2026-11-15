@@ -1,20 +1,12 @@
-import { assessCompanyRealism } from "./reachability-realism";
-
 /**
- * Target fitness gate — Phase 1.
+ * Compatibility adapter for older target-selection callers.
  *
- * Prefer reachable operators/principals and reject pure organization shells
- * when the budget is person-scoped. Famous-person realism is a model-owned
- * Boss/Investigator judgment, not a deterministic name or description filter.
- * Never invent signals; only reads name + optional public footprint text.
- *
- * Outcomes:
- *   strong              — clear operator/principal signal
- *   weak                — person-shaped but thin signal; proceed with caution
- *   review              — ambiguous; human or Boss should look
- *   reject_fame_only    — legacy outcome retained for compatibility; not emitted here
- *   reject_non_person   — corp/shell with no person path when person-scoped
+ * Semantic eligibility, identity, role and company materiality are not
+ * classified by local keyword/name regexes. The Investigator/Boss must judge
+ * them against the mission and source observations. This adapter intentionally
+ * never vetoes a named candidate; it returns a neutral review envelope.
  */
+import { assessCompanyRealism } from "./reachability-realism";
 
 export type TargetFitnessOutcome =
   | "strong"
@@ -25,186 +17,59 @@ export type TargetFitnessOutcome =
 
 export type TargetFitnessResult = {
   fit: TargetFitnessOutcome;
-  score: number; // 0..1
+  /** Deprecated neutral placeholder; must not be used to rank or reject a target. */
+  score: number;
   reasons: string[];
   roleHints: string[];
 };
 
-const OPERATOR_ROLE_RE =
-  /\b(founder|co-?founder|cofounder|ceo|chief executive|managing partner|general partner|gp\b|operator|owner-?operator|proprietor|managing director|executive chairman|president(?!\s+of\s+the\s+united)|cto|cfo|coo|chief\s+\w+\s+officer|board\s+member|director(?!\s+of\s+photography)|shareholder|principal)\b/i;
-
-const CORP_SHELL_RE =
-  /\b(ltd|limited|llc|inc|corp|corporation|gmbh|aps|ab|oy|sa|sas|bv|nv|pty|plc|holdings?|group|investments?|private equity|venture capital|investment firm|investment company|family office|asset manager|fund manager|private capital|capital management|fund|professional firm)\b/i;
-
-const PERSON_NAME_RE = /^[A-Za-zÀ-ÿ'’.\-]+(?:\s+[A-Za-zÀ-ÿ'’.\-]+){0,4}$/;
-
-/**
- * Evaluate whether a proposed target is fit for person-scoped OSINT budget.
- */
 export function evaluateTargetFitness(input: {
   name: string;
   type?: string | null;
   role?: string | null;
   snippet?: string | null;
   notes?: string | null;
-  /** When true, pure corp shells with no person path are rejected. */
   personScoped?: boolean;
-  /** When true, evaluate an organization as a company target, not as a person. */
   companyScoped?: boolean;
-  /** Structured, source-bound company evidence used by the company realism gate. */
   companyMetadata?: string | null;
 }): TargetFitnessResult {
-  const name = (input.name ?? "").trim();
-  const type = (input.type ?? "").trim();
-  const role = (input.role ?? "").trim();
-  const footprint = `${role}\n${input.snippet ?? ""}\n${input.notes ?? ""}`.trim();
-  const text = `${name}\n${footprint}`.toLowerCase();
-  const reasons: string[] = [];
-  const roleHints: string[] = [];
-  let score = 0.4;
-
-  if (!name || name.length < 2) {
-    return {
-      fit: "reject_non_person",
-      score: 0,
-      reasons: ["Empty or invalid name."],
-      roleHints: [],
-    };
-  }
-
-  const isOrgType =
-    /^(corporation|corp|company|trust|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|investment company|private equity(?: firm| fund)?|venture capital(?: firm| fund)?|family office|asset manager|investment fund|fund manager|private capital firm|capital management|fund|holding company|limited partnership)$/i.test(type) ||
-    CORP_SHELL_RE.test(name);
-  const isCompanyType =
-    /^(corporation|corp|company|org|organization|entity|partnership|llc|limited liability company|professional firm|investment firm|private equity(?: firm)?|venture capital(?: firm)?|family office|asset manager|investment fund|fund|holding company|limited partnership)$/i.test(type) ||
-    CORP_SHELL_RE.test(name);
-
-  if (/^trust$/i.test(type)) {
-    return {
-      fit: input.personScoped === false ? "review" : "reject_non_person",
-      score: 0.4,
-      reasons: ["Trust is a distinct legal structure; do not assume it is an operating company or a person."],
-      roleHints: [],
-    };
-  }
-
-  const looksLikePersonName = PERSON_NAME_RE.test(name) && !CORP_SHELL_RE.test(name);
-  const hasOperatorRole = OPERATOR_ROLE_RE.test(text);
-
-  if (input.companyScoped === true || (input.personScoped === false && isCompanyType)) {
-    const company = assessCompanyRealism({ metadata: input.companyMetadata });
-    const companyReasons = [
-      ...company.reasons,
-      "Company-level realism is separate from individual owner wealth.",
-      "Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.",
-    ];
-    if (company.status === "materiality_evidenced"
-      && company.hasActiveCompanyRegistry
-      && company.hasOfficialBusinessRoute) {
-      return {
-        fit: "strong",
-        score: Math.max(0.7, Number((company.score / 100).toFixed(3))),
-        reasons: companyReasons,
-        roleHints: [
-          "source-backed company materiality",
-          "verified organization-level route",
-          ...(company.hasCapitalCapacityEvidence ? ["verified capital-capacity evidence"] : []),
-          ...(company.hasInvestmentActivityEvidence ? ["verified investment-activity evidence"] : []),
-        ],
-      };
-    }
-    if (company.hasSourceBackedScale || company.hasGrowthRankingSignal || company.hasActiveCompanyRegistry) {
-      return {
-        fit: "review",
-        score: Number(Math.max(0.4, company.score / 100).toFixed(3)),
-        reasons: [...companyReasons, ...company.blockers],
-        roleHints: company.hasGrowthRankingSignal ? ["company growth ranking lead"] : ["company evidence requires independent validation"],
-      };
-    }
+  const name = input.name.trim();
+  if (!name) {
     return {
       fit: "review",
-      score: 0.4,
-      reasons: [
-        "Company-shaped target requires company-specific evidence; do not apply person-only fitness rules.",
-        ...company.blockers,
-      ],
+      score: 0.5,
+      reasons: ["Target name is missing; request a valid target identifier before research."],
       roleHints: [],
     };
   }
-
-  if (hasOperatorRole) {
-    score += 0.3;
-    const match = text.match(OPERATOR_ROLE_RE);
-    if (match?.[0]) roleHints.push(match[0].toLowerCase());
-    reasons.push("Operator/principal role signal present.");
-  }
-
-  if (looksLikePersonName) {
-    score += 0.1;
-  }
-
-  if (/\b(linkedin\.com\/in\/|contact|team@|about us|leadership)\b/i.test(text)) {
-    score += 0.1;
-    reasons.push("Public contact or leadership footprint signal.");
-  }
-
-  // Person-scoped budget + pure org shell → reject
-  if (input.personScoped !== false && isOrgType && !looksLikePersonName && !hasOperatorRole) {
-    return {
-      fit: "reject_non_person",
-      score: Math.max(0, Math.min(1, Number(score.toFixed(3)))),
-      reasons: [
-        "Target is a corporation/shell with no person path while budget is person-scoped.",
-        "Reframe to officers/directors/shareholders of the entity instead.",
-      ],
-      roleHints,
-    };
-  }
-
-  score = Math.max(0, Math.min(1, Number(score.toFixed(3))));
-
-  if (score >= 0.65 && hasOperatorRole) {
-    return { fit: "strong", score, reasons, roleHints };
-  }
-  if (score >= 0.45 && looksLikePersonName) {
-    return { fit: "weak", score, reasons: reasons.length ? reasons : ["Person-shaped with limited operator signal."], roleHints };
-  }
-  if (looksLikePersonName || hasOperatorRole) {
-    return { fit: "review", score, reasons: reasons.length ? reasons : ["Ambiguous fitness; needs Boss/human review."], roleHints };
-  }
-
-  if (isOrgType) {
-    return {
-      fit: input.personScoped !== false ? "reject_non_person" : "review",
-      score,
-      reasons: ["Organization-shaped target without clear person path."],
-      roleHints,
-    };
-  }
-
+  const company = input.companyScoped
+    ? assessCompanyRealism({ metadata: input.companyMetadata })
+    : null;
   return {
     fit: "review",
-    score,
-    reasons: reasons.length ? reasons : ["Insufficient public signal to rank fitness."],
-    roleHints,
+    score: 0.5,
+    reasons: [
+      "Target-fitness heuristics are disabled. Assess this candidate against the human objective, source-backed identity, contextual role/relationship, uncertainty and expected information gain.",
+      input.type ? "Stored entity type (unverified context): " + input.type.slice(0, 80) : "Entity type is unresolved.",
+      input.role ? "Stored role text (unverified context): " + input.role.slice(0, 180) : "Role is unresolved.",
+      input.snippet ? "Stored source/search lead (not yet evidence): " + input.snippet.slice(0, 240) : "",
+      input.notes ? "Stored notes (context only): " + input.notes.slice(0, 180) : "",
+      ...(company?.evidence ?? []).map((record) => "Company observation (" + record.collection + "): " + record.details
+        + (record.sourceUrl ? " Source URL: " + record.sourceUrl : "")),
+    ].filter(Boolean),
+    roleHints: [],
   };
 }
 
-/** True when the gate says do not spend a full research circle. */
-export function shouldRejectTarget(result: TargetFitnessResult): boolean {
-  return result.fit === "reject_fame_only" || result.fit === "reject_non_person";
+/** A legacy caller may request this flag, but semantic uncertainty is never a code-level veto. */
+export function shouldRejectTarget(_result: TargetFitnessResult): boolean {
+  return false;
 }
 
-/** Suggested reframe text for Boss / admission logs. */
-export function suggestReframe(input: {
+/** Reframing is now a model decision; this adapter never prescribes it. */
+export function suggestReframe(_input: {
   name: string;
   fit: TargetFitnessOutcome;
 }): string | null {
-  if (input.fit === "reject_fame_only") {
-    return `Do not research "${input.name}" as a trophy. Prefer a reachable officer, founder, or operator in the same industry with a documented public contact path.`;
-  }
-  if (input.fit === "reject_non_person") {
-    return `Reframe from the brand/shell "${input.name}" to named officers, directors, or shareholders of that entity.`;
-  }
   return null;
 }
