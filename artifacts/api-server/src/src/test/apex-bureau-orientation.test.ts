@@ -73,7 +73,7 @@ describe("objective-led institutional orientation", () => {
 
   it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(APEX_WHAT_IS_ATLAS).toContain("Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss.");
+    expect(APEX_WHAT_IS_ATLAS).toContain("when geography is open, propose evidence-led sector/geography hypotheses to Boss rather than inventing a preferred region.");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
     expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
