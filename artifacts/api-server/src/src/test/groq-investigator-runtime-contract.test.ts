@@ -430,6 +430,20 @@ describe("Groq Investigator runtime contract", () => {
       responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
       currentMaxCompletionTokens: 1024, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
     })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 512, completionTokensUsed: 509,
+      rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1024 });
+
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema", failureDetailsAvailable: false, completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 512, completionTokensUsed: 300,
+      rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
+    })).toEqual({ action: "retry_json_object" });
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed", providerMessage: replay.capturedProviderError.message,
       responseFormat: "json_object", failureDetailsAvailable: false, completionBudgetRetryUsed: true,
