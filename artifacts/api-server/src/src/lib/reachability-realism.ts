@@ -1,35 +1,34 @@
-import { hasMeaningfulDirectContact } from "./contact-confidence";
+/**
+ * Targetability context is an evidence inventory, not a deterministic ranking
+ * or eligibility policy. The Investigator interprets these observations
+ * against the human objective and chooses whether/how to continue.
+ *
+ * Deliberately absent: wealth cutoffs, reachability scores, source-count
+ * minimums, company-growth penalties, and direct/intermediary stop rules.
+ */
+export type ReachabilityMode = "model_assessment";
+export type ReachabilityStatus = "unassessed";
 
-export type ReachabilityMode = "full" | "targeted" | "research_only";
-export type ReachabilityStatus = "direct" | "intermediary" | "bounded" | "research_only";
+export interface ReachabilityEvidenceRecord {
+  collection: string;
+  details: string;
+  sourceUrl?: string;
+  sourceType?: string;
+  verified?: boolean;
+}
 
 export interface CompanyRealismAssessment {
-  status: "materiality_evidenced" | "single_source_scale" | "growth_signal_lead" | "registry_only" | "unverified";
-  score: number;
-  hasGrowthRankingSignal: boolean;
-  hasSourceBackedScale: boolean;
-  hasCapitalCapacityEvidence: boolean;
-  hasInvestmentActivityEvidence: boolean;
-  hasActiveCompanyRegistry: boolean;
-  hasOwnershipControlEvidence: boolean;
-  hasOfficialWebsite: boolean;
-  hasOfficialBusinessRoute: boolean;
-  hasOrganizationContactCandidate: boolean;
+  status: "unassessed";
+  evidence: ReachabilityEvidenceRecord[];
+  sourceUrls: string[];
   independentSourceCount: number;
-  reasons: string[];
-  blockers: string[];
 }
 
 export interface ReachabilityAssessment {
   status: ReachabilityStatus;
   mode: ReachabilityMode;
-  score: number;
-  hasDirectContact: boolean;
-  hasIntermediaryPath: boolean;
-  ultraWealthSignal: boolean;
-  publicProminenceSignal: boolean;
-  reasons: string[];
-  blockers: string[];
+  evidence: string[];
+  sourceUrls: string[];
   companyAssessment?: CompanyRealismAssessment;
 }
 
@@ -57,43 +56,68 @@ export interface ReachabilityInput {
 export interface ReachabilityDirective {
   mode: ReachabilityMode;
   status: ReachabilityStatus;
-  score: number;
-  reasons: string[];
-  blockers: string[];
+  evidence: string[];
+  sourceUrls: string[];
   companyAssessment?: CompanyRealismAssessment;
 }
+
+const METADATA_EVIDENCE_COLLECTIONS = [
+  "companyScaleEvidence",
+  "companyCapitalEvidence",
+  "companyInvestmentEvidence",
+  "companyRegistryEvidence",
+  "companyOwnershipEvidence",
+  "companyRouteEvidence",
+  "companyGrowthRanking",
+  "growthRankingEvidence",
+  "ownershipEvidence",
+  "investmentEvidence",
+  "assetEvidence",
+  "transactionEvidence",
+] as const;
+
+const RECORD_FIELDS = [
+  "name", "label", "title", "metric", "value", "unit", "currency",
+  "activityType", "activity", "kind", "status", "type", "date", "year",
+  "sourceType", "sourceUrl", "verified", "quote", "exactQuote",
+  "personName", "owner", "role", "jurisdiction", "ownershipPercentage",
+  "rank", "rankLabel", "program", "ranking", "description",
+] as const;
 
 function parseMetadata(raw: string | null | undefined): Record<string, unknown> {
   if (!raw) return {};
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
   } catch {
     return {};
   }
 }
 
-function hasValue(value: string | null | undefined): boolean {
-  return Boolean(value?.trim() && value.trim() !== "[]" && value.trim() !== "null");
-}
-
 function objectRecords(value: unknown): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)));
-  return value && typeof value === "object" ? [value as Record<string, unknown>] : [];
+  if (Array.isArray(value)) {
+    return value.filter((item): item is Record<string, unknown> =>
+      Boolean(item && typeof item === "object" && !Array.isArray(item)));
+  }
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? [value as Record<string, unknown>]
+    : [];
 }
 
-function isHttpsSourceUrl(value: unknown): value is string {
+function isPublicHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string" || !value.trim()) return false;
   try {
-    const url = new URL(value.trim());
-    return url.protocol === "https:" && Boolean(url.hostname);
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "https:" && Boolean(parsed.hostname);
   } catch {
     return false;
   }
 }
 
-function sourceHostKey(value: unknown): string | null {
-  if (!isHttpsSourceUrl(value)) return null;
+function normalizedHost(value: string): string | null {
+  if (!isPublicHttpsUrl(value)) return null;
   try {
     return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
   } catch {
@@ -101,280 +125,114 @@ function sourceHostKey(value: unknown): string | null {
   }
 }
 
-function isCompanyTargetType(type?: string | null): boolean {
-  return /^(corporation|corp|company|organization|org|professional firm|partnership|limited liability company|llc|investment firm|investment company|private equity(?: firm| fund)?|venture capital(?: firm| fund)?|family office|asset manager|investment fund|fund manager|private capital firm|capital management|fund|holding company|limited partnership)$/i.test((type ?? "").trim());
+function safeFieldValue(value: unknown): string | number | boolean | null {
+  if (typeof value === "string") return value.trim().slice(0, 220) || null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "boolean") return value;
+  return null;
 }
 
-function verifiedCompanyEvidence(value: unknown, allowedSourceTypes: string[]): Record<string, unknown>[] {
-  return objectRecords(value).filter((record) =>
-    record.verified === true
-    && isHttpsSourceUrl(record.sourceUrl)
-    && allowedSourceTypes.includes(String(record.sourceType ?? "").toLowerCase()),
-  );
+function recordSummary(collection: string, record: Record<string, unknown>): ReachabilityEvidenceRecord {
+  const summary: Record<string, string | number | boolean> = {};
+  for (const field of RECORD_FIELDS) {
+    const value = safeFieldValue(record[field]);
+    if (value !== null) summary[field] = value;
+  }
+  const sourceUrl = isPublicHttpsUrl(record.sourceUrl) ? record.sourceUrl.trim() : undefined;
+  const sourceType = typeof record.sourceType === "string" ? record.sourceType.trim().slice(0, 80) : undefined;
+  const verified = typeof record.verified === "boolean" ? record.verified : undefined;
+  return {
+    collection,
+    details: Object.keys(summary).length ? JSON.stringify(summary) : "A metadata record is present; no descriptive fields were stored.",
+    ...(sourceUrl ? { sourceUrl } : {}),
+    ...(sourceType ? { sourceType } : {}),
+    ...(verified !== undefined ? { verified } : {}),
+  };
 }
 
+function metadataEvidence(metadata: Record<string, unknown>): ReachabilityEvidenceRecord[] {
+  const records: ReachabilityEvidenceRecord[] = [];
+  for (const collection of METADATA_EVIDENCE_COLLECTIONS) {
+    for (const record of objectRecords(metadata[collection])) {
+      records.push(recordSummary(collection, record));
+    }
+  }
+  if (metadata.officialWebsiteVerified === true || isPublicHttpsUrl(metadata.officialWebsiteSourceUrl)) {
+    records.push(recordSummary("officialWebsite", {
+      type: "officialWebsite",
+      verified: metadata.officialWebsiteVerified === true,
+      sourceUrl: metadata.officialWebsiteSourceUrl,
+    }));
+  }
+  return records.slice(0, 12);
+}
+
+function uniqueSourceUrls(records: ReachabilityEvidenceRecord[]): string[] {
+  return [...new Set(records.map((record) => record.sourceUrl).filter((value): value is string => Boolean(value)))].slice(0, 12);
+}
+
+function sourceHostCount(urls: string[]): number {
+  return new Set(urls.map(normalizedHost).filter((value): value is string => Boolean(value))).size;
+}
+
+/**
+ * Returns source-linked company observations without deciding company
+ * materiality, target eligibility, source sufficiency, or mission relevance.
+ */
 export function assessCompanyRealism(input: {
   metadata?: string | null;
   contactOutcome?: string | null;
 }): CompanyRealismAssessment {
-  const metadata = parseMetadata(input.metadata);
-  const rankingRecords = objectRecords(metadata.companyGrowthRanking ?? metadata.growthRankingEvidence).filter((record) => {
-    const rankingName = String(record.name ?? record.ranking ?? record.program ?? "").toLowerCase();
-    const year = Number(record.year);
-    const rank = Number(record.rank);
-    const sourceType = String(record.sourceType ?? "").toLowerCase();
-    const supportedPublisher = ["ranking_publisher", "official_ranking", "official_company"].includes(sourceType);
-    const hasRank = (Number.isFinite(rank) && rank > 0) || (typeof record.rankLabel === "string" && Boolean(record.rankLabel.trim()));
-    return record.verified === true
-      && isHttpsSourceUrl(record.sourceUrl)
-      && supportedPublisher
-      && /(inc\.?\s*5000|fast[-\s]?growth|unicorn)/i.test(rankingName)
-      && hasRank
-      && Number.isInteger(year)
-      && year >= 2000
-      && year <= new Date().getUTCFullYear() + 1;
-  });
-  const scaleRecords = verifiedCompanyEvidence(metadata.companyScaleEvidence, [
-    "official_filing", "official_company", "audited_report", "official_registry", "reputable_media",
-  ]).filter((record) => {
-    const metric = String(record.metric ?? "").toLowerCase();
-    const value = Number(record.value);
-    return ["revenue", "employees", "employee_count", "assets"].includes(metric)
-      && Number.isFinite(value)
-      && value > 0;
-  });
-  const capitalRecords = verifiedCompanyEvidence(metadata.companyCapitalEvidence, [
-    "official_filing", "audited_report", "official_company", "reputable_media",
-  ]).filter((record) => {
-    const metric = String(record.metric ?? "").toLowerCase();
-    const value = Number(record.value);
-    return ["fund_size", "aum", "assets_under_management", "committed_capital", "deployable_capital", "investment_capacity"].includes(metric)
-      && Number.isFinite(value)
-      && value > 0;
-  });
-  const investmentRecords = verifiedCompanyEvidence(metadata.companyInvestmentEvidence, [
-    "official_filing", "official_company", "official_registry", "reputable_media",
-  ]).filter((record) => {
-    const activity = String(record.activityType ?? record.activity ?? record.kind ?? "").toLowerCase();
-    return record.investmentActivity === true
-      || ["investment", "portfolio_investment", "capital_deployment", "funding", "acquisition", "deal", "portfolio_company"].includes(activity);
-  });
-  const registryRecords = verifiedCompanyEvidence(metadata.companyRegistryEvidence, ["official_registry"])
-    .filter((record) => String(record.status ?? "").toLowerCase() === "active");
-  const ownershipRecords = verifiedCompanyEvidence(metadata.companyOwnershipEvidence, ["official_registry", "official_filing"]);
-  const routeRecords = verifiedCompanyEvidence(metadata.companyRouteEvidence, ["official_company", "official_registry"])
-    .filter((record) => ["official_website", "contact_page", "switchboard", "business_email"].includes(String(record.type ?? "").toLowerCase()));
-  const officialWebsite = metadata.officialWebsiteVerified === true
-    && isHttpsSourceUrl(metadata.officialWebsiteSourceUrl);
-  const sourceHosts = new Set<string>();
-  for (const record of [...scaleRecords, ...capitalRecords, ...investmentRecords]) {
-    const host = sourceHostKey(record.sourceUrl);
-    if (host) sourceHosts.add(host);
-  }
-  const independentSourceCount = sourceHosts.size;
-  const hasGrowthRankingSignal = rankingRecords.length > 0;
-  const hasSourceBackedScale = scaleRecords.length > 0;
-  const hasCapitalCapacityEvidence = capitalRecords.length > 0;
-  const hasInvestmentActivityEvidence = investmentRecords.length > 0;
-  const hasActiveCompanyRegistry = registryRecords.length > 0;
-  const hasOwnershipControlEvidence = ownershipRecords.length > 0;
-  const hasOfficialBusinessRoute = routeRecords.length > 0;
-  const reasons: string[] = [];
-  const blockers: string[] = [];
-
-  if (hasGrowthRankingSignal) reasons.push("an Inc. 5000/fast-growth/unicorn ranking is a poor-fit signal, not positive qualification; ranking-only mentions remain leads");
-  if (hasSourceBackedScale) reasons.push("company operating scale has a verified source-bound revenue, employee, or asset observation");
-  if (hasCapitalCapacityEvidence) reasons.push("capital capacity has a verified source-bound fund-size, AUM, committed-capital, or deployable-capital observation");
-  if (hasInvestmentActivityEvidence) reasons.push("actual investment activity has a verified source-bound transaction or portfolio observation");
-  if (hasActiveCompanyRegistry) reasons.push("an active company-registry record is source-bound");
-  if (hasOwnershipControlEvidence) reasons.push("ownership/control has separate official filing or registry evidence");
-  if (officialWebsite) reasons.push("an official company website is source-bound");
-  if (hasOfficialBusinessRoute) reasons.push("a verified official organization-level business contact route is present; it is not personal access");
-  else if (input.contactOutcome === "organization_contact") reasons.push("an organization-level contact candidate is present but still requires source validation; it is not personal access");
-  if (independentSourceCount >= 2) reasons.push(`${independentSourceCount} independent source URLs support the company evidence`);
-
-  if (!hasSourceBackedScale && !hasCapitalCapacityEvidence && !hasInvestmentActivityEvidence) blockers.push("no source-backed company scale/operating scale or investor capital-capacity/investment-activity evidence is recorded");
-  if (independentSourceCount < 2) blockers.push("fewer than two independent source domains support company materiality");
-  if (!hasActiveCompanyRegistry) blockers.push("current legal status has not been confirmed in an official company registry");
-  if (!hasOwnershipControlEvidence) blockers.push("ownership/control remains unverified; require it only when the objective depends on ownership, control, or personal wealth");
-  if (!hasOfficialBusinessRoute) blockers.push("no verified official company contact route is recorded");
-
-  const hasSourceBackedMateriality = hasSourceBackedScale || hasCapitalCapacityEvidence || hasInvestmentActivityEvidence;
-  const status: CompanyRealismAssessment["status"] = hasSourceBackedMateriality && independentSourceCount >= 2
-    ? "materiality_evidenced"
-    : hasSourceBackedMateriality
-      ? "single_source_scale"
-      : hasGrowthRankingSignal
-        ? "growth_signal_lead"
-        : hasActiveCompanyRegistry
-          ? "registry_only"
-          : "unverified";
-  const score = Math.max(0, Math.min(100,
-    (hasSourceBackedScale ? 35 : 0)
-    + (hasCapitalCapacityEvidence || hasInvestmentActivityEvidence ? 35 : 0)
-    + (hasActiveCompanyRegistry ? 15 : 0)
-    + (hasOwnershipControlEvidence ? 15 : 0)
-    + (officialWebsite ? 10 : 0)
-    + (hasOfficialBusinessRoute ? 10 : 0)
-    + (independentSourceCount >= 2 ? 10 : 0)
-    - (hasGrowthRankingSignal ? 10 : 0),
-  ));
+  const evidence = metadataEvidence(parseMetadata(input.metadata));
+  const sourceUrls = uniqueSourceUrls(evidence);
   return {
-    status,
-    score,
-    hasGrowthRankingSignal,
-    hasSourceBackedScale,
-    hasCapitalCapacityEvidence,
-    hasInvestmentActivityEvidence,
-    hasActiveCompanyRegistry,
-    hasOwnershipControlEvidence,
-    hasOfficialWebsite: officialWebsite,
-    hasOfficialBusinessRoute,
-    hasOrganizationContactCandidate: input.contactOutcome === "organization_contact",
-    independentSourceCount,
-    reasons: [...new Set(reasons)],
-    blockers: [...new Set(blockers)],
+    status: "unassessed",
+    evidence,
+    sourceUrls,
+    independentSourceCount: sourceHostCount(sourceUrls),
   };
 }
 
 /**
- * Classify practical access before spending deep research budget.
- *
- * Wealth, fame, assets, social handles, and registry presence are evidence of
- * importance, not evidence that a person can be reached. A target can remain
- * valuable for intelligence while being explicitly research-only for outreach.
+ * Capture fields already stored on the target as neutral observations. Stored
+ * values and labels are not independently re-verified or promoted here.
  */
 export function assessTargetReachability(input: ReachabilityInput): ReachabilityAssessment {
   const metadata = parseMetadata(input.metadata);
-
-  if (isCompanyTargetType(input.type)) {
-    const companyAssessment = assessCompanyRealism({
-      metadata: input.metadata,
-      contactOutcome: input.contactOutcome,
-    });
-    const gatekeeperConnections = input.gatekeeperConnections ?? 0;
-    const intermediaryConnections = input.intermediaryConnections ?? 0;
-    const hasIntermediaryPath = gatekeeperConnections > 0 || intermediaryConnections > 0;
-    const hasCompanyEvidence = companyAssessment.hasSourceBackedScale
-      || companyAssessment.hasCapitalCapacityEvidence
-      || companyAssessment.hasInvestmentActivityEvidence
-      || companyAssessment.hasActiveCompanyRegistry
-      || companyAssessment.hasOfficialWebsite
-      || companyAssessment.hasOrganizationContactCandidate;
-    const mode: ReachabilityMode = companyAssessment.status === "materiality_evidenced"
-      && companyAssessment.hasActiveCompanyRegistry
-      && companyAssessment.hasOfficialBusinessRoute
-      ? "full"
-      : hasCompanyEvidence
-        ? "targeted"
-        : "research_only";
-    const status: ReachabilityStatus = mode === "research_only" ? "research_only" : "bounded";
-    return {
-      status,
-      mode,
-      score: companyAssessment.score,
-      hasDirectContact: false,
-      hasIntermediaryPath,
-      ultraWealthSignal: false,
-      publicProminenceSignal: false,
-      reasons: [...companyAssessment.reasons, ...(hasIntermediaryPath ? ["a stored gatekeeper/intermediary relationship exists"] : [])],
-      blockers: companyAssessment.blockers,
-      companyAssessment,
-    };
-  }
-
-  const hasDirectContact = hasMeaningfulDirectContact({
-    type: input.type,
-    email: input.email,
-    phone: input.phone,
-    phoneSource: input.phoneSource,
+  const companyAssessment = assessCompanyRealism({
+    metadata: input.metadata,
+    contactOutcome: input.contactOutcome,
   });
-  const gatekeeperConnections = input.gatekeeperConnections ?? 0;
-  const intermediaryConnections = input.intermediaryConnections ?? 0;
-  const networkDegree = input.networkDegree ?? 0;
-  const hasIntermediaryPath = gatekeeperConnections > 0 || intermediaryConnections > 0;
-
-  const ultraWealthSignal = (input.estimatedNetWorth ?? 0) >= 500_000_000;
-  // Only canonical structured markers may change the resource strategy.
-  // Notes, registry names and source text commonly mention media/celebrity
-  // vocabulary; lexical mention alone is not a prominence assessment.
-  const publicProminenceSignal = metadata.publicProminence === true || metadata.prominence === "high";
-
-  const reasons: string[] = [];
-  const blockers: string[] = [];
-
-  if (hasDirectContact) {
-    reasons.push("validated person-level direct contact is present");
-  } else {
-    blockers.push("no validated person-level direct phone or email is present");
-  }
-  if (hasIntermediaryPath) {
-    reasons.push("a stored gatekeeper or intermediary relationship exists");
-  } else {
-    blockers.push("no corroborated assistant, family-office, executive-office, foundation, or other intermediary path is stored");
-  }
-  if (ultraWealthSignal) {
-    reasons.push("ultra-high wealth signal increases the prior that access is protected");
-    blockers.push("wealth evidence is not access evidence");
-  }
-  if (publicProminenceSignal) {
-    reasons.push("public-prominence markers indicate a high-noise public profile");
-    blockers.push("public visibility, press coverage, and social presence do not imply a monitored contact route");
-  }
-  if (networkDegree > 0) {
-    reasons.push(`${networkDegree} relationship edge${networkDegree === 1 ? "" : "s"} can support targeted path discovery`);
-  }
-  if (input.contactOutcome === "social_only") {
-    blockers.push("social-only presence is evidence of identity, not a reliable outreach channel");
-  } else if (input.contactOutcome === "organization_contact") {
-    blockers.push("organization contact is not personal access to the individual");
-  }
-
-  let status: ReachabilityStatus;
-  let mode: ReachabilityMode;
-  let score: number;
-
-  if (hasDirectContact) {
-    status = "direct";
-    mode = "full";
-    score = 82;
-  } else if (hasIntermediaryPath) {
-    status = "intermediary";
-    mode = "full";
-    score = 58;
-  } else if (
-    ultraWealthSignal &&
-    (publicProminenceSignal || (input.type === "HNWI" && (input.estimatedNetWorth ?? 0) >= 1_000_000_000)) &&
-    networkDegree < 2 &&
-    !hasValue(input.knownResidences)
-  ) {
-    status = "research_only";
-    mode = "research_only";
-    score = 8;
-  } else if (
-    publicProminenceSignal &&
-    input.contactOutcome === "social_only" &&
-    networkDegree < 2
-  ) {
-    status = "research_only";
-    mode = "research_only";
-    score = 12;
-  } else {
-    status = "bounded";
-    mode = "targeted";
-    score = Math.min(42, 18 + Math.min(networkDegree, 3) * 6 + (hasValue(input.knownResidences) ? 5 : 0));
-  }
-
+  const evidence = [
+    input.type ? "Stored entity type: " + input.type.trim().slice(0, 80) + "." : "",
+    typeof input.estimatedNetWorth === "number" && Number.isFinite(input.estimatedNetWorth)
+      ? "An existing net-worth estimate is stored (" + input.estimatedNetWorth + "); its basis and accuracy have not been assessed here."
+      : "",
+    input.email?.trim() ? "A stored email field is present; this alone does not establish person-specific attribution." : "",
+    input.phone?.trim() ? "A stored phone field is present; this alone does not establish person-specific attribution." : "",
+    input.phoneSource?.trim() ? "A phone-source label is stored: " + input.phoneSource.trim().slice(0, 120) + "." : "",
+    input.contactOutcome?.trim() ? "A prior contact-outcome label is stored (" + input.contactOutcome.trim().slice(0, 80) + "); treat it as contextual metadata, not a route decision." : "",
+    input.linkedinUrl?.trim() ? "A LinkedIn URL field is stored." : "",
+    input.twitterHandle?.trim() ? "A Twitter/X handle field is stored." : "",
+    input.instagramHandle?.trim() ? "An Instagram handle field is stored." : "",
+    input.telegramHandle?.trim() ? "A Telegram handle field is stored." : "",
+    typeof input.networkDegree === "number" ? "Stored relationship-edge count: " + input.networkDegree + "." : "",
+    typeof input.gatekeeperConnections === "number" ? "Stored gatekeeper-edge count: " + input.gatekeeperConnections + "." : "",
+    typeof input.intermediaryConnections === "number" ? "Stored intermediary-edge count: " + input.intermediaryConnections + "." : "",
+    input.sourceRegistries?.trim() ? "Stored registry identifiers: " + input.sourceRegistries.trim().slice(0, 220) + "." : "",
+    metadata.publicProminence !== undefined
+      ? "Stored public-prominence metadata: " + String(metadata.publicProminence).slice(0, 80) + "."
+      : "",
+  ].filter(Boolean);
+  const sourceUrls = uniqueSourceUrls(companyAssessment.evidence);
   return {
-    status,
-    mode,
-    score,
-    hasDirectContact,
-    hasIntermediaryPath,
-    ultraWealthSignal,
-    publicProminenceSignal,
-    reasons: [...new Set(reasons)],
-    blockers: [...new Set(blockers)],
+    status: "unassessed",
+    mode: "model_assessment",
+    evidence: [...evidence, ...companyAssessment.evidence.map((record) =>
+      "Stored evidence record (" + record.collection + "; verified flag=" + String(record.verified ?? "not recorded") + "): " + record.details
+      + (record.sourceUrl ? " Source URL: " + record.sourceUrl : " No source URL stored."))],
+    sourceUrls,
+    companyAssessment,
   };
 }
 
@@ -382,55 +240,30 @@ export function reachabilityDirective(assessment: ReachabilityAssessment): Reach
   return {
     mode: assessment.mode,
     status: assessment.status,
-    score: assessment.score,
-    reasons: assessment.reasons,
-    blockers: assessment.blockers,
+    evidence: assessment.evidence,
+    sourceUrls: assessment.sourceUrls,
+    companyAssessment: assessment.companyAssessment,
   };
 }
 
-export function formatReachabilityDirective(assessment?: ReachabilityAssessment | ReachabilityDirective | null): string {
-  if (!assessment) {
-    return `REALISM RULES:
-- For people, direct reachability must be supported by a validated person-level phone/email or a corroborated intermediary.
-- For companies, assess active legal status, actual operations and source-backed operating scale separately from individual owner wealth.
-- Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.
-- For potential-investor firms, require source-backed capital capacity or actual investment activity and relevant mandate fit.
-- Company growth is not owner wealth. Verify ownership/control and personal wealth independently.
-- A company website, contact page or switchboard is an organization-level route, not personal access.
-- If no credible company evidence or corroborated person-level route exists, use research_only; do not pad the result with speculative contact paths.`;
-  }
-
-  if (assessment.companyAssessment) {
-    const company = assessment.companyAssessment;
-    const companyObjective = assessment.mode === "research_only"
-      ? "This is a COMPANY RESEARCH-ONLY target. Confirm the legal entity, current operations and objective fit before searching for contacts; for potential-investor firms, verify capital capacity or actual investment activity and mandate fit first."
-      : assessment.mode === "targeted"
-        ? "This is a TARGETED COMPANY REALISM pass. Verify current operating scale or investor capital/investment activity from independent sources, then confirm the official organization route."
-        : "This company has source-backed materiality and an official business route; continue with evidence-led organization-level research, not assumptions about personal access.";
-    const companyReasons = company.reasons.length ? company.reasons.join("; ") : "No positive company evidence is recorded.";
-    const companyBlockers = company.blockers.length ? company.blockers.join("; ") : "No known company evidence blockers.";
-    return `COMPANY REALISM / REACHABILITY CONTROL:
-Company evidence status: ${company.status.toUpperCase()} · company realism score ${company.score}/100.
-${companyObjective}
-Positive evidence: ${companyReasons}
-Known blockers: ${companyBlockers}
-Inc. 5000/fast-growth/unicorn rankings are poor-fit signals, not positive qualification; ranking-only mentions are leads, not qualified targets.
-Company materiality requires source-backed operating scale or, for investor firms, capital capacity/actual investment activity supported by at least two independent source domains. Verify active legal status and actual operations. Verify ownership/control separately when the objective requires it; an FAA registrant is not necessarily a beneficial owner. Potential-investor firms require relevant mandate fit plus capital-capacity or actual investment-activity evidence.
-A verified company website, contact page or switchboard is organization-level reachability, not personal access. Company growth is not owner wealth; never infer founders' or shareholders' personal wealth from rankings, revenue, assets or growth.`;
-  }
-
-  const reasons = assessment.reasons.length ? assessment.reasons.join("; ") : "No positive access evidence is recorded.";
-  const blockers = assessment.blockers.length ? assessment.blockers.join("; ") : "No known blockers.";
-  const objective = assessment.mode === "research_only"
-    ? "This is a RESEARCH-ONLY target. Spend the bounded pass on confirming identity, control structure, and whether an authorized intermediary exists. Do not keep searching indefinitely for a personal email or phone."
-    : assessment.mode === "targeted"
-      ? "This is a TARGETED reachability pass. Prioritize one or two plausible intermediary routes before broad contact discovery."
-      : "This target has enough access evidence for a normal, evidence-led research pass.";
-
-  return `REALISM / REACHABILITY CONTROL:
-Status: ${assessment.status.toUpperCase()} · practical access score ${assessment.score}/100.
-${objective}
-Positive evidence: ${reasons}
-Known blockers: ${blockers}
-Never upgrade reachability because the person is famous, wealthy, visible on social media, mentioned in the press, owns an asset, or appears in a registry.`;
+/**
+ * This is context for model judgement, not a directive to stop, rank, or
+ * restrict research. The model decides targetability from the case objective,
+ * actual source passages, uncertainty, expected information gain and budget.
+ */
+export function formatReachabilityDirective(
+  assessment?: ReachabilityAssessment | ReachabilityDirective | null,
+): string {
+  const evidence = assessment?.evidence ?? [];
+  const sourceUrls = assessment?.sourceUrls ?? [];
+  const evidenceLines = evidence.slice(0, 12).map((item) => "- " + item.slice(0, 300));
+  const sourceLines = sourceUrls.slice(0, 8).map((url) => "- " + url);
+  return [
+    "TARGETABILITY CONTEXT — unassessed observations, not a classification or workflow rule:",
+    ...evidenceLines,
+    sourceUrls.length ? "Stored source URLs (existence is not independent corroboration):" : "",
+    ...sourceLines,
+    "MODEL DECISION AUTHORITY: Decide whether the target and any direct, shared, assistant, organization or intermediary route matter to the exact human objective. Choose searches, fetches, pivots, corroboration or stopping by actual source context, uncertainty, expected information gain and remaining resource budget.",
+    "No fixed wealth cutoff, score, source-count minimum, growth-ranking penalty, company-size gate, or requirement for a pre-existing direct route applies. A missing contact route is an unresolved evidence gap, not proof of unreachability. A stored contact field or social handle is not a person-specific route without contextual source interpretation and exact-quote/provenance verification.",
+  ].filter(Boolean).join("\n");
 }
