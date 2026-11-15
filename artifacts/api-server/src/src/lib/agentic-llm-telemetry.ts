@@ -287,8 +287,8 @@ export async function reserveAgenticLlmDailyBudget(input: {
     // rows already marked budget_exhausted.
     if (dailyBudgetTokens <= 0) return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
     if (estimatedTokens > dailyBudgetTokens) {
-      await db.insert(table).values({ usageDate, provider: input.provider, model: input.model, dailyBudgetTokens, budgetExhausted: true })
-        .onConflictDoUpdate({ target: [table.usageDate, table.provider, table.model], set: { dailyBudgetTokens, budgetExhausted: true, updatedAt: new Date() } });
+      // This request is too large for the configured ceiling; that does not
+      // exhaust the day or prevent a smaller request from fitting.
       throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
     }
     const result = await db.execute(sql`
