@@ -514,7 +514,8 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
     expect(canonicalSource).toContain("...buildMissionActionBudget({");
-    expect(canonicalSource).toContain("investigatorActionsRemaining: controlBudgetState.investigatorActionsRemaining");\n    expect(canonicalSource).not.toContain("targetResearchReserveRemaining");
+    expect(canonicalSource).toContain("investigatorActionsRemaining: controlBudgetState.investigatorActionsRemaining");
+    expect(canonicalSource).not.toContain("targetResearchReserveRemaining");
     expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
     expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
     expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
@@ -664,7 +665,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("Boss repeated the invalid discovery continuation twice");
     expect(canonicalDiscoverySource).toContain("finalControlAction = decision.action;");
     expect(canonicalDiscoverySource).toContain("resolveRemainingDiscoveryIterations");
-    expect(canonicalDiscoverySource).toContain("targetResearchReserveIterations");
+    expect(canonicalDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
 
   it("does not blacklist public figures or targets by deterministic name heuristics", () => {
