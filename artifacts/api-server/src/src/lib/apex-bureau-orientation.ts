@@ -110,6 +110,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: One JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders). Fetched claims need exactQuote+URL; search-only is review-only.",
     "TOOLS: Runtime-attested actions/registry IDs only; parallel 1–4. visit reads text/PDF; browser_fetch HTML. Encrypted/password-protected PDFs and malformed PDFs are distinct structured failures; scanned/image-only PDFs need OCR or another readable source.",
     "OPTIONAL: Omit irrelevant fields; web_search=query/provider; registry_search=query/registry; parallel items use the same.",
+    "PARALLEL ACTION SHAPES: parallel_web_search items require query and provider; locale/market are optional and registry is omitted. parallel_registry_search items require query and registry; provider/locale/market are omitted.",
     "TERMINAL: Stop only at defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion."
   ].join("\n");
 }
