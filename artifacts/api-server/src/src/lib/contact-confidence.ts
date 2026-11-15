@@ -112,7 +112,7 @@ export function hasMeaningfulDirectContact(entity: {
 }
 
 export type ContactOutcome="none"|"evidence_only"|"social_only"|"organization_contact"|"direct_contact_candidate"|"direct_contact_verified";
-export function isPersonalContactOutcome(outcome: ContactOutcome): boolean { return outcome === "direct_contact_candidate" || outcome === "direct_contact_verified"; }
+export function isPersonalContactOutcome(outcome: ContactOutcome): boolean { return outcome === "direct_contact_verified"; }
 export function computeContactState(entity:{type?:string|null;organizationContact?:boolean;email?:string|null;phone?:string|null;phoneSource?:string|null;linkedinUrl?:string|null;telegramHandle?:string|null;twitterHandle?:string|null;instagramHandle?:string|null;knownResidences?:string|null;website?:string|null;bizLocation?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null;validatedDirectContact?:boolean;isGenericPrefix?:boolean}):{contactConfidence:number;contactOutcome:ContactOutcome;isHot:boolean}{const contactConfidence=computeContactConfidence(entity),contactOutcome=computeContactOutcome(entity),directTarget=entity.type==="HNWI"||entity.type==="Gatekeeper";return{contactConfidence,contactOutcome,isHot:directTarget&&contactOutcome==="direct_contact_verified"&&hasMeaningfulDirectContact(entity)};}
 export function computeContactOutcome(entity: { type?: string | null; email?: string | null; phone?: string | null; linkedinUrl?: string | null; twitterHandle?: string | null; instagramHandle?: string | null; telegramHandle?: string | null; website?: string | null; bizLocation?: string | null; validatedDirectContact?: boolean; emailSource?: string | null; phoneSource?: string | null; isGenericPrefix?: boolean; metadata?: string | Record<string, unknown> | null }): ContactOutcome {
   const provenanceInput = {
@@ -124,11 +124,9 @@ export function computeContactOutcome(entity: { type?: string | null; email?: st
     return entity.validatedDirectContact === true ? "direct_contact_verified" : "direct_contact_candidate";
   }
   if (hasExplicitOrganizationInvestigatorProvenance(provenanceInput)) return "organization_contact";
-  // SEC Schedule 13D separates the issuer's EDGAR phone from the named
-  // notices-and-communications contact. The latter is a review candidate,
-  // not a verified personal route; the former is an organization channel.
-  if (entity.phone?.trim() && entity.phoneSource === "EDGAR-Notice-Phone") return "direct_contact_candidate";
-  if (entity.phone?.trim() && entity.phoneSource === "EDGAR-Phone") return "organization_contact";
+  // Registry phone labels establish provenance only. Until the Investigator
+  // attributes the exact value, keep the route as evidence rather than
+  // guessing personal or organization scope from the provider label.
   if (entity.email?.trim() || entity.phone?.trim()) return "evidence_only";
   if (entity.linkedinUrl?.trim() || entity.twitterHandle?.trim() || entity.instagramHandle?.trim() || entity.telegramHandle?.trim()) return "social_only";
   if (entity.website?.trim() || entity.bizLocation?.trim()) return "evidence_only";
