@@ -21,6 +21,9 @@ const required = [
   "investigatorCapabilityKeyName(investigatorCapability)",
   "readGroqUsageMetrics(data.usage)",
   "...usageMetrics",
+  "promptMeasurement.totalRequestChars",
+  "promptMeasurement.estimatedPromptTokens",
+  "INVESTIGATOR_SCHEMA_OVERHEAD_CHARS",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
@@ -31,6 +34,9 @@ if (!/promptTokens\?: number/.test(telemetry)
   || !/completionTokens\?: number/.test(telemetry)
   || !/reasoningTokens\?: number/.test(telemetry)
   || !/totalTokens\?: number/.test(telemetry)
+  || !/responseFormatChars\?: number/.test(telemetry)
+  || !/totalRequestChars\?: number/.test(telemetry)
+  || !/estimatedPromptTokens\?: number/.test(telemetry)
   || !/function readGroqUsageMetrics/.test(telemetry)
   || !/completionDetails\.reasoning_tokens/.test(telemetry)) {
   throw new Error("agentic LLM efficiency guard failed: provider token/reasoning telemetry fields are missing");
