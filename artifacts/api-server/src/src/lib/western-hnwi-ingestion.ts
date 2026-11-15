@@ -154,7 +154,7 @@ function sourceRecordFingerprint(name: string, jurisdiction: string, sourceRegis
 
 /** Versioned source-record key: preserves same-name people and independent registry observations. */
 function dedupKey(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>): string {
-  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata);
+  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata) + ":PersonCandidate";
 }
 
 function westernRegistryEntitySourceKey(row: { name: string; metadata?: string | null; sourceRegistries?: string | null }): string | null {
@@ -711,7 +711,7 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
 export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
   const sourceMetadata = { ...person.rawMetadata, ...(person.companyName ? { companyName: person.companyName } : {}) };
   const fingerprint = sourceRecordFingerprint(person.name, person.signals.jurisdiction, person.sourceRegistry, sourceMetadata);
-  const key = "western:v3:" + fingerprint;
+  const key = "western:v3:" + fingerprint + ":PersonCandidate";
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
@@ -1039,16 +1039,18 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           metadata: entitiesTable.metadata,
           sourceRegistries: entitiesTable.sourceRegistries,
         }).from(entitiesTable).where(inArray(entitiesTable.name, names));
-        const existingSourceKeys = new Set(existing
-          .map((prior) => westernRegistryEntitySourceKey(prior))
-          .filter((key): key is string => Boolean(key)));
         const batchKeys = new Set<string>();
         const fresh = rowsToInsert.filter((row) => {
           const sourceKey = westernRegistryEntitySourceKey(row);
           if (!sourceKey) return true; // no exact source identity: preserve rather than merge by name
-          const alreadyPersisted = existingSourceKeys.has(sourceKey);
-          if (alreadyPersisted || batchKeys.has(sourceKey)) return false;
-          batchKeys.add(sourceKey);
+          const alreadyPersisted = existing.some((prior) =>
+            westernRegistryEntitySourceKey(prior) === sourceKey
+            && areCompatibleWesternRegistryEntityTypes(prior.type, row.type),
+          );
+          const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(row.type) ? "PersonCandidate" : row.type;
+          const batchKey = sourceKey + ":" + canonicalType;
+          if (alreadyPersisted || batchKeys.has(batchKey)) return false;
+          batchKeys.add(batchKey);
           return true;
         });
         const insertedRows = fresh.length > 0
