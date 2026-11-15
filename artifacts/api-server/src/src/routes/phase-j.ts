@@ -684,13 +684,12 @@ async function runPhaseJPass(
               J6attributed: attribution.attributed,
             },
           },
-        });
+        })
+        : "evidence_only";
 
        // ── Track totals ───────────────────────────────────────────────────────
-       // Validated evidence and personal direct reachability are separate
-       // measurements. Organization inboxes/switchboards may be structurally
-       // valid and even attribution-scored, but must never inflate the
-       // personal direct-contact counters.
+       // Legacy Phase J rows remain evidence-only unless a model attribution
+       // and exact fetched-source person/value binding are explicitly supplied.
        const personalOutcome = isPersonalContactOutcome(outcome);
       if (inHouseResult.email || inHouseResult.phone || inHouseResult.linkedinUrl || footprint.evidence.length > 0) totals.found += 1;
        if (personalOutcome) totals.direct += 1;
