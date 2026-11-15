@@ -843,7 +843,7 @@ export class ResearchIntelligenceEngine {
       }));
     const actionYield = rankLearnedActionYield(this.actionYield);
     const researchQuestionMap = new Map<string, { id: string; question: string; importance: number | null; uncertainty: number | null; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
-    for (const [index, question] of openQuestions.entries()) {
+    for (const question of openQuestions) {
       researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: null, uncertainty: null, discriminators: [question], status: "open" });
     }
     // The model-authored action rationale is useful research intent. Keep it in
