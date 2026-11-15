@@ -19,6 +19,10 @@ export const contactEvidenceTable = pgTable("contact_evidence", {
   identityMatch: doublePrecision("identity_match"),
   recencyScore: doublePrecision("recency_score"),
   directnessScore: doublePrecision("directness_score"),
+  legacySourceReliability: doublePrecision("legacy_source_reliability"),
+  legacyIdentityMatch: doublePrecision("legacy_identity_match"),
+  legacyRecencyScore: doublePrecision("legacy_recency_score"),
+  legacyDirectnessScore: doublePrecision("legacy_directness_score"),
   independentCorroboration: integer("independent_corroboration").notNull().default(0),
   validationStatus: text("validation_status").notNull().default("candidate"), // candidate | verified | rejected
   rejectionReason: text("rejection_reason"),
