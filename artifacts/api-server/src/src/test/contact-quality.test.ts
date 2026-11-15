@@ -212,7 +212,7 @@ describe("public contact quality guardrails", () => {
 
   it("keeps organization evidence out of personal Phase J metrics", () => {
     expect(isPersonalContactOutcome("organization_contact")).toBe(false);
-    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(true);
+    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(false);
     expect(isPersonalContactOutcome("direct_contact_verified")).toBe(true);
   });
 });
