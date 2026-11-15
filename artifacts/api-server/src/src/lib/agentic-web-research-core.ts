@@ -2966,7 +2966,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           promotionDecision: { type: ["string","null"] },
           promotionReason: { type: ["string","null"] }
         },
-        required: ["vectorType","value","personName","role","scope","sourceUrls","note","contactAttribution","exactQuote","identityAssessment","identityRationale","hypothesisRelation","hypothesisRationale","relationshipType","temporalStatus","interpretationConfidence","ambiguityNotes","promotionDecision","promotionReason"],
+        required: ["vectorType","value","scope","sourceUrls","note"],
         additionalProperties: false
       }
     }
