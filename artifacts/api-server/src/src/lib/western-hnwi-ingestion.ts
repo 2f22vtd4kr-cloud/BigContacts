@@ -366,7 +366,7 @@ async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<Harveste
       const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "");
       const rawMetadata: Record<string, unknown> = {
         source: "sec-edgar-def14a",
-        sourceRecordId: cik ? "sec-cik:" + cik : "sec-def14a:" + accession,
+        sourceRecordId: "sec-def14a:" + accession + ":" + (cik || "unknown"),
         cik: cik || undefined,
         accessionNumber: accession || undefined,
         fileDate,
@@ -684,6 +684,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
 
 // ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
 
+/** @deprecated Legacy keyword classifier retained for rollback only; active discovery must use contextual model judgement. */
 export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trust" {
   const n = name.trim();
   // Trusts and foundations first (highest specificity)
