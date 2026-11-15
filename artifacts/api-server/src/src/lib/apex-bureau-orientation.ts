@@ -107,7 +107,7 @@ export function apexInvestigatorSystemCore(): string {
     "REVIEW LEADS: One relevant same-case result may be provisional. Preserve exact name, scope, URL, rationale and uncertainty. Search-only is unverified, exactQuote=null; selection is not promotion.",
     "CONTACT: Model classifies personal/professional-person, shared, organization, intermediary or unknown. Personal promotion needs same-person rationale + same-source quote binding name/value; shared inboxes stay organization-scoped.",
     "PRIVACY/NAMES: Public/professional routes only; no private, residential, intimate or health data. Names only from human brief or same-case observations; no homonym guesses.",
-    "OUTPUT: One JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Fetched claims need exactQuote+URL; search-only is review-only.",
+    "OUTPUT: One JSON object; six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. OPTIONAL FIELDS: Omit action-irrelevant optional fields. Fetched claims need exactQuote+URL; search-only is review-only.",
     "TOOLS: Runtime-attested actions/registry IDs only; parallel 1–4. visit reads text/PDF; browser_fetch HTML. Encrypted/password-protected PDFs and malformed PDFs are distinct structured failures; scanned/image-only PDFs need OCR or another readable source.",
     "OPTIONAL: Omit irrelevant fields; web_search=query/provider; registry_search=query/registry; parallel items use the same.",
     "TERMINAL: Stop only at defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion."
