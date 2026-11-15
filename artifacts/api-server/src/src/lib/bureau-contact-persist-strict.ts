@@ -93,7 +93,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  if (!cited.size || !cleanValue.trim()) return false;
  const candidate = String(item.scope ?? "").toLowerCase() === "candidate";
  const personName = typeof item.personName === "string" ? item.personName.trim() : "";
- if (candidate && (!personName || !["person_specific","direct_personal","professional_person_specific"].includes(item.contactAttribution ?? "") || !item.exactQuote?.trim())) return false;
+ if (candidate && (!personName || !["person_specific","direct_personal","professional_person_specific"].includes(item.contactAttribution ?? "") || item.identityAssessment !== "same_person" || !item.identityRationale?.trim() || !item.exactQuote?.trim())) return false;
  let identityObserved = !candidate;
  let valueObserved = false;
  let identityAndValueBoundTogether = !candidate;
