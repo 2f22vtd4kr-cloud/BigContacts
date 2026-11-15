@@ -39,14 +39,14 @@ describe("research intelligence atomic evidence", () => {
 
     engine.recordFeedback({ outcome: "successful_outreach", value: "shared@example.test" });
     let contacts = engine.buildContext().contacts.filter((contact) => contact.value === "shared@example.test");
-    expect(contacts.find((contact) => contact.personName === "Alice Example")?.state).toBe("ATTRIBUTED");
-    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("ATTRIBUTED");
+    expect(contacts.find((contact) => contact.personName === "Alice Example")?.state).toBe("DISCOVERED");
+    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("DISCOVERED");
     expect(engine.getFeedbackStats().successful_outreach).toBe(1);
 
     engine.recordFeedback({ outcome: "successful_outreach", value: "shared@example.test", personName: "Alice Example", vector: "email" });
     contacts = engine.buildContext().contacts.filter((contact) => contact.value === "shared@example.test");
     expect(contacts.find((contact) => contact.personName === "Alice Example")?.state).toBe("VERIFIED");
-    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("ATTRIBUTED");
+    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("DISCOVERED");
   });
 
   it("rejects model findings attached directly to search actions", () => {
