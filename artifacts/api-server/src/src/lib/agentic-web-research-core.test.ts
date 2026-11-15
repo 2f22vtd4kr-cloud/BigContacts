@@ -2518,7 +2518,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
-    expect(modelPrompt).toMatch(/Target research verifies role/relationship/materiality, counter-evidence and route before promotion./);
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
   });
 
   it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
