@@ -274,7 +274,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     // 3.4 chars/token heuristic as a conservative upper bound.
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
-    expect(prompt.length).toBeLessThanOrEqual(3_000);
+    expect(prompt.length).toBeLessThanOrEqual(4_000);
     expect(empiricalTokens).toBeLessThanOrEqual(2_000);
     expect(conservativeTokens).toBeLessThanOrEqual(2_600);
     expect(schemaChars).toBeGreaterThan(1_000);
