@@ -33,7 +33,7 @@ const stepPrompt = stepStart >= 0 && stepEnd > stepStart ? core.slice(stepStart,
 assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional orientation must not be duplicated inside the dynamic user prompt");
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
 assert(
-  /SEARCH ACTIVITY \(informational only; no fixed search cap\)/.test(stepPrompt)
+  /SEARCH ACTIVITY \(telemetry only; no fixed search cap\)/.test(stepPrompt)
     && /DISCOVERY LEAD HANDOFF:/.test(stepPrompt)
     && /provisional/.test(stepPrompt),
   "dynamic discovery prompt must retain observational search activity and review-only handoff state without restricting model-selected searches",
