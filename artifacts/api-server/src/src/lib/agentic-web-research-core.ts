@@ -610,18 +610,12 @@ export function repeatedDiscoverySearchReason(
       normalizeDiscoverySearchQuery(cleanText(value.locale, 16)),
       normalizeDiscoverySearchQuery(cleanText(value.market, 16)),
     ]);
-  const routeKeyFor = (value: { provider?: unknown; locale?: unknown; market?: unknown }) =>
-    JSON.stringify([
-      cleanText(value.provider, 30).toLowerCase(),
-      normalizeDiscoverySearchQuery(cleanText(value.locale, 16)),
-      normalizeDiscoverySearchQuery(cleanText(value.market, 16)),
-    ]);
   const requestKey = keyFor(request);
-  const requestRouteKey = routeKeyFor(request);
+  // Only an exact normalized request on the same provider/locale/market is a
+  // deterministic duplicate. Lexical similarity is not semantic intent: a
+  // differently phrased hypothesis may be a useful new research direction.
   const matchesRequest = (candidate: { query?: unknown; provider?: unknown; locale?: unknown; market?: unknown }) =>
-    keyFor(candidate) === requestKey
-    || (routeKeyFor(candidate) === requestRouteKey
-      && discoveryQueriesAreNearDuplicates(request.query, cleanText(candidate.query, 300)));
+    keyFor(candidate) === requestKey;
   let matchedIndex = -1;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const record = priorRecords[index]!;
@@ -659,7 +653,7 @@ export function repeatedDiscoverySearchReason(
     });
   });
   if (independentlyAdvanced) return null;
-  return "repeat_action_guard blocked a repeated or near-duplicate discovery search before provider execution: this query substantially overlaps the previous query on the same provider/locale/market, and no newly fetched public source has advanced the case since. Change the research dimension or provider, fetch a new source, or choose another action; changing a few words or the rationale alone is not new information. No provider request was made; no fixed research sequence is prescribed.";
+  return "repeat_action_guard blocked an exact normalized duplicate discovery request on the same provider/locale/market because no newly fetched public source has advanced the case since. A differently phrased hypothesis or query is not blocked by lexical similarity. Choose whether to retry the exact request or pursue another research direction; no fixed research sequence is prescribed.";
 }
 /**
  * Prevent repeated page retrievals from spending turns on the same successful
@@ -5919,13 +5913,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = input.mode === "discovery"
-  ? buildDiscoveryScopeAdvisory(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)
-  : null;
-if (scopeFilterSummary) {
-  selectedArgs.scopeAdvisory = scopeFilterSummary;
-  record.args = selectedArgs;
-}
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; // Semantic relevance and scope are decided by the Investigator and Boss, not
+// reconstructed from keyword/geography/source-class aliases in the executor.
+// Keep this field only for technical provider-availability diagnostics below.
+let scopeFilterSummary: string | null = null;
 if (input.mode === "discovery" && DISCOVERY_SEARCH_ACTIONS.has(action.action)) {
   const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);
   if (discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
