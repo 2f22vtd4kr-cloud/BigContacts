@@ -140,6 +140,56 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(record.reason).toMatch(/^opaque:[a-f0-9]{16}$/);
     expect(line.length).toBeLessThan(2000);
   });
+  it("reconciles reserved tokens when a provider attempt is cancelled or mandatory audit capture fails", () => {
+    const investigator = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
+    expect(investigator).toContain("const recordInterruptedAttempt = (reason: string) => recordAgenticLlmAttempt");
+    const auditFailure = investigator.indexOf('recordInterruptedAttempt("model_prompt_audit_capture_failed")');
+    const auditReturn = investigator.indexOf('return { model, raw: "", error: error.message }', auditFailure);
+    const cancelled = investigator.indexOf('recordInterruptedAttempt("cancelled")');
+    const cancelledThrow = investigator.indexOf('throw new Error("cancelled")', cancelled);
+    expect(auditFailure).toBeGreaterThan(-1);
+    expect(auditReturn).toBeGreaterThan(auditFailure);
+    expect(cancelled).toBeGreaterThan(-1);
+    expect(cancelledThrow).toBeGreaterThan(cancelled);
+  });
+
+  (process.env.DATABASE_URL ? it : it.skip)("releases an unused daily reservation after a cancelled preflight attempt", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-release";
+    const model = "openai/gpt-oss-20b-release-test";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, model),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      const reservation = await reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env });
+      recordAgenticLlmAttempt({
+        provider, role: "investigator", model, promptChars: 0, status: "error", success: false,
+        retryIndex: 1, reason: "cancelled", providerRequestSent: false,
+        dailyReservationDate: reservation.usageDate,
+        dailyReservationTokens: reservation.reservedTokens,
+        dailyBudgetTokens: reservation.dailyBudgetTokens,
+        estimatedTokens: reservation.reservedTokens,
+      });
+      await flushAgenticLlmUsageLedger();
+      const [released] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(released).toMatchObject({
+        reservedTokens: 0, requestCount: 0, successCount: 0, failureCount: 0, estimatedTokens: 600,
+      });
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
+        .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
+  });
+
   it("reads explicit per-model daily token budgets without assuming a provider free-tier limit", () => {
     expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-20b", {
       APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "120000",
