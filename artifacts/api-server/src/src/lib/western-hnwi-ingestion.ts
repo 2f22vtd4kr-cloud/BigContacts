@@ -250,7 +250,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
       if (yielded >= maxCount) break;
       const src = hit?._source ?? {};
       const displayNames: string[] = src?.display_names ?? [];
-      const allCleanNames = displayNames.map((displayName: string) => displayName.replace(/\\s*\\(CIK\\s*\\d+\\)\\s*$/i, "").trim());
+      const allCleanNames = displayNames.map((displayName: string) => displayName.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
       // Structural validation only. The batch LLM decides which names are people.
       const candidateNames = allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name));
       if (candidateNames.length === 0) continue;
