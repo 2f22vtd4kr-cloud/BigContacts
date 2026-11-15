@@ -105,11 +105,11 @@ describe("agentic evidence scope boundary", () => {
     });
     const evidence = findingsToContactEvidence([finding], trajectory, records);
     expect(evidence[0]).toMatchObject({
-      scope: "organization",
+      scope: "unknown",
       personName: null,
     });
     expect(findingsToContacts(evidence, "Jane Example")[0]).toMatchObject({
-      scope: "organization",
+      scope: "unknown",
       personName: null,
     });
   });
