@@ -17,6 +17,21 @@ export function hasNonEmptyCandidateName(value: unknown): value is string {
 
 export function candidateIdentityObserved(personName: string, observation: unknown): boolean {
   const normalizedName = normalizeCandidateIdentityName(personName);
+  const rawName = personName.normalize("NFKC").trim();
+  const rawText = typeof observation === "string" ? observation.normalize("NFKC") : "";
+  if (!normalizedName) return false;
+
+  // One-letter Latin/Greek/Cyrillic names need exact case and token boundaries
+  // so a common article such as "a" cannot stand in for a person's name.
+  if (Array.from(normalizedName).length === 1 && /^\\p{Lu}$/u.test(rawName)) {
+    const escaped = rawName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\export function candidateIdentityObserved(personName: string, observation: unknown): boolean {
+  const normalizedName = normalizeCandidateIdentityName(personName);
   const normalizedText = normalizeCandidateIdentityName(typeof observation === "string" ? observation : "");
   return normalizedName.length >= 3 && ` ${normalizedText} `.includes(` ${normalizedName} `);
+}");
+    return new RegExp(`(?<![\\\\p{L}\\\\p{M}\\\\p{N}_])${escaped}(?![\\\\p{L}\\\\p{M}\\\\p{N}_])`, "u").test(rawText);
+  }
+
+  const normalizedText = normalizeCandidateIdentityName(rawText);
+  return ` ${normalizedText} `.includes(` ${normalizedName} `);
 }
