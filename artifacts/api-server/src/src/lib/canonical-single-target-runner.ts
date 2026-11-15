@@ -20,6 +20,10 @@ import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType, r
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; objective?: string; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; currentAction: string | null; iteration: number; objective: string; caseFile: string | null };
+
+export function isBudgetStoppedTargetCase(status: string, currentAction: string | null): boolean {
+  return status === "review" && (currentAction === "daily-token-budget-exhausted" || currentAction === "daily-usage-ledger-unavailable");
+}
 function parseCaseFile(raw: string | null): Record<string, unknown> { try { const value = raw ? JSON.parse(raw) : {}; return value && typeof value === "object" ? value as Record<string, unknown> : {}; } catch { return {}; } }
 function readOversight(caseFile: Record<string, unknown>, runId: string | null, controlTurn: number): StoredOversight | null { const history = Array.isArray(caseFile.investigatorActOversight) ? caseFile.investigatorActOversight : []; const latest = [...history].reverse().find((item) => { if (!item || typeof item !== "object") return false; const value = item as Record<string, unknown>; return value.runId === runId && Number(value.controlTurn) === controlTurn; }); if (!latest || typeof latest !== "object") return null; const value = (latest as Record<string, unknown>).oversight; if (!value || typeof value !== "object") return null; const action = (value as Record<string, unknown>).action; if (action !== "continue" && action !== "redirect" && action !== "stop") return null; const oversight = value as Record<string, unknown>; return { action, direction: typeof oversight.direction === "string" ? oversight.direction : null, reason: typeof oversight.reason === "string" ? oversight.reason : null, status: typeof oversight.status === "string" ? oversight.status : undefined, bossModel: typeof oversight.bossModel === "string" ? oversight.bossModel : null, error: typeof oversight.error === "string" ? oversight.error : null, evidenceGraphCount: Array.isArray((latest as Record<string, unknown>).evidenceGraphs) ? ((latest as Record<string, unknown>).evidenceGraphs as unknown[]).length : 0 }; }
 function appendDurableActContext(contextDocument: string, actNumber: number, result: Awaited<ReturnType<typeof runTargetContactAgent>>, oversight: StoredOversight | null): string {
@@ -68,8 +72,6 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
         await tx.update(entitiesTable).set({ metadata: JSON.stringify(nextMetadata) }).where(eq(entitiesTable.id, target.id));
       }
     };
-    const isBudgetStoppedReview = (candidate: { status: string; currentAction: string | null }) =>
-      candidate.status === "review" && (candidate.currentAction === "daily-token-budget-exhausted" || candidate.currentAction === "daily-usage-ledger-unavailable");
     const resumeBudgetStoppedCase = async (existing: TargetCase): Promise<TargetCase> => {
       const nextFile = parseCaseFile(existing.caseFile);
       const oldJobId = typeof nextFile.atlasJobId === "string" ? nextFile.atlasJobId : null;
@@ -108,7 +110,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
   if (existingCaseId) {
     const [existing] = await tx.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.id, existingCaseId), eq(researchCasesTable.caseType, "target"))).limit(1);
     if (!existing?.targetEntityId || existing.targetEntityId !== target.id) throw new Error(`Explicit target case ${existingCaseId} does not belong to target ${target.id}.`);
-    const existingCaseFile = parseCaseFile(existing.caseFile); if (existingCaseFile.atlasJobId !== atlasJobId) { if (isBudgetStoppedReview(existing)) return resumeBudgetStoppedCase(existing); throw new Error(`Explicit target case ${existingCaseId} is not bound to Atlas job ${atlasJobId}.`); }
+    const existingCaseFile = parseCaseFile(existing.caseFile); if (existingCaseFile.atlasJobId !== atlasJobId) { if (isBudgetStoppedTargetCase(existing.status, existing.currentAction)) return resumeBudgetStoppedCase(existing); throw new Error(`Explicit target case ${existingCaseId} is not bound to Atlas job ${atlasJobId}.`); }
     await linkTargetCase(existing.id);
     return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? targetObjective };
   }
@@ -119,7 +121,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
     await linkTargetCase(existing.id);
     return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? targetObjective };
   }
-  const resumable = candidates.find((candidate) => isBudgetStoppedReview(candidate) && candidate.objective === targetObjective);
+  const resumable = candidates.find((candidate) => isBudgetStoppedTargetCase(candidate.status, candidate.currentAction) && candidate.objective === targetObjective);
   if (resumable?.targetEntityId) return resumeBudgetStoppedCase(resumable);
   const objective = targetObjective;
   const [created] = await tx.insert(researchCasesTable).values({ targetEntityId: target.id, caseType: "target", status: "active", directorMode: "groq_boss_pending", directorProvider: "groq", directorModel: "auto-low-cost-pending", objective, motivation: "Target-scoped Apex Atlas investigation with Groq Boss control and conditional independent Right-hand review.", openingPrompt: objective, caseFile: JSON.stringify({ version: 2, target: { id: target.id, name: target.name, type: target.type }, atlasJobId, parentDiscoveryObjective: objectiveOverride?.trim() || null, investigatorActOversight: [], rightHandOpening: { status: "deferred", model: "none", reason: "Deferred until the Investigator produces source observations or a consequential decision." } }), currentAction: "groq-boss-opening-assignment", iteration: 0 }).returning({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile });
