@@ -92,15 +92,19 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.market).toBeUndefined();
   });
 
-  it("rejects a parallel web-search item that omits the schema-required null registry field", () => {
+  it("accepts a minimal parallel web-search item without irrelevant null placeholders", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
       searches: [{ query: "company founder public profile", provider: "serper" }],
       hypothesis: "A public search may identify a relevant operating-company lead.",
-      purpose: "Verify the nested shared-schema contract locally.",
+      purpose: "Find source-backed candidate leads.",
       expectedInformationGain: 0.4,
     }));
-    expect(parsed).toBeNull();
+    expect(parsed?.action).toBe("parallel_web_search");
+    if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+    expect(parsed.searches[0]?.provider).toBe("serper");
+    expect(parsed.searches[0]?.locale).toBeUndefined();
+    expect(parsed.searches[0]?.market).toBeUndefined();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
@@ -302,20 +306,18 @@ describe("Groq Investigator runtime contract", () => {
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty strings");
-    expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
-    expect(submitted).toContain("only done may null them");
-    expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(submitted).toContain("No extra wealth or ownership criteria unless requested.");
-    expect(submitted).toContain("AUTONOMY: No fixed source itinerary, registry-first rule, query sequence or forced provider.");
-    expect(submitted).toContain("SEMANTIC AUTHORITY: Investigator decides relevance, identity, ownership, relationships, contact attribution, evidence meaning, wealth/materiality and lead priority.");
-    expect(submitted).toContain("Sector, geography, language and source class are signals to reason about, never deterministic rejection rules.");
-    expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(submitted).toContain("url may be null when unused");
-    expect(submitted).toContain("Parallel web searches need 1–4 objects, each with query/provider/registry:null/locale/market/purpose");
-    expect(submitted).toContain("parallel registry searches need 1–4 objects, each with query/registry (configured ID)/provider:null/locale:null/market:null/purpose");
-    expect(submitted).toContain("Each finding still needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
+    expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
+    expect(submitted).toContain("expectedInformationGain is a finite number in [0,1]");
+    expect(submitted).toContain("only done may null query/hypothesis/purpose/expectedInformationGain");
+    expect(submitted).toContain("Omit action-irrelevant optional fields rather than sending null placeholders");
+    expect(submitted).toContain("DISCOVERY LEAD HANDOFF");
+    expect(submitted).toContain("Do not impose criteria the human did not request");
+    expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
+    expect(submitted).toContain("Models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority");
+    expect(submitted).toContain("Sector, geography, fame, wealth, seniority, company size, listing status, language, terminology and source class are context, not gates");
+    expect(submitted).toContain("TERMINAL GATE: minEvidence=");
+    expect(submitted).toContain("parallel_web_search each item requires query and provider");
+    expect(submitted).toContain("parallel_registry_search each item requires query and registry");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(messages).toHaveLength(2);
   });
