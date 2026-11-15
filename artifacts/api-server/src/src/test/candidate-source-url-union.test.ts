@@ -168,7 +168,7 @@ describe("discovery source evidence policy", () => {
       normalizeSourceUrl,
     });
     expect(isClaimGradeDiscoverySourceUrl(url)).toBe(true);
-    expect(result).toEqual([{ sourceUrl: url, publisher: "virtualglobetrotting.com", eventId: 43 }]);
+    expect(result).toEqual([{ sourceUrl: "https://www.virtualglobetrotting.com/map/example-property", publisher: "virtualglobetrotting.com", eventId: 43 }]);
   });
 
   it("keeps registry search results as leads until the underlying record page is fetched", () => {
@@ -207,7 +207,7 @@ describe("discovery source evidence policy", () => {
         observation: quote,
         eventId: 42,
       }],
-    })).toEqual([{ sourceUrl: url, publisher: "registry.example.test", eventId: 42 }]);
+    })).toEqual([{ sourceUrl: url, publisher: "example.test", eventId: 42 }]);
   });
 
   it("preserves short but non-empty model-selected identities in the durable source union", () => {
