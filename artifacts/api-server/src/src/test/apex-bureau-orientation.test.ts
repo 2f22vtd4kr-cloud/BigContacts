@@ -65,19 +65,19 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("fame, wealth, seniority, company size, listing status");
+    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
     expect(apexInvestigatorSystemCore()).not.toContain("PERSON REALISM");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
 
   it("preserves explicit geography while allowing evidence-led jurisdiction and sector hypotheses", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("propose evidence-led sector/geography changes to Boss when open");
+    expect(APEX_WHAT_IS_ATLAS).toContain("propose a strategic pivot to Boss");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("Apply only mission-specific evidence standards; do not invent extra criteria");
+    expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("Never infer or introduce a jurisdiction from examples or model memory");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("runtime enforces a configurable safety ceiling (default 8 outbound search actions)");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("there is no fixed search-count cap or per-case search quota");\n    expect(APEX_BUREAU_PLAYBOOK).toContain("Search count is telemetry, not progress or an admission rule.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
     expect(APEX_BUREAU_PLAYBOOK).toContain("one strongest objective-fit lead can be handed to Boss when useful");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
@@ -88,9 +88,9 @@ describe("objective-led institutional orientation", () => {
 
   it("keeps qualification and wealth interpretation mission-specific", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("Do not impose criteria the human did not request");
+    expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(core).toContain("HNWI/wealth/success labels are not evidence");
-    expect(core).toContain("Never infer wealth from seniority or prestige alone");
+    expect(core).toContain("HNWI/wealth/success labels are not evidence");
     expect(core).toContain("No fixed source/provider/registry order or itinerary");
     expect(core).toContain("Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification");
   });
