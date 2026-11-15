@@ -1,6 +1,5 @@
 
 const HEURISTIC_EMAIL_SOURCE_RE=/(emailpattern|pattern-generated|smtp|gravatar|emailpattern-mx|spf-|mx-)/i;
-function isOrgPhoneSource(source?:string|null):boolean{return Boolean(source&&ORG_PHONE_SOURCE_RE.test(source.trim()))||/issuer|switchboard|company.?main|hq.?phone/i.test(String(source??""));}
 export function isHeuristicEmailEvidence(input:{email?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null}):boolean{if(!input.email?.trim())return false;let meta:Record<string,unknown>={};if(typeof input.metadata==="string"){try{const parsed=JSON.parse(input.metadata);if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))meta=parsed;}catch{}}else if(input.metadata&&typeof input.metadata==="object")meta=input.metadata;const selected = meta.selectedContactProvenance;
 if (selected && typeof selected === "object" && !Array.isArray(selected)) {
   const emailProvenance = (selected as Record<string, unknown>).email;
