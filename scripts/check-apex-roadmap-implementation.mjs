@@ -37,7 +37,7 @@ const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/ap
 for(const marker of [
   "Investigator owns hypotheses, targets, research, interpretation and stopping",
   "The Investigator decides which people, companies, assets, relationships and sources matter to the mission",
-  "Never infer semantics from keyword, name, employer or proximity heuristics"
+  "No keyword/name/employer/proximity heuristics"
 ]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const uiFiles=["artifacts/apex-finder/src/pages/profile.tsx","artifacts/apex-finder/src/pages/research.tsx","artifacts/apex-finder/src/pages/graph.tsx","artifacts/apex-finder/src/router.tsx"]; for(const f of uiFiles) if(!fs.existsSync(path.join(root,f))) throw new Error("Investigator workstation surface missing: "+f);
 const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
