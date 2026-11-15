@@ -1093,7 +1093,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.originalObservedAt ?? support.createdAt, sourceName: support.sourceName, sourceDomain: support.sourceDomain, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.originalObservedAt, retrievedAt: support.createdAt, sourceName: support.sourceName, sourceDomain: support.sourceDomain, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.restrictedCommunitySource
           ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE
           : support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
