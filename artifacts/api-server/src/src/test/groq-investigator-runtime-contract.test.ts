@@ -105,6 +105,16 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed.searches[0]?.provider).toBe("serper");
     expect(parsed.searches[0]?.locale).toBeUndefined();
     expect(parsed.searches[0]?.market).toBeUndefined();
+
+    const wrongActionShape = JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "company founder public profile", provider: "serper", registry: "sec-edgar" }],
+      hypothesis: "A public search may identify a relevant operating-company lead.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+    });
+    expect(describeAgentActionParseFailure(wrongActionShape)).toBe("invalid_action_arguments action=parallel_web_search invalid=registry");
+    expect(parseAgentAction(wrongActionShape)).toBeNull();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
