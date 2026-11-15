@@ -14,12 +14,12 @@ assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \
 assert(/maxChars: input\.mode === "discovery" \? 350 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 150 : 900/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 450 : 350\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core) && /PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core), "prompt size is advisory and is not a machine-enforced character ceiling");
+assert(/const userPromptBudget = Math\.min\([\s\S]*?2_400,[\s\S]*?\);[\s\S]*?compactPromptSectionPreservingUrlTokens\(/.test(core), "live user prompt is hard-bounded after preserving objective, Boss scope, action schema and latest durable evidence");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 9_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 3_000/.test(core), "the schema-inclusive preferred request/user prompt targets remain explicit");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
-const appendsCompleteLatestEvidenceEnvelope = /return preserveFetchedClaimAtProviderBoundary\(\s*\[\s*composedPrompt,\s*latestRecordTail\s*\]\.filter\(Boolean\)\.join\("\\n\\n"\),?\s*\);/.test(core) && /const latestRecordTail = \[/.test(core);
+const appendsCompleteLatestEvidenceEnvelope = /const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary\(\s*\[\s*composedPrompt,\s*latestRecordTail\s*\]\.filter\(Boolean\)\.join\("\\n\\n"\),?\s*\);[\s\S]*?const userPromptBudget = Math\.min\(/.test(core) && /const latestRecordTail = \[/.test(core);
 assert(appendsCompleteLatestEvidenceEnvelope, "live Investigator prompt composition preserves the full authored prompt, latest durable action, fetched evidence and URL context");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/const allPromptRecords = sanitizeObservableValue\(\[\.\.\.priorTrajectoryRecords, \.\.\.records\]\.slice\(-MAX_TRAJECTORY_RECORDS\)\)/.test(core) && /const promptTrajectoryRecords = allPromptRecords\.map\(/.test(core) && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection");
@@ -56,7 +56,7 @@ assert(/resetMs > Math\.max\(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_
 assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /insufficient_quota/.test(core), "hard Investigator quota must require an explicit request-counter or provider hard-quota signal");
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
 assert(/waitForKnownGroqTokenWindow\([\s\S]*?workingPrompt\.length \+ INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "known token-window estimation must include the transmitted Investigator system prompt");
-assert(/PROMPT SIZE TARGET \(ADVISORY, NOT A HARD REQUIREMENT\)/.test(core) && /actual provider context\/token limits/.test(core), "prompt size is guidance only; real provider context/token limits remain binding");
+assert(/const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary\(/.test(core) && /userPromptBudget/.test(core), "provider-bound prompt keeps the newest durable evidence and enforces the stage-aware user-message ceiling");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
 assert(/const composedPrompt = \[[\s\S]*?authoritativeCaseObjective[\s\S]*?activeBossScopeSection/.test(core), "the complete objective and current Boss scope remain separate in the full Investigator prompt");
 assert(/genericDiscoveryCompanyLabel/.test(core) && /Generic case labels including Case Co are metadata/.test(core), "generic case labels must not become discovery entity anchors");
@@ -88,6 +88,7 @@ const schemaOverheadChars = constant("INVESTIGATOR_SCHEMA_OVERHEAD_CHARS");
 const userPromptBudgetChars = Math.max(0, Math.min(
   preferredUserChars,
   preferredTotalChars - systemPromptChars - schemaOverheadChars,
+  2_400,
 ));
 const compact20bResponseFormatChars = 0; // GPT-OSS 20B does not receive unsupported response_format.
 const estimatedPromptTokens = Math.ceil(
