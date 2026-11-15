@@ -39,7 +39,7 @@ describe("objective-led institutional orientation", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("the exact human objective");
-      expect(prompt).toContain("HNWI is optional; do not impose extra qualification criteria unless requested");
+      expect(prompt).toMatch(/HNWI is (?:an optional classification|optional); do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested/i);
       expect(prompt).toMatch(/do not impose extra qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
   });
@@ -47,7 +47,8 @@ describe("objective-led institutional orientation", () => {
   it("does not impose person-first discovery on company- or asset-led objectives", () => {
     const investigator = apexOrientationFor("investigator");
     const digAgent = apexOrientationFor("dig_agent");
-    expect(investigator).toContain("For B2B assignments, verify current decision-maker role and company connection");
+    expect(investigator).toContain("B2B needs fetched role/company evidence");
+    expect(investigator).not.toContain("role presence is required for review-card admission");
     expect(digAgent).toContain("the human objective determines the target class");
     expect(digAgent).toMatch(/Do not impose person-first discovery when the objective is company- or asset-led/i);
   });
@@ -77,7 +78,8 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("Never infer or introduce a jurisdiction from examples or model memory");
-    expect(APEX_BUREAU_PLAYBOOK).toContain("there is no fixed search-count cap or per-case search quota");\n    expect(APEX_BUREAU_PLAYBOOK).toContain("Search count is telemetry, not progress or an admission rule.");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("there is no fixed search-count cap or per-case search quota");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Search count is telemetry, not progress or an admission rule.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("do not force a mixed-source batch or registry-first order");
     expect(APEX_BUREAU_PLAYBOOK).toContain("one strongest objective-fit lead can be handed to Boss when useful");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
