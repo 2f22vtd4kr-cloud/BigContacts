@@ -3078,6 +3078,8 @@ Choose each next action yourself from the available capabilities and observed ev
     const schema = responseFormat.json_schema?.schema;
     expect(responseFormat.type).toBe("json_schema");
     expect(schema?.additionalProperties).toBe(false);
+    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls", "note"]);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
@@ -3101,9 +3103,9 @@ Choose each next action yourself from the available capabilities and observed ev
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
     expect(request.max_completion_tokens).toBe(1024);
-    // Keep a conservative tokenization margin below the local 7,000 TPM
-    // reservation budget, including the 1,024-token completion cap, leaving
-    // capacity for other roles in the same window.
+    // Keep a conservative tokenization margin below the configured local
+    // 7,000-token reservation budget, including completion, leaving capacity
+    // for other roles. This is an application safety budget, not a provider limit.
 
     expect(Math.ceil(requestChars / 3.4 * 1.1) + request.max_completion_tokens).toBeLessThan(7_000);
     const reservation = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", {
