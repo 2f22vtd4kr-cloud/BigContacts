@@ -4867,7 +4867,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. For non-done, hypothesis/purpose are non-empty and expectedInformationGain is 0..1; only done may null them. Omit irrelevant optional fields.",
+    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty; expectedInformationGain is finite in [0,1]. Only done may null query/thought/hypothesis/purpose/expectedInformationGain. Omit irrelevant optional fields.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
