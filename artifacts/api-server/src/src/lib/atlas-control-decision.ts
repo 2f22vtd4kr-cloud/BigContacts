@@ -483,7 +483,7 @@ export function buildAtlasPinnedControlState(input: {
   leadInventory: AtlasControlLeadInventory;
   admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>;
   findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
-  missionBudget?: { investigatorActionsUsed: number; globalActionsRemaining: number; discoveryActionsRemaining: number; discoverySearchActionsUsed: number; discoverySearchActionsRemaining: number; targetResearchReserveRemaining: number };
+  missionBudget?: { investigatorActionsUsed: number; globalActionsRemaining: number; discoveryActionsRemaining: number; discoverySearchActionsUsed: number; targetResearchReserveRemaining: number };
 }): string {
   const state = input.leadInventory;
   const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 2);
@@ -520,7 +520,7 @@ export function buildAtlasPinnedControlState(input: {
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
     "COMPLETE AVAILABLE REVIEW TARGETS (all model-selected durable targets; exact names and types; no top-N truncation): " + JSON.stringify(input.admittedCandidates.map((candidate) => ({ name: candidate.name, type: candidate.targetType ?? "person", role: candidate.role, sourceCount: candidate.sourceUrls.length }))),
     "This scope persists through directionless continue_discovery turns. Right-hand direction is advice unless Boss explicitly accepts a pivot.",
-    "AUTHORITATIVE EXECUTABLE ACTION BUDGET (same-case control state; deterministic caps remain authoritative): " + JSON.stringify(input.missionBudget ?? null),
+    "AUTHORITATIVE EXECUTION STATE (global runtime safeguards only; search counts are informational, not a cap): " + JSON.stringify(input.missionBudget ?? null),
     "AUTHORITATIVE DURABLE LEAD COUNTS (full counts; URLs below are samples): " + JSON.stringify({
       searchResultLeadUrlCount: state.searchResultLeadUrlCount,
       successfullyFetchedLeadUrlCount: state.successfullyFetchedLeadUrlCount,
