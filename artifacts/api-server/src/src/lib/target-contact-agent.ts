@@ -132,7 +132,7 @@ export function findingsToContacts(findings: Array<{ vectorType: string; value: 
       const explicitPersonName = typeof finding.personName === "string" ? finding.personName.trim() : "";
       const isCandidate = finding.scope === "candidate" && explicitPersonName.length > 0 && personSpecific;
       const reviewScope = isCandidate ? "candidate" : organizationRoute ? "organization" : "unknown";
-      const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim());
+      const promotionSupported = isCandidate && Boolean(finding.exactQuote?.trim()) && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim());
       return {
         vectorType: finding.vectorType,
         value: finding.value,
