@@ -418,11 +418,12 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
   // Scope is operator-selectable: comma-separated municipality codes or "all".
   const municipalities = parseBrregMunicipalityScope(process.env.APEX_BRREG_MUNICIPALITIES);
 
+  const maxPages = Math.max(20, Math.ceil(maxCount / 25));
   for (const municipality of municipalities) {
     if (yielded >= maxCount) break;
 
-    // Fetch companies in this municipality
-    for (let page = 0; page < 20 && yielded < maxCount; page++) {
+    // Fetch enough pages for the requested seed volume; maxCount remains the hard budget.
+    for (let page = 0; page < maxPages && yielded < maxCount; page++) {
       let companies: any[];
       try {
         const resp = await fetch(
@@ -508,7 +509,7 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
             const sourceRegistry = "BRREG Norway — Enhetsregisteret";
             const rawMetadata: Record<string, unknown> = {
               source: "brreg-norway",
-              sourceRecordId: "brreg:" + orgnr + ":" + roleCode + ":" + normalizeName(fullName),
+              sourceRecordId: "brreg:" + orgnr + ":" + roleCode + ":" + normalizeName(fullName) + ":" + String(rolle?.inntraadt ?? "") + ":" + String(rolle?.fratraadt ?? ""),
               orgnr,
               companyName,
               municipality,
@@ -517,6 +518,8 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
               employeeCount: employees,
               roleCode,
               roleDesc,
+              roleStartDate: rolle?.inntraadt ?? null,
+              roleEndDate: rolle?.fratraadt ?? null,
               groupCode,
               groupDesc,
               brregUrl: "https://www.brreg.no/company/" + orgnr + "/",
