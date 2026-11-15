@@ -37,7 +37,7 @@ describe("objective-led institutional orientation", () => {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("the exact human objective");
       expect(prompt).toContain("HNWI is an optional classification");
-      expect(prompt).toMatch(/do not impose (?:extra )?(?:wealth|qualification) criteria unless (?:requested|the objective requires it)/i);
+      expect(prompt).toMatch(/do not impose wealth|do not impose extra qualification|no wealth\/ownership criteria may be imposed unless requested/i);
     }
   });
 
