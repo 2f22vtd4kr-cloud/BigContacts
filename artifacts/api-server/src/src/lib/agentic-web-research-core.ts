@@ -4762,7 +4762,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, web/registry search actions cannot execute; choose another available non-search action or stop/park.`
+    ? `SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed} used; ${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS} remain. At zero, no more web/registry searches; choose another available action or stop/park.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
@@ -4851,22 +4851,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 450) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 700) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
       const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "Specialist OSINT actions are available only when listed in AVAILABLE ACTIONS after fresh worker attestation.";
+  const compactWorkerCapabilityGuidance = "SPECIALIST OSINT: only AVAILABLE ACTIONS after fresh worker attestation.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
-    ? "These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use."
+    ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Never invent IDs. Treat records as leads until interpreted; do not assume registrants are beneficial owners. Withheld/failed is not a no-hit.`;
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Market needs mission/evidence basis; locale is language.";
-  const compactPageFormatGuidance = "FETCH: visit reads text/PDF; browser_fetch is HTML-only. Failed extraction is unknown.";
+  const compactRegistryGuidance = `REGISTRY IDS: ${registryIdList}. Never invent IDs; records are leads, not beneficial-owner proof; withheld/failed is not a no-hit.`;
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Market=country; locale=language.";
+  const compactPageFormatGuidance = "FETCH: visit=text/PDF; browser_fetch=HTML; failed extraction=unknown.";
 
   const composedPrompt = [
     assignment,
