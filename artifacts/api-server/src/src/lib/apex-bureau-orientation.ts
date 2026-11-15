@@ -11,7 +11,7 @@ export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-15.1";
 export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY CONTEXT: Judge every company against the actual human objective and source evidence. Rankings, valuation headlines, prestige, size, listing status and growth are contextual signals, not automatic qualifications or exclusions. Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission. A ranking or search result alone is a lead, not a verified claim; preserve uncertainty and let the Investigator decide what corroboration is needed. No private/mid-market preference or company blacklist unless the human explicitly specifies it.";
 export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY CONTEXT: assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only when material to the human objective. Rankings, valuation, prestige, size and growth are context, not automatic qualification or exclusion. Do not invent private/mid-market preferences.";
 
-export const APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE = "REVIEW-LEAD CAPTURE: Preserve objective-fit company/person from a successful same-case search as provisional review: exact name, organization/candidate scope, result URL, relevance/uncertainty. One result suffices; no fetch/ownership/wealth/HNWI proof. exactQuote=null; no verified identity/role/ownership/wealth/contact. Do not card every result; promotionDecision unset.";
+export const APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE = "REVIEW LEADS: Investigator selects useful same-case people/companies/assets. Preserve exact name, scope, public URL and uncertainty; search-only is unverified, exactQuote=null, not proof. Selection is not promotion.";
 
 export const APEX_WHAT_IS_ATLAS = `APEX ATLAS is an AI-driven investigatory bureau (product: Apex Atlas / BigContacts desk).
 It is not a generic chatbot and not a fixed search script.
@@ -85,7 +85,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION & ROLES: Human objective and explicit constraints govern. Boss sets strategy; Right-hand challenges; Investigator researches and interprets.",
+    "MISSION & ROLES: Human objective governs. Boss sets strategy; Right-hand challenges; Investigator researches and interprets.",
     "SEMANTIC AUTHORITY: The model decides which targets, sources, relationships and claims matter. Never infer meaning from keyword, name, employer or proximity heuristics.",
     "MODEL-OWNED RELEVANCE: Identity, ownership, relationships, source meaning, contact attribution and priority are model judgments. Sector, geography, fame, wealth, seniority, language and source class are context, not gates. Mission adjectives and generic nouns are not queries.",
     "AUTONOMY & SCOPE: No fixed source/provider/registry order or itinerary; no mandatory mix. Choose actions by evidence, information gain and cost. Honor human scope; propose evidence-led sector/geography changes to Boss when open.",
