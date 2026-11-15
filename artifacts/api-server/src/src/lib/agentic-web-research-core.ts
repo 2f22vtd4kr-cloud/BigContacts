@@ -2989,7 +2989,7 @@ const AGENTIC_ACTION_SCHEMA = {
         ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
         properties: {
           ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
-          registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null] },
+          registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()] },
         },
       },
     },
@@ -3023,7 +3023,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
           ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
           properties: {
             ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
-            registry: { type: ["string", "null"], enum: availableRegistryEnum },
+            registry: { type: "string", enum: availableRegistryEnum },
           },
         },
       },
