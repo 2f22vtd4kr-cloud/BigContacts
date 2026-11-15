@@ -19,16 +19,16 @@ const SOURCES: DiscoverySource[] = [
 ];
 
 describe("discovery-intake", () => {
-  it("samples broad categories without fixed first-N bias when RNG is controlled", () => {
+  it("preserves every configured broad category without a fixed category cap", () => {
     let i = 0;
     const seq = [0.9, 0.1, 0.5, 0.2, 0.8];
     const random = () => seq[i++ % seq.length]!;
     const set = sampleBroadCategories(SOURCES, 2, random);
-    expect(set.size).toBe(2);
+    expect(set.size).toBe(4);
     for (const c of set) expect([1, 2, 3, 4]).toContain(c);
   });
 
-  it("buildSourcesToRun interleaves and respects broadCategories bound", () => {
+  it("buildSourcesToRun randomizes the supplied source pool without fixed stages", () => {
     const random = () => 0.5;
     const out = buildSourcesToRun({
       sources: SOURCES,
@@ -39,7 +39,7 @@ describe("discovery-intake", () => {
     });
     const broad = out.filter((s) => s.kind === "broad");
     const registry = out.filter((s) => s.kind === "registry");
-    expect(broad.length).toBe(2);
+    expect(broad.length).toBe(4);
     expect(registry.length).toBe(2);
     expect(out.some((s) => s.kind === "faa")).toBe(false);
   });
