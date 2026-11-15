@@ -1718,7 +1718,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
-    expect(modelPrompt).toMatch(/Target research verifies role/relationship/materiality, counter-evidence and route before promotion./);
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
