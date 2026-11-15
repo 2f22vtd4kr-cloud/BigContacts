@@ -2195,6 +2195,67 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           failureKind: record.failureKind,
         })) ?? [],
       }, null, 2) });
+      // Independent review is valuable only after the Investigator has produced
+      // evidence and Boss is considering a consequential stop, candidate admission,
+      // or strategic pivot. It is advisory: it can challenge the decision but cannot
+      // authorize a candidate or override deterministic provenance/security checks.
+      const requiresIndependentReview = discovery.trajectoryRecords.length > 0
+        && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action);
+      if (requiresIndependentReview) {
+        const reviewPrompt = [
+          "Review this consequential Apex Atlas discovery control decision independently.",
+          "Do not browse, invent evidence, or authorize a candidate. Identify material gaps, contradictions, alternative interpretations, and whether Boss should reconsider. Return concise structured advice only.",
+          "MISSION:", compactControlText(activeDiscoveryObjective, 900),
+          "BOSS DECISION:", JSON.stringify({ action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null }),
+          "ADMITTED CANDIDATES:", JSON.stringify(admittedCandidateSources.slice(0, 12).map(({ name, role, targetType, sourceUrls }) => ({ name, role, targetType, sourceUrls: sourceUrls.slice(0, 3) }))),
+          "LATEST INVESTIGATOR OBSERVATIONS:", JSON.stringify((discovery.trajectoryRecords ?? []).slice(-6).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: compactControlText(record.observation, 900), observedUrls: (record.observedUrls ?? []).slice(0, 4), failureDomain: record.failureDomain, failureKind: record.failureKind }))),
+          "Return JSON fields: assessment (support/challenge/unresolved), materialGaps (string[]), contradictions (string[]), alternativeInterpretation (string), recommendation (string), confidence (0..1).",
+        ].join("\n");
+        const reviewSchema = { type: "json_schema", json_schema: { name: "apex_right_hand_consequential_review", strict: true, schema: {
+          type: "object", properties: {
+            assessment: { type: "string", enum: ["support", "challenge", "unresolved"] },
+            materialGaps: { type: "array", items: { type: "string" } },
+            contradictions: { type: "array", items: { type: "string" } },
+            alternativeInterpretation: { type: "string" },
+            recommendation: { type: "string" },
+            confidence: { type: "number" },
+          }, required: ["assessment", "materialGaps", "contradictions", "alternativeInterpretation", "recommendation", "confidence"], additionalProperties: false,
+        } } };
+        const review = await runGroqRightHandFreeJson(
+          reviewPrompt,
+          "You are Apex Atlas Right-hand, an independent skeptical reviewer. Advise Boss only; never browse, fabricate facts, or treat an unverified lead as evidence.",
+          reviewSchema,
+          (raw) => { try { const value = JSON.parse(raw) as Record<string, unknown>; return ["support", "challenge", "unresolved"].includes(String(value.assessment)) && Array.isArray(value.materialGaps) && Array.isArray(value.contradictions) && typeof value.recommendation === "string" && typeof value.confidence === "number"; } catch { return false; } },
+          { jobId: atlasJobId, caseId: discoveryCaseId, iteration: controlTurns, cognitiveTask: "consequential_discovery_decision_review" },
+          { maxCompletionTokens: 512, reasoningEffort: "low", maxAttempts: 1, allowModelFallback: false },
+        );
+        await assertAtlasJobActive(atlasJobId);
+        failureStage = "case_persistence";
+        await db.transaction(async (tx) => {
+          await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
+          const [lockedCase] = await tx.select({ status: researchCasesTable.status, iteration: researchCasesTable.iteration })
+            .from(researchCasesTable)
+            .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
+            .for("update").limit(1);
+          if (!lockedCase) throw new Error("Canonical discovery ownership was lost while recording Right-hand review.");
+          const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+            .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+            .orderBy(desc(researchCaseEventsTable.id)).limit(1);
+          const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
+          await tx.update(researchCasesTable).set({ iteration: nextIteration, updatedAt: new Date() })
+            .where(eq(researchCasesTable.id, discoveryCaseId));
+          await tx.insert(researchCaseEventsTable).values({
+            caseId: discoveryCaseId, iteration: nextIteration, actorRole: "right_hand",
+            eventType: "observation", status: review.status === "completed" ? "recorded" : "unavailable",
+            summary: review.status === "completed"
+              ? "Right-hand independently reviewed a consequential Investigator/Boss decision; advice is non-authoritative."
+              : "Right-hand independent review was unavailable; Boss decision remains recorded without independent advice.",
+            correlationKey: `${atlasJobId}:right-hand-consequential:${controlTurns}`,
+            payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, reviewedAction: decision.action, status: review.status, model: review.model, raw: review.raw, error: review.error, authority: "advisory_only" }),
+          }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+        }, { isolationLevel: "serializable" });
+        phaseSummary[`right_hand_review_${controlTurns}`] = review.status === "completed" ? "Independent consequential review recorded as advisory." : "Independent consequential review unavailable; Boss retains responsibility.";
+      }
       if (controlValidationFeedback) rejectedControlDecision = null;
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
