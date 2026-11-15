@@ -179,6 +179,12 @@ describe("Agentic LLM daily token accounting", () => {
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(2);
     expect(dbMocks.state.reservedTokens).toBe(600);
     expect(dbMocks.execute).toHaveBeenCalledTimes(3);
+    // A denied 600-token reservation must not mark the whole day exhausted:
+    // 300 tokens still fit in the remaining 400-token capacity.
+    await expect(reserveAgenticLlmDailyBudget({ ...input, estimatedTokens: 300 }))
+      .resolves.toMatchObject({ reservedTokens: 300, dailyBudgetTokens: 1000 });
+    expect(dbMocks.state.reservedTokens).toBe(900);
+    expect(dbMocks.execute).toHaveBeenCalledTimes(4);
     const reservation = results.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof reserveAgenticLlmDailyBudget>>> => result.status === "fulfilled");
     expect(reservation?.value.usageDate).toMatch(/^\\d{4}-\\d{2}-\\d{2}$/);
   });
