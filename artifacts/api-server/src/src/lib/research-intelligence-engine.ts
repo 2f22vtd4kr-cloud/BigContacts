@@ -244,6 +244,21 @@ export class ResearchIntelligenceEngine {
 
   recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown" | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
+    const sourceAttribution = input.args?.sourceAttribution && typeof input.args.sourceAttribution === "object"
+      ? input.args.sourceAttribution as Record<string, unknown>
+      : null;
+    const sourceMetadataForUrl = (url: string): Pick<IntelligenceEvidence, "sourceName" | "sourceContributor" | "originalObservedAt" | "sourceMechanism"> => {
+      if (!sourceAttribution) return {};
+      const expectedDomain = typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain.toLowerCase() : "";
+      const actualHost = hostOf(url) ?? "";
+      if (expectedDomain && actualHost !== expectedDomain && !actualHost.endsWith("." + expectedDomain)) return {};
+      return {
+        sourceName: typeof sourceAttribution.sourceName === "string" ? sourceAttribution.sourceName : null,
+        sourceContributor: typeof sourceAttribution.sourceContributor === "string" ? sourceAttribution.sourceContributor : null,
+        originalObservedAt: typeof sourceAttribution.originalObservedAt === "string" ? sourceAttribution.originalObservedAt : null,
+        sourceMechanism: typeof sourceAttribution.sourceMechanism === "string" ? sourceAttribution.sourceMechanism : null,
+      };
+    };
     const observationIsFetchedSource = input.execution === "success"
       && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
     const newHostCount = observationIsFetchedSource ? this.countNewHosts(urls) : 0;
@@ -326,6 +341,7 @@ export class ResearchIntelligenceEngine {
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
           value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
           turn: source.turn, action: source.action, execution: "success", passage: source.span.text,
+          ...sourceMetadataForUrl(source.url),
           spanStart: source.span.start, spanEnd: source.span.end, spanBindingKind: source.binding,
           hypothesisLabel: typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() || null : null,
           hypothesisRelation: wholeClaimSupported ? finding.hypothesisRelation ?? "unresolved" : "unresolved",
@@ -354,7 +370,7 @@ export class ResearchIntelligenceEngine {
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
     if (observationIsFetchedSource) {
-      for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
+      for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), ...sourceMetadataForUrl(url), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
     // Search results are leads, not source-backed evidence. A successful search
     // with many URLs must not look like a high-yield research step merely because
