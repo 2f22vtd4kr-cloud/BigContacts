@@ -209,16 +209,6 @@ function shuffleArray<T>(items: T[], rng: () => number = Math.random): T[] {
 }
 
 
-// Common phrases that appear in virtually all SC 13D/G filings — used as search
-// anchors to enumerate filers without a specific person query.
-const SC13_SEARCH_TERMS = [
-  '"sole voting power"',
-  '"aggregate beneficial ownership"',
-  '"beneficial owner of"',
-  '"shares of common stock beneficially"',
-  '"right to acquire"',
-];
-
 async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
