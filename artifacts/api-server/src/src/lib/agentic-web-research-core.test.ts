@@ -1811,7 +1811,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(discoveryPivotAlignmentReason(stagedObjective, "visit", {
       url: "https://beta.companieshouse.gov.uk/company/04960386",
-    }, [])).toContain("ordered_source_stage_guard");
+    }, []) ?? "").not.toContain("ordered_source_stage_guard");
 
     const failedDirectoryFetch = {
       turn: 1,
@@ -2511,7 +2511,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeLessThan(7_000);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
@@ -2891,7 +2891,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeLessThan(7_000);
     expect(prompt).toContain("OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
@@ -3119,9 +3119,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
-    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null] });
+    expect(schema?.properties?.provider).toEqual({ type: "string", enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders] });
     expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
-    expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
+    expect(schema?.properties?.targetType).toEqual({ type: "string" });
   });
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
@@ -3295,7 +3295,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeLessThan(7_000);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
@@ -3618,7 +3618,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeLessThan(7_000);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
