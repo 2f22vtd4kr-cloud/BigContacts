@@ -91,7 +91,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
-export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "shared_inbox" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved"; hypothesisRationale?: string; relationshipType?: string; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable"; interpretationConfidence?: number; ambiguityNotes?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
+export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved"; hypothesisRationale?: string; relationshipType?: string; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable"; interpretationConfidence?: number; ambiguityNotes?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
 
@@ -2046,12 +2046,12 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
       }
       if (vector === "website" && !isSafeHttpUrl(finalValue)) continue;
       const rawAttribution = cleanText(f.contactAttribution, 30).toLowerCase();
-      const contactAttribution = (["person_specific", "shared_inbox", "organization", "unknown"].includes(rawAttribution)
+      const contactAttribution = (["person_specific","direct_personal","professional_person_specific","department","shared_inbox","assistant_intermediary","generic_contact_form","organization","unknown"].includes(rawAttribution)
         ? rawAttribution
         : "unknown") as NonNullable<AgenticFinding["contactAttribution"]>;
       const exactQuote = cleanText(f.exactQuote, 1_200) || undefined;
-      const sharedRoute = contactAttribution === "shared_inbox" || contactAttribution === "organization";
-      const scope = sharedRoute ? "organization" : f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown";
+      const organizationRoute = ["department","shared_inbox","assistant_intermediary","generic_contact_form","organization"].includes(contactAttribution);
+      const scope = organizationRoute ? "organization" : f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown";
       findings.push({
         vectorType: vector as AgenticFinding["vectorType"],
         value: finalValue,
@@ -2070,7 +2070,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         temporalStatus: ["current","historical","unclear","not_applicable"].includes(cleanText(f.temporalStatus, 30)) ? cleanText(f.temporalStatus, 30) as AgenticFinding["temporalStatus"] : undefined,
         interpretationConfidence: typeof f.interpretationConfidence === "number" && Number.isFinite(f.interpretationConfidence) ? Math.max(0, Math.min(1, f.interpretationConfidence)) : undefined,
         ambiguityNotes: cleanText(f.ambiguityNotes, 800) || undefined,
-        promotionDecision: scope === "candidate" && contactAttribution === "person_specific" && exactQuote && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
+        promotionDecision: scope === "candidate" && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution) && exactQuote && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
     }
@@ -2982,7 +2982,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           scope: { type: "string", enum: ["organization","candidate","unknown"] },
           sourceUrls: { type: "array", items: { type: "string" } },
           note: { type: "string" },
-          contactAttribution: { type: ["string","null"], enum: ["person_specific","shared_inbox","organization","unknown",null] },
+          contactAttribution: { type: ["string","null"], enum: ["person_specific","direct_personal","professional_person_specific","department","shared_inbox","assistant_intermediary","generic_contact_form","organization","unknown",null] },
           exactQuote: { type: ["string","null"] },
           identityAssessment: { type: ["string","null"], enum: ["same_person","different_people","unresolved",null] },
           identityRationale: { type: ["string","null"] },
