@@ -92,7 +92,31 @@ export function normalizeReviewLeadFindings(findings: AgenticFinding[] = []): Ag
     }))
     .filter((finding) => finding.sourceUrls.length > 0);
 }
-export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
+export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({
+  vectorType:f.vectorType,
+  value:f.value,
+  scope:f.scope==="candidate"?"candidate":"organization",
+  personName:f.scope==="candidate"?f.personName:null,
+  role:f.role,
+  sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),
+  note:f.note,
+  // Preserve the Investigator's attribution and promotion decision across the
+  // Bureau evidence projection. Dropping these fields silently converts an
+  // explicit candidate into an unknown/organization route downstream.
+  contactAttribution:f.contactAttribution??"unknown",
+  exactQuote:f.exactQuote??null,
+  identityAssessment:f.identityAssessment??null,
+  identityRationale:f.identityRationale??null,
+  promotionDecision:f.promotionDecision??null,
+  promotionReason:f.promotionReason??null,
+  hypothesisRelation:f.hypothesisRelation??null,
+  hypothesisRationale:f.hypothesisRationale??null,
+  relationshipType:f.relationshipType??null,
+  temporalStatus:f.temporalStatus??null,
+  interpretationConfidence:f.interpretationConfidence??null,
+  ambiguityNotes:f.ambiguityNotes??null,
+  reviewOnly:f.reviewOnly??undefined,
+}));}
 export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPersonName:string,trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>{const person=typeof f.personName==="string"?f.personName.trim():"";const candidate=f.scope==="candidate"&&person.length>0;return{vectorType:f.vectorType,value:f.value,scope:candidate?"candidate":"organization",personName:candidate?person:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:`bureau-agentic:${f.note}`,contactAttribution:f.contactAttribution??"unknown",exactQuote:f.exactQuote??null,identityAssessment:f.identityAssessment??null,identityRationale:f.identityRationale??null,tier:"candidate",state:"review_only",promote:candidate&&f.promotionDecision==="promote"};});}
 async function loadDurableSearchQueries(caseId:number|null):Promise<string[]>{if(caseId==null)return[];const rows=await db.select({payload:researchCaseEventsTable.payload,status:researchCaseEventsTable.status}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));const queries:string[]=[];for(const row of rows){if((row.status!=="success"&&row.status!=="error")||typeof row.payload!=="string")continue;try{const payload=JSON.parse(row.payload) as Record<string,unknown>;const action=typeof payload.action==="string"?payload.action:"";const args=payload.args&&typeof payload.args==="object"?payload.args as Record<string,unknown>:{};if((action==="web_search"||action==="registry_search")&&typeof args.query==="string")queries.push(args.query);if((action==="parallel_web_search"||action==="parallel_registry_search")&&Array.isArray(args.searches))for(const search of args.searches){if(search&&typeof search==="object"&&typeof (search as Record<string,unknown>).query==="string")queries.push((search as Record<string,unknown>).query as string);}}catch{}}return[...new Set(queries.map((query)=>query.trim()).filter(Boolean))];}
 async function loadDurableTrajectoryRecords(caseId: number | null): Promise<AgenticTrajectoryRecord[]> {

@@ -97,17 +97,18 @@ export function computeContactConfidence(entity: {
   type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
   phoneSource?: string | null; linkedinUrl?: string | null; telegramHandle?: string | null;
   twitterHandle?: string | null; instagramHandle?: string | null; knownResidences?: string | null;
-  emailSource?: string | null; metadata?: string | Record<string, unknown> | null;
+  emailSource?: string | null; metadata?: string | Record<string, unknown> | null; validatedDirectContact?: boolean;
 }): number {
-  return hasStrictPersonSpecificInvestigatorProvenance(entity) ? 100 : 0;
+  if (!hasStrictPersonSpecificInvestigatorProvenance(entity)) return 0;
+  return entity.validatedDirectContact === true ? 100 : 50;
 }
 
 export function hasMeaningfulDirectContact(entity: {
   type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
   phoneSource?: string | null; contactOutcome?: string | null; emailSource?: string | null;
-  metadata?: string | Record<string, unknown> | null;
+  metadata?: string | Record<string, unknown> | null; validatedDirectContact?: boolean;
 }): boolean {
-  return hasStrictPersonSpecificInvestigatorProvenance(entity);
+  return entity.validatedDirectContact === true && hasStrictPersonSpecificInvestigatorProvenance(entity);
 }
 
 export type ContactOutcome="none"|"evidence_only"|"social_only"|"organization_contact"|"direct_contact_candidate"|"direct_contact_verified";
@@ -119,8 +120,15 @@ export function computeContactOutcome(entity: { type?: string | null; email?: st
     twitterHandle: entity.twitterHandle, instagramHandle: entity.instagramHandle,
     telegramHandle: entity.telegramHandle, personalWebsite: entity.website, metadata: entity.metadata,
   };
-  if (hasStrictPersonSpecificInvestigatorProvenance(provenanceInput)) return "direct_contact_verified";
+  if (hasStrictPersonSpecificInvestigatorProvenance(provenanceInput)) {
+    return entity.validatedDirectContact === true ? "direct_contact_verified" : "direct_contact_candidate";
+  }
   if (hasExplicitOrganizationInvestigatorProvenance(provenanceInput)) return "organization_contact";
+  // SEC Schedule 13D separates the issuer's EDGAR phone from the named
+  // notices-and-communications contact. The latter is a review candidate,
+  // not a verified personal route; the former is an organization channel.
+  if (entity.phone?.trim() && entity.phoneSource === "EDGAR-Notice-Phone") return "direct_contact_candidate";
+  if (entity.phone?.trim() && entity.phoneSource === "EDGAR-Phone") return "organization_contact";
   if (entity.email?.trim() || entity.phone?.trim()) return "evidence_only";
   if (entity.linkedinUrl?.trim() || entity.twitterHandle?.trim() || entity.instagramHandle?.trim() || entity.telegramHandle?.trim()) return "social_only";
   if (entity.website?.trim() || entity.bizLocation?.trim()) return "evidence_only";
