@@ -1362,7 +1362,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("DISCOVERY LEAD HANDOFF");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
-    expect(modelPrompt).toContain("Target research tests role, identity, materiality");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
