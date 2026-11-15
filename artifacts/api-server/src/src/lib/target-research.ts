@@ -108,6 +108,7 @@ export async function runTargetResearch(
     mctsSteps: JSON.stringify(mcts.mctsSteps),
     notes: [
       "Atlas target-scoped UCT research completed.",
+      "Targetability context remains unassessed; no deterministic eligibility, wealth or person-specific route verdict was assigned.",
       `Path candidate score ${(mcts.pathScore * 100).toFixed(0)}/100 retained for manual review.`,
       "Atlas is an OSINT research system; no communication artifact was generated.",
     ].join(" "),
@@ -139,7 +140,6 @@ export async function runTargetResearch(
       targetName: target.name,
       path: mcts.winningPath,
       steps: mcts.mctsSteps,
-      reachability,
     }));
   }
 
