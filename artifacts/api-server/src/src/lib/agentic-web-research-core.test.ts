@@ -170,7 +170,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("six required root fields");
+    expect(systemCore).toContain("required root fields action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(systemCore).toContain("MISSION EVIDENCE");
     expect(systemCore).toContain("Omit irrelevant optional fields.");
     expect(systemCore).toContain("PARALLEL SHAPES: web items require query+provider; registry items require query+registry.");
@@ -232,12 +232,12 @@ describe("model-owned discovery relevance reasoning", () => {
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(modelPrompt).toContain("Apply only mission-specific evidence standards; do not invent extra criteria. Adjectives/generic nouns are not queries.");
-    expect(modelPrompt).toContain("Fame, wealth, seniority, company size, listing status, sector, geography, language and source classes are context, not gates.");
+    expect(modelPrompt).toContain("No unrequested criteria; generic nouns are not queries.");
+    expect(modelPrompt).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
     expect(modelPrompt).toContain("Snippets/registry hits are leads; failed/unfetched=unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or itinerary");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve time, contradiction, uncertainty and partial findings.");
+    expect(modelPrompt).toContain("Preserve time, contradictions, uncertainty and partial findings.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -1525,10 +1525,10 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toMatch(/Sourced ownership\/wealth hypotheses may be recorded with their evidence and uncertainty/i);
-    expect(modelPrompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
+    expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
-    expect(modelPrompt).toMatch(/Claims need same-case exact quote\\+URL/i);
-    expect(modelPrompt).toMatch(/never invent claims or routes/i);
+    expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
+    expect(modelPrompt).toContain("Names from brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toMatch(/CONTACT: Model classifies person-specific, shared, organization, assistant\/intermediary or unresolved routes/i);
     expect(modelPrompt).toMatch(/Verify role, relationship, materiality, counter-evidence and route before promotion/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
