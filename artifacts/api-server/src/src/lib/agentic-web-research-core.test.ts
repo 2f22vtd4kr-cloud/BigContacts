@@ -3347,15 +3347,15 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt.length).toBeLessThan(7_000);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
-    expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
+    expect(prompt).toContain("LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain.");
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("CKX Lands");
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown.");
-    expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
+    expect(prompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML.");
+    expect(prompt).toContain("Distinguish encrypted, protected, malformed and scanned PDFs; use OCR or another readable source.");
     expect(prompt).not.toContain("must visit");
   });
 
