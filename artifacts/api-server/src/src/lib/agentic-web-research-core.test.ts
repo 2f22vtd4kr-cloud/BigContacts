@@ -1323,13 +1323,13 @@ describe("Investigator prompt architecture", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
-    expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(modelPrompt).toContain("Apply only requested criteria");
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
+    expect(discovery).toContain("DISCOVERY LEAD HANDOFF");
+    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
+    expect(modelPrompt).toContain("Target research tests role, identity, materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
-    expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
     expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
   });
 
@@ -1362,7 +1362,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain(pivot);
     expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(prompt).not.toContain("[AUXILIARY CONTEXT BOUND:");
-    expect(modelPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
+    expect(modelPrompt).toContain("Mission adjectives and generic nouns are not queries");
   });
 
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
@@ -1588,9 +1588,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
-    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(modelPrompt).toContain("Apply only requested criteria");
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
+    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
     expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -1680,8 +1680,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(modelPrompt).toContain("Apply only requested criteria");
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
     expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
@@ -2480,8 +2480,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion");
+    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
+    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
     expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
@@ -4290,7 +4290,7 @@ describe("combined-main emergency discovery contract", () => {
       "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
       "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
       "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
-      "DISCOVERY LEAD HANDOFF CONTRACT: preserve exact observed names and source URLs.",
+      "DISCOVERY LEAD HANDOFF: preserve exact observed names and source URLs.",
       "RESEARCH TERMINAL GATE: stop only when the evidence contract permits.",
       "OPTIONAL HISTORICAL DETAIL: " + "older context that may be compacted ".repeat(700),
     ].join("\n\n");
