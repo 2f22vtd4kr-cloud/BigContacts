@@ -4787,7 +4787,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess it against the human objective and accepted Boss scope; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
+    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. Ask Boss before a material scope change."
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
