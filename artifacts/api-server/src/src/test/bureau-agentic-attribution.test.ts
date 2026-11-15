@@ -189,7 +189,7 @@ describe("Bureau multi-source attribution", () => {
         identityRationale: "The fetched source names Jane Smith as CFO beside this exact email.",
         exactQuote: observationText,
         sourceUrls: ["https://acme.org/team"],
-      } as const;
+      } satisfies Parameters<typeof supportsContactClaimAcrossObservations>[1];
       expect(supportsContactClaimAcrossObservations([{ observationText, sourceUrls: ["https://acme.org/team"] }], item, item.value, "email")).toBe(true);
     }
   });
@@ -216,7 +216,7 @@ describe("Bureau multi-source attribution", () => {
       identityRationale: "The fetched source names Jane Smith as CFO beside this exact email.",
       exactQuote: "Jane Smith — CFO, email: jane.smith@acme.org",
       sourceUrls: ["https://acme.org/team"],
-    } as const;
+    } satisfies Parameters<typeof supportsContactClaimAcrossObservations>[1];
     const observations = [{
       observationText: "Jane Smith — CFO, email: jane.smith@acme.org",
       sourceUrls: ["https://acme.org/team"],
