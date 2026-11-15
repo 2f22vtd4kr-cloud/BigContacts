@@ -390,10 +390,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages).toHaveLength(2);
     expect(messages.map((message) => message.content).join("\\n")).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(prompt).toContain("Czech Republic");
-    expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
     expect(prompt).toContain("source class");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF:");
-    expect(messages.map((message) => message.content).join("\n")).toContain("Apply objective criteria");
+    expect(messages.map((message) => message.content).join("\n")).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction.");
   });
 
   it("replays the 2026-11-14 captured Investigator request metadata and bounded recovery", () => {
