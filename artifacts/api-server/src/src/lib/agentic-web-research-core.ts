@@ -2155,12 +2155,25 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
   status: number; providerCode: string | null; providerMessage: string;
   responseFormat: "json_schema" | "json_object"; completionBudgetRetryUsed: boolean;
   currentMaxCompletionTokens: number; failureDetailsAvailable?: boolean;
-  rateLimitRemainingTokens?: number | null; promptTokenEstimate?: number; finishReason?: string | null;
+  rateLimitRemainingTokens?: number | null; promptTokenEstimate?: number;
+  finishReason?: string | null; completionTokensUsed?: number | null;
 }): GroqInvestigatorOutputRecoveryDecision {
   const successTruncated = input.status === 200 && input.finishReason === "length";
   const validationFailure = input.status === 400 && input.providerCode === "json_validate_failed";
   const messageTruncated = validationFailure && isGroqCompletionTruncationMessage(input.providerMessage);
-  const explicitTruncation = successTruncated || messageTruncated;
+  const completionCap = Math.max(1, Math.floor(input.currentMaxCompletionTokens));
+  // Reasoning tokens are included in completion_tokens. A failed structured
+  // response using >=95% of its cap is strong evidence of output exhaustion,
+  // even when the provider omits failed_generation from its error body.
+  const usageNearCompletionCap = validationFailure
+    && typeof input.completionTokensUsed === "number"
+    && Number.isFinite(input.completionTokensUsed)
+    && input.completionTokensUsed >= Math.ceil(completionCap * 0.95);
+  const usageBelowCompletionCap = validationFailure
+    && typeof input.completionTokensUsed === "number"
+    && Number.isFinite(input.completionTokensUsed)
+    && !usageNearCompletionCap;
+  const explicitTruncation = successTruncated || messageTruncated || usageNearCompletionCap;
   const genericValidationFailure = validationFailure && input.failureDetailsAvailable !== true
     && !/(?:required field|additional propert|schema mismatch|does not match .*schema|expected schema|invalid enum|expected type)/i.test(input.providerMessage);
 
@@ -2182,6 +2195,11 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
   // compatibility fallback. Explicit schema-mismatch diagnostics go directly
   // to JSON-object mode and are not mislabeled as truncation.
   if (genericValidationFailure) {
+    // Usage well below the cap points away from truncation and toward provider
+    // schema validation; make only the single compatibility fallback.
+    if (usageBelowCompletionCap) {
+      return input.responseFormat === "json_schema" ? { action: "retry_json_object" } : { action: "fail" };
+    }
     if (!input.completionBudgetRetryUsed) {
       const next = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
       const promptTokens = Math.max(0, Math.floor(input.promptTokenEstimate ?? 0));
@@ -2687,6 +2705,13 @@ async function callGroqJson(
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
             rateLimitRemainingTokens: rateLimits.remainingTokens,
             promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
+            completionTokensUsed: (() => {
+              try {
+                const parsed = JSON.parse(body) as { usage?: { completion_tokens?: unknown } };
+                const value = parsed.usage?.completion_tokens;
+                return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+              } catch { return null; }
+            })(),
           });
           if (recovery.action === "increase_completion_budget") {
             // Truncation is an output-capacity failure, not a key or quota failure.
@@ -2794,6 +2819,7 @@ async function callGroqJson(
             rateLimitRemainingTokens: rateLimits.remainingTokens,
             promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
             finishReason,
+            completionTokensUsed: usageMetrics.completionTokens ?? null,
           });
           if (recovery.action === "increase_completion_budget") {
             completionBudgetRetryUsed = true;
