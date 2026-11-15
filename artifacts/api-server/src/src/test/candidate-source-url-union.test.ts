@@ -110,32 +110,28 @@ describe("discovery wealth-potential targetability", () => {
 });
 
 describe("media evidence versus realistic person route", () => {
-  it("allows CNBC as supporting evidence but never treats a news story alone as a reachability route", () => {
+  it("does not decide person-route relevance from publisher or URL path", () => {
     const cnbcStory = "https://www.cnbc.com/2026/08/06/family-offices-sustainability-startups-july-deal";
-    const companyPage = "https://regional-operator.example/about/leadership";
-    const secondNewsStory = "https://other-publication.example/articles/family-office-investors";
-
+    const governmentProfile = "https://government.example.test/registry/person/anna";
     expect(isClaimGradeDiscoverySourceUrl(cnbcStory)).toBe(true);
-    expect(isRealisticPersonRouteSourceUrl(cnbcStory)).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl(companyPage)).toBe(true);
-    expect(hasRealisticPersonRouteSource([cnbcStory, secondNewsStory])).toBe(false);
-    expect(hasRealisticPersonRouteSource([cnbcStory, companyPage])).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl(cnbcStory)).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl(governmentProfile)).toBe(true);
+    expect(hasRealisticPersonRouteSource([cnbcStory])).toBe(true);
   });
 
-  it("normalizes publisher subdomains, trailing-dot aliases, and encoded editorial paths", () => {
-    expect(isRealisticPersonRouteSourceUrl("https://markets.cnbc.com/team/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://cnbc.com./team/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://cnbc.com../team/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%6eews/team/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%61rticles/profile/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%E0%A4%A/team/jane-example")).toBe(false);
-    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example./about/leadership/")).toBe(true);
+  it("retains only technical HTTPS and claim-grade URL checks", () => {
+    expect(isRealisticPersonRouteSourceUrl("https://markets.cnbc.com/team/jane-example")).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl("https://cnbc.com./team/jane-example")).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%6eews/team/jane-example")).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%E0%A4%A/team/jane-example")).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl("https://www.google.com/search?q=jane")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("http://regional-operator.example/team/jane")).toBe(false);
   });
 
-  it("does not confuse a public ownership filing with a practical person-level route", () => {
-    expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
-    expect(isRealisticPersonRouteSourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(false);
-    expect(hasRealisticPersonRouteSource(["https://www.sec.gov/Archives/edgar/data/123/filing.htm"])).toBe(false);
+  it("leaves the distinction between a registry page and a personal route to model attribution", () => {
+    const filing = "https://www.sec.gov/Archives/edgar/data/123/filing.htm";
+    expect(isClaimGradeDiscoverySourceUrl(filing)).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl(filing)).toBe(true);
   });
 });
 
@@ -162,11 +158,13 @@ describe("candidate source URL union", () => {
 
 describe("discovery source evidence policy", () => {
   it("requires the same candidate role on two independent direct source observations", () => {
-    const findings = [{
-      personName: "Jane Example", role: "Chief Executive Officer",
-      promotionDecision: "promote" as const, scope: "candidate" as const,
-      sourceUrls: ["https://leadership.alpha.test/jane", "https://profiles.alpha.test/jane", "https://mirror-copy.test/jane", "https://company-beta.test/team", "https://directory-gamma.test/jane"],
-    }];
+    const findings = [
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://leadership.alpha.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://profiles.alpha.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://mirror-copy.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: "Jane Example is the Chief Executive Officer of Beta." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://directory-gamma.test/jane"], exactQuote: "Jane Example appears here, but no role is stated." },
+    ];
     const normalize = (raw: string) => {
       try { const url = new URL(raw); if (url.protocol !== "https:") return null; url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; }
       catch { return null; }
@@ -189,11 +187,10 @@ describe("discovery source evidence policy", () => {
   });
 
   it("rejects a name-only second source and does not let search actions corroborate", () => {
-    const findings = [{
-      personName: "Jane Example", role: "Chief Executive Officer",
-      promotionDecision: "promote" as const, scope: "candidate" as const,
-      sourceUrls: ["https://leadership.alpha.test/jane", "https://company-beta.test/team"],
-    }];
+    const findings = [
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://leadership.alpha.test/jane"], exactQuote: "Jane Example is Chief Executive Officer." },
+      { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: "Jane Example is mentioned here." },
+    ];
     const normalize = (raw: string) => { try { const url = new URL(raw); url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; } catch { return null; } };
     expect(candidateRoleCorroborationSources({
       personName: "Jane Example", role: "Chief Executive Officer", findings,
