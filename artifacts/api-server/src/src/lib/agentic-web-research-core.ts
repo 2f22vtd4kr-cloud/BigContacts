@@ -4762,7 +4762,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
   const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed} used; ${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS} remain. At zero, no more web/registry searches; choose another available action or stop/park.`
+    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: ${discoverySearchActionsUsed} used; ${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS} remain. At zero, no more web/registry searches; choose another available action or stop/park.`
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
