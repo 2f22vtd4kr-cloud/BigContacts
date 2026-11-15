@@ -513,6 +513,9 @@ async function materializePartialPersonLeadCards(input: {
   // The Investigator's structured finding is the card-worthiness decision.
   // Runtime persists that selection as a review-only lead; Boss may choose it
   // for target-scoped verification, while promotion remains a separate decision.
+  // Ownership terminology, wealth signals, role keywords and proximity are not admission gates.
+  // The only runtime admission constraints here are the model's candidate selection,
+  // same-run source attribution, exact identity binding, and durable case/job ownership.
   const leadMap = new Map<string, { name: string; role: string | null; sourceUrls: string[] }>();
   for (const finding of input.findings) {
     if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
