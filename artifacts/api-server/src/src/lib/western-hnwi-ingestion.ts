@@ -38,6 +38,7 @@ import {
 
 export interface HarvestedPerson {
   name: string;
+  entityType?: "PersonCandidate" | "Corporation" | "Trust" | "Other";
   nationality: string;
   location?: string;
   sourceRegistry: string;
@@ -153,8 +154,9 @@ function sourceRecordFingerprint(name: string, jurisdiction: string, sourceRegis
 }
 
 /** Versioned source-record key: preserves same-name people and independent registry observations. */
-function dedupKey(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>): string {
-  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata) + ":PersonCandidate";
+function dedupKey(name: string, jurisdiction: string, sourceRegistry: string, rawMetadata: Record<string, unknown>, entityType: string = "PersonCandidate"): string {
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(entityType) ? "PersonCandidate" : entityType;
+  return "western:v3:" + sourceRecordFingerprint(name, jurisdiction, sourceRegistry, rawMetadata) + ":" + canonicalType;
 }
 
 function westernRegistryEntitySourceKey(row: { name: string; metadata?: string | null; sourceRegistries?: string | null }): string | null {
@@ -715,14 +717,15 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
 export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
   const sourceMetadata = { ...person.rawMetadata, ...(person.companyName ? { companyName: person.companyName } : {}) };
   const fingerprint = sourceRecordFingerprint(person.name, person.signals.jurisdiction, person.sourceRegistry, sourceMetadata);
-  const key = "western:v3:" + fingerprint + ":PersonCandidate";
+  const entityType = person.entityType ?? "PersonCandidate";
+  const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(entityType) ? "PersonCandidate" : entityType;
+  const key = "western:v3:" + fingerprint + ":" + canonicalType;
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
   // The source parser has already identified this as a person-role/registrant row.
   // Preserve it as a provisional candidate; neither a name heuristic nor a registry
   // filing is enough to assert HNWI qualification.
-  const entityType = "PersonCandidate";
   const registryAssessment = deriveRegistryIngestionAssessment(entityType);
   const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
@@ -750,7 +753,11 @@ export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { 
   // contact path in the Investigator's research context until a public route is
   // actually observed and attributed.
   let contactMethod: string;
-  if (person.signals.isLargeShareholder) {
+  if (entityType === "Corporation") {
+    contactMethod = "Public company registry lead — research officers, ownership and public contact channels";
+  } else if (entityType === "Trust") {
+    contactMethod = "Public trust registry lead — research trustees, control and public contact channels";
+  } else if (person.signals.isLargeShareholder) {
     contactMethod = "Beneficial-ownership filing lead — individual identity and contact path not verified";
   } else if (person.signals.isBoardDirector) {
     contactMethod = "Board-role registry lead — direct contact path not observed";
