@@ -208,7 +208,8 @@ export function scoreAttribution(params: {
 
 /**
  * Combine attribution results across multiple contact candidates and return
- * whether any one of them clears the threshold.
+ * whether any candidate has explicit model attribution plus exact fetched-source
+ * identity/value binding. The numeric score/threshold remains advisory only.
  */
 export function anyAttributed(
   candidates: Array<{
