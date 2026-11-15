@@ -25,6 +25,7 @@ export function shouldReviewTargetActWithRightHand(
   if (act.action === "done" && act.execution === "success") return true;
   if (Boolean(act.stopReason) && act.execution === "success") return true;
   if (previousBossDisposition === "redirect" && act.execution === "success") return true;
+  if (act.execution !== "success") return false;
   for (const raw of act.findings ?? []) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const finding = raw as Record<string, unknown>;
