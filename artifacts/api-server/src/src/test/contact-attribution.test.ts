@@ -22,7 +22,7 @@ describe("source-backed contact attribution", () => {
     });
 
     expect(result.attributed).toBe(true);
-    expect(result.dimensions.validation).toBe(0.78);
+    expect(result.dimensions.validation).toBe(1.0);
     expect(result.explanation).toContain("model-attributed person-specific route");
   });
 
@@ -49,8 +49,8 @@ describe("source-backed contact attribution", () => {
     });
 
     expect(result.attributed).toBe(false);
-    expect(result.dimensions.validation).toBe(0.28);
-    expect(result.dimensions.directness).toBe(0.28);
+    expect(result.dimensions.validation).toBe(0.90);
+    expect(result.dimensions.directness).toBe(0.55);
   });
 
   it("never promotes a shared inbox as a person-specific route even when the person appears on the page", () => {
@@ -64,6 +64,20 @@ describe("source-backed contact attribution", () => {
     expect(result.attributed).toBe(false);
     expect(result.dimensions.validation).toBe(0.28);
     expect(result.dimensions.directness).toBe(0.28);
+  });
+
+  it("classifies departments and assistants as non-person routes without lexical mailbox rules", () => {
+    for (const contactAttribution of ["department", "assistant_intermediary", "generic_contact_form", "shared_inbox"] as const) {
+      const result = scoreAttribution({
+        ...base,
+        exactClaimObserved: true,
+        targetPersonEvidence: true,
+        contactAttribution,
+        exactQuotePersonValueBound: false,
+      });
+      expect(result.attributed).toBe(false);
+      expect(result.dimensions.directness).toBe(0.28);
+    }
   });
 
   it("does not let model attribution bypass exact-source or syntax requirements", () => {
