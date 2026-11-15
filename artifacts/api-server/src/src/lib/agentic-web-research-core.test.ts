@@ -1359,9 +1359,9 @@ describe("Investigator prompt architecture", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
-    expect(discovery).toContain("DISCOVERY LEAD HANDOFF");
+    expect(modelPrompt).toContain("DISCOVERY LEAD HANDOFF");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
-    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toContain("Target research tests role, identity, materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
@@ -1624,10 +1624,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
-    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
+    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
+    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality, counter-evidence and route before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -3305,7 +3305,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS");
+    expect(prompt).toContain("FETCH: visit extracts text/PDF; browser_fetch is HTML-only.");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
