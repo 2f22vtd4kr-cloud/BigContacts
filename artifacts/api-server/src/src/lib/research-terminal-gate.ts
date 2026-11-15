@@ -118,5 +118,7 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
   if (mode === "target" && context.evidenceCount === 0 && !hasSuccessfulExternalResearchAttempt(context)) {
     reasons.push("no_existing_evidence_or_successful_external_research_action");
   }
-  return { ...result, allowed: reasons.length === 0, reasons };
+  // A successful falsification/search attempt with no claim-grade evidence may be an honest stopping point, but it is never a substantiated target result. The canonical target-completion gate separately requires persisted evidence graphs.
+  const outcome = context.evidenceCount > 0 ? "evidence_backed" as const : "inconclusive" as const;
+  return { ...result, allowed: reasons.length === 0, reasons, outcome };
 }
