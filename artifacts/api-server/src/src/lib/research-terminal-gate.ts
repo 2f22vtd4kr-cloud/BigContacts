@@ -51,7 +51,10 @@ export function hasSuccessfulFalsificationAttempt(context: IntelligenceContext):
       }
       continue;
     }
-    const candidates = [args.query, args.purpose, args.hypothesis].map(actionText).filter(Boolean);
+    const query = actionText(args.query);
+    const candidates = action.action === "web_search" || action.action === "registry_search"
+      ? [query]
+      : [query, actionText(args.purpose), actionText(args.hypothesis)].filter(Boolean);
     if (candidates.some((candidate) => containsFalsificationIntent(candidate, discriminator))) return true;
   }
   return false;
