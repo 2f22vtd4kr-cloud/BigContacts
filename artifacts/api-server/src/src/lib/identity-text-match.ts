@@ -21,17 +21,13 @@ export function candidateIdentityObserved(personName: string, observation: unkno
   const rawText = typeof observation === "string" ? observation.normalize("NFKC") : "";
   if (!normalizedName) return false;
 
-  // One-letter Latin/Greek/Cyrillic names need exact case and token boundaries
-  // so a common article such as "a" cannot stand in for a person's name.
-  if (Array.from(normalizedName).length === 1 && /^\\p{Lu}$/u.test(rawName)) {
-    const escaped = rawName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\export function candidateIdentityObserved(personName: string, observation: unknown): boolean {
-  const normalizedName = normalizeCandidateIdentityName(personName);
-  const normalizedText = normalizeCandidateIdentityName(typeof observation === "string" ? observation : "");
-  return normalizedName.length >= 3 && ` ${normalizedText} `.includes(` ${normalizedName} `);
-}");
-    return new RegExp(`(?<![\\\\p{L}\\\\p{M}\\\\p{N}_])${escaped}(?![\\\\p{L}\\\\p{M}\\\\p{N}_])`, "u").test(rawText);
+  // One-letter names need exact case and token boundaries so a common article
+  // such as "a" cannot stand in for a person's name.
+  if (Array.from(normalizedName).length === 1 && /^\p{Lu}$/u.test(rawName)) {
+    const tokens = rawText.match(/[\p{L}\p{M}\p{N}_]+/gu) ?? [];
+    return tokens.includes(rawName);
   }
 
   const normalizedText = normalizeCandidateIdentityName(rawText);
-  return ` ${normalizedText} `.includes(` ${normalizedName} `);
+  return \` \${normalizedText} \`.includes(\` \${normalizedName} \`);
 }
