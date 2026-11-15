@@ -3800,6 +3800,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // against the same source independently.
     expect(candidateIdentitySourceBound("Li", "CEO", "Li is mentioned. The CEO is described in a different sentence.")).toBe(true);
     expect(candidateIdentitySourceBound("李", "董事长", "李董事长出席了公司年度会议。")).toBe(true);
+    expect(candidateIdentitySourceBound("李", "", "李董事长出席了公司年度会议。")).toBe(true);
     expect(candidateIdentitySourceBound("A", "", "A is the CEO of Example Holdings.")).toBe(true);
     expect(candidateIdentitySourceBound("A", "", "a is the CEO of Example Holdings.")).toBe(false);
     expect(candidateIdentitySourceBound("Li", "CEO", "Liability insurance is required for the CEO.")).toBe(false);
@@ -3990,7 +3991,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "MODEL_DECIDED_DONE" })).toBe(false);
   });
 
-  it("requires a successfully observed source to support a discovery candidate name and role", () => {
+  it("requires a fetched source to support candidate identity and any role the model claims", () => {
     const sourceUrl = "https://www.aryon.security/about";
     const page = {
       turn: 1,
@@ -4028,7 +4029,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(discoveryTerminalGate([page, terminal])).toEqual({ allowed: true, reason: null });
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: "Chief Financial Officer" }] }]).allowed).toBe(false);
-    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null }] }]).allowed).toBe(false);
+    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null }] }])).toEqual({ allowed: true, reason: null });
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null, promotionDecision: "reject" }] }]).allowed).toBe(true);
 
     const nameOnlyPage = { ...page, args: { url: "https://www.aryon.security/leadership" }, observedUrls: ["https://www.aryon.security/leadership"], observation: "Ron Arbel" };
