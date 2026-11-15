@@ -184,7 +184,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
     const reasoning = Math.max(0, Math.floor(event.reasoningTokens ?? 0));
     const estimated = Math.max(0, Math.floor(event.estimatedTokens ?? 0));
-    const totalFallback = requestSent && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
+    const totalFallback = requestSent && event.promptTokens == null && event.totalTokens == null ? (event.status === 429 ? 0 : estimated) : (prompt + completion);
     const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
     const budget = Math.max(0, Math.floor(event.dailyBudgetTokens ?? 0));
     const table = agenticLlmDailyUsageTable;
