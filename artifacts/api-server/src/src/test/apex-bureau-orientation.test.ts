@@ -12,6 +12,9 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).toContain("PHASE 1 — DISCOVERY");
     expect(APEX_BUREAU_PLAYBOOK).toContain("SPECIALIST TOOL SELECTION — CAPABILITY, NOT CHECKLIST");
     expect(APEX_BUREAU_PLAYBOOK).toContain("ITERATIVE FOLLOW-UP");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("COMMUNITY OBSERVATION SOURCES");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("Virtual Globetrotting and similar community pages are a community-observation source class");
+    expect(APEX_BUREAU_PLAYBOOK).toContain("original observation date and retrieval timestamp");
     expect(APEX_BUREAU_PLAYBOOK).toContain("This is guidance, not a workflow engine.");
 
     const boss = apexOrientationCompact("boss");
