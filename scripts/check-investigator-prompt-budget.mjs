@@ -93,8 +93,17 @@ const compact20bResponseFormatChars = 0; // GPT-OSS 20B does not receive unsuppo
 const estimatedPromptTokens = Math.ceil(
   (systemPromptChars + userPromptBudgetChars + compact20bResponseFormatChars) / 3.4,
 );
+const schemaStart = core.indexOf("const AGENTIC_STRUCTURED_SCHEMA = {");
+const schemaEnd = core.indexOf("} as const;", schemaStart);
+if (schemaStart < 0 || schemaEnd < 0) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to measure the 120B structured schema source");
+const schemaSourceChars = schemaEnd + "} as const;".length - schemaStart;
+// Conservative source-size proxy only: runtime JSON.stringify(response_format)
+// is logged as responseFormatChars, and provider-reported usage is authoritative.
+const estimated120bSchemaTokens = Math.ceil(schemaSourceChars / 3.4);
+const estimated120bInputTokens = estimatedPromptTokens + estimated120bSchemaTokens;
 const defaultCompletionBudget = 1024;
 const estimatedTotalTokensPerTurn = estimatedPromptTokens + defaultCompletionBudget;
+const estimated120bTotalTokensPerTurn = estimated120bInputTokens + defaultCompletionBudget;
 const legacyObservedPromptTokens = 3565;
 const legacyObservedCompletionTokens = 509;
 const legacyCompletionCap = 512;
@@ -102,10 +111,12 @@ console.log("INVESTIGATOR PROMPT MEASUREMENT (offline; no live provider call)");
 console.log("  Tokenizer: not available in this offline check; estimate = ceil(characters / 3.4).");
 console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + promptSections.length + " sections).");
 console.log("  User/context allowance: " + userPromptBudgetChars + " characters / " + Math.ceil(userPromptBudgetChars / 3.4) + " estimated tokens.");
-console.log("  Response schema overhead: 0 characters for the GPT-OSS 20B compatibility request (provider response_format omitted).");
-console.log("  Estimated input per 20B Investigator turn at configured prompt allowance: " + estimatedPromptTokens + " tokens.");
+console.log("  GPT-OSS 20B response schema overhead: 0 characters (provider response_format omitted; local parser remains authoritative).");
+console.log("  Estimated GPT-OSS 20B input per routine Investigator turn: " + estimatedPromptTokens + " tokens.");
+console.log("  GPT-OSS 120B structured-schema source proxy: " + schemaSourceChars + " characters / " + estimated120bSchemaTokens + " estimated tokens (conservative source-size proxy; excludes runtime enum expansion and is not a provider tokenizer result).");
+console.log("  Estimated GPT-OSS 120B input including schema proxy: " + estimated120bInputTokens + " tokens; actual serialized response_format size is recorded as responseFormatChars and provider usage is authoritative.");
 console.log("  Default reasoning effort: low; completion cap: " + defaultCompletionBudget + " tokens (environment-configurable).");
-console.log("  Estimated input + completion ceiling per turn: " + estimatedTotalTokensPerTurn + " tokens; this is a reservation ceiling, not actual use.");
+console.log("  Estimated 20B input + completion ceiling: " + estimatedTotalTokensPerTurn + " tokens; estimated 120B input + completion ceiling: " + estimated120bTotalTokensPerTurn + " tokens.");
 console.log("  2026-11-14 baseline: provider-reported input=" + legacyObservedPromptTokens + " tokens; completion cap=" + legacyCompletionCap + "; one observed successful empty completion=" + legacyObservedCompletionTokens + " tokens (including reasoning).");
 console.log("  Comparison: estimated new prompt allowance is " + Math.round((1 - estimatedPromptTokens / legacyObservedPromptTokens) * 100) + "% below the captured baseline input; actual post-patch usage requires the user's live Replit run.");
 console.log("INVESTIGATOR PROMPT BUDGET: PASS");
