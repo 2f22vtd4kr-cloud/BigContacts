@@ -217,7 +217,8 @@ describe("Atlas control-plane lead continuity", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
     expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
-    expect(prompt).not.toMatch(/Inc\\. 5000|unicorn ranking|household-name exclusion/i);
+    expect(prompt).toContain("Inc. 5000/fast-growth/unicorn rankings are context, not gates.");
+    expect(prompt).not.toMatch(/household-name exclusion/i);
     expect(prompt).toContain(urls[0]);
     expect(prompt).toContain("Only exact admitted name/type pairs may be recommended");
     expect(prompt).toContain("Find source-backed private technology company leads.");
