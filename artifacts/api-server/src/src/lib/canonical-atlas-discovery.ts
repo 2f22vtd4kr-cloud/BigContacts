@@ -12,7 +12,7 @@ import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, MAX_DISCOVERY_SEARCH_ACTIONS, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -2145,7 +2145,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           hasAdmittedCandidates: admittedCandidateSources.length > 0,
         }),
         discoverySearchActionsUsed,
-        discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed),
+        
         targetResearchReserveRemaining: Math.max(0, targetResearchReserveIterations - Math.max(0, investigatorIterationsUsed - discoveryIterationsUsed)),
       };
       const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
@@ -2920,7 +2920,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorActionsUsed: investigatorIterationsUsed,
       investigatorActionLimit: depth.agenticMaxIterations,
       discoverySearchActionsUsed: discoverySearchActionsUsedAtTerminal,
-      discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsedAtTerminal),
+      
     };
     // A durable terminal snapshot makes completed/failed runs auditable without
     // inferring final state from an intermediate progress checkpoint.
