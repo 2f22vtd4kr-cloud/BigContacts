@@ -62,7 +62,7 @@ describe("discovery runtime architecture", () => {
     expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientationSource).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
-    expect(orientationSource).toContain("no source family is mandatory and no source itinerary is prescribed");
+    expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -185,9 +185,9 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(orientationSource).toContain("This constrains scope, not tool or provider choice.");
+    expect(orientationSource).toContain("Do not use fixed industry/sector aliases or deterministic sector filters to decide relevance.");
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
-    expect(orientationSource).toContain("no fixed source itinerary");
+    expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
 
   it("blocks repeated successful page retrieval when only the model-authored rationale changes", async () => {
@@ -1196,7 +1196,7 @@ describe("unapproved discovery geography guard", () => {
     expect(runtimeSource).not.toContain("discoveryUnscopedGeographyReason(");
     expect(runtimeSource).not.toContain("unapproved_geography_guard");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
-    expect(orientationSource).toContain("The Investigator remains autonomous");
+    expect(orientationSource).toContain("The Investigator chooses tools; providers only execute.");
   });;
 });
 
