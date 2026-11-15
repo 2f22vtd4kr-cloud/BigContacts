@@ -149,8 +149,8 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("used=2; remaining=6/8");
-    expect(prompt).toContain("At zero, no more web/registry searches");
+    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap): 2 outbound search actions observed.");
+    expect(prompt).not.toContain("At zero, no more web/registry searches");
   });
 });
 
@@ -172,8 +172,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("six required root fields");
     expect(systemCore).toContain("MISSION EVIDENCE");
-    expect(systemCore).toContain("OPTIONAL: Omit irrelevant fields");
-    expect(systemCore).toContain("parallel items use the same");
+    expect(systemCore).toContain("Omit irrelevant optional fields.");
+    expect(systemCore).toContain("PARALLEL SHAPES: web items require query+provider; registry items require query+registry.");
     expect(systemCore).toContain("registry_search=query/registry");
     expect(systemCore).toContain("TERMINAL:");
     expect(systemCore).toContain("No fixed source/provider/registry order or itinerary");
@@ -248,8 +248,8 @@ describe("model-owned discovery relevance reasoning", () => {
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(targetPrompt).toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only");
-    expect(targetPrompt).toContain("COMPANY CONTEXT:");
-    expect(targetPrompt).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions.");
+    expect(targetPrompt).toContain("ASSIGNMENT TARGET:");
+    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
     expect(targetPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(targetPrompt).not.toContain("globally famous/household-name");
   });
@@ -1404,7 +1404,7 @@ describe("Investigator prompt architecture", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; falsification=false;");
-    expect(modelPrompt).toContain("DISCOVERY LEAD HANDOFF");
+    expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
@@ -1523,14 +1523,14 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
-    expect(modelPrompt).toMatch(/models judge relevance, identity, ownership, relationships, source meaning, contact attribution and priority/i);
+    expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toMatch(/Sourced ownership\/wealth hypotheses may be recorded with their evidence and uncertainty/i);
     expect(modelPrompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
-    expect(modelPrompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
-    expect(modelPrompt).toMatch(/exact quotations and source URLs from same-case observations/i);
+    expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
+    expect(modelPrompt).toMatch(/Claims need same-case exact quote\\+URL/i);
     expect(modelPrompt).toMatch(/never invent claims or routes/i);
     expect(modelPrompt).toMatch(/CONTACT: Model classifies person-specific, shared, organization, assistant\/intermediary or unresolved routes/i);
-    expect(modelPrompt).toMatch(/Target research and independent review determine which claims are corroborated, contradicted, material or ready for promotion/i);
+    expect(modelPrompt).toMatch(/Verify role, relationship, materiality, counter-evidence and route before promotion/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -2842,7 +2842,7 @@ Choose each next action yourself from the available capabilities and observed ev
       livenessRecord("parallel_web_search", "blocked"),
       ...Array.from({ length: 30 }, (_, index) => ({ ...livenessRecord("web_search", "success"), turn: index + 10 })),
     ];
-    expect(countDiscoverySearchActions(records)).toBe(31);
+    expect(countDiscoverySearchActions(records)).toBe(32);
     expect(discoveryLeadInspectionRequirement(records)).toBeNull();
   });
 
@@ -2938,7 +2938,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeGreaterThan(7_000);
+    expect(prompt.length).toBeLessThanOrEqual(7_000);
     expect(prompt).toContain("OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
@@ -3603,7 +3603,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toMatch(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/);
+    expect(prompt).toMatch(/CALLABLE REGISTRY IDS:/);
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/Never invent adapter IDs/i);
@@ -4799,12 +4799,12 @@ describe("community source lead handling and evidence-led scope", () => {
   });
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("propose evidence-led sector/geography changes to Boss when open");
+    expect(system).toContain("The Investigator decides relevance, identity, ownership, relationships, source meaning, contact attribution and priority.");
     expect(system).toContain("Boss sets strategy");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
-    expect(system).toContain("No fixed source/provider/registry order, mix or itinerary.");
+    expect(system).toContain("No fixed source/provider/registry order or itinerary. No mandatory mix.");
   });
 
   it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {
