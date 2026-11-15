@@ -647,7 +647,23 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
         // Keep structurally valid names for the batch LLM name-shape check; do not pre-judge personhood with English keywords.
         if (!isStructurallyValidCandidateName(rawName)) continue;
 
-        const key = dedupKey(rawName, "GB");
+        const sourceRegistry = "Companies House UK — Officers Register";
+        const chUrl = item?.links?.self
+          ? "https://find-and-update.company-information.service.gov.uk" + item.links.self
+          : undefined;
+        const rawMetadata: Record<string, unknown> = {
+          source: "companies-house-officers",
+          sourceRecordId: chUrl,
+          officerRole: item?.officer_role,
+          nationality: item?.nationality,
+          occupation: item?.occupation,
+          appointedOn: item?.appointed_on,
+          dateOfBirth: item?.date_of_birth
+            ? `${item.date_of_birth.month}/${item.date_of_birth.year}`
+            : undefined,
+          chUrl,
+        };
+        const key = dedupKey(rawName, "GB", sourceRegistry, rawMetadata);
         if (seen.has(key)) continue;
         seen.add(key);
 
@@ -661,21 +677,9 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
           name: rawName,
           nationality: item?.nationality ?? "British",
           location,
-          sourceRegistry: "Companies House UK — Officers Register",
+          sourceRegistry,
           role: item?.officer_role,
-          rawMetadata: {
-            source: "companies-house-officers",
-            officerRole: item?.officer_role,
-            nationality: item?.nationality,
-            occupation: item?.occupation,
-            appointedOn: item?.appointed_on,
-            dateOfBirth: item?.date_of_birth
-              ? `${item.date_of_birth.month}/${item.date_of_birth.year}`
-              : undefined,
-            chUrl: item?.links?.self
-              ? `https://find-and-update.company-information.service.gov.uk${item.links.self}`
-              : undefined,
-          },
+          rawMetadata,
           signals: {
             isLargeShareholder: false,
             // Preserve the source role verbatim; the Investigator interprets whether it is a board role.
