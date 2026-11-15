@@ -1449,7 +1449,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(modelPrompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(modelPrompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
-    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
+    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1591,7 +1591,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1682,7 +1682,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
     expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2482,7 +2482,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
+    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
@@ -2783,12 +2783,12 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(modelPrompt).toContain("Other objectives use their own evidence criteria");
+    expect(modelPrompt).toContain("criteria depend on the mission");
     expect(modelPrompt).toContain("VALID COMPANY REVIEW-LEAD SHAPE");
     expect(modelPrompt).toContain("scope=organization");
   });
 
-  it("applies person-level reachability realism without excluding prominent companies", () => {
+  it("does not exclude prominent people or companies by deterministic fame and ranking priors", () => {
     const prompt = buildStepPrompt({
       targetName: "",
       objective: "Find B2B software companies and their current decision-makers.",
@@ -2798,18 +2798,15 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(modelPrompt).toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
-    expect(modelPrompt).toContain("human explicitly names or requests prominent public figures");
-    expect(modelPrompt).toContain("actionable person-specific professional route");
-    expect(modelPrompt).toContain("general company/press/IR channels do not qualify as individual access");
-    expect(modelPrompt).toContain("brand familiarity alone neither excludes nor qualifies them");
-    expect(modelPrompt).toContain("do not select or surface them solely for wealth or prominence");
-    expect(prompt).not.toContain("Popularity is not a filter:");
-    expect(prompt).not.toContain("No incidental celebrity/household-name targets");
-    expect(prompt).not.toContain("exclude a person/company merely for being well-known");
+    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
+    expect(modelPrompt).toContain("fame, rankings, publisher type");
+    expect(modelPrompt).toContain("context, not eligibility rules");
+    expect(modelPrompt).toContain("Distinguish a person-specific route from an organization channel");
+    expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
+    expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
+    expect(modelPrompt).not.toContain("do not select or surface them solely for wealth or prominence");
+    expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
   });
-
   it("keeps every runtime-attested tool model-selectable during discovery and target research", () => {
     const actions = [
       "web_search", "parallel_web_search", "parallel_registry_search", "visit",
@@ -4304,13 +4301,13 @@ describe("combined-main emergency discovery contract", () => {
     );
 
     expect(prompt.length).toBeGreaterThan(5_600);
-    expect(prompt).toContain("mixed-source");
-    expect(prompt).toContain("No fixed action sequence");
+    expect(prompt).not.toContain("mandatory mixed-source");
+    expect(prompt).toContain("No fixed source/provider/registry order or itinerary");
     expect(prompt).not.toContain("mandatory lead-inspection itinerary");
     expect(prompt).toContain("ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
-    expect(prompt).toContain("Do not require private/mid-market status unless requested.");
+    expect(prompt).toContain("Do not invent private/mid-market preferences.");
     expect(prompt).not.toContain("current private/mid-market operations");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
