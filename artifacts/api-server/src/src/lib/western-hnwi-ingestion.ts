@@ -274,27 +274,31 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
 
         for (const rawName of personNames) {
           if (yielded >= maxCount) break;
-          const nameKey = normalizeName(rawName);
-          if (seen.has(nameKey)) continue;
-          seen.add(nameKey);
+          const sourceRegistry = `SEC EDGAR — ${formType}`;
+          const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "unidentified");
+          const rawMetadata: Record<string, unknown> = {
+            source: "sec-edgar",
+            sourceRecordId: `sec-edgar:${accession}:${normalizeName(rawName)}`,
+            formType,
+            fileDate,
+            bizLocation,
+            entityName: rawName,
+            displayNames: allCleanNames,
+            ...(companyIssuer ? { companyName: companyIssuer } : {}),
+            edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
+          };
+          const sourceKey = dedupKey(rawName, "US", sourceRegistry, rawMetadata);
+          if (seen.has(sourceKey)) continue;
+          seen.add(sourceKey);
 
           yielded++;
           yield {
             name: normalizeEdgarName(rawName),
             nationality: "American",
             location: bizLocation,
-            sourceRegistry: `SEC EDGAR — ${formType}`,
+            sourceRegistry,
             filingType: formType,
-            rawMetadata: {
-              source: "sec-edgar",
-              formType,
-              fileDate,
-              bizLocation,
-              entityName: rawName,
-              displayNames: allCleanNames,
-              ...(companyIssuer ? { companyName: companyIssuer } : {}),
-              edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
-            },
+            rawMetadata,
             signals: {
               isLargeShareholder: true,
               isBoardDirector: false,
