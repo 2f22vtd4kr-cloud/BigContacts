@@ -483,7 +483,7 @@ export function buildAtlasPinnedControlState(input: {
   leadInventory: AtlasControlLeadInventory;
   admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>;
   findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
-  missionBudget?: { investigatorActionsUsed: number; globalActionsRemaining: number; discoveryActionsRemaining: number; discoverySearchActionsUsed: number; targetResearchReserveRemaining: number };
+  missionBudget?: { investigatorActionsUsed: number; investigatorActionsRemaining: number; discoverySearchActionsUsed: number };
 }): string {
   const state = input.leadInventory;
   const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 2);
