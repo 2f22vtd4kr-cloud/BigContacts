@@ -233,7 +233,7 @@ describe("model-owned discovery relevance reasoning", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE");
     expect(modelPrompt).toContain("Apply mission-specific standards; adjectives/generic nouns are not queries.");
-    expect(modelPrompt).toContain("Fame, wealth, title, prestige, seniority, company size, rankings, listing status, geography, sector, language and source class are context, not eligibility rules or gates.");
+    expect(modelPrompt).toContain("Fame, wealth, seniority, size, sector, geography, language and source classes are context, not gates.");
     expect(modelPrompt).toContain("Interpret news, community and registry content with provenance.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or itinerary");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
@@ -3352,7 +3352,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("FETCH: visit extracts bounded text/PDF; browser_fetch is HTML-only; failed extraction=unknown.");
+    expect(prompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown.");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
