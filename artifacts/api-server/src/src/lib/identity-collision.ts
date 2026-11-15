@@ -12,7 +12,6 @@ const ORGANIZATION_SUFFIXES = new Set(["inc", "llc", "ltd", "company", "corp", "
 export type IdentitySemanticAssessment = "same_person" | "different_people" | "unresolved";
 export type IdentityCollisionResult = {
   risk: boolean;
-  identityMatch: number;
   assessment: IdentitySemanticAssessment;
   reason: string | null;
 };
@@ -41,7 +40,6 @@ export function assessIdentityCollision(input: {
 }): IdentityCollisionResult {
   const unresolved: IdentityCollisionResult = {
     risk: true,
-    identityMatch: 0.5,
     assessment: input.identityAssessment ?? "unresolved",
     reason: "identity assessment is unresolved; preserve as review evidence and do not merge or promote",
   };
@@ -53,8 +51,7 @@ export function assessIdentityCollision(input: {
   if (!personName) {
     return {
       risk: true,
-      identityMatch: 0.3,
-      assessment: "unresolved",
+        assessment: "unresolved",
       reason: contactLike
         ? "contact has no model-attributed person identity; retain as organization/unknown route"
         : "finding has no model-attributed person identity",
@@ -95,7 +92,6 @@ export function assessGraphNamePairRisk(leftName: string, rightName: string): Id
   // identity; exact duplicate record detection belongs to the persistence key.
   return {
     risk: true,
-    identityMatch: left && right && left === right ? 0.5 : 0.3,
     assessment: "unresolved",
     reason: left && right && left === right
       ? "identical display names do not prove the same person; require an exact record duplicate or Investigator assessment"
