@@ -9,6 +9,8 @@ const rootPackage = JSON.parse(read("package.json"));
 const bureau = String(rootPackage.scripts?.["check:bureau"] ?? "");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const initializer = read("scripts/initialize-apex-schema.sh");
+const ciProvision = read("scripts/ci-provision-db.sh");
+const fullAuditWorkflow = read(".github/workflows/audit-full-code-five-consecutive.yml");
 const postMerge = read("scripts/post-merge.sh");
 const dbPackage = JSON.parse(read("lib/db/package.json"));
 const finalReviewPath = "artifacts/api-server/src/src/lib/ai-extractor.ts";
@@ -28,6 +30,8 @@ const sourceAssertions = [
   ["post-merge checks fail fast rather than masking earlier failures", /^set -euo pipefail$/m.test(postMerge)],
   ["post-merge does not perform an unguarded raw Drizzle schema push", !/pnpm --filter @workspace\/db run push/.test(postMerge)],
   ["post-merge gates schema mutation and delegates to the full initializer", postMerge.includes('if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" == "true" ]]; then') && postMerge.includes("bash scripts/initialize-apex-schema.sh") && postMerge.indexOf("if [[ \"${APEX_ALLOW_SCHEMA_PUSH:-false}\" == \"true\" ]]; then") < postMerge.indexOf("bash scripts/initialize-apex-schema.sh")],
+  ["CI DB provisioning delegates to the complete explicit schema initializer", ciProvision.includes('export APEX_ALLOW_SCHEMA_PUSH=true') && ciProvision.includes("bash scripts/initialize-apex-schema.sh")],
+  ["five-pass full audit uses the same complete migration initializer", fullAuditWorkflow.includes("Initialize complete Apex database schema and migrations") && fullAuditWorkflow.includes('APEX_ALLOW_SCHEMA_PUSH: "true"') && fullAuditWorkflow.includes("bash scripts/initialize-apex-schema.sh") && !fullAuditWorkflow.includes("drizzle-kit push --config ./drizzle.config.ts")],
   ["explicit schema initialization applies committed migrations in order", (() => { const p = [initializer.indexOf('if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" != "true" ]]'), initializer.indexOf("pnpm --filter @workspace/db run push"), initializer.indexOf("pnpm --filter @workspace/db run harden"), initializer.indexOf("lib/db/migrations/002-contact-outcome.sql"), initializer.indexOf("lib/db/migrations/003-atlas-review-candidate-type.sql"), initializer.indexOf("lib/db/migrations/004-registry-candidate-truth.sql"), initializer.indexOf("lib/db/migrations/005-agentic-llm-daily-usage.sql"), initializer.indexOf("lib/db/migrations/006-agentic-llm-rate-limit-headers.sql"), initializer.indexOf("lib/db/migrations/007-agentic-llm-attempt-context.sql"), initializer.indexOf('echo "[apex-schema] verifying required Apex durable tables and invariants..."')]; return p.every((value) => value >= 0) && p.every((value, index) => index === 0 || p[index - 1] < value) && String(dbPackage.scripts?.harden ?? "").includes("001-apex-invariants.sql"); })()],
 ];
 for (const [label, ok] of sourceAssertions) { if (!ok) { console.error(`SOURCE PARITY FAIL: ${label}`); failed = true; } }
