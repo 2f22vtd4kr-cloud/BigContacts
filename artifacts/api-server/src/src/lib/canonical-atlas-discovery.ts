@@ -2126,7 +2126,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const discoverySearchActionsUsed = countDiscoverySearchActions(discovery.trajectoryRecords ?? []);
       const controlBudgetState = {
         investigatorActionsUsed: Math.max(0, investigatorIterationsUsed),
-        globalActionsRemaining: Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed),
         investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed }),
         discoverySearchActionsUsed,
       };
@@ -2835,7 +2834,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const nextDiscoveryIterations = Math.max(0, nextDiscovery.iterations ?? 0);
         investigatorIterationsUsed += nextDiscoveryIterations;
         discoveryResourceLimited = nextDiscovery.stopReason !== "MODEL_DECIDED_DONE"
-          && resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0;
+          && resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed }) <= 0;
         investigatorResourceLimited = investigatorResourceLimited || investigatorIterationsUsed >= depth.agenticMaxIterations;
         // The cumulative result was already updated by mergeDiscoveryResults above.
         // Do not append this episode a second time: that doubles its metrics and
@@ -2847,7 +2846,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         materialized += admission.materialized;
         evidenceRows += admission.evidenceRows;
         discoveryResourceLimited = nextDiscovery.stopReason !== "MODEL_DECIDED_DONE"
-          && resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0;
+          && resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed }) <= 0;
         latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null;
       }
     }
