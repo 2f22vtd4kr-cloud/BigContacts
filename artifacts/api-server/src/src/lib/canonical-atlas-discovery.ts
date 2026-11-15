@@ -29,7 +29,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
+import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { bindExactRegistryLeadName } from "./registry-result-source-binding";
@@ -280,19 +280,12 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (sources.length >= 1) { selectedRole = role; supportingSources = sources; break; }
     }
     if (supportingSources.length < 1) continue;
-    // This is a review-only target handoff, not an HNWI conclusion. Require one
-    // actually fetched, claim-grade source co-binding exact name and role plus
-    // an observable ownership/control clue. Do not require public evidence of
-    // business scale or materiality yet; target research must test that, falsify
-    // the lead, and establish a realistic route before any contact/wealth promotion.
-    const roleBoundSourceUrls = new Set(supportingSources.map((support) => support.sourceUrl));
-    const claimGradeObservations = observations.filter((observation) =>
-      observation.execution === "success"
-      && (observation.action === "visit" || observation.action === "browser_fetch")
-      && roleBoundSourceUrls.has(normalizeSourceUrl(observation.sourceUrl) ?? observation.sourceUrl)
-      && isClaimGradeDiscoverySourceUrl(observation.sourceUrl)
-    );
-    if (!hasDiscoveryOwnershipLeadSignal({ personName: name, role: selectedRole, observations: claimGradeObservations })) continue;
+    // This is a source-backed review-target handoff, not an HNWI conclusion.
+    // The model has selected the candidate/role and supplied an exact quotation;
+    // candidateRoleCorroborationSources verifies that quotation against the
+    // actual fetched observation and its URL. Ownership terminology, wealth
+    // signals, role keywords and proximity are not admission gates. Target
+    // research tests materiality, identity, counter-evidence and routes.
     const primarySupport = supportingSources[0];
     if (!primarySupport) continue;
 
