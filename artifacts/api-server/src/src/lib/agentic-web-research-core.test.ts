@@ -1626,7 +1626,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
-    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality, counter-evidence and route before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -1717,8 +1717,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("Do not impose criteria the human did not request");
-    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
+    expect(modelPrompt).toMatch(/Target research verifies role/relationship/materiality, counter-evidence and route before promotion./);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2516,9 +2516,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(modelPrompt).toContain("Target research tests role, identity, materiality, counter-evidence and routes before promotion");
-    expect(modelPrompt).toMatch(/Target research tests role, identity, materiality, counter-evidence and routes before promotion/);
+    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
+    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
+    expect(modelPrompt).toMatch(/Target research verifies role/relationship/materiality, counter-evidence and route before promotion./);
   });
 
   it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
