@@ -5537,7 +5537,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
       const role = typeof finding.role === "string" ? finding.role.trim() : "";
       if (candidate && !personName) return true;
-      if (promotedCandidate && !role) return true;
+      // Role is optional; when the model supplies one, it must be bound separately.
 
       const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
         record.observedUrls.map((raw) => {
@@ -5551,7 +5551,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       );
       let valueBound = false;
       let identityBound = !candidate;
-      let roleBound = !promotedCandidate;
+      let roleBound = !promotedCandidate || !role;
 
       for (const sourceUrl of sources) {
         const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
@@ -5562,12 +5562,12 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
           const observation = record.observation ?? "";
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
           const hasIdentity = candidate && candidateIdentitySourceBound(personName, role, observation);
-          const hasRole = promotedCandidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
+          const hasRole = promotedCandidate && Boolean(role) && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
           if (hasIdentity && hasRole) roleBound = true;
           const identityAdmission = promotedCandidate && finding.vectorType === "other" && personName.length > 0 && finding.value.trim().toLowerCase() === personName.toLowerCase();
-          if (identityAdmission ? (hasValue && hasIdentity && hasRole) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
+          if (identityAdmission ? (hasValue && hasIdentity && (!role || hasRole)) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
         }
         if (!sourceSupportsClaim) return true;
       }
