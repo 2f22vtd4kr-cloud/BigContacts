@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import {
   applyGeminiBossPlan,
@@ -11,6 +11,19 @@ import { evaluateDiscoveryStop } from "../lib/discovery-metrics";
 import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
 import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
 import { GROQ_BOSS_MODEL, generateGroqBossText, getGroqBossLatencyConfig } from "../lib/groq-boss";
+
+beforeEach(() => {
+  // Boss HTTP calls in this file are mocked. Do not share their simulated
+  // provider quota outcomes with PostgreSQL-backed ledger integration tests.
+  vi.stubEnv("DATABASE_URL", "");
+  vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+  vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+  vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("Boss control-loop contract", () => {
   function minimalFile(): ResearchCaseFile {
