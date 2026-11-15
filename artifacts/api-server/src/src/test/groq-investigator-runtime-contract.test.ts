@@ -320,15 +320,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
-    expect(submitted).toContain("OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders).");
+    expect(submitted).toContain("Omit irrelevant optional fields.");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(submitted).toContain("No unrequested criteria; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
-    expect(submitted).toContain("TERMINAL: Stop at defensible answer or justified blocker; failed searches, untested hypotheses and unresolved leads are not completion.");
-    expect(submitted).toContain("parallel_web_search items require query and provider; locale/market are optional and registry is omitted.");
-    expect(submitted).toContain("parallel_registry_search items require query and registry; provider/locale/market are omitted.");
+    expect(submitted).toContain("TERMINAL: Stop at a defensible answer or justified blocker; failed searches, untested hypotheses and unresolved leads are not completion.");
+    expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
+    expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
