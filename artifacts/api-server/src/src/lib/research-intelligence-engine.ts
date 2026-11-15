@@ -249,7 +249,7 @@ export class ResearchIntelligenceEngine {
       : null;
     const sourceMetadataForUrl = (url: string): Pick<IntelligenceEvidence, "sourceName" | "sourceContributor" | "originalObservedAt" | "sourceMechanism"> => {
       if (!sourceAttribution) return {};
-      const expectedDomain = typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain.toLowerCase() : "";
+      const expectedDomain = typeof sourceAttribution.sourceDomain === "string" ? sourceAttribution.sourceDomain.toLowerCase().replace(/^www\\./, "") : "";
       const actualHost = hostOf(url) ?? "";
       if (expectedDomain && actualHost !== expectedDomain && !actualHost.endsWith("." + expectedDomain)) return {};
       return {
