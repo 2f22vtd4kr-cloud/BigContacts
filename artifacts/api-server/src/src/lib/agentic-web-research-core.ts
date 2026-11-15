@@ -4766,7 +4766,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
     discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: Preserve exact names, scope and URLs for selected objective-fit leads as provisional review items. Include uncertainty; selection is not promotion. Boss approves material scope changes."
+    "DISCOVERY LEAD HANDOFF: Preserve exact observed names and source URLs for selected objective-fit leads as provisional review items; include scope and uncertainty. Selection is not promotion. Boss approves material scope changes."
   ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
