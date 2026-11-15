@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { scoreAttribution } from "../lib/contact-attribution";
 
-describe("source-backed contact attribution", () => {
+describe("model-owned contact attribution", () => {
   const base = {
     email: "info@example.com",
     phone: null,
@@ -12,21 +12,24 @@ describe("source-backed contact attribution", () => {
     isValidPhone: false,
   };
 
-  it("allows a generic inbox only when the model labels a personal route and the exact quote binds person to value", () => {
+  it("attributes only when the model explicitly binds the person and value in fetched evidence", () => {
     const result = scoreAttribution({
       ...base,
       exactClaimObserved: true,
       targetPersonEvidence: true,
       contactAttribution: "person_specific",
       exactQuotePersonValueBound: true,
+      modelConfidence: 0.83,
     });
 
     expect(result.attributed).toBe(true);
-    expect(result.dimensions.validation).toBe(1.0);
+    expect(result.score).toBe(0.83);
+    expect(result.dimensions.validation).toBe(1);
+    expect(result.dimensions.directness).toBe(1);
     expect(result.explanation).toContain("model-attributed person-specific route");
   });
 
-  it("does not let a domain-fit mismatch veto explicit same-source model attribution", () => {
+  it("does not let a domain mismatch veto explicit same-source model attribution", () => {
     const result = scoreAttribution({
       ...base,
       email: "info@subsidiary.example.net",
@@ -41,32 +44,19 @@ describe("source-backed contact attribution", () => {
     expect(result.dimensions.domainFit).toBeLessThan(0.5);
   });
 
-  it("keeps a generic inbox un-attributed when the source does not attribute it to the person", () => {
-    const result = scoreAttribution({
-      ...base,
-      exactClaimObserved: true,
-      targetPersonEvidence: false,
-    });
+  it("does not infer person attribution from a generic inbox, source proximity or publisher identity", () => {
+    const first = scoreAttribution({ ...base, sources: ["EDGAR"] });
+    const second = scoreAttribution({ ...base, sources: ["ContactPage"] });
 
-    expect(result.attributed).toBe(false);
-    expect(result.dimensions.validation).toBe(0.90);
-    expect(result.dimensions.directness).toBe(0.55);
+    expect(first.attributed).toBe(false);
+    expect(second.attributed).toBe(false);
+    expect(first.score).toBeNull();
+    expect(second.score).toBeNull();
+    expect(first.dimensions.sourceEvidence).toBe(1);
+    expect(second.dimensions.sourceEvidence).toBe(1);
   });
 
-  it("never promotes a shared inbox as a person-specific route even when the person appears on the page", () => {
-    const result = scoreAttribution({
-      ...base,
-      exactClaimObserved: true,
-      targetPersonEvidence: true,
-      contactAttribution: "shared_inbox",
-      exactQuotePersonValueBound: false,
-    });
-    expect(result.attributed).toBe(false);
-    expect(result.dimensions.validation).toBe(0.28);
-    expect(result.dimensions.directness).toBe(0.28);
-  });
-
-  it("classifies departments and assistants as non-person routes without lexical mailbox rules", () => {
+  it("keeps shared inboxes, departments and intermediaries separate from person-specific routes", () => {
     for (const contactAttribution of ["department", "assistant_intermediary", "generic_contact_form", "shared_inbox"] as const) {
       const result = scoreAttribution({
         ...base,
@@ -76,15 +66,17 @@ describe("source-backed contact attribution", () => {
         exactQuotePersonValueBound: false,
       });
       expect(result.attributed).toBe(false);
-      expect(result.dimensions.directness).toBe(0.28);
+      expect(result.dimensions.directness).toBe(0);
     }
   });
 
-  it("does not let model attribution bypass exact-source or syntax requirements", () => {
+  it("does not let model attribution bypass exact-source or syntax verification", () => {
     const missingQuote = scoreAttribution({
       ...base,
       exactClaimObserved: false,
       targetPersonEvidence: true,
+      contactAttribution: "person_specific",
+      exactQuotePersonValueBound: true,
     });
     const invalidEmail = scoreAttribution({
       ...base,
@@ -92,10 +84,18 @@ describe("source-backed contact attribution", () => {
       exactClaimObserved: true,
       targetPersonEvidence: true,
       contactAttribution: "person_specific",
-      exactQuotePersonValueBound: false,
+      exactQuotePersonValueBound: true,
     });
 
     expect(missingQuote.attributed).toBe(false);
     expect(invalidEmail.attributed).toBe(false);
+    expect(invalidEmail.dimensions.validation).toBe(0);
+  });
+
+  it("does not emit a numeric score or threshold when no model confidence exists", () => {
+    const result = scoreAttribution({ ...base });
+    expect(result.score).toBeNull();
+    expect(result).not.toHaveProperty("threshold");
+    expect(result.explanation).toContain("numeric score unassessed");
   });
 });
