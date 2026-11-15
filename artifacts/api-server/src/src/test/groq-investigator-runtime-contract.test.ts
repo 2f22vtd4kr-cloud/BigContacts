@@ -495,6 +495,35 @@ describe("Groq Investigator runtime contract", () => {
     expect(hasUsableDiscoveryExternalObservation(afterFetch)).toBe(true);
   });
 
+  it("requires model-resolved identity before parsing candidate contact promotion", () => {
+    const baseFinding = {
+      vectorType: "email",
+      value: "jane@example.org",
+      personName: "Jane Example",
+      role: "Director",
+      scope: "candidate",
+      sourceUrls: ["https://example.org/team"],
+      contactAttribution: "professional_person_specific",
+      exactQuote: "Jane Example — Director — jane@example.org",
+      promotionDecision: "promote",
+    };
+    const unresolved = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [{ ...baseFinding, identityAssessment: "unresolved", identityRationale: "The source does not distinguish the route." }],
+      thought: "The contact remains ambiguous.",
+    }));
+    expect(unresolved?.action).toBe("done");
+    if (unresolved?.action === "done") expect(unresolved.findings[0]?.promotionDecision).toBeUndefined();
+
+    const resolved = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [{ ...baseFinding, identityAssessment: "same_person", identityRationale: "The official page explicitly labels this address for Jane Example." }],
+      thought: "The fetched page binds the contact to this person.",
+    }));
+    expect(resolved?.action).toBe("done");
+    if (resolved?.action === "done") expect(resolved.findings[0]?.promotionDecision).toBe("promote");
+  });
+
   it("withholds discovery done until successful external observation", () => {
     const failure = [{ action: "investigator_provider_error", execution: "error", observation: "HTTP_400:json_validate_failed", observedUrls: [] }, { action: "done", execution: "blocked", observation: "No evidence", observedUrls: [] }];
     const emptySearch = [{ action: "web_search", execution: "success", observation: "No usable result returned; no hits", observedUrls: [] }];
