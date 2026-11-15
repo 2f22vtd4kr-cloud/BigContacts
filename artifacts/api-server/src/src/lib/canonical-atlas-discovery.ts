@@ -3,6 +3,7 @@ import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researc
 import { updateJob, clearActiveJobIfOwned, getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
+import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
@@ -1814,12 +1815,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         iteration: nextIteration,
         actorRole: "right_hand",
         eventType: "observation",
-        status: rightHand.status === "completed" ? "recorded" : rightHand.status === "deferred" ? "deferred" : "unavailable",
-        summary: rightHand.status === "completed"
-          ? "Groq Right-hand recorded independent advisory observations for Boss's opening decision; advice is not an authorization gate."
-          : rightHand.status === "deferred"
-            ? "Groq Right-hand review was deferred because no Investigator observation or consequential decision exists yet."
-            : "Groq Right-hand opening advice was unavailable; Boss remains responsible for the final opening decision.",
+        status: "deferred",
+        summary: "Groq Right-hand review was deferred because no Investigator observation or consequential decision exists yet.",
         correlationKey: `${atlasJobId}:right-hand-opening`,
         payload: JSON.stringify({
           jobId: atlasJobId,
