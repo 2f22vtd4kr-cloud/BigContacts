@@ -2,13 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   buildSourcesToRun,
   sampleBroadCategories,
-  scoreApproachableCandidate,
   rankCandidatesForAdmission,
   filterDiscoveryCandidatesByFitness,
   rankDiscoveryReviewCandidates,
   type DiscoverySource,
 } from "../lib/discovery-intake";
-import { evaluateTargetFitness, shouldRejectTarget } from "../lib/target-fitness";
 
 const SOURCES: DiscoverySource[] = [
   { kind: "broad", category: 1, label: "FO" },
@@ -57,56 +55,27 @@ describe("discovery-intake", () => {
     expect(out.some((s) => s.kind === "faa")).toBe(true);
   });
 
-  it("scores operators higher than trophy-only names", () => {
-    const founder = scoreApproachableCandidate({
-      name: "Jane Founder",
-      snippet: "Co-founder and CEO of a growth equity firm; interview at summit",
-    });
-    const trophy = scoreApproachableCandidate({
-      name: "Famous Heir",
-      snippet: "Billionaire socialite and royalty figure; undisclosed owner",
-    });
-    expect(founder).toBeGreaterThan(trophy);
-  });
-
-  it("ranks candidates best-first for admission", () => {
-    const ranked = rankCandidatesForAdmission([
+  it("preserves supplied candidate order instead of local semantic scoring", () => {
+    const candidates = [
       { name: "Passive Heir", snippet: "celebrity socialite billionaire" },
       { name: "Active GP", snippet: "managing partner general partner founder portfolio" },
-    ]);
-    expect(ranked[0]!.name).toBe("Active GP");
+      { name: "山田 太郎", snippet: "取締役会長" },
+    ];
+    expect(rankCandidatesForAdmission(candidates)).toEqual(candidates);
+    expect(rankDiscoveryReviewCandidates(candidates)).toEqual(candidates);
   });
 
-  it("leaves famous-person targetability to Boss reasoning rather than deterministic name rules", () => {
-    for (const name of ["Tim Cook", "Bernard Arnault", "Jensen Huang", "Warren Buffett"]) {
-      const fit = evaluateTargetFitness({ name, personScoped: true });
-      expect(shouldRejectTarget(fit)).toBe(false);
-      expect(fit.fit).not.toBe("reject_fame_only");
-      expect(scoreApproachableCandidate({ name, snippet: "CEO billionaire" })).toBeGreaterThan(0);
-    }
-  });
-
-  it("preserves person leads for AI relevance review and annotates only non-person shells", () => {
-    const filtered = filterDiscoveryCandidatesByFitness([
+  it("preserves person, company and unresolved leads without semantic shape filters", () => {
+    const candidates = [
       { name: "Tim Cook", type: "person", relevance: "CEO of Apple" },
       { name: "Quiet Operator", type: "person", relevance: "founder managing partner portfolio company" },
       { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
-    ]);
-    expect(filtered.some((c) => /tim cook/i.test(c.name))).toBe(true);
-    expect(filtered.some((c) => /quiet operator/i.test(c.name))).toBe(true);
-    expect(filtered.some((c) => /shell holdings/i.test(c.name))).toBe(true);
-    const ranked = rankDiscoveryReviewCandidates(filtered);
-    expect(ranked.some((c) => /tim cook/i.test(c.name))).toBe(true);
-    expect(ranked.some((c) => /quiet operator/i.test(c.name))).toBe(true);
+      { name: "山田 太郎", type: "unknown", relevance: "取締役会長" },
+    ];
+    expect(filterDiscoveryCandidatesByFitness(candidates)).toEqual(candidates);
+    expect(rankDiscoveryReviewCandidates(candidates)).toEqual(candidates);
   });
 
-  it("keeps quiet person-shaped officers above zero score", () => {
-    const score = scoreApproachableCandidate({
-      name: "Marta Ellison",
-      snippet: "Managing director and founder of a regional family office; LinkedIn and team page",
-    });
-    expect(score).toBeGreaterThan(0.4);
-  });
 });
 
 import { computeDiscoveryQualityMetrics } from "../lib/discovery-metrics";
