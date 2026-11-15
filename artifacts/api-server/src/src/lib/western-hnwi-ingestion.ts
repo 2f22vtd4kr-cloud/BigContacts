@@ -222,98 +222,83 @@ const SC13_SEARCH_TERMS = [
 async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
-  // Rotate term order + page start so the first admitted person is not always
-  // the same SEC EFTS hit (e.g. a fixed "Andrew F Johnson" from from=0 of term 0).
-  const terms = shuffleArray(SC13_SEARCH_TERMS);
-  const pageStart = Math.floor(Math.random() * 40) * 10; // 0..390
+  const pageStart = Math.floor(Math.random() * 40) * 10; // rotate through filing pages between runs
 
-  for (const term of terms) {
-    if (yielded >= maxCount) break;
+  // Search the complete filing forms, not a fixed list of English legal phrases.
+  for (let from = pageStart; from < pageStart + 5000 && yielded < maxCount; from += 10) {
+    const url = "https://efts.sec.gov/LATEST/search-index"
+      + "?forms=SC+13D,SC+13D%2FA,SC+13G,SC+13G%2FA"
+      + "&dateRange=custom&startdt=2015-01-01"
+      + "&from=" + String(from);
 
-    // Paginate through results — EDGAR returns 10 per page by default
-    for (let from = pageStart; from < pageStart + 5000 && yielded < maxCount; from += 10) {
-      const url =
-        `https://efts.sec.gov/LATEST/search-index` +
-        `?q=${encodeURIComponent(term)}` +
-        `&forms=SC+13D,SC+13G` +
-        `&dateRange=custom&startdt=2015-01-01` +
-        `&from=${from}`;
-
-      let data: any;
-      try {
-        const resp = await fetch(url, {
-          headers: EDGAR_HEADERS,
-          signal: AbortSignal.timeout(15_000),
-        });
-        if (!resp.ok) break;
-        data = await resp.json();
-      } catch {
-        break;
-      }
-
-      const hits: any[] = data?.hits?.hits ?? [];
-      if (hits.length === 0) break;
-
-      for (const hit of hits) {
-        if (yielded >= maxCount) break;
-        const src = hit?._source ?? {};
-
-        // EDGAR EFTS API uses display_names array: ["COMPANY (CIK xxx)", "PERSON NAME (CIK xxx)"]
-        // Extract all person-like names AND the issuer company name from the array
-        const displayNames: string[] = src?.display_names ?? [];
-        const allCleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
-        const personNames = allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name));
-        // The issuer is the non-person display_name — the company whose stock is being reported on
-        // Preserve the complete registry display-name set; the Investigator resolves issuer/person roles from source context.
-        const companyIssuer: string | null = null;
-
-        if (personNames.length === 0) continue;
-
-        const formType: string = (src?.root_forms?.[0] ?? src?.form ?? "SC 13D").trim();
-        const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string =
-          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
-
-        for (const rawName of personNames) {
-          if (yielded >= maxCount) break;
-          const sourceRegistry = `SEC EDGAR — ${formType}`;
-          const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "unidentified");
-          const rawMetadata: Record<string, unknown> = {
-            source: "sec-edgar",
-            sourceRecordId: `sec-edgar:${accession}:${normalizeName(rawName)}`,
-            formType,
-            fileDate,
-            bizLocation,
-            entityName: rawName,
-            displayNames: allCleanNames,
-            ...(companyIssuer ? { companyName: companyIssuer } : {}),
-            edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
-          };
-          const sourceKey = dedupKey(rawName, "US", sourceRegistry, rawMetadata);
-          if (seen.has(sourceKey)) continue;
-          seen.add(sourceKey);
-
-          yielded++;
-          yield {
-            name: normalizeEdgarName(rawName),
-            nationality: "American",
-            location: bizLocation,
-            sourceRegistry,
-            filingType: formType,
-            rawMetadata,
-            signals: {
-              isLargeShareholder: true,
-              isBoardDirector: false,
-              isCompanyOfficer: false,
-              hasRecentFiling: fileDate >= "2022-01-01",
-              jurisdiction: "US",
-            },
-          };
-        }
-      }
-
-      await sleep(120); // respect EDGAR's 10 req/s limit
+    let data: any;
+    try {
+      const resp = await fetch(url, {
+        headers: EDGAR_HEADERS,
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!resp.ok) break;
+      data = await resp.json();
+    } catch {
+      break;
     }
+
+    const hits: any[] = data?.hits?.hits ?? [];
+    if (hits.length === 0) break;
+
+    for (const hit of hits) {
+      if (yielded >= maxCount) break;
+      const src = hit?._source ?? {};
+      const displayNames: string[] = src?.display_names ?? [];
+      const allCleanNames = displayNames.map((displayName: string) => displayName.replace(/\\s*\\(CIK\\s*\\d+\\)\\s*$/i, "").trim());
+      // Structural validation only. The batch LLM decides which names are people.
+      const candidateNames = allCleanNames.filter((name: string) => isStructurallyValidCandidateName(name));
+      if (candidateNames.length === 0) continue;
+
+      const formType: string = (src?.root_forms?.[0] ?? src?.form ?? "SC 13D").trim();
+      const fileDate: string = src?.file_date ?? "";
+      const bizLocation: string = (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
+      const accession = String(hit?._id ?? src?.accession_number ?? src?.accessionNumber ?? "unidentified");
+      const sourceRegistry = "SEC EDGAR — " + formType;
+
+      for (const rawName of candidateNames) {
+        if (yielded >= maxCount) break;
+        const rawMetadata: Record<string, unknown> = {
+          source: "sec-edgar",
+          sourceRecordId: "sec-edgar:" + accession + ":" + normalizeName(rawName),
+          accessionNumber: accession,
+          formType,
+          fileDate,
+          bizLocation,
+          entityName: rawName,
+          displayNames: allCleanNames,
+          edgarUrl: "https://www.sec.gov/cgi-bin/browse-edgar?company=" + encodeURIComponent(rawName)
+            + "&CIK=&type=" + encodeURIComponent(formType) + "&dateb=&owner=include&count=10&search_text=&action=getcompany",
+        };
+        const sourceKey = dedupKey(rawName, "US", sourceRegistry, rawMetadata);
+        if (seen.has(sourceKey)) continue;
+        seen.add(sourceKey);
+
+        yielded++;
+        yield {
+          name: normalizeEdgarName(rawName),
+          nationality: "American",
+          location: bizLocation,
+          sourceRegistry,
+          filingType: formType,
+          rawMetadata,
+          signals: {
+            isLargeShareholder: true,
+            isBoardDirector: false,
+            isCompanyOfficer: false,
+            hasRecentFiling: fileDate >= "2022-01-01",
+            jurisdiction: "US",
+          },
+        };
+      }
+    }
+
+    await sleep(120); // respect SEC request limits
   }
 }
 
