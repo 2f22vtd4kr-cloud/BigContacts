@@ -55,7 +55,7 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
 
     const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
-    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationEnd = canonicalAtlas.indexOf("\nexport async function runCanonicalAtlasPipeline", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
       organizationStart,
       organizationEnd >= 0 ? organizationEnd : canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings", organizationStart),
