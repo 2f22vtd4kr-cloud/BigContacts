@@ -711,6 +711,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(targetActOversightSource).toContain("validateTargetActRightHandAdvice");
     expect(targetActOversightSource).toContain("validateAtlasOpeningRightHandReview(value)");
     expect(targetActOversightSource).toContain("runGroqRightHandFreeJson(");
+    expect(targetActOversightSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(targetActOversightSource).toContain("maxCompletionTokens:512");
+    expect(targetActOversightSource).toContain('reasoningEffort:"low"');
     expect(targetActOversightSource).toContain("focusLanes");
   });
 
@@ -727,6 +730,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("Right-hand review is invoked only for consequential, evidence-bearing");
     expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
     expect(canonicalTargetSource).toContain("reviewTargetInvestigationAct({");
+    expect(targetActOversightSource).toContain("shouldReviewTargetActWithRightHand");
     expect(targetActOversightSource).toContain("Right-hand per-act review unavailable");
   });
 
