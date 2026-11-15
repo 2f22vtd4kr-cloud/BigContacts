@@ -1069,8 +1069,8 @@ describe("Apex research runtime readiness hardening", () => {
       ...base,
       searches: [],
     }))).toContain("searches_min=1");
-    expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
-    expect(researchCoreSource).toContain('registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null]');
+    expect(researchCoreSource).toContain('required: ["query"]');
+    expect(researchCoreSource).toContain('registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()]');
   });
 
 
@@ -1197,7 +1197,7 @@ describe("unapproved discovery geography guard", () => {
     expect(runtimeSource).not.toContain("unapproved_geography_guard");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
     expect(orientationSource).toContain("The Investigator chooses tools; providers only execute.");
-  });;
+  });
 });
 
 
