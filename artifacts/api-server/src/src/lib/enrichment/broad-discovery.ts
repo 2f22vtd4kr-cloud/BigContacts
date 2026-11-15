@@ -764,24 +764,8 @@ export async function runBroadDiscovery(options: {
     newEntities = [];
   }
 
-  // Person-first ranking + fame-only zero-score: prefer approachable principals under budget.
-  try {
-    const { rankCandidatesForAdmission, scoreApproachableCandidate } = await import("../discovery-intake");
-    newEntities = rankCandidatesForAdmission(newEntities).filter((candidate) => {
-      const score = scoreApproachableCandidate({
-        name: candidate.name,
-        snippet: candidate.snippet,
-        query: candidate.query,
-      });
-      if (score <= 0) {
-        logger.info({ name: candidate.name }, "broad-discovery: rejected fame-only or non-person fitness score 0");
-        return false;
-      }
-      return true;
-    });
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "broad-discovery: approachable ranking unavailable; continuing with LLM-filtered list");
-  }
+  // This legacy discovery adapter no longer applies semantic ranking or fame/wealth gates.
+  // Preserve the model-validated lead order; canonical discovery is handled by the Bureau Investigator.
 
   // Insert new entities
   let inserted = 0;
