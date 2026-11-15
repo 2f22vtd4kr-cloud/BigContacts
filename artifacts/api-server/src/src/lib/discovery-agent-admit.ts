@@ -66,8 +66,7 @@ export async function createEntityFromDiscoveryCandidate(
     .values({
       name,
       type: DISCOVERY_CANDIDATE_CLASSIFICATION.type,
-      // Do not synthesize a discovery score. Model-selected admission preserves
-      // model order; the value below is only a neutral seed for legacy list UI.
+      // The optional score field is omitted; the database default is storage-only, not ranking.
       notes,
       sourceRegistries: JSON.stringify(["discovery-agent"]),
       metadata: JSON.stringify({
