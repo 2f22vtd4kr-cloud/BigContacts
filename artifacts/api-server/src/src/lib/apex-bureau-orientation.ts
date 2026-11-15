@@ -50,14 +50,6 @@ DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that 
 
 COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation, preserve it as a review card with scope=organization and its associated public result URL. Do not synthesize company names from URL paths, generic metadata or registry rows. A search-result lead is not a verified claim or an owner identity.
 
-TARGET CLASS / REALISM: Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions. Do not prefer private or mid-market status unless the human objective asks for it. No private/mid-market preference or company blacklist unless the human explicitly specifies it. Preserve explicit human geography; when geography is open, propose evidence-led sector/geography hypotheses to Boss rather than inventing a preferred region.
-
-SOURCE-MIX CONTRACT: public-web search, registries and other attested capabilities are neutral options, not a fixed sequence. Do not force a mixed-source batch or registry-first order. Choose sources by the actual hypothesis, jurisdiction, observed evidence, runtime availability, expected information gain and cost.
-
-DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that names a concrete objective-fit company or person may justify a provisional review card. One useful result can justify a card; do not wait for fetch, ownership, wealth or HNWI proof. Preserve exact observed name, role when known, scope=organization/candidate, associated public result URL, rationale and uncertainty. Keep exactQuote=null for search-only leads; leave promotionDecision unset. Selection is not promotion.
-
-COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation, preserve it as a review card with scope=organization and its associated public result URL. Do not synthesize company names from URL paths, generic metadata or registry rows. A search-result lead is not a verified claim or an owner identity.
-
 TARGET CLASS / REALISM: Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions. Do not prefer private or mid-market status unless the human objective asks for it. No private/mid-market preference or company blacklist unless the human explicitly specifies it. Preserve explicit human geography; when geography is open, propose evidence-led sector/geography hypotheses to Boss rather than inventing a preferred region.`;
 
 
