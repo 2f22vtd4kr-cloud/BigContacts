@@ -137,8 +137,8 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(orientation).toContain("REVIEW LEADS: Investigator selects same-case people/companies/assets; one relevant result suffices as a provisional review.");
-    expect(orientation).toContain("no fetch/ownership/wealth/HNWI proof");
+    expect(orientation).toContain("REVIEW LEADS: Investigator may retain one relevant same-case person/company/asset as provisional.");
+    expect(orientation).toContain("A search result/snippet may support an unverified review card before the underlying page is fetched");
     expect(orientation).toContain("exact observed name, scope, source URL and rationale");
     expect(orientation).toContain("exactQuote=null");
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
