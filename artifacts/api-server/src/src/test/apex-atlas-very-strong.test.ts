@@ -43,7 +43,7 @@ describe("Apex Atlas very-strong research mechanism", () => {
       execution: "success",
       observation: "Fetched official officer record: Alex Example is director and website https://example.test",
       urls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"],
-      findings: [{ vectorType: "website", value: "https://example.test", personName: "Alex Example", role: "director", sourceUrls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"], note: "public registry record" }],
+      findings: [{ vectorType: "website", value: "https://example.test", personName: "Alex Example", role: "director", contactAttribution: "professional_person_specific", exactQuote: "Alex Example is director and website https://example.test", identityAssessment: "same_person", identityRationale: "The official officer record explicitly binds Alex Example to this professional route.", hypothesisRelation: "supports", hypothesisRationale: "The official officer record supports the director-role hypothesis.", sourceUrls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"], note: "public registry record" }],
     });
     const context = engine.buildContext();
     expect(context.hypotheses[0]?.missingDiscriminators).toContain("director appointment record");
