@@ -108,7 +108,7 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: One JSON object with six required root fields: action, query, thought, hypothesis, purpose, expectedInformationGain. Omit irrelevant optional fields. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: After visit/browser_fetch, use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML; failures are unknown. Image-only PDFs require OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.",
     "PARALLEL SHAPES: web items require query/provider; registry items require query/registry; other fields are action-specific. Runtime-attested actions and registry IDs only; parallel execution is bounded 1–4.",
-    "RANKINGS: ranking mentions are contextual leads, not sufficient proof by themselves; Inc. 5000/fast-growth/unicorn ranking mentions are contextual, not proof or gates. Do not invent a private/mid-market preference.",
+    "RANKINGS: ranking mentions are contextual leads, not sufficient proof by themselves; Inc. 5000/fast-growth/unicorn ranking mentions are contextual, not proof or gates. Do not invent private/mid-market preferences.",
     "RECOVERY: If a prior action was blocked before execution, reassess the proposed research independently against the human objective and current Boss-approved direction; do not mechanically repeat rejected wording.",
     "TERMINAL: Stop only at a defensible answer or justified blocker. Empty searches, failed fetches, unresolved useful leads and budget expiry are not substantiated research; an inconclusive outcome must be reported honestly."
   ].join("\n");
