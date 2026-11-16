@@ -4319,7 +4319,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
     expect(agenticCoreSource).toContain("const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(");
-    expect(agenticCoreSource).toContain("return providerBoundedPrompt;");
+    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
   });
 });
 
