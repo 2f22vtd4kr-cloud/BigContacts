@@ -3367,7 +3367,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
     return preserveSourceAlongsideGuard(
       "HISTORICAL PARALLEL-SEARCH DIAGNOSTIC (no request for rejected queries): only the retained queries executed; rejected queries produced no evidence. "
       + (rejectedDimensions ? "Rejected dimensions: " + rejectedDimensions + ". " : "")
-      + "Use results only from executed queries. Reassess future queries against the human objective and Boss-approved scope; propose material scope changes to Boss rather than treating this filter as a research strategy.",
+      + "Use results only from executed queries. Reassess the proposed research independently against the human objective and the current Boss-approved direction; propose material scope changes to Boss rather than treating this filter as a research strategy.",
     );
   }
   if (/ordered_source_stage_guard/i.test(normalized)) {
