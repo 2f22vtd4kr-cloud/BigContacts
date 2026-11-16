@@ -8,10 +8,11 @@ import { isMockMode } from "@/lib/dev-mock-data";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 /** Default case objective used by the normal UI launch; operators can edit it before starting. */
-export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Find lesser-known people with credible wealth potential who may be relevant to the founder’s objective. Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class, geography or target quota. Never invent people, relationships, wealth, contacts or URLs.";
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Find lesser-known people with credible wealth potential who may be relevant to the founder’s objective. Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class or geography. Operator caps are resource limits, not relevance or admission rules. Never invent people, relationships, wealth, contacts or URLs.";
 
 
 export type LaunchAtlasOptions = {
+  /** Operator spending cap; defaults to one target investigation. */
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
@@ -38,7 +39,7 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
 
   const isSingle = opts.singleTargetId != null;
   const body = {
-    // One target is enough to begin; additional targets should not be discovered while the selected target remains under-researched.
+    // This is a resource ceiling, not a candidate admission or relevance decision.
     targetCount: opts.targetCount ?? 1,
     researchDepth: opts.researchDepth ?? "standard",
     targetTimeoutMs: 420_000,

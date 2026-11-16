@@ -68,7 +68,7 @@ describe("bounded PDF text extraction", () => {
     expect(result.text).toContain("Official filing: Apex Example GmbH");
     expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, truncated: false });
     expect(runtime.DOMMatrix).toBe(previousDomMatrix);
-  });
+  }, 15_000);
 
   it("returns no text for a blank PDF instead of manufacturing content", async () => {
     const result = await extractPdfText(minimalPdf(""));

@@ -70,16 +70,16 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
     expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
-    expect(replitConfig).toContain('run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true');
-    expect(replitConfig).toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
-    expect(replitConfig).toContain("APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false");
-    expect(replitConfig).toContain("APEX_MODEL_AUDIT_FILE=private-audits/");
-    expect(replitConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false");
-    expect(replitConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false");
+    const deploymentConfig = replitConfig.split("[deployment]")[1]?.split("[deployment.postBuild]")[0] ?? "";
+    expect(deploymentConfig).toContain("NODE_ENV=production");
+    expect(deploymentConfig).not.toContain("APEX_OPERATOR_AUTH_BYPASS=true");
+    expect(deploymentConfig).not.toContain("VITE_APEX_OPERATOR_AUTH_BYPASS=true");
+    expect(deploymentConfig).toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
+    expect(deploymentConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false");
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
-    expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
+    expect(preflightSource).toContain('const explicitOperatorAuthBypass = developmentMode && process.env.APEX_OPERATOR_AUTH_BYPASS === "true"');
     expect(preflightSource).toContain("SKIP operator-auth secrets");
     expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
     expect(preflightSource).toContain("APEX_OPERATOR_PASSWORD");
@@ -89,11 +89,17 @@ describe("operator authentication boundary", () => {
   });
 
 
-  it("bypasses operator authentication only with the explicit Replit runtime flag", () => {
+  it("bypasses operator authentication only with the explicit Replit development flag", () => {
     expect(isOperatorAuthBypassed({ NODE_ENV: "development" })).toBe(false);
     expect(isOperatorAuthBypassed({ NODE_ENV: "production" })).toBe(false);
-    expect(isOperatorAuthBypassed({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(true);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(false);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(true);
     expect(isOperatorAuthBypassed({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "false" })).toBe(false);
+    const productionGuard = createRequireOperatorAuth(() => ({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" }));
+    const productionResponse = response(); let productionNext = 0;
+    productionGuard(request(), productionResponse.value, (() => { productionNext += 1; }) as never);
+    expect(productionResponse.result.statusCode).toBe(503);
+    expect(productionNext).toBe(0);
     const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "true" }));
     const res = response(); let next = 0;
     guard(request({ method: "POST", path: "/research/launch" }), res.value, (() => { next += 1; }) as never);

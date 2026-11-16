@@ -164,14 +164,13 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
 
   try {
     const result = await runCanonicalAtlasPipeline(jobId, {
-      targetCount: 1,
       researchDepth: "standard",
       targetTimeoutMs: 420_000,
       discoveryObjective: "Discover one real named executive or founder associated with OpenAI using public web evidence. The Investigator must choose every search, page visit, registry/OSINT action, and stopping point itself. A candidate is valid only when the real Investigator produces an exact named-person promote finding backed by a directly retrieved source page that identifies that person. Never invent a person, contact, or URL.",
       discoveryGeography: "Public web; global; prefer authoritative public company or professional sources",
     });
     const finalJob = await getJob(jobId);
-    await appendAudit("completed the canonical downstream pipeline invocation", `runCanonicalAtlasPipeline(${jobId}, targetCount=1, researchDepth=standard, targetTimeoutMs=420000, bounded discovery objective)`, { pipelineResult: result, finalJob }, "The canonical downstream path ran with real Investigator/tools/persistence while Gemini Boss and Right-hand were the only substituted roles.", "Inspect target-scoped durable cases/events and entity/card projection for this exact job.");
+    await appendAudit("completed the canonical downstream pipeline invocation", `runCanonicalAtlasPipeline(${jobId}, model-owned target selection, researchDepth=standard, targetTimeoutMs=420000, bounded discovery objective)`, { pipelineResult: result, finalJob }, "The canonical downstream path ran with real Investigator/tools/persistence while Gemini Boss and Right-hand were the only substituted roles.", "Inspect target-scoped durable cases/events and entity/card projection for this exact job.");
 
     const targetCases = await db
       .select({

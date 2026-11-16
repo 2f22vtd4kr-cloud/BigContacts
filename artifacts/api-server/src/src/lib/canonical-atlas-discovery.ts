@@ -8,7 +8,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "./atlas-launch-defaults";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -29,6 +29,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
+import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
@@ -38,6 +39,7 @@ import { logger } from "./logger";
 import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
+  /** Operator-controlled maximum number of target investigations; never a candidate admission/relevance rule. */
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   targetTimeoutMs?: number;
@@ -307,7 +309,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       // Materialized discovery entities carry their owning discoveryCaseId in metadata;
       // only that durable case binding is eligible for this canonical research path.
       const existing = existingRows.find((row) => {
-        try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === input.discoveryCaseId; } catch { return false; }
+        const metadata = (parseJsonRecord(row.metadata) ?? {}); return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
       });
       let entityId = existing?.id ?? null;
       let createdEntity = false;
@@ -328,7 +330,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         const existingEvidence = existingByUrl.get(support.sourceUrl);
         if (existingEvidence) {
           let priorMetadata: Record<string, unknown> = {};
-          try { const parsed: unknown = JSON.parse(existingEvidence.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>; } catch {}
+          priorMetadata = (parseJsonRecord(existingEvidence.metadata) ?? {});
           await tx.update(researchEvidenceTable).set({ metadata: JSON.stringify({ ...priorMetadata, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole || null, independentPublisher: support.publisher, reviewOnly: true }) }).where(eq(researchEvidenceTable.id, existingEvidence.id));
           durableSourceCount += 1;
           continue;
@@ -355,7 +357,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       }
       if (existing && entityId) {
         let priorEntityMetadata: Record<string, unknown> = {};
-        try { const parsed: unknown = JSON.parse(existing.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorEntityMetadata = parsed as Record<string, unknown>; } catch {}
+        priorEntityMetadata = (parseJsonRecord(existing.metadata) ?? {});
         await tx.update(entitiesTable).set({ metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: "investigator-explicit-promotion", partialPersonLead: false, stage: "candidate_review", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole || null, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
       }
       return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: durableSourceCount >= 1 };
@@ -652,7 +654,7 @@ async function materializePartialPersonLeadCards(input: {
       )).limit(32);
       const sameCaseExisting = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
           return false;
@@ -660,7 +662,7 @@ async function materializePartialPersonLeadCards(input: {
       });
       const sameCase = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return row.type === "PersonCandidate" && metadata.partialPersonLead === true
             && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
@@ -672,7 +674,7 @@ async function materializePartialPersonLeadCards(input: {
       if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, eligible: true };
       const identityCollisionPossible = existingRows.some((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
         } catch {
           return true;
@@ -680,7 +682,7 @@ async function materializePartialPersonLeadCards(input: {
       });
       let priorMetadata: Record<string, unknown> = {};
       try {
-        const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
+        const parsed = (parseJsonRecord(sameCase?.metadata) ?? {});
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>;
       } catch {}
       // A durably admitted candidate is already a stronger version of this
@@ -1047,7 +1049,7 @@ async function materializePartialOrganizationLeadCards(input: {
       )).limit(32);
       const sameCaseExisting = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
           return false;
@@ -1055,7 +1057,7 @@ async function materializePartialOrganizationLeadCards(input: {
       });
       const sameCase = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return metadata.partialOrganizationLead === true
             && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
@@ -1067,7 +1069,7 @@ async function materializePartialOrganizationLeadCards(input: {
       if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, candidate: { name, sourceUrls: [...supports.keys()] } };
       const identityCollisionPossible = existingRows.some((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = (parseJsonRecord(row.metadata) ?? {});
           return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
         } catch {
           return true;
@@ -1215,7 +1217,7 @@ async function materializePartialOrganizationLeadCards(input: {
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
-  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 1) || 1)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
+  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   let discoveryObjective = opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
   const discoveryContext = opts.discoveryContext?.trim() ?? "";
   if (discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
@@ -2016,7 +2018,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; let priorCandidateType: "person" | "organization" | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; priorCandidateType = prior.candidateType === "person" || prior.candidateType === "organization" ? prior.candidateType : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows; let researched = 0; let contactsFound = 0; let operatorTargetSpendingCapReached = false; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; let priorCandidateType: "person" | "organization" | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; priorCandidateType = prior.candidateType === "person" || prior.candidateType === "organization" ? prior.candidateType : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     // Deterministic execution safety only: let Boss correct a rejected direction once,
     // but do not spend more model calls repeating the same invalid control decision.
     let lastRejectedPivotKey = "";
@@ -2080,7 +2082,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     while (true) {
       await assertAtlasJobActive(atlasJobId);
       assertAtlasDeadline();
-      if (researched >= targetLimit) break;
+      // The operator spending cap bounds how many admitted candidates receive target-stage work.
+      // Candidate relevance, admission, order and semantic stopping remain model-owned.
       // If no review-only lead qualified, do not keep spending model tokens on
       // Boss control turns after discovery has exhausted its own allocation.
       // There is no valid target-research action without an admitted candidate.
@@ -2391,6 +2394,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "stop") break;
       priorAction = decision.action; priorCandidate = decision.candidateName;
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
+        if (researched >= targetLimit) {
+          operatorTargetSpendingCapReached = true;
+          phaseSummary.operatorTargetSpendingCap = `Operator spending cap reached after ${targetLimit} target investigation(s); Boss requested additional target-stage work, which was not started.`;
+          // The operator budget is a resource ceiling, not a semantic stop.
+          // Preserve the model's requested action and leave the case for review.
+          break;
+        }
         await assertAtlasJobActive(atlasJobId);
         const name = decision.candidateName; if (!name) continue;
         failureStage = "case_persistence";
@@ -2400,7 +2410,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, eligibleEntityTypes))).limit(16);
         const entity = entityRows.find((row) => {
           try {
-            const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+            const metadata = (parseJsonRecord(row.metadata) ?? {});
             return Number(metadata.discoveryCaseId) === discoveryCaseId
               && (selectedTargetType !== "organization" || metadata.partialOrganizationLead === true);
           } catch { return false; }
@@ -2865,14 +2875,16 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     const deadlineExceeded = Date.now() >= atlasDeadline;
     const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched);
-    const finalIncomplete = investigatorResourceLimited || deadlineExceeded || finalControlAction !== "stop" || !evidenceBackedTerminal;
+    const finalIncomplete = operatorTargetSpendingCapReached || investigatorResourceLimited || deadlineExceeded || finalControlAction !== "stop" || !evidenceBackedTerminal;
     const finalCaseStatus = finalIncomplete ? "review" : "complete";
     const finalCaseAction = finalIncomplete
       ? investigatorResourceLimited
         ? "canonical-investigator-resource-ceiling"
         : deadlineExceeded
           ? "canonical-atlas-deadline"
-          : finalControlAction !== "stop"
+          : operatorTargetSpendingCapReached
+            ? "canonical-operator-target-spending-cap"
+            : finalControlAction !== "stop"
             ? `canonical-control-${finalControlAction ?? "incomplete"}`
             : "canonical-evidence-terminal-incomplete"
       : "canonical-atlas-complete";
@@ -2888,6 +2900,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       materializedCardCount: materialized,
       evidenceRows,
       completedTargetInvestigations: researched,
+      operatorTargetSpendingCap: targetLimit,
+      operatorTargetSpendingCapReached,
       explicitCardPromotions: contactsFound,
       controlTurns,
       finalControlAction,
@@ -2912,7 +2926,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
     failureStage = "job_state_or_lease";
-    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ terminal: terminalSnapshot, rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
+    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (operatorTargetSpendingCapReached ? `Operator target-investigation spending cap reached after ${researched} target investigation(s); Boss requested additional target-stage work, so the case is preserved for review.` : investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ terminal: terminalSnapshot, rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "";
