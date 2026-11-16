@@ -75,6 +75,21 @@ function uniqueNames(values: string[]): string[] {
   return result;
 }
 function isObservedHttpsSource(value: unknown): value is string { return typeof value === "string" && /^https:\/\/\S+$/i.test(value); }
+function asJsonRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
 function normalizeSourceUrl(raw: string): string | null { try { const safe = sanitizeUrlForEvidence(raw); if (safe.startsWith("[")) return null; const url = new URL(safe); if (url.protocol !== "https:") return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
 
 type CanonicalAdmittedTargetSource = {
@@ -308,7 +323,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       // Materialized discovery entities carry their owning discoveryCaseId in metadata;
       // only that durable case binding is eligible for this canonical research path.
       const existing = existingRows.find((row) => {
-        try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === input.discoveryCaseId; } catch { return false; }
+        const metadata = asJsonRecord(row.metadata); return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
       });
       let entityId = existing?.id ?? null;
       let createdEntity = false;
@@ -329,7 +344,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         const existingEvidence = existingByUrl.get(support.sourceUrl);
         if (existingEvidence) {
           let priorMetadata: Record<string, unknown> = {};
-          try { const parsed: unknown = JSON.parse(existingEvidence.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>; } catch {}
+          priorMetadata = asJsonRecord(existingEvidence.metadata);
           await tx.update(researchEvidenceTable).set({ metadata: JSON.stringify({ ...priorMetadata, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole || null, independentPublisher: support.publisher, reviewOnly: true }) }).where(eq(researchEvidenceTable.id, existingEvidence.id));
           durableSourceCount += 1;
           continue;
@@ -356,7 +371,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       }
       if (existing && entityId) {
         let priorEntityMetadata: Record<string, unknown> = {};
-        try { const parsed: unknown = JSON.parse(existing.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorEntityMetadata = parsed as Record<string, unknown>; } catch {}
+        priorEntityMetadata = asJsonRecord(existing.metadata);
         await tx.update(entitiesTable).set({ metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: "investigator-explicit-promotion", partialPersonLead: false, stage: "candidate_review", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole || null, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
       }
       return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: durableSourceCount >= 1 };
@@ -653,7 +668,7 @@ async function materializePartialPersonLeadCards(input: {
       )).limit(32);
       const sameCaseExisting = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
           return false;
@@ -661,7 +676,7 @@ async function materializePartialPersonLeadCards(input: {
       });
       const sameCase = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return row.type === "PersonCandidate" && metadata.partialPersonLead === true
             && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
@@ -673,7 +688,7 @@ async function materializePartialPersonLeadCards(input: {
       if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, eligible: true };
       const identityCollisionPossible = existingRows.some((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
         } catch {
           return true;
@@ -681,7 +696,7 @@ async function materializePartialPersonLeadCards(input: {
       });
       let priorMetadata: Record<string, unknown> = {};
       try {
-        const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
+        const parsed = asJsonRecord(sameCase?.metadata);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>;
       } catch {}
       // A durably admitted candidate is already a stronger version of this
@@ -1048,7 +1063,7 @@ async function materializePartialOrganizationLeadCards(input: {
       )).limit(32);
       const sameCaseExisting = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
           return false;
@@ -1056,7 +1071,7 @@ async function materializePartialOrganizationLeadCards(input: {
       });
       const sameCase = existingRows.find((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return metadata.partialOrganizationLead === true
             && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
         } catch {
@@ -1068,7 +1083,7 @@ async function materializePartialOrganizationLeadCards(input: {
       if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, candidate: { name, sourceUrls: [...supports.keys()] } };
       const identityCollisionPossible = existingRows.some((row) => {
         try {
-          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          const metadata = asJsonRecord(row.metadata);
           return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
         } catch {
           return true;
@@ -2409,7 +2424,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, eligibleEntityTypes))).limit(16);
         const entity = entityRows.find((row) => {
           try {
-            const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+            const metadata = asJsonRecord(row.metadata);
             return Number(metadata.discoveryCaseId) === discoveryCaseId
               && (selectedTargetType !== "organization" || metadata.partialOrganizationLead === true);
           } catch { return false; }
