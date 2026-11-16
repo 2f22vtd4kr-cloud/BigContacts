@@ -181,7 +181,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         hypothesis: "The fetched company page may bind both names to their roles.",
         purpose: "Verify the exact names and roles in observed page text.",
         expectedInformationGain: 0.9,
-        findings: [],
+        findings,
       },
       {
         action: "done",
@@ -311,7 +311,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.events).toEqual(expect.arrayContaining([expect.objectContaining({ actorRole: "head_investigator", eventType: "tool_observation" })]));
-    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName) })]));
+    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
     expect(outcome.admittedEntities).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
