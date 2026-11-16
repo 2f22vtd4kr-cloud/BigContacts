@@ -2579,8 +2579,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
-    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted. Discovery remains capped at");
-    expect(canonicalAtlasDiscoverySource).toContain("the protected target-research reserve is not released for additional broad discovery");
+    expect(canonicalAtlasDiscoverySource).not.toContain("No candidate has been admitted. Discovery remains capped at");
+    expect(canonicalAtlasDiscoverySource).not.toContain("the protected target-research reserve is not released for additional broad discovery");
+    expect(canonicalAtlasDiscoverySource).not.toContain("MAX_DISCOVERY_SEARCH_ACTIONS");
     expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
@@ -4357,7 +4358,7 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlasDiscoverySource).toContain('payload.runId !== input.discoveryRunId');
     expect(canonicalAtlasDiscoverySource).toContain('targetEligibleForResearch');
-    expect(canonicalAtlasDiscoverySource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(canonicalAtlasDiscoverySource).toContain('const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source" && !support.restrictedCommunitySource)');
     expect(canonicalAtlasDiscoverySource).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
   });
 });
