@@ -2392,6 +2392,7 @@ async function callGroqJson(
     cognitiveTask,
     originalPromptChars: Math.max(prompt.length, Math.floor(originalPromptChars)),
     promptReductionChars: Math.max(0, Math.floor(originalPromptChars) - prompt.length),
+    estimatedPromptTokens: Math.ceil((INVESTIGATOR_SYSTEM_PROMPT().length + prompt.length) / 3.4),
   };
   if (!key) return null;
   let attempt = 0;
