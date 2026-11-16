@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
   outboundUrls: [] as string[],
   pageUrl: "",
-  runCanonicalSingleTargetInvestigation: vi.fn(),
+  runTargetContactAgent: vi.fn(),
 }));
 
 vi.mock("../lib/job-queue", async () => {
@@ -56,9 +56,9 @@ vi.mock("../lib/investigator-trace", async () => {
   const actual = await vi.importActual<typeof import("../lib/investigator-trace")>("../lib/investigator-trace");
   return { ...actual, recordDiscoveryTrace: vi.fn(async () => undefined) };
 });
-vi.mock("../lib/canonical-single-target-runner", async () => {
-  const actual = await vi.importActual<typeof import("../lib/canonical-single-target-runner")>("../lib/canonical-single-target-runner");
-  return { ...actual, runCanonicalSingleTargetInvestigation: mocks.runCanonicalSingleTargetInvestigation };
+vi.mock("../lib/target-contact-agent", async () => {
+  const actual = await vi.importActual<typeof import("../lib/target-contact-agent")>("../lib/target-contact-agent");
+  return { ...actual, runTargetContactAgent: mocks.runTargetContactAgent };
 });
 vi.mock("../lib/groq-boss", async () => {
   const actual = await vi.importActual<typeof import("../lib/groq-boss")>("../lib/groq-boss");
@@ -87,7 +87,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   const environmentKeys = ["GROQ_INVESTIGATOR_API_KEY", "SERPER_API_KEY", "APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "APEX_GROQ_TPM_BUDGET", "APEX_GROQ_TPM_MAX_WAIT_MS", "APEX_GROQ_DAILY_TOKEN_BUDGET", "APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "APEX_GROQ_DAILY_TOKEN_BUDGET_20B"];
   const originalEnvironment = new Map(environmentKeys.map((key) => [key, process.env[key]]));
   const runToken = randomUUID();
-  const sourceUrl = `https://example.com/apex-offline/${runToken}/company`;
+  const sourceUrl = `https://www.sec.gov/Archives/edgar/data/0000320193/offline-${runToken}`;
   const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
   const secondName = `John Offline ${runToken.slice(0, 8)}`;
 
@@ -115,6 +115,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     mocks.targetCalls.length = 0;
     mocks.controlCalls = 0;
     mocks.outboundUrls.length = 0;
+    mocks.pageUrl = sourceUrl;
     vi.clearAllMocks();
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
@@ -145,17 +146,14 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     }));
 
     mocks.runGroqRightHandFreeJson.mockImplementation(async (...args: any[]) => {
-      const context = args[4] ?? {};
-      const raw = context.cognitiveTask === "control_advisory"
-        ? JSON.stringify({ decision: "continue_discovery", reason: "Continue testing the evidence trajectory.", direction: null, confidence: 0.9 })
-        : JSON.stringify({
-            assessment: "support",
-            materialGaps: [],
-            contradictions: [],
-            alternativeInterpretation: "The selected lead remains provisional pending target research.",
-            recommendation: "Allow the model-owned target investigation to proceed.",
-            confidence: 0.9,
-          });
+      const responseFormat = args[2] ?? {};
+      const schema = responseFormat.schema ?? responseFormat.json_schema?.schema ?? {};
+      const properties = schema.properties ?? {};
+      const raw = "focusLanes" in properties
+        ? JSON.stringify({ decision: "support", reason: "The target act is supported by a same-source identity and role excerpt.", focusLanes: ["identity", "professional role"], confidence: 0.95 })
+        : "assessment" in properties
+          ? JSON.stringify({ assessment: "support", materialGaps: [], contradictions: [], alternativeInterpretation: "The selected lead remains provisional pending target research.", recommendation: "Allow the model-owned target investigation to proceed.", confidence: 0.9 })
+          : JSON.stringify({ decision: "continue_discovery", reason: "Continue testing the evidence trajectory.", direction: null, confidence: 0.9 });
       return { status: "completed", model: "mock-groq-right-hand", raw, error: null };
     });
 
@@ -214,69 +212,48 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       throw new Error(`Unexpected outbound request in offline integration test: ${url}`);
     });
-    mocks.generateGroqBossText.mockImplementation(async (_selection: any, _prompt: string, _options: any) => {
+    mocks.generateGroqBossText.mockImplementation(async (_selection: any, prompt: string, _options: any) => {
+      if (prompt.includes("JUST-COMPLETED ACT:")) {
+        return { model: "mock-groq-boss", raw: JSON.stringify({ action: "stop", direction: null, reason: "The target act produced a durable exact-source evidence graph; no additional act is needed for this offline test.", confidence: 0.95 }), error: null, attempts: [] };
+      }
       const call = mocks.controlCalls++;
       let action: string;
       let candidateName: string | null = null;
       let candidateType: string | null = null;
-      if (call === 0) {
-        action = "continue_discovery";
-      } else if (call === 1) {
-        action = "research_candidate";
-        candidateName = firstName;
-        candidateType = "person";
-      } else if (mocks.scenario === "operator-cap") {
-        action = "research_candidate";
-        candidateName = secondName;
-        candidateType = "person";
-      } else {
-        action = "stop";
-      }
-      return {
-        model: "mock-groq-boss",
-        raw: JSON.stringify({
-          action,
-          candidateName,
-          candidateType,
-          direction: null,
-          reason: "Mock provider response: Boss makes the control decision.",
-          confidence: 0.9,
-        }),
-        error: null,
-        attempts: [],
-      };
+      if (call === 0) action = "continue_discovery";
+      else if (call === 1) { action = "research_candidate"; candidateName = firstName; candidateType = "person"; }
+      else if (mocks.scenario === "operator-cap") { action = "research_candidate"; candidateName = secondName; candidateType = "person"; }
+      else action = "stop";
+      return { model: "mock-groq-boss", raw: JSON.stringify({ action, candidateName, candidateType, direction: null, reason: "Mock provider response: Boss makes the control decision.", confidence: 0.9 }), error: null, attempts: [] };
     });
 
-    mocks.runCanonicalSingleTargetInvestigation.mockImplementation(async (jobId: string, entityId: number) => {
-      mocks.targetCalls.push(entityId);
-      await db.insert(tables.researchCasesTable).values({
-        targetEntityId: entityId,
-        caseType: "target",
-        status: "complete",
-        objective: "Offline target verification for a model-selected organization.",
-        motivation: "Canonical Atlas orchestration integration test.",
-        currentAction: "canonical-target-complete",
-        caseFile: JSON.stringify({
-          atlasJobId: jobId,
-          completedActs: 1,
-          resourceLimited: false,
-          deadlineExceeded: false,
-          cancelled: false,
-          evidenceGraph: [{ claim: "Target verification evidence persisted by the mocked target stage." }],
-          lastOversight: { status: "completed", action: "stop", model: "mock-groq-right-hand" },
-          contextDocument: "Offline target verification completed with a durable evidence graph.",
-        }),
-      });
-      return {
-        status: "complete",
-        budgetExhausted: false,
-        usageLedgerUnavailable: false,
-        exhaustedInvestigatorLlm: [],
-        investigatorIterationsUsed: 1,
-        resourceLimited: false,
-        deadlineExceeded: false,
-        cancelled: false,
-      };
+    const exactQuote = `${firstName} is the Chief Executive Officer of Apex Offline Holdings.`;
+    const targetFinding = {
+      vectorType: "other", value: "Chief Executive Officer", personName: firstName, role: "Chief Executive Officer",
+      scope: "candidate", sourceUrls: [sourceUrl],
+      note: "The target-scoped Investigator found a current professional role in the fetched source.",
+      contactAttribution: "professional_person_specific", exactQuote, identityAssessment: "same_person",
+      identityRationale: "The fetched source names this person and the role in the same statement.",
+      hypothesisRelation: "supports", hypothesisRationale: "The source directly supports the target role hypothesis.",
+      relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: null,
+      promotionDecision: "promote", promotionReason: "A same-source exact quote supports this professional role.",
+    };
+    mocks.runTargetContactAgent.mockImplementation(async (input: any) => {
+      mocks.targetCalls.push(input.entityId);
+      const executionId = `offline-target-${runToken}`;
+      const now = new Date().toISOString();
+      const records = [
+        { turn: 1, model: "groq-investigator-1", action: "web_search", args: { query: "Apex Offline Holdings leadership" }, thought: "Find a public source for the target role.", execution: "success", observation: `Search result for ${firstName} and the company leadership page.`, observedUrls: [], leadUrls: [sourceUrl], findings: [], providerFallback: [] },
+        { turn: 2, model: "groq-investigator-1", action: "visit", args: { url: sourceUrl }, thought: "Fetch the source to verify the role and identity.", execution: "success", observation: exactQuote, observedUrls: [sourceUrl], leadUrls: [], findings: [targetFinding], providerFallback: [] },
+        { turn: 3, model: "groq-investigator-1", action: "done", args: {}, thought: "The fetched source resolves the current target-role question.", execution: "success", observation: "The target-scoped research act is complete; return control for independent oversight.", observedUrls: [], leadUrls: [], findings: [], providerFallback: [], stopReason: "MODEL_DECIDED_DONE" },
+      ];
+      for (const record of records) await input.onTrajectoryRecord?.(record);
+      const observation = { id: `offline-observation-${runToken}`, sourceUrl, sourceHost: "www.sec.gov", observedAt: now, runId: executionId, caseId: input.caseId, turn: 2, collectionMethod: "visit", excerpt: exactQuote };
+      const claim = { id: `offline-claim-${runToken}`, subject: firstName, predicate: "other", object: "Chief Executive Officer", scope: "target", personName: firstName, confidence: 0.95 };
+      return { researchOutcome: "evidence_backed", stopReason: "MODEL_DECIDED_DONE", iterations: 3, status: "completed", model: input.investigatorLlm, findings: 1, searches: 1, visits: 1,
+        trajectory: ["step1: web_search execution=success", `step2: visit ${sourceUrl} execution=success observed=${sourceUrl}`, "step3: done execution=success"],
+        trajectoryRecords: records, evidenceGraphs: [{ observations: [observation], claims: [claim], edges: [{ from: claim.id, to: observation.id, kind: "supports", createdAt: now, reason: "Exact same-source role evidence." }] }],
+        phone: null, email: null, phoneSource: null, contactOutcome: "evidence_only", executionId, promotionCandidates: [], observedSourceUrls: [sourceUrl] };
     });
 
 
@@ -328,20 +305,21 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     return { jobId, ownedCase, events, eventPayloads, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
-  it("executes mocked Investigator discovery, evidence persistence, target research, and model-owned stop through the canonical pipeline", async () => {
+  it("executes multi-turn discovery, target Investigator act, independent oversight, and terminal gating through the canonical pipeline", async () => {
     const outcome = await runScenario("model-stops");
-    expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(1);
+    expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
     expect(mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"))).toHaveLength(3);
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(mocks.pageUrl, expect.any(Object));
-    expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
+    expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.admittedEntities).toHaveLength(2);
     expect(outcome.targetCases).toHaveLength(1);
-    expect(JSON.parse(outcome.targetCases[0].caseFile).evidenceGraph).toHaveLength(1);
+    const targetCaseFile = JSON.parse(outcome.targetCases[0].caseFile);
+    expect(targetCaseFile.investigatorActOversight).toEqual(expect.arrayContaining([expect.objectContaining({ oversight: expect.objectContaining({ action: "stop", status: "completed" }), evidenceGraphs: expect.any(Array) })]));
     expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_person_role_lead", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
@@ -365,7 +343,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
   it("records an operator cap as an incomplete resource outcome, never as a model stop", async () => {
     const outcome = await runScenario("operator-cap");
-    expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
+    expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("review");
     const terminal = JSON.parse(String(outcome.jobUpdate?.result ?? "{}")).terminal;
