@@ -309,7 +309,7 @@ describe("Investigator LLM telemetry privacy", () => {
       const reservation = successfulReservations[0].value;
       expect(reservation).toMatchObject({ usageDate, reservedTokens: 600, dailyBudgetTokens: 1000 });
       const [reservedRow] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
-      expect(reservedRow).toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000, budgetExhausted: true });
+      expect(reservedRow).toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000, budgetExhausted: false });
 
       const output = vi.spyOn(console, "log").mockImplementation(() => {});
       recordAgenticLlmAttempt({
