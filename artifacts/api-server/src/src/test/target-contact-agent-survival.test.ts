@@ -429,8 +429,9 @@ describe("offline Investigator-to-card survival path", () => {
     const targetAgentInput = { ...result, executionId: runId };
     const persistedFinding = result.modelFindings[0];
     const fetchedRecord = result.trajectoryRecords.find((record: any) => record.action === "visit");
-    expect(fetchedRecord?.observation).toContain(testState.quote);
-    expect(fetchedRecord?.observedUrls).toContain(testState.sourceUrl);
+    if (!fetchedRecord) throw new Error("Expected the three-turn Investigator run to persist a fetched visit record.");
+    expect(fetchedRecord.observation).toContain(testState.quote);
+    expect(fetchedRecord.observedUrls).toContain(testState.sourceUrl);
     testState.events.splice(0, testState.events.length,
       {
         id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
@@ -502,7 +503,7 @@ describe("offline Investigator-to-card survival path", () => {
     expect(persistedEvidenceCount).toBeGreaterThan(0);
     const terminalInput = {
       investigatorStatus: targetResult.status,
-      stopReason: targetResult.stopReason,
+      stopReason: targetResult.stopReason ?? null,
       evidenceGraphCount: persistedEvidenceCount,
       oversightStatus: "completed" as const,
       oversightAction: "stop" as const,

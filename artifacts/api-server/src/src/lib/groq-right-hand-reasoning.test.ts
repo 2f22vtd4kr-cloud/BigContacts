@@ -5,6 +5,7 @@ import {
   runGroqRightHandFreeJson,
 } from "./groq-right-hand-reasoning";
 import { installExternalQuotaGuard, resetProviderGateForTests } from "./provider-gate";
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 const validDecision = {
   decision: "continue_discovery",
@@ -439,12 +440,13 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const rightHandSystemPrompt = "Review the supplied case only.";
+    const rightHandSystemInstructions = "Review the supplied case only.";
+    const transmittedSystemPrompt = `${apexOrientationCompact("right_hand")}\n\n${rightHandSystemInstructions}`;
     const rightHandPromptPrefix = "A compact prompt after upstream case-context compaction. ";
     const compactedRightHandPrompt = rightHandPromptPrefix + "x".repeat(500 - rightHandPromptPrefix.length);
     const result = await runGroqRightHandFreeJson(
       compactedRightHandPrompt,
-      rightHandSystemPrompt,
+      rightHandSystemInstructions,
       responseFormat,
       isValidDecision,
       { jobId: "job-right-hand-prompt-telemetry", caseId: 49, originalPromptChars: 1_100, promptReductionChars: 600 },
@@ -459,14 +461,16 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
       role: "right_hand",
       jobId: "job-right-hand-prompt-telemetry",
       caseId: 49,
-      originalPromptChars: rightHandSystemPrompt.length + 1_100,
-      promptChars: rightHandSystemPrompt.length + 500,
+      originalPromptChars: transmittedSystemPrompt.length + 1_100,
+      promptChars: transmittedSystemPrompt.length + 500,
       promptReductionChars: 600,
-      estimatedPromptTokens: 156,
-      estimatedMessagePromptTokens: 156,
-      estimatedOriginalMessagePromptTokens: 333,
+      estimatedPromptTokens: Math.ceil((transmittedSystemPrompt.length + 500) / 3.4),
+      estimatedMessagePromptTokens: Math.ceil((transmittedSystemPrompt.length + 500) / 3.4),
+      estimatedOriginalMessagePromptTokens: Math.ceil((transmittedSystemPrompt.length + 1_100) / 3.4),
     });
     expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
+    expect(Number(record?.originalPromptChars) - Number(record?.promptChars)).toBe(600);
+    expect(Number(record?.estimatedOriginalMessagePromptTokens)).toBeGreaterThan(Number(record?.estimatedMessagePromptTokens));
     console.info("APEX_ROLE_PROMPT_MEASUREMENT " + JSON.stringify({
       role: "right_hand",
       originalPromptChars: record?.originalPromptChars,
