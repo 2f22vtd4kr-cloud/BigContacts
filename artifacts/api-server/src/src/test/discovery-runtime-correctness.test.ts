@@ -717,6 +717,34 @@ describe("Apex research runtime readiness hardening", () => {
     }
   });
 
+
+  it("validates the new parallel registry action and rejects unsupported registry names", async () => {
+    const { describeAgentActionParseFailure, isModelSelectableAgentAction } = await import("../lib/agentic-web-research-core");
+    const base = {
+      action: "parallel_registry_search",
+      hypothesis: "Cross-check a company ownership hypothesis across relevant public records",
+      purpose: "Compare complementary registry records without repeating equivalent sources",
+      expectedInformationGain: 0.8,
+      searches: [
+        { query: "Drury Hotels ownership officers public filing", provider: null, registry: "sec-edgar", locale: null, market: null, purpose: "check public ownership filings" },
+        { query: "Drury Hotels business entity owners", provider: null, registry: "bodacc-france", locale: null, market: null, purpose: "check a separate public registry" },
+      ],
+    };
+    expect(isModelSelectableAgentAction("parallel_registry_search")).toBe(true);
+    expect(describeAgentActionParseFailure(JSON.stringify(base))).toBe("");
+    expect(describeAgentActionParseFailure(JSON.stringify({
+      ...base,
+      searches: base.searches.map((entry, index) => index ? entry : { ...entry, registry: "imaginary-registry" }),
+    }))).toContain("searches[0].registry unsupported");
+    expect(describeAgentActionParseFailure(JSON.stringify({
+      ...base,
+      searches: [],
+    }))).toContain("searches_min=1");
+    expect(researchCoreSource).toContain('required: ["query"]');
+    expect(researchCoreSource).toContain('registry: { type: "string", enum: [...getAvailableRegistryIdsForPrompt()]');
+  });
+
+
   it("keeps Python OSINT tools explicitly unavailable until an attested executor exists", async () => {
     const { getPythonSandboxState } = await import("../lib/python-sandbox-contract");
     const { checkPythonToolsAvailability, runMaigret, runSherlock, runSpiderFoot, runTheHarvester } = await import("../lib/python-tools");
