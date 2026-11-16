@@ -13,7 +13,7 @@ const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact
 const intelligence = fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8");
 const checks = [
 ["canonical discovery has a global run deadline", /atlasDeadline/.test(atlas) && /APEX_ATLAS_RUN_TIMEOUT_MS/.test(atlas)],
-["canonical discovery uses an operational Investigator iteration budget without a fixed target-count quota", /const discoveryIterationCeiling/.test(atlas) && /resolveRemainingDiscoveryIterations/.test(atlas) && /investigatorIterationsUsed/.test(atlas) && !/targetLimit|targetCount/.test(atlas)],
+["canonical discovery keeps an explicit operator spending cap separate from model-owned candidate admission", /const targetLimit = resolveCanonicalAtlasTargetCount\(opts\.targetCount\)/.test(atlas) && /if \(researched >= targetLimit\)/.test(atlas) && /operatorTargetSpendingCap/.test(atlas) && /const discoveryIterationCeiling/.test(atlas) && /resolveRemainingDiscoveryIterations/.test(atlas) && /investigatorIterationsUsed/.test(atlas)],
 ["discovery control imports semantic context compaction", /investigation-context-compaction/.test(control) && /compactInvestigationContext|buildInvestigatorContext/.test(control)],
 ["discovery control compacts the state before model review", /const compactState = compactInvestigationContext\(/.test(control)],
 ["discovery control supplies structured trajectory records to compaction", /trajectoryRecords: structuredTrajectory/.test(control)],
