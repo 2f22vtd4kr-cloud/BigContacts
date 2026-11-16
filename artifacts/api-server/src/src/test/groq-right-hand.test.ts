@@ -23,6 +23,7 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 describe("Groq Right-hand model policy", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
   const originalDailyBudget = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+  const originalDailyBudgetModel = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
   const originalDailyBudget120B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
   const originalDailyBudget20B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
   beforeEach(() => {
@@ -30,6 +31,7 @@ describe("Groq Right-hand model policy", () => {
     // daily ledger explicitly; its durable reservation path has dedicated tests.
     process.env.DATABASE_URL = "";
     process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = "0";
     process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = "0";
     process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = "0";
   });
@@ -49,6 +51,8 @@ describe("Groq Right-hand model policy", () => {
     else process.env.DATABASE_URL = originalDatabaseUrl;
     if (originalDailyBudget === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
     else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = originalDailyBudget;
+    if (originalDailyBudgetModel === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = originalDailyBudgetModel;
     if (originalDailyBudget120B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
     else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = originalDailyBudget120B;
     if (originalDailyBudget20B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
