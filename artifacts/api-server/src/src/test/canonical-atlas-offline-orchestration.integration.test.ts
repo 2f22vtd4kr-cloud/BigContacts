@@ -316,8 +316,18 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true, personName: firstName, sourceUrls: expect.arrayContaining([mocks.pageUrl]) })]) })]));
     expect(JSON.parse(outcome.ownedCase.caseFile).jobId).toBe(outcome.jobId);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
-    const diagnosticResult = (outcome.jobUpdate as any)?.result as any;
-    expect(outcome.admittedEntities, JSON.stringify({ phaseSummary: diagnosticResult?.phaseSummary, materializedCardCount: diagnosticResult?.materializedCardCount, caseStatus: outcome.ownedCase.status, currentAction: outcome.ownedCase.currentAction })).toHaveLength(2);
+    const rawDiagnosticResult = (outcome.jobUpdate as any)?.result;
+    const diagnosticResult = typeof rawDiagnosticResult === "string" ? JSON.parse(rawDiagnosticResult) : rawDiagnosticResult ?? {};
+    expect(outcome.admittedEntities, JSON.stringify({
+      phaseSummary: diagnosticResult?.phaseSummary,
+      terminal: diagnosticResult?.terminal,
+      controlDecisions: outcome.controlDecisions.map((decision: any) => ({ action: decision.action, candidateName: decision.candidateName, candidateType: decision.candidateType, reason: decision.reason })),
+      events: outcome.eventPayloads.map((event: any) => ({ action: event.action, runId: event.runId, turn: event.turn, execution: event.execution, findingNames: (event.findings ?? []).map((finding: any) => finding.personName), findingRunId: event.discoveryRunId })),
+      caseStatus: outcome.ownedCase.status,
+      currentAction: outcome.ownedCase.currentAction,
+      targetCalls: mocks.targetCalls,
+      outboundUrls: mocks.outboundUrls,
+    })).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
