@@ -380,6 +380,8 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\s+/g, " ") ?? null,
   }));
   const strictPersonIdentities = new Set(personTargets.map(({ name }) => normalizeCandidateIdentityName(name)));
+  // No target-scoped research is authorized without a source-backed lead.
+  // This is a provenance handoff, not a source-count or role/name admission filter.
   const partialPersonTargets = partialPeople.candidates
     .filter(({ name }) => !strictPersonIdentities.has(normalizeCandidateIdentityName(name)))
     .map(({ name, role, sourceUrls }) => ({ name, sourceUrls, targetType: "person" as const, role }));
