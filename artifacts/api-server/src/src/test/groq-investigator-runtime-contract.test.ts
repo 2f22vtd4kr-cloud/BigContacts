@@ -325,8 +325,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
-    expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
-    expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
+    expect(submitted).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
