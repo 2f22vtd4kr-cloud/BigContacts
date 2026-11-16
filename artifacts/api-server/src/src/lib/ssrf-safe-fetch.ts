@@ -201,7 +201,7 @@ export function responseStatusForFetch(status: number | undefined): number | nul
     : null;
 }
 
-async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address: string): Promise<Response> {
+async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address: string, onRequestStarted?: () => void): Promise<Response> {
   const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
   const url = new URL(rawUrl);
   const transport = url.protocol === "https:" ? https : http;
@@ -233,6 +233,7 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
       reject(error instanceof Error ? error : new Error(String(error)));
     };
 
+    onRequestStarted?.();
     const req = transport.request({
       protocol: url.protocol,
       hostname: address,
@@ -299,7 +300,7 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
   });
 }
 
-export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}, onRequestStarted?: () => void): Promise<Response> {
  const request = typeof input !== "string" && !(input instanceof URL) ? input : undefined;
  const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
  const validated = parseSafeUrl(nextUrl);
@@ -331,7 +332,7 @@ export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestI
   };
   const address = await resolveSafeAddress(hostname, signal);
   if (signal.aborted) throw new Error("Outbound request aborted");
-  return await pinnedFetch(input, effectiveInit, address);
+  return await pinnedFetch(input, effectiveInit, address, onRequestStarted);
  } finally {
   clearTimeout(deadlineTimer);
   callerSignal?.removeEventListener("abort", abortFromCaller);

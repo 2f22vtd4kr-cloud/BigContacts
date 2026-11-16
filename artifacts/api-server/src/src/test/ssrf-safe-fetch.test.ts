@@ -29,6 +29,14 @@ vi.mock("node:https", () => ({
 import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, MAX_SAFE_OUTBOUND_RESPONSE_BYTES, responseBodyForStatus, responseStatusForFetch, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
+  it("does not mark a provider request as started when local URL validation rejects the destination", async () => {
+    const onRequestStarted = vi.fn();
+    await expect(safeOutboundFetch("http://127.0.0.1/private", {}, onRequestStarted))
+      .rejects.toThrow(/blocked IP/i);
+    expect(onRequestStarted).not.toHaveBeenCalled();
+  });
+
+
   it("cancels URL-safety DNS preflight when the caller signal aborts", async () => {
     dnsMocks.resolve4.mockReset().mockImplementation(() => new Promise(() => undefined));
     dnsMocks.resolve6.mockReset();

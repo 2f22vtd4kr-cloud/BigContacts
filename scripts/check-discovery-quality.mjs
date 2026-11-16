@@ -30,10 +30,12 @@ const checks = [
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","Evaluate lists, registries, articles, directories and other sources by their actual content","do not assume a source family is high- or low-yield in advance"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles may provide evidence, leads, named targets or a contact route when their actual content supports that interpretation"], "apex-bureau-orientation.ts"],
-  [activeInvestigator, ["DISCOVERY LEAD HANDOFF","AUTHORITATIVE SAME-CASE SEARCH BUDGET","Preserve exact observed names and source URLs"], "agentic-web-research-core.ts"],
+  [orientation, ["REVIEW LEADS:","exact observed name, scope, source URL, rationale and uncertainty","Search-only is unverified"], "apex-bureau-orientation.ts"],
   [communityAttribution, ["isCommunityObservationSourceUrl","extractCommunityObservationMetadata","sanitizeCommunityObservationText","community_user_submitted_unverified"], "discovery-source-attribution.ts"],
   [researchIntelligence, ["COMMUNITY_OBSERVATION","sourceContributor?: string | null","originalObservedAt?: string | null"], "research-intelligence-engine.ts"],
-  [canonical, ["candidateRoleCorroborationSources", "exact quotation", "Ownership terminology, wealth", "signals, role keywords and proximity are not admission gates.", "research tests materiality, identity, counter-evidence and routes."], "canonical-atlas-discovery.ts"],
+  [canonical, ["candidateRoleCorroborationSources", "Ownership terminology, wealth"], "canonical-atlas-discovery.ts"],
+  [candidateSources, ["exactQuote", "observation.observation.includes(quote)", "supporting.has(publisher)", "exact-quote-backed observations from successful page fetches"], "candidate-source-url-union.ts"],
+  [targetContact, ["finding.exactQuote", "finding.identityAssessment === \"same_person\"", "finding.promotionDecision === \"promote\""], "target-contact-agent.ts"],
   [reachability, ["TARGETABILITY CONTEXT", "MODEL DECISION AUTHORITY", "No fixed wealth cutoff, score, source-count minimum, growth-ranking penalty", "A missing contact route is an unresolved evidence gap", "exact-quote/provenance verification"], "reachability-realism.ts"],
   [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgement, not a publisher/path allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
 ];
@@ -49,6 +51,12 @@ if (activeInvestigator.includes("hasPressPublisherSiteFilter")
   || activeInvestigator.includes("DISCOVERY_PRESS_PUBLISHER_DOMAINS")
   || activeInvestigator.includes("broad press-publisher-only search without an exact named person/business anchor")) {
   console.error("FAIL: active Investigator still contains a deterministic discovery query-strategy filter");
+  process.exit(1);
+}
+if (activeInvestigator.includes("MAX_DISCOVERY_SEARCH_ACTIONS")
+  || activeInvestigator.includes("discoverySearchBudgetExhaustionObservation")
+  || activeInvestigator.includes("discovery_search_budget_exhausted")) {
+  console.error("FAIL: active Investigator still imposes a fixed discovery search-action ceiling");
   process.exit(1);
 }
 if (!activeInvestigator.includes("Structural/provider-syntax checks only.")

@@ -28,7 +28,7 @@ const checks = [
 ["compactor is character-bounded and configurable", /DEFAULT_MAX_CHARS/.test(compactor) && /MAX_MAX_CHARS/.test(compactor) && /slice\(0, budget\.maxChars\)/.test(compactor)],
 ["compactor preserves durable trajectory outside the prompt", /Durable trajectory\/evidence is never deleted/.test(compactor) && /durable (?:run\/evidence )?records retain complete observations/i.test(compactor)],
 ["compactor preserves source URLs in the archived trajectory index", /ARCHIVED TRAJECTORY INDEX/.test(compactor) && /observedUrls/.test(compactor)],
-["compactor preserves evidence attribution summaries", /CURRENT FINDINGS \/ LEADS/.test(compactor) && /sourceUrls/.test(compactor)],
+["compactor preserves evidence attribution summaries", /PARTIAL FINDINGS \/ LEADS/.test(compactor) && /sourceUrls/.test(compactor)],
 ["discovery durable projection is explicit", /DURABLE CASE MEMORY PROJECTION/.test(bureau)],
 ["discovery full trajectory remains in immutable ledger while caseFile projection is bounded and URLs remain whole", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(Math\.max\(0, records\.length - 64\)\)/.test(durableProjection) && /retainCompletePublicHttpUrlForPrompt/.test(durableProjection) && /durableProjectionOmissions/.test(durableProjection)],
 ["discovery durable projection stores bounded structured Investigator records", /investigatorTrajectoryRecords:durableProjectionRecords/.test(bureau) && /compactDurableDiscoveryRecords/.test(bureau)],

@@ -96,7 +96,7 @@ describe("objective-aligned Right-hand control guidance", () => {
       investigatorReport: "No source-backed B2B candidates have been admitted yet.",
       compactState: "Human objective: Find B2B software companies and their current decision-makers.",
     });
-    expect(prompt).toContain("Assess whether an operating business, investor, asset or individual is relevant using the actual mission and source observations");
+    expect(prompt).toContain("Assess businesses, investors, assets and people against the mission and observations");
     expect(prompt).toContain("do not invent a private/mid-market preference");
     expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
   });
@@ -109,7 +109,7 @@ describe("canonical opening discovery contract", () => {
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = [");
     expect(agenticCoreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
-    expect(agenticCoreSource).toContain("These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use.");
+    expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
 
@@ -385,7 +385,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("The complete human objective and explicit constraints govern.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(controlSource).toContain("PIVOT CONTRACT: name the concrete subject or unresolved evidence question");
-    expect(controlSource).toContain("Right-hand advises only; the Investigator chooses each research action.");
+    expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
   });
 
   it("preserves the Investigator terminal reason and failure class within the bounded control report", () => {
@@ -889,7 +889,8 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(rightHandPrompt).toContain("episodeStopReason=ITERATION_BUDGET");
     expect(bossPrompt).toContain("actionsRemaining is greater than zero");
     expect(canonicalDiscoverySource).toContain("...buildMissionActionBudget({");
-    expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
+    expect(canonicalDiscoverySource).toContain("investigatorActionsRemaining: controlBudgetState.investigatorActionsRemaining");
+    expect(canonicalDiscoverySource).not.toContain("discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
 
   });
@@ -1169,7 +1170,9 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
     expect(canonicalDiscoverySource).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
     expect(canonicalDiscoverySource).toContain("buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? [])");
     expect(canonicalDiscoverySource).toContain("const controlBudgetState = {");
-    expect(canonicalDiscoverySource).toContain("discoverySearchActionsRemaining: Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed)");
+    expect(canonicalDiscoverySource).toContain("investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed })");
+    expect(canonicalDiscoverySource).not.toContain("targetResearchReserveIterations");
+    expect(canonicalDiscoverySource).not.toContain("discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");
     expect(canonicalDiscoverySource).toContain("activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
     expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");

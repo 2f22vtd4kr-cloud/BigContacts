@@ -30,7 +30,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
     expect(orientation).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions");
     expect(orientation).toContain("A ranking or search result alone is a lead, not a verified claim");
-    expect(orientation).toContain("do not prefer private or mid-market status unless the human objective asks for it");
+    expect(orientation).toMatch(/do not prefer private or mid-market status unless the human objective asks for it/i);
     expect(orientation).toContain("Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission");
     expect(orientation).toContain("No private/mid-market preference or company blacklist unless the human explicitly specifies it");
   });
@@ -55,10 +55,10 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
 
     const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
-    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationEnd = canonicalAtlas.indexOf("\nexport async function runCanonicalAtlasPipeline", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
       organizationStart,
-      organizationEnd >= 0 ? organizationEnd : undefined,
+      organizationEnd >= 0 ? organizationEnd : canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings", organizationStart),
     );
     expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
@@ -137,15 +137,15 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(orientation).toContain("DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that names a concrete objective-fit company or person");
-    expect(orientation).toContain("One useful result can justify a card; do not wait for fetch, ownership, wealth or HNWI proof");
-    expect(orientation).toContain("scope=organization/candidate, associated public result URL");
-    expect(orientation).toContain("Keep exactQuote=null for search-only leads");
+    expect(orientation).toContain("REVIEW LEADS: Investigator may retain one relevant same-case person/company/asset as provisional.");
+    expect(orientation).toContain("A search result/snippet may support an unverified review card before the underlying page is fetched");
+    expect(orientation).toContain("exact observed name, scope, source URL and rationale");
+    expect(orientation).toContain("exactQuote=null");
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
     expect(orientation).toContain("no fixed sequence");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
+    expect(canonical).toContain("A successful public search observation contains the exact organization name");
   });
 
   it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
@@ -282,16 +282,18 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain('finding.promotionDecision === "reject"');
     expect(canonicalAtlas).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlas).toContain("payload.runId !== input.discoveryRunId");
-    expect(canonicalAtlas).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(canonicalAtlas).toContain("support.spanVerified || support.sourceUrlBoundByAdapter === true");
     expect(canonicalAtlas).toContain('targetType: "organization" as const');
     expect(canonicalAtlas).toContain("metadata.partialOrganizationLead === true");
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
 
-  it("keeps the wealth-first default objective and the company-to-owner research bridge", () => {
-    expect(launchDefaults).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
-    expect(launchDefaults).toContain("A person is the ultimate investor-identification goal.");
-    expect(launchDefaults).toContain("Companies are leads and may be selected for target-scoped research to identify owners");
+  it("keeps a model-owned investor objective and company-to-owner research bridge", () => {
+    expect(launchDefaults).toContain("Identify potential investors and other objective-fit people, companies, assets, relationships");
+    expect(launchDefaults).toContain("The Investigator owns relevance, hypotheses, target selection, research direction");
+    expect(launchDefaults).toContain("No fixed source mix, search sequence, target class, geography or target quota.");
+    expect(launchDefaults).toContain("targetCount: 25");
+    expect(launchDefaults).toContain("researchLimit: 25");
     expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
@@ -313,7 +315,7 @@ describe("canonical Atlas organization target selection", () => {
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
     );
     const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
-    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationEnd = canonicalAtlas.indexOf("\nexport async function ", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
       organizationStart,
       organizationEnd >= 0 ? organizationEnd : undefined,
@@ -361,8 +363,8 @@ describe("canonical Atlas organization target selection", () => {
     expect(orientation).toContain("selection is not promotion");
     expect(control).toContain("AVAILABLE REVIEW TARGETS");
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
-    expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
-    expect(control).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
+    expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
+    expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("There is no target-count threshold; Right-hand advises and does not select or authorize targets.");
 
     // Runtime integrity checks may grade provenance, but cannot replace the

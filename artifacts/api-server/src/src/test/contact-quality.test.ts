@@ -152,7 +152,7 @@ describe("public contact quality guardrails", () => {
     expect(computeContactOutcome({
       phone: "+14155552671",
       validatedDirectContact: true,
-    })).toBe("direct_contact_verified");
+    })).toBe("evidence_only");
   });
 
   it("does not count registry phones toward personal confidence", () => {
@@ -162,7 +162,7 @@ describe("public contact quality guardrails", () => {
     })).toBe(0);
     expect(computeContactConfidence({
       phone: "+14155552671",
-    })).toBe(25);
+    })).toBe(0);
   });
 
 
@@ -212,7 +212,7 @@ describe("public contact quality guardrails", () => {
 
   it("keeps organization evidence out of personal Phase J metrics", () => {
     expect(isPersonalContactOutcome("organization_contact")).toBe(false);
-    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(true);
+    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(false);
     expect(isPersonalContactOutcome("direct_contact_verified")).toBe(true);
   });
 });

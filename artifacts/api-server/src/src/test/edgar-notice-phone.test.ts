@@ -22,21 +22,21 @@ Item 1. Security and Issuer.
     expect(parsed.phone).toMatch(/921/);
   });
 
-  it("issuer EDGAR-Phone stays organization_contact", () => {
+  it("issuer EDGAR-Phone remains evidence-only until exact-value attribution is established", () => {
     expect(
       computeContactOutcome({
         phone: "267-757-8707",
         phoneSource: "EDGAR-Phone",
       }),
-    ).toBe("organization_contact");
+    ).toBe("evidence_only");
   });
 
-  it("notice phone may be direct_contact_candidate", () => {
+  it("notice phone remains unclassified evidence until an Investigator binds it to a person", () => {
     expect(
       computeContactOutcome({
         phone: "609-921-3633",
         phoneSource: "EDGAR-Notice-Phone",
       }),
-    ).toBe("direct_contact_candidate");
+    ).toBe("evidence_only");
   });
 });

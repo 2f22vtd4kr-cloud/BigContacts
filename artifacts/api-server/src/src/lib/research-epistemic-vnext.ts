@@ -11,7 +11,7 @@ export type ResearchActionCandidate = { id: string; action: string; questionId: 
 export type ActionUtility = ResearchActionCandidate & { utility: number };
 export type ActionCalibration = { attempts: number; predictedInformationGain: number; realizedInformationGain: number; absoluteError: number; meanAbsoluteError: number };
 export type EvidenceSufficiencyContract = { minEvidence: number; minIndependentSourceUnits: number; requireExactSpanForFindings: boolean; requireFalsification: boolean; allowOpenQuestions: number; allowHighSeverityContradictions: number };
-export type TerminalGateResult = { allowed: boolean; reasons: string[]; metrics: { evidenceCount: number; independentSourceUnits: number; exactSpanBindings: number; openQuestions: number; highSeverityContradictions: number; falsificationSatisfied: boolean } };
+export type TerminalGateResult = { allowed: boolean; reasons: string[]; outcome?: "evidence_backed" | "inconclusive"; metrics: { evidenceCount: number; independentSourceUnits: number; exactSpanBindings: number; openQuestions: number; highSeverityContradictions: number; falsificationSatisfied: boolean } };
 const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 export function digest(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 export function canonicalHost(url: string): string | null { try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return null; } }

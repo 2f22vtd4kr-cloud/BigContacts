@@ -317,9 +317,10 @@ export function buildDiscoveryLeadUtilizationState(
           resultExcerpts.push({ provider: currentProvider, excerpt });
         }
       }
-      // A mixed parallel batch must not let one provider crowd the others
-      // out of bounded context. Preserve the first available result from each
-      // provider in the order requested by the search action.
+      // Preserve representative context from providers the Investigator actually
+      // selected, without prescribing a provider mix or a research sequence.
+      // For a single provider, retain both ends so a useful later result is not
+      // silently discarded merely because it followed generic search results.
       const rawSearches = record.args?.searches;
       const providerOrder = Array.isArray(rawSearches)
         ? rawSearches.flatMap((search) => {
@@ -331,8 +332,15 @@ export function buildDiscoveryLeadUtilizationState(
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
       const selectedExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
       for (const provider of providers) {
-        const first = resultExcerpts.find((item) => item.provider === provider);
-        if (first) selectedExcerpts.push(first);
+        const matching = resultExcerpts.filter((item) => item.provider === provider);
+        if (matching.length) selectedExcerpts.push(matching[0]!);
+      }
+      for (const provider of providers) {
+        const matching = resultExcerpts.filter((item) => item.provider === provider);
+        const last = matching.at(-1);
+        if (last && last !== matching[0] && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 420) {
+          selectedExcerpts.push(last);
+        }
       }
       if (!selectedExcerpts.length) {
         selectedExcerpts.push(...(resultExcerpts.length > 4
@@ -395,7 +403,7 @@ export function buildDiscoveryLeadUtilizationState(
   };
 }
 
-export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
+export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
@@ -2550,10 +2558,9 @@ async function callGroqJson(
         };
         const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => {
+          runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit, () => {
             providerRequestSent = true;
-            return safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
-          }),
+          })),
         );
 
         // Consume every provider response body exactly once. Error responses need
@@ -2667,6 +2674,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
             provider: "groq",
             model,
@@ -2768,6 +2776,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
             provider: "groq",
             model,
@@ -2792,6 +2801,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent,
           provider: "groq",
           model,
@@ -2895,6 +2905,7 @@ async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
+            estimatedTokens: dailyEstimatedTokens,
             providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
             ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
@@ -3354,30 +3365,23 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
     const rejectedDimensions = normalized.match(/Rejected dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     return preserveSourceAlongsideGuard(
-      "PARTIAL PARALLEL SCOPE FILTER (no out-of-scope request): only scope-aligned queries were retained for execution; rejected queries were not sent. "
+      "HISTORICAL PARALLEL-SEARCH DIAGNOSTIC: retained queries executed; rejected queries produced no evidence. "
       + (rejectedDimensions ? "Rejected dimensions: " + rejectedDimensions + ". " : "")
-      + "Use results and observed URLs only from the queries that actually executed; revise rejected dimensions or seek a new pivot.",
+      + "Use executed results only; choose future queries by the human objective and Boss scope.",
     );
   }
   if (/ordered_source_stage_guard/i.test(normalized)) {
     return preserveSourceAlongsideGuard(
-      "SOURCE-STAGE GUARD BLOCKED ACTION (no request): fetch an observed page from the required first source stage before advancing to the later source stage; search-result URLs alone do not complete the first stage. Return control if that stage is infeasible.",
+      "HISTORICAL SOURCE-STAGE DIAGNOSTIC: prior stage-order rule blocked this action before request; no evidence. This is not a fixed sequence. Choose sources and actions by objective, evidence, information gain and cost.",
     );
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
     const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     const activePivot = normalized.match(/active Boss-accepted pivot is:\s*((?:(?:e\.g\.|i\.e\.)|[^.\n])*)/i)?.[1]?.trim();
     const activeScope = activePivot ? ` Active Boss-approved scope: ${compactActiveBossScope(activePivot, 260)}.` : "";
-    if (mismatch) {
-      const geographyGuidance = /\bquery geography\b/i.test(mismatch)
-        ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
-        : "";
-      return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): ${mismatch}. market/locale metadata alone is insufficient; query field itself must include the geographic term. Request new scope from Boss/Right-hand when needed. ${geographyGuidance} Fetch only observed aligned URLs; choose an in-scope registry adapter; do not retry unchanged.${activeScope}`,
-      );
-    }
+    const blockedDimension = mismatch ? ` Prior blocked dimension: ${mismatch}.` : "";
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."} fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`,
+      `SCOPE DIAGNOSTIC: prior action blocked before execution; no evidence.${blockedDimension}${activeScope} Reassess against the human objective and Boss scope; do not repeat rejected wording. Propose material scope changes to Boss.`,
     );
   }
   const observationStartMarker = "LATEST_OBSERVATION_START";
@@ -4760,21 +4764,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
-  const discoverySearchActionsRemaining = Math.max(0, MAX_DISCOVERY_SEARCH_ACTIONS - discoverySearchActionsUsed);
-  const discoverySearchBudgetGuidance = input.mode === "discovery"
-    ? `AUTHORITATIVE SAME-CASE SEARCH BUDGET: used=${discoverySearchActionsUsed}; remaining=${discoverySearchActionsRemaining}/${MAX_DISCOVERY_SEARCH_ACTIONS}. At zero, web/registry search actions cannot execute; choose another available non-search action or stop/park.`
-    : "";
-  const compactEmergencyDiscoveryContractParts = input.mode === "discovery" ? [
-    discoverySearchBudgetGuidance,
-    "DISCOVERY LEAD HANDOFF: Preserve exact observed names and source URLs for useful objective-fit person/company/asset leads as provisional, unverified review items. Include uncertainty; sourced ownership/wealth hypotheses only. Boss approves material scope changes; selection is not promotion."
-  ] : [];
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
   // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const rawAiHistoricalMemory = input.aiCompactedHistoricalContext?.trim() ?? "";
   const aiHistoricalMemory = rawAiHistoricalMemory
-    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, 1_200, "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]")
+    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, 900, "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]")
     : "";
   const authoritativeCaseObjective = buildAuthoritativeCaseObjectiveBlock(input.objective);
   const activeBossDirection = extractBossPivotDirectionForCompactPrompt(input.objective)
@@ -4783,13 +4779,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // structured pivot heading. Preserve that accepted scope in every prompt tier.
     || input.objective.match(/ACTIVE SCOPE CONSTRAINT:\s*([\s\S]*?)(?=\nPursue this question|\n\nChoose each next action|$)/i)?.[1]?.trim()
     || "";
-  const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(String(input.lastObservation ?? ""))
-    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: a prior request was blocked before execution by an earlier deterministic alignment policy; this is not evidence and its keyword criteria are not authoritative. Reassess the proposed research independently against the human objective and the current Boss-approved direction. If it genuinely advances the mission within that direction, choose an appropriate action; do not mechanically repeat geography, source-class or subject wording. If it would change strategic scope, ask Boss."
+  const blockedScopeObservation = String(input.lastObservation ?? "");
+  const blockedScopeDimensions = ["geography", "source class", "target type", "search strategy"]
+    .filter((dimension) => blockedScopeObservation.toLowerCase().includes(dimension));
+  const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(blockedScopeObservation)
+    ? "SCOPE DIAGNOSTIC: prior action was blocked before execution; no evidence was added. Reassess against the human objective and Boss scope; do not repeat rejected wording. Blocked dimensions: " + (blockedScopeDimensions.join(", ") || "unspecified") + ". Ask Boss before a material scope change."
     : "";
+  const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
-    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
+    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): explain any material deviation from this direction and ask Boss before changing scope.\n"
+      + (activeBossDirectionAlreadyPreserved
+        ? "The accepted direction is preserved verbatim in the authoritative case objective above; do not duplicate or override it."
+        : boundInvestigatorPromptSection(activeBossDirection, input.mode === "discovery" ? 700 : 800))
     : "";
-  const currentControlContext = (input.priorContext?.length ?? 0) <= 800
+  const currentControlContext = (input.priorContext?.length ?? 0) <= 600
     ? (input.priorContext ?? "")
     : "Long prior control context is represented in Boss-generated memory; the current objective and active scope remain authoritative.";
   const aiHistoricalMemorySection = aiHistoricalMemory
@@ -4836,12 +4839,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 600 : 3_000,
+        maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 200 : 900,
+    input.mode === "discovery" ? 150 : 700,
   );
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -4851,22 +4854,29 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 1_200 : 700) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 450 : 350) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
-      const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
+      const availableActionsGuidance = "Use an action ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn. ACTION ALLOWLIST / AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
-  const compactWorkerCapabilityGuidance = "Specialist OSINT actions are available only when listed in AVAILABLE ACTIONS after fresh worker attestation.";
+  const compactWorkerCapabilityGuidance = hasAvailableSpecialistOsintAction
+    ? "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS. Attested this turn (optional): " + [
+        ["harvest_domain", "theHarvester"], ["footprint_email", "email footprint"],
+        ["footprint_username_maigret", "Maigret"], ["footprint_username_sherlock", "Sherlock"], ["footprint_spiderfoot", "SpiderFoot"],
+      ].filter(([action]) => availablePythonActions.has(action)).map(([action, label]) => action + " (" + label + ")").join("; ") + ". Model selects by expected information gain."
+    : "SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.";
   const conditionalSpecialistCapabilityGuidance = hasAvailableSpecialistOsintAction
-    ? "These specialist actions are optional; the Investigator chooses whether their expected information gain justifies use."
+    ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Never invent IDs. Treat records as leads until interpreted; do not assume registrants are beneficial owners. Withheld/failed is not a no-hit.`;
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Market needs mission/evidence basis; locale is language.";
-  const compactPageFormatGuidance = "FETCH: visit reads text/PDF; browser_fetch is HTML-only. Failed extraction is unknown.";
+  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
+    ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
+    : "";
 
   const composedPrompt = [
     assignment,
@@ -4877,11 +4887,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
     providerGuidance,
+    searchActivityGuidance,
+    input.mode === "discovery"
+      ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
+      : "",
     "CAPABILITIES:",
     capabilityGuidance,
     terminalContractGuidance,
-    compactPageFormatGuidance,
-    ...compactEmergencyDiscoveryContractParts,
+    "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
+    APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
@@ -4954,8 +4968,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : null;
   const compactLatestArgs = (args: Record<string, unknown>): Record<string, unknown> => {
     const orderedKeys = [
-      "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
-      "expectedInformationGain", "target", "targetType", "profile", "searches",
+      "searches", "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
+      "expectedInformationGain", "target", "targetType", "profile",
     ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5);
     const entries: Array<[string, unknown]> = [];
     for (const key of orderedKeys) {
@@ -4974,7 +4988,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       } else if (typeof value === "number" || typeof value === "boolean" || value === null) {
         entries.push([key, value]);
       } else if (key === "searches" && Array.isArray(value)) {
-        const searches: Array<Record<string, string>> = value.slice(0, 1).map((item) => {
+        const searches: Array<Record<string, string>> = value.slice(0, 3).map((item) => {
           if (!item || typeof item !== "object" || Array.isArray(item)) return {};
           const search = item as Record<string, unknown>;
           const selected: Array<[string, string]> = [];
@@ -5000,12 +5014,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const finalSentence = raw.slice(sentenceStart).trim();
         const tail = finalSentence.length >= 35 ? finalSentence.slice(-260) : raw.slice(-220);
         return tail
-          ? "LAST SUCCESSFUL FETCHED SOURCE CLAIM (untrusted observed text; exact wording): " + tail
+          ? "LAST SUCCESSFUL FETCHED SOURCE (untrusted observed text; exact wording): " + tail
           : "";
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (value: unknown, maxChars = 1_600): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
@@ -5016,19 +5030,18 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           (item) => item.turn === matchingRecord.turn && item.action === matchingRecord.action,
         )?.observation
       : undefined;
+    const marker = "[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]";
     if (providerBalancedObservation) {
-      const providerBalancedProjection = "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]\n" + providerBalancedObservation;
-      return compactPromptSectionPreservingUrlTokens(
-        providerBalancedProjection,
-        maxChars,
-        "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]",
-      );
+      const providerBalancedProjection = marker + "\n" + providerBalancedObservation;
+      return compactPromptSectionPreservingUrlTokens(providerBalancedProjection, maxChars, marker);
     }
-    return compactPromptSectionPreservingUrlTokens(
-      normalized,
-      maxChars,
-      "[OBSERVATION BOUNDED FOR MODEL CONTEXT: full observation remains in the immutable event ledger; exact observed/lead URLs are preserved separately; omitted text is unknown]",
-    );
+    // Preserve the lead-bearing opening of the newest observation (often its
+    // named result/title), then compact the remainder while retaining whole URLs.
+    const prefixChars = Math.min(240, Math.max(120, Math.floor(maxChars / 3)));
+    const prefix = normalized.slice(0, prefixChars);
+    const remainderBudget = Math.max(80, maxChars - marker.length - prefix.length - 2);
+    const remainder = compactPromptSectionPreservingUrlTokens(normalized.slice(prefix.length), remainderBudget, "");
+    return [marker, prefix, remainder].filter(Boolean).join("\n").slice(0, maxChars);
   };
   const serializeDurablePromptRecord = (record: AgenticTrajectoryRecord): Record<string, unknown> => {
     // Keep every complete public URL that fits the provider's atomic URL token
@@ -5127,14 +5140,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const carriedLeadCount = carryForwardSuccessfulSearch?.leadUrls?.length ?? 0;
     if (latestLeadCount > 0 || carriedLeadCount > 0) {
       parts.push(
-        "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. Before another broad search or pivot, compare the highest-value remaining same-scope lead against the alternatives; do not treat a lack of findings from snippets as evidence against unvisited leads. The Investigator retains action choice; this is an expected-information-gain judgment, not a fixed sequence. Search-result URLs remain leads, not evidence until fetched.",
+        "LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain. No findings from snippets is not evidence against unvisited leads; URLs remain leads until fetched.",
       );
     }
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
-  const latestObservationBoundaryMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END"]
+  const latestObservationBoundaryMarkers = ["LATEST_OBSERVATION_START", "LATEST_OBSERVATION_END", "LATEST_SEARCH_OBSERVATION_BEGIN", "LATEST_SEARCH_OBSERVATION_END"]
     .filter((marker) => String(input.lastObservation ?? "").includes(marker)
       || Boolean(latestRecord?.observation?.includes(marker)));
   const latestObservationAlreadyIncludedInTail = !latestRecord && Boolean(input.lastObservation);
@@ -5244,15 +5257,71 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     return repaired;
   };
 
-  // Prompt-size guidance is advisory. Preserve the complete model-authored
-  // mission and evidence context; actual provider context/token limits remain
-  // the only hard size boundary.
-  // Attach the bounded, scope-aware durable latest-act envelope. It carries
-  // complete URL tokens and explicit omission counts; without this tail the
-  // provider-boundary repair had been reattaching raw trajectory URL arrays.
-  return preserveFetchedClaimAtProviderBoundary(
+  // Enforce one predictable user-prompt budget after preserving the human
+  // objective, active Boss direction, current action schema, and newest durable
+  // act envelope. URL tokens are retained whole; omitted middle context is
+  // explicitly unknown and remains in the immutable event ledger.
+  const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
+  // Compact auxiliary context toward a preferred size, but never cut the
+  // authoritative objective, Boss scope, live action allowlist, exact registry
+  // availability, terminal contract, complete output schema or newest durable act.
+  const userPromptBudget = Math.min(
+    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
+    4_000,
+  );
+  if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
+
+  const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
+  if (outputContractIndex < 0) return providerBoundedPrompt;
+  const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
+  const pinnedContext = [
+    authoritativeCaseObjective,
+    activeBossScopeSection,
+    availableActionsGuidance,
+    compactRegistryGuidance,
+    searchActivityGuidance,
+    terminalContractGuidance,
+    blockedScopeRecoveryMarker,
+    latestRecordTail,
+    aiHistoricalMemorySection,
+  ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
+  let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
+  for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
+  const marker = "[INVESTIGATOR PROMPT COMPACTION: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
+  let boundedPinnedContext = [...pinnedContext];
+  let requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+  let prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+  // If the preferred budget is exceeded, shorten only the lossy AI historical
+  // memory. Keep the complete human objective, Boss scope, executable action
+  // list, callable registry IDs, terminal/schema contracts and newest durable
+  // action/fetched evidence intact.
+  if (prefixBudget < 0 && aiHistoricalMemorySection) {
+    const fixedPinnedContext = pinnedContext.filter((section) => section !== aiHistoricalMemorySection);
+    const fixedLength = [...fixedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n").length;
+    const memoryBudget = Math.max(0, userPromptBudget - fixedLength - marker.length - 2);
+    if (memoryBudget > 0) {
+      const boundedMemory = compactPromptSectionPreservingUrlTokens(
+        aiHistoricalMemorySection,
+        memoryBudget,
+        "[AI MEMORY BOUNDED: omitted historical detail is unknown; durable case evidence remains authoritative]",
+      );
+      boundedPinnedContext = [...fixedPinnedContext, boundedMemory];
+      requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
+      prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
+    }
+  }
+  // If even the non-lossy objective, scope, action, registry, latest evidence
+  // and output contract exceed the preferred size, preserve the full request
+  // and let provider/token accounting handle its actual serialized cost.
+  if (prefixBudget < 0) return providerBoundedPrompt;
+  const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
+  const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
+  if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
+    return providerBoundedPrompt;
+  }
+  return boundedPrompt;
 }
 
 /**
@@ -5265,11 +5334,6 @@ export function discoveryLeadInspectionRequirement(
   return null;
 }
 
-export const MAX_DISCOVERY_SEARCH_ACTIONS = boundedPositiveNumber(process.env.APEX_DISCOVERY_MAX_SEARCH_ACTIONS, 8, 2, 20);
-
-export function discoverySearchBudgetExhaustionObservation(used: number): string {
-  return "DISCOVERY SEARCH BUDGET: the configured outbound search-action ceiling has been reached (" + used + "/" + MAX_DISCOVERY_SEARCH_ACTIONS + " actions used across this case). No further search/provider/registry request was sent. Decide whether any objective-justified non-search action, target-scoped handoff, or stopping is warranted; the next action remains your decision.";
-}
 const DISCOVERY_SEARCH_ACTIONS = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
 
 /** Count only outbound search attempts; runtime-blocked and unexecuted selections do not consume the discovery search budget. */
@@ -5454,8 +5518,8 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     + cues.join(" ")
     + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
 }
-/** Preserve short names only when the exact name and role are co-bound in one fetched source. */
-export function candidateIdentitySourceBound(personName: string, role: string | null | undefined, observation: string): boolean {
+/** Bind the model-selected name to observed source text; role claims are checked separately when supplied. */
+export function candidateIdentitySourceBound(personName: string, _role: string | null | undefined, observation: string): boolean {
   const normalizedName = normalizeCandidateIdentityName(personName);
   if (!normalizedName) return false;
   const identityText = observation
@@ -5463,22 +5527,10 @@ export function candidateIdentitySourceBound(personName: string, role: string | 
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
   if (candidateIdentityObserved(personName, identityText)) return true;
 
-  const codePoints = Array.from(normalizedName);
-  if (codePoints.length >= 3 || !role?.trim()) return false;
+  // Unspaced scripts have no reliable whitespace token boundary; require an
+  // exact source span, but do not require the model to invent a role.
   const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
-  if (codePoints.length === 1 && !unspacedNameScript.test(personName)) return false;
-  const span = bindExactSourceSpan(observation, role.trim(), personName);
-  if (!span?.exact) return false;
-  const spanText = span.text.toLowerCase();
-  const normalizedRole = role.trim().toLowerCase();
-  const normalizedPerson = personName.trim().toLowerCase();
-  const roleIndex = spanText.indexOf(normalizedRole);
-  const personIndex = spanText.indexOf(normalizedPerson);
-  if (roleIndex < 0 || personIndex < 0) return false;
-  const roleEnd = roleIndex + normalizedRole.length;
-  const personEnd = personIndex + normalizedPerson.length;
-  const between = spanText.slice(Math.min(roleEnd, personEnd), Math.max(roleIndex, personIndex));
-  return !/[.!?\\n]/.test(between);
+  return unspacedNameScript.test(personName) && Boolean(bindExactSourceSpan(observation, personName)?.exact);
 }
 
 const DISCOVERY_EXTERNAL_ACTIONS = new Set([
@@ -5549,7 +5601,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
       const role = typeof finding.role === "string" ? finding.role.trim() : "";
       if (candidate && !personName) return true;
-      if (promotedCandidate && !role) return true;
+      // Role is optional; when the model supplies one, it must be bound separately.
 
       const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
         record.observedUrls.map((raw) => {
@@ -5563,7 +5615,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       );
       let valueBound = false;
       let identityBound = !candidate;
-      let roleBound = !promotedCandidate;
+      let roleBound = !promotedCandidate || !role;
 
       for (const sourceUrl of sources) {
         const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
@@ -5574,12 +5626,12 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
           const observation = record.observation ?? "";
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
           const hasIdentity = candidate && candidateIdentitySourceBound(personName, role, observation);
-          const hasRole = promotedCandidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
+          const hasRole = promotedCandidate && Boolean(role) && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
           if (hasIdentity && hasRole) roleBound = true;
           const identityAdmission = promotedCandidate && finding.vectorType === "other" && personName.length > 0 && finding.value.trim().toLowerCase() === personName.toLowerCase();
-          if (identityAdmission ? (hasValue && hasIdentity && hasRole) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
+          if (identityAdmission ? (hasValue && hasIdentity && (!role || hasRole)) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
         }
         if (!sourceSupportsClaim) return true;
       }
@@ -5630,7 +5682,7 @@ export function createCancellationSupervisor(
   timer.unref?.();
   return { checkNow, stop: () => { stopped = true; clearInterval(timer); } };
 }
-export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: InvestigatorCapability; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; caseId?: number; mode?: "target" | "discovery"; priorContext?: string; durableUrlInventory?: string; priorIntelligenceContext?: IntelligenceContext; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; priorSearchQueries?: readonly string[]; initialConsecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; status?: string; summary?: string; targetName: string; companyName?: string | null }) => void; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void> }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = Math.min(Math.max(0, requestedIterations), MAX_ITER); const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); if (input.signal?.aborted) runController.abort(); else input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); let cancellationRequestedByJob = false; const cancellationSupervisor = input.shouldCancel ? createCancellationSupervisor(input.shouldCancel, () => { cancellationRequestedByJob = true; runController.abort(); }, () => runController.signal.aborted) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; const pushHistory = (line: string) => history.push(sanitizeUrlsInText(line)); const searchQueriesUsed: string[] = [...new Set((input.priorSearchQueries ?? []).map(normalizeDiscoverySearchQuery).filter(Boolean))]; const failedRegistryAdapters = new Set<string>(); const searchProviderFailures = restoreSearchProviderFailureState(input.priorTrajectoryRecords ?? []); const observeSearchProviderOutcome = (provider: string, status: string, failureClass: ProviderFailureClass | null | undefined): void => applySearchProviderOutcome(searchProviderFailures, provider, status, failureClass); let lastObservation = buildInitialInvestigatorObservation(input.priorTrajectoryRecords ?? [], objective, input.mode); let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; let partialFindings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0)); let runtimeStage = "turn_preparation"; let runtimePhase = "initialization"; let iterationsAttempted = 0; async function emitSanitizedTrajectoryRecord(record: AgenticTrajectoryRecord): Promise<void> {
+export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: InvestigatorCapability; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; caseId?: number; mode?: "target" | "discovery"; priorContext?: string; durableUrlInventory?: string; priorIntelligenceContext?: IntelligenceContext; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; priorSearchQueries?: readonly string[]; initialConsecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; status?: string; summary?: string; targetName: string; companyName?: string | null }) => void; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void> }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (!name && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = Math.min(Math.max(0, requestedIterations), MAX_ITER); const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); if (input.signal?.aborted) runController.abort(); else input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); let cancellationRequestedByJob = false; const cancellationSupervisor = input.shouldCancel ? createCancellationSupervisor(input.shouldCancel, () => { cancellationRequestedByJob = true; runController.abort(); }, () => runController.signal.aborted) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; const pushHistory = (line: string) => history.push(sanitizeUrlsInText(line)); const searchQueriesUsed: string[] = [...new Set((input.priorSearchQueries ?? []).map(normalizeDiscoverySearchQuery).filter(Boolean))]; const failedRegistryAdapters = new Set<string>(); const searchProviderFailures = restoreSearchProviderFailureState(input.priorTrajectoryRecords ?? []); const observeSearchProviderOutcome = (provider: string, status: string, failureClass: ProviderFailureClass | null | undefined): void => applySearchProviderOutcome(searchProviderFailures, provider, status, failureClass); let lastObservation = buildInitialInvestigatorObservation(input.priorTrajectoryRecords ?? [], objective, input.mode); let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; let partialFindings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0)); let runtimeStage = "turn_preparation"; let runtimePhase = "initialization"; let iterationsAttempted = 0; async function emitSanitizedTrajectoryRecord(record: AgenticTrajectoryRecord): Promise<void> {
     const previousStage = runtimeStage;
     runtimeStage = "trajectory_persistence";
     try {
@@ -5970,20 +6022,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
 // reconstructed from keyword/geography/source-class aliases in the executor.
 // Keep this field only for technical provider-availability diagnostics below.
 let scopeFilterSummary: string | null = null;
-if (input.mode === "discovery" && DISCOVERY_SEARCH_ACTIONS.has(action.action)) {
-  const discoverySearchActionsUsed = countDiscoverySearchActions([...completePriorTrajectoryRecords, ...records]);
-  if (discoverySearchActionsUsed >= MAX_DISCOVERY_SEARCH_ACTIONS) {
-    record.execution = "blocked";
-    record.failureDomain = "tool_execution";
-    record.failureKind = "request_failure";
-    record.observation = discoverySearchBudgetExhaustionObservation(discoverySearchActionsUsed);
-    lastObservation = record.observation;
-    pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_search_budget_exhausted");
-    await emitSanitizedTrajectoryRecord(record);
-    emit(action.action, { provider: "none", status: "blocked", summary: "Discovery search budget exhausted at the configured ceiling." });
-    continue;
-  }
-}
 if (action.action === "parallel_web_search") {
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
@@ -6058,7 +6096,10 @@ const repeatActionReason = redundantResearchActionReason(action.action, selected
         continue;
       }
       record.sourceBindings = sourceBindings;
-      findings = mergeFindings(findings, action.findings); record.execution = "success"; record.findings = action.findings; syncIntelligence(); record.stopReason = "MODEL_DECIDED_DONE"; pushHistory(`step${i + 1}: done execution=success modelFindings=${action.findings.length}`); await emitSanitizedTrajectoryRecord(record); emit("done", { status: "success", summary: "Investigator requested completion; the evidence gate accepted the terminal action." }); return { ...resultBase("completed", i + 1, "MODEL_DECIDED_DONE"), modelFindings: sanitizeObservableValue(action.findings) }; } if (action.action === "parallel_web_search") { const queryQualityWarnings: string[] = []; if (action.searches.length < 1 || action.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) { record.execution = "blocked"; record.observation = `Parallel web-search batch must contain 1-${MAX_PARALLEL_SEARCHES_PER_BATCH} valid query.`; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } if (input.mode === "discovery") { const batchQueries = [...searchQueriesUsed]; const parallelRequestKeys = new Set<string>(); let validationFailure: string | null = null; for (const [searchIndex, search] of action.searches.entries()) { const parallelRequestKey = JSON.stringify([normalizeDiscoverySearchQuery(search.query), search.provider, normalizeDiscoverySearchQuery(search.locale ?? ""), normalizeDiscoverySearchQuery(search.market ?? "")]); if (parallelRequestKeys.has(parallelRequestKey)) { validationFailure = "Parallel search batch contains an identical query/provider/locale/market request more than once; no search in this batch was executed."; break; } parallelRequestKeys.add(parallelRequestKey); const repeatReason = repeatedDiscoverySearchReason(search, previousResearchRecords); if (repeatReason) { validationFailure = repeatReason; break; } const validation = validateDiscoverySearchQuery(search.query, batchQueries); if (!validation.allowed) { validationFailure = validation.reason; break; } if (validation.warning) queryQualityWarnings.push("Search " + (searchIndex + 1) + ": " + validation.warning); batchQueries.push(search.query); } if (validationFailure) { record.execution = "blocked"; record.observation = validationFailure; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(...action.searches.map((search) => search.query)); } searches += action.searches.length; try { const results = await Promise.all(action.searches.map((search) => toolWebSearch(search.query, search.provider as "serper" | "tavily" | "exa", search.locale ?? undefined, search.market ?? undefined, runController.signal))); for (const result of results) observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.args = { ...record.args, searchOutcomes: results.map((result, index) => ({ query: action.searches[index]?.query ?? "", provider: result.provider, status: result.status, failureClass: result.failureClass ?? null, urls: result.urls })) }; const successful = results.filter((result) => result.status !== "error"); record.execution = successful.length > 0 ? "success" : "error"; if (successful.length === 0) { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } assignSearchResultLeads(record, successful.flatMap((result) => result.urls)); record.observation = (scopeFilterSummary ? scopeFilterSummary + "\n\n" : "") + results.map((result, index) => {
+      findings = mergeFindings(findings, action.findings); record.execution = "success"; record.findings = action.findings; syncIntelligence(); record.stopReason = "MODEL_DECIDED_DONE"; pushHistory(`step${i + 1}: done execution=success modelFindings=${action.findings.length}`); await emitSanitizedTrajectoryRecord(record); emit("done", { status: "success", summary: "Investigator requested a terminal stop; the evidence outcome is reported separately and is not itself target verification." });
+      // "completed" means the model chose to stop. Only the separate outcome
+      // and canonical evidence-graph gate can establish a substantiated result.
+      return { ...resultBase("completed", i + 1, "MODEL_DECIDED_DONE"), researchOutcome: epistemicGate.outcome ?? (intelligenceState.evidenceCount > 0 ? "evidence_backed" : "inconclusive"), modelFindings: sanitizeObservableValue(action.findings) }; } if (action.action === "parallel_web_search") { const queryQualityWarnings: string[] = []; if (action.searches.length < 1 || action.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) { record.execution = "blocked"; record.observation = `Parallel web-search batch must contain 1-${MAX_PARALLEL_SEARCHES_PER_BATCH} valid query.`; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } if (input.mode === "discovery") { const batchQueries = [...searchQueriesUsed]; const parallelRequestKeys = new Set<string>(); let validationFailure: string | null = null; for (const [searchIndex, search] of action.searches.entries()) { const parallelRequestKey = JSON.stringify([normalizeDiscoverySearchQuery(search.query), search.provider, normalizeDiscoverySearchQuery(search.locale ?? ""), normalizeDiscoverySearchQuery(search.market ?? "")]); if (parallelRequestKeys.has(parallelRequestKey)) { validationFailure = "Parallel search batch contains an identical query/provider/locale/market request more than once; no search in this batch was executed."; break; } parallelRequestKeys.add(parallelRequestKey); const repeatReason = repeatedDiscoverySearchReason(search, previousResearchRecords); if (repeatReason) { validationFailure = repeatReason; break; } const validation = validateDiscoverySearchQuery(search.query, batchQueries); if (!validation.allowed) { validationFailure = validation.reason; break; } if (validation.warning) queryQualityWarnings.push("Search " + (searchIndex + 1) + ": " + validation.warning); batchQueries.push(search.query); } if (validationFailure) { record.execution = "blocked"; record.observation = validationFailure; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(...action.searches.map((search) => search.query)); } searches += action.searches.length; try { const results = await Promise.all(action.searches.map((search) => toolWebSearch(search.query, search.provider as "serper" | "tavily" | "exa", search.locale ?? undefined, search.market ?? undefined, runController.signal))); for (const result of results) observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.args = { ...record.args, searchOutcomes: results.map((result, index) => ({ query: action.searches[index]?.query ?? "", provider: result.provider, status: result.status, failureClass: result.failureClass ?? null, urls: result.urls })) }; const successful = results.filter((result) => result.status !== "error"); record.execution = successful.length > 0 ? "success" : "error"; if (successful.length === 0) { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } assignSearchResultLeads(record, successful.flatMap((result) => result.urls)); record.observation = (scopeFilterSummary ? scopeFilterSummary + "\n\n" : "") + results.map((result, index) => {
   const communityUrls = result.urls.filter((url) => isCommunityObservationSourceUrl(url));
   const resultText = communityUrls.length ? result.text + "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : result.text;
   return "PARALLEL_SEARCH " + (index + 1) + " provider=" + result.provider + "\n" + result.urls.join("\n") + "\n" + resultText;

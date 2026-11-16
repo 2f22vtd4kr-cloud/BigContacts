@@ -246,6 +246,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
         `Motivation: ${clipPrompt(humanBrief.motivation ?? "", 500)}`,
         `Geography: ${clipPrompt(humanBrief.geography ?? "", 240)}`,
         `Explicit exclusions: ${clipPromptList(humanBrief.exclusions, 8, 220).join("; ")}`,
+        "General company/press/IR channels are organization routes, not personal access; they may remain useful leads or intermediaries.",
       ].join("\n")
     : "HUMAN MISSION: no persisted brief is available; do not invent one.";
   const creative = buildCreativeInvestigatorAngles({
@@ -319,8 +320,8 @@ Write a human-like, adaptive assignment, not a checklist. It should:
 - stop or redirect when evidence conflicts rather than manufacturing a conclusion.
 
 TARGET FITNESS — HUMAN-OBJECTIVE-ALIGNED RELEVANCE AND REACHABILITY
-The human mission in CASE STATE is authoritative. Do not invent a private-company, company-size, wealth, ownership, or investor preference unless the human objective, motivation, or exclusions explicitly require it. For generic person-prospect discovery, globally famous/household-name people are presumptively poor-access prospects: do not select or surface them merely because they are famous, wealthy, or prominent. Require a documented person-specific professional route or an explicit human request for that prominent figure. General company, press, or investor-relations channels do not establish individual access. An explicitly named target or specifically requested prominent figure remains in scope and must be assessed on evidence. This rule is objective-led, not a deterministic name list or permanent exclusion.
-For B2B company/decision-maker discovery, well-known or publicly traded companies and their relevant decision-makers remain eligible when they directly fit the objective; assess the actual business role, company connection, and available public/professional route from evidence. Preserve objective-relevant companies regardless of brand fame. Do not apply the person-prospect reachability heuristic to companies or exclude an employee merely because their employer is well-known. Never use a deterministic name list. Practical reachability is a claim requiring evidence, not a popularity heuristic.
+The human mission in CASE STATE is authoritative. Do not invent private-company, company-size, wealth, ownership, investor, sector or geography preferences unless the human objective, motivation or exclusions explicitly require them. Fame, prominence, wealth labels, seniority, size, listing status, ranking badges and route categories are contextual signals, not eligibility gates. The Investigator decides relevance and practical targetability from the objective and source evidence; do not infer reachability from fame or prominence. General company/press/IR channels are organization routes, not personal access; they may remain useful leads or intermediaries. A missing personal route is an evidence gap, not an exclusion.
+For B2B discovery, fetched evidence is required before asserting a person's current role or company connection; missing role evidence is unresolved, not a reason to suppress a model-selected lead. Preserve objective-relevant companies and people regardless of brand fame or listing status. Practical reachability is a claim requiring evidence, not a popularity heuristic.
 
 RETURN ONE JSON OBJECT ONLY
 For proceed:

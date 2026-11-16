@@ -49,6 +49,36 @@ describe("model-owned candidate semantics and deterministic source integrity", (
     expect(result[0]).toMatchObject({ sourceUrl, eventId: 73 });
   });
 
+  it("allows a model-promoted person with no stated role when the exact quote and identity are source-bound", () => {
+    const personName = "Li";
+    const sourceUrl = "https://registry.example.test/ownership/123";
+    const exactQuote = "Li holds 30% of Example Holdings.";
+    const result = candidateRoleCorroborationSources({
+      personName,
+      role: null,
+      findings: [{
+        personName,
+        role: null,
+        promotionDecision: "promote",
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        exactQuote,
+      }],
+      observations: [{
+        action: "visit",
+        execution: "success",
+        sourceUrl,
+        observation: exactQuote + " Filing date: 2026-10-01.",
+        eventId: 75,
+      }],
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
+      normalizeSourceUrl,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ sourceUrl, eventId: 75 });
+  });
+
   it("requires the model-selected quotation to exist verbatim in the matching fetched source", () => {
     const sourceUrl = "https://registry.example.test/company/123";
     const result = candidateRoleCorroborationSources({

@@ -52,8 +52,8 @@ jobs:
           fi
           assert_contains 'trajectoryRecords' "$core"
           orientation='artifacts/api-server/src/src/lib/apex-bureau-orientation.ts'
-          assert_contains 'Investigator owns hypotheses, targets, research, interpretation and stopping' "$orientation"
-          assert_contains 'DISCOVERY LEAD HANDOFF' "$core"
+          assert_contains 'Investigator owns hypotheses, targets, research and stopping' "$orientation"
+          assert_contains 'REVIEW LEADS:' "$orientation"
           assert_contains 'INVESTIGATOR_SCHEMA_OVERHEAD_CHARS' "$core"
           assert_contains 'CONTINUATION STATE' "$wrapper"
           assert_contains 'no fixed checklist' artifacts/api-server/src/src/lib/target-contact-agent.ts

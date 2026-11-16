@@ -65,6 +65,34 @@ describe("research intelligence atomic evidence", () => {
     expect(context.facts).toHaveLength(0);
   });
 
+  it("classifies data-broker and profile-aggregator visits as non-independent source evidence", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "aggregator-provenance",
+      target: "Alice Example",
+      objective: "Verify a person identity and current role",
+    });
+    const url = "https://www.rocketreach.co/alice-example";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      args: { url },
+      execution: "success",
+      observation: "Alice Example is founder of Example Labs.",
+      urls: [url],
+      findings: [{
+        vectorType: "other",
+        value: "founder of Example Labs",
+        personName: "Alice Example",
+        exactQuote: "Alice Example is founder of Example Labs.",
+        sourceUrls: [url],
+      }],
+    });
+    const context = engine.buildContext();
+    const claims = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim");
+    expect(claims.length).toBeGreaterThan(0);
+    expect(claims.every((item) => item.sourceClass === "AGGREGATOR")).toBe(true);
+  });
+
   it("does not admit positive findings from a failed source visit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "failed-visit", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
@@ -148,6 +176,7 @@ describe("research intelligence atomic evidence", () => {
         vectorType: "is",
         value: "founder of Example Labs",
         personName: "Alice Example",
+        exactQuote: hypothesis,
         sourceUrls: [url],
       }],
     });

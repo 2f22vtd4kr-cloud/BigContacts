@@ -1,3 +1,5 @@
+import { isAggregatorHost } from "./source-corroboration";
+
 export type DiscoverySourceAttribution = {
   sourceName: string;
   sourceNameKind: "publisher_name" | "domain_fallback";
@@ -39,7 +41,8 @@ export function sanitizeCommunityObservationText(text: string): string {
 export function extractCommunityObservationMetadata(text: string): { sourceContributor: string | null; originalObservedAt: string | null } {
   const contributorMatch = text.match(/(?:submitted|uploaded|contributed|posted|added)\s+by\s+([^\n|;,]{2,100})/i);
   const datePattern = "(\\d{4}-\\d{2}-\\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\s+\\d{1,2},?\\s+\\d{4})";
-  const sourceContributor = contributorMatch?.[1]?.trim().replace(new RegExp("\\s+(?:on|at)\\s+" + datePattern + "\\.?$", "i"), "").replace(/\\s{2,}/g, " ").slice(0, 100) || null;
+  const contributorText = contributorMatch?.[1]?.split(/\s+(?:coordinates?|latitude|longitude)\s*:/i)[0]?.trim() ?? "";
+  const sourceContributor = contributorText.replace(new RegExp("\\s+(?:on|at)\\s+" + datePattern + "\\.?$", "i"), "").replace(/[.,;|]+$/, "").replace(/\s{2,}/g, " ").slice(0, 100) || null;
   const dateMatch = text.match(new RegExp("(?:submitted|uploaded|contributed|posted|added|observed|updated)\\s+(?:by\\s+[^.\\n|;,]{2,100}?\\s+)?(?:on\\s+)?" + datePattern, "i"));
   const parsed = dateMatch?.[1] ? new Date(dateMatch[1]) : null;
   const originalObservedAt = parsed && Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
@@ -74,9 +77,11 @@ export function buildDiscoverySourceAttribution(input: {
   const sourceDomain = suppliedDomain || urlDomain || "unknown";
   const sourceClass = communityObservationSource
     ? "community_user_submitted_unverified"
-    : typeof input.sourceClass === "string" && input.sourceClass.trim()
-      ? input.sourceClass.trim()
-      : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
+    : isAggregatorHost(urlDomain)
+      ? "AGGREGATOR"
+      : typeof input.sourceClass === "string" && input.sourceClass.trim()
+        ? input.sourceClass.trim()
+        : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
   const sourceContributor = typeof input.sourceContributor === "string" && input.sourceContributor.trim()
     ? input.sourceContributor.trim()
     : null;

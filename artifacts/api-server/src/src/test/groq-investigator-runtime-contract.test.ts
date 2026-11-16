@@ -180,12 +180,10 @@ describe("Groq Investigator runtime contract", () => {
     const compacted = compactEmergencyTrajectoryObservation(
       "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Perform registry queries on Zefix/Swiss commercial register. The action's actual query/resource is outside that scope. No outbound request was made.",
     );
-    expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION (no request)");
-    expect(compacted).toContain("web discovery may search in-scope topic terms and company terms without repeating source-class wording");
-    expect(compacted).toContain("choose a registry adapter matching the active geography");
-    expect(compacted).toContain("fetch only an observed aligned URL");
-    expect(compacted).toContain("do not retry unchanged without new evidence");
-    expect(compacted).toContain("request new scope from Boss/Right-hand when needed");
+    expect(compacted).toContain("SCOPE DIAGNOSTIC: prior action blocked before execution; no evidence.");
+    expect(compacted).toContain("Reassess against the human objective and Boss scope");
+    expect(compacted).toContain("Propose material scope changes to Boss.");
+    expect(compacted).toContain("Active Boss-approved scope: Perform registry queries on Zefix/Swiss commercial register");
     expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
 
@@ -320,15 +318,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
-    expect(submitted).toContain("OPTIONAL FIELDS: Omit action-irrelevant optional fields (no null placeholders).");
+    expect(submitted).toContain("Omit irrelevant optional fields.");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
-    expect(submitted).toContain("Apply mission-specific standards; adjectives/generic nouns are not queries.");
-    expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
-    expect(submitted).toContain("Model judges target/source relevance, identity, ownership, relationships, source meaning, contact attribution and priority");
-    expect(submitted).toContain("Fame, wealth, seniority, size, sector, geography, language and source class are context, not gates");
-    expect(submitted).toContain("TERMINAL: Stop only at a defensible answer or justified blocker; failed searches, untested hypotheses and useful unresolved leads are not completion.");
-    expect(submitted).toContain("parallel_web_search items require query and provider; locale/market are optional and registry is omitted.");
-    expect(submitted).toContain("parallel_registry_search items require query and registry; provider/locale/market are omitted.");
+    expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
+    expect(submitted).toContain("No fixed source/provider/registry order or mix.");
+    expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
+    expect(submitted).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
@@ -390,10 +387,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages).toHaveLength(2);
     expect(messages.map((message) => message.content).join("\\n")).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     expect(prompt).toContain("Czech Republic");
-    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
+    expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toContain("source class");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF:");
-    expect(messages.map((message) => message.content).join("\n")).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction.");
+    expect(messages.map((message) => message.content).join("\n")).toContain("Reassess against the human objective and Boss scope");
   });
 
   it("replays the 2026-11-14 captured Investigator request metadata and bounded recovery", () => {

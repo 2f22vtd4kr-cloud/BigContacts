@@ -1,91 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations } from "./research-depth";
 
-describe("bounded discovery allocation", () => {
-  it("preserves the target-stage reserve even before a candidate is admitted", () => {
+describe("shared Investigator technical mission budget", () => {
+  it("keeps discovery and target research on the same remaining global action counter", () => {
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
-      discoveryIterationCeiling: 12,
-      discoveryIterationsUsed: 4,
       investigatorIterationsUsed: 4,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: false,
+    })).toBe(16);
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: 20,
+      investigatorIterationsUsed: 12,
     })).toBe(8);
-
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
-      discoveryIterationCeiling: 12,
-      discoveryIterationsUsed: 12,
-      investigatorIterationsUsed: 12,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: false,
-    })).toBe(0);
-
-    expect(resolveRemainingDiscoveryIterations({
-      totalIterationCeiling: 20,
-      discoveryIterationCeiling: 12,
-      discoveryIterationsUsed: 20,
       investigatorIterationsUsed: 20,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: false,
     })).toBe(0);
   });
 
-  it("caps discovery at the configured discovery share when no target is found", () => {
+  it("fails closed for invalid mission counters", () => {
     expect(resolveRemainingDiscoveryIterations({
-      totalIterationCeiling: 20,
-      discoveryIterationCeiling: 20,
-      discoveryIterationsUsed: 8,
-      investigatorIterationsUsed: 8,
-      targetResearchReserveIterations: 12,
-      hasAdmittedCandidates: false,
+      totalIterationCeiling: Number.NaN,
+      investigatorIterationsUsed: 2,
     })).toBe(0);
-  });
-
-  it("activates the protected target-research reserve after a lead is admitted", () => {
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
-      discoveryIterationCeiling: 20,
-      discoveryIterationsUsed: 8,
-      investigatorIterationsUsed: 8,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: true,
-    })).toBe(4);
-
-    expect(resolveRemainingDiscoveryIterations({
-      totalIterationCeiling: 20,
-      discoveryIterationCeiling: 20,
-      discoveryIterationsUsed: 12,
-      investigatorIterationsUsed: 12,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: true,
+      investigatorIterationsUsed: -1,
     })).toBe(0);
-
-    // Five target-stage actions already consumed half the reserve. Discovery
-    // may use the other six iterations allowed by its ceiling, protecting only
-    // the three target-stage actions that remain unspent.
-    expect(resolveRemainingDiscoveryIterations({
-      totalIterationCeiling: 20,
-      discoveryIterationCeiling: 20,
-      discoveryIterationsUsed: 6,
-      investigatorIterationsUsed: 11,
-      targetResearchReserveIterations: 8,
-      hasAdmittedCandidates: true,
-    })).toBe(6);
   });
 });
 
-
-describe("opening Investigator correction budget", () => {
-  it("reserves a fourth model-owned turn for correcting invalid or policy-blocked actions", () => {
-    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 20)).toBe(4);
-    // Standard depth reserves 12 of 20 actions for target research, leaving
-    // eight discovery actions. The opening episode must still get four turns.
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 8)).toBe(3);
-    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 8)).toBe(4);
+describe("per-episode technical bounds", () => {
+  it("uses the configured per-act ceiling without reserving a fixed number of opening turns", () => {
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 20)).toBe(6);
+    expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 8)).toBe(6);
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 4 }, 12)).toBe(4);
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 2 }, 2)).toBe(2);
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
+  });
+
+  it("bounds each episode by its technical per-act limit, not an assumed number of discovery episodes", () => {
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(7);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 2 }, 7)).toBe(2);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 0)).toBe(0);
   });
 });
 
@@ -131,11 +87,5 @@ describe("mission versus episode budget semantics", () => {
       episodeLimitReached: false,
       missionLimitReached: true,
     });
-  });
-
-  it("bounds an episode without prescribing which research actions the model chooses", () => {
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(3);
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 2 }, 7)).toBe(2);
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 0)).toBe(0);
   });
 });

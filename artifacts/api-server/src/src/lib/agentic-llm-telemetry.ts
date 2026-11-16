@@ -184,7 +184,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
     const reasoning = Math.max(0, Math.floor(event.reasoningTokens ?? 0));
     const estimated = Math.max(0, Math.floor(event.estimatedTokens ?? 0));
-    const totalFallback = event.success && event.providerRequestSent !== false && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
+    const totalFallback = requestSent && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
     const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
     const budget = Math.max(0, Math.floor(event.dailyBudgetTokens ?? 0));
     const table = agenticLlmDailyUsageTable;
@@ -262,7 +262,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
  * Atomically reserve the estimated prompt+completion allowance before a model
  * request. Provider-reported daily exhaustion is also sticky for the UTC day.
  */
-export async function reserveAgenticLlmDailyBudget(input: {
+async function reserveAgenticLlmDailyBudgetUnlocked(input: {
   provider: string;
   model: string;
   estimatedTokens: number;
@@ -277,20 +277,18 @@ export async function reserveAgenticLlmDailyBudget(input: {
     return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
   }
   try {
-    const [{ db, agenticLlmDailyUsageTable }, { sql, and, eq }] = await Promise.all([
+    const [{ db, agenticLlmDailyUsageTable }, { sql }] = await Promise.all([
       import("@workspace/db"),
       import("drizzle-orm"),
     ]);
     const table = agenticLlmDailyUsageTable;
-    const existing = await db.select({ budgetExhausted: table.budgetExhausted })
-      .from(table)
-      .where(and(eq(table.usageDate, usageDate), eq(table.provider, input.provider), eq(table.model, input.model)))
-      .limit(1);
-    if (existing[0]?.budgetExhausted) throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
+    // The atomic INSERT/ON CONFLICT reservation below is the source of truth.
+    // A pre-read is both racy and unnecessary: the WHERE clause also rejects
+    // rows already marked budget_exhausted.
     if (dailyBudgetTokens <= 0) return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
     if (estimatedTokens > dailyBudgetTokens) {
-      await db.insert(table).values({ usageDate, provider: input.provider, model: input.model, dailyBudgetTokens, budgetExhausted: true })
-        .onConflictDoUpdate({ target: [table.usageDate, table.provider, table.model], set: { dailyBudgetTokens, budgetExhausted: true, updatedAt: new Date() } });
+      // This request is too large for the configured ceiling; that does not
+      // exhaust the day or prevent a smaller request from fitting.
       throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
     }
     const result = await db.execute(sql`
@@ -310,8 +308,9 @@ export async function reserveAgenticLlmDailyBudget(input: {
     `);
     const rows = (result as { rows?: unknown[] }).rows ?? [];
     if (!rows.length) {
-      await db.insert(table).values({ usageDate, provider: input.provider, model: input.model, dailyBudgetTokens, budgetExhausted: true })
-        .onConflictDoUpdate({ target: [table.usageDate, table.provider, table.model], set: { dailyBudgetTokens, budgetExhausted: true, updatedAt: new Date() } });
+      // A rejected reservation does not mean the daily budget is exhausted:
+      // a smaller later request may still fit the remaining capacity. Never
+      // poison the durable budget_exhausted flag on a failed reservation.
       throw new AgenticDailyTokenBudgetError("daily_token_budget_exhausted");
     }
     return { usageDate, reservedTokens: estimatedTokens, dailyBudgetTokens };
@@ -321,6 +320,28 @@ export async function reserveAgenticLlmDailyBudget(input: {
     // Without a configured local ceiling, preserve the existing provider path if
     // the database is unavailable. The persistence warning remains visible.
     return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
+  }
+}
+
+
+// Serialize reservations within one API process so local callers observe a
+// deterministic reservation order. The INSERT/ON CONFLICT predicate remains
+// the cross-process authority: concurrent API replicas cannot over-reserve.
+let dailyReservationChain: Promise<void> = Promise.resolve();
+export async function reserveAgenticLlmDailyBudget(input: {
+  provider: string;
+  model: string;
+  estimatedTokens: number;
+  env?: NodeJS.ProcessEnv;
+}): Promise<AgenticLlmDailyReservation> {
+  const previous = dailyReservationChain;
+  let release!: () => void;
+  dailyReservationChain = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  try {
+    return await reserveAgenticLlmDailyBudgetUnlocked(input);
+  } finally {
+    release();
   }
 }
 

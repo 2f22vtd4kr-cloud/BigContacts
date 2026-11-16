@@ -18,6 +18,7 @@ describe("durable Investigator contact attribution", () => {
     const entity = {
       type: "HNWI",
       email: "info@official-example.org",
+      validatedDirectContact: true,
       metadata: {
         agenticContactProvenance: {
           email: {

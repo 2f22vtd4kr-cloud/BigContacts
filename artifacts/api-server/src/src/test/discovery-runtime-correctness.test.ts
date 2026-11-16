@@ -10,6 +10,7 @@ const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-resear
 const orientationSource = fs.readFileSync(path.join(libDir, "apex-bureau-orientation.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
 const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
+const leadReconciliationSource = fs.readFileSync(path.join(libDir, "research-lead-card-reconciliation.ts"), "utf8");
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
@@ -172,7 +173,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("candidateRoleCorroborationSources");
     expect(canonicalSource).toContain("sources.length >= 1");
     expect(canonicalSource).not.toContain("hasDiscoveryOwnershipLeadSignal");
-    expect(canonicalSource).toContain("claimGradeObservations");
+    expect(canonicalSource).toContain("const observations = caseEvents.flatMap");
     expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
     expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
     expect(candidateSourcePolicy).toContain("const exactQuote = modelQuotes.find");
@@ -492,40 +493,30 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("caps discovery early and protects the target-stage reserve even before admission", () => {
+  it("shares one global technical action ceiling without reserving a discovery or target quota", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.6)))");
     expect(canonicalSource).toContain("const discoveryIterationCeiling = depth.agenticMaxIterations");
     expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = resolveOpeningInvestigatorIterations(depth, discoveryIterationCeiling)");
-    expect(canonicalSource).toContain("const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations)");
+    expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed })");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
-    const openingRecoveryCall = canonicalSource.slice(
-      canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery("),
-      canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable"),
-    );
-    expect(openingRecoveryCall).toMatch(/runDiscoveryWithQuotaRecovery\s*\(\s*discovery\s*,\s*openingInvestigatorObjective\s*,\s*openingDiscoveryBudget\s*,\s*openingInvestigatorIterations/s);
-    expect(openingRecoveryCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
-    expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
-    expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({");
-    expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
-    expect(canonicalSource).toContain("if (admittedCandidateSources.length === 0 && resolveRemainingDiscoveryIterations({");
-    const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
-    expect(depthSource).toContain("const effectiveTargetReserve = input.hasAdmittedCandidates");
-    expect(depthSource).toContain("const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve)");
     expect(canonicalSource).toContain("const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
     expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
-    expect(canonicalSource).toContain('kind: "discovery_budget"');
-    expect(canonicalSource).toContain("The global ${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate.");
-    expect(canonicalSource).toContain("No candidate has been admitted. Discovery remains capped at ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} actions; the protected target-research reserve is not released for additional broad discovery.");
-    expect(canonicalSource).toContain("Discovery reached its ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)}-action allocation without an admitted candidate; target research remains unauthorized without a qualifying lead.");
+    expect(canonicalSource).not.toContain("targetResearchReserveIterations");
+    expect(canonicalSource).not.toContain("discoverySearchActionsRemaining");
+    expect(canonicalSource).not.toContain("Discovery remains capped at");
+    const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
+    expect(depthSource).toContain("return Math.max(0, Math.floor(input.totalIterationCeiling) - Math.floor(input.investigatorIterationsUsed))");
+    expect(depthSource).not.toContain("targetResearchReserveIterations");
+    expect(depthSource).not.toContain("effectiveTargetReserve");
   });
   it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
     expect(canonicalSource).toContain("...buildMissionActionBudget({");
-    expect(canonicalSource).toContain("discoverySearchActionsRemaining: controlBudgetState.discoverySearchActionsRemaining");
+    expect(canonicalSource).toContain("investigatorActionsRemaining: controlBudgetState.investigatorActionsRemaining");
+    expect(canonicalSource).not.toContain("targetResearchReserveRemaining");
     expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
     expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
     expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
@@ -612,7 +603,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('finding.promotionDecision === "reject"');
     expect(canonicalSource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalSource).toContain("payload.runId !== input.discoveryRunId");
-    expect(canonicalSource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(leadReconciliationSource).toContain('observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter');
     expect(canonicalSource).toContain('targetType: "organization" as const');
     expect(canonicalSource).toContain("return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows }");
     expect(canonicalSource).toContain("metadata.partialOrganizationLead === true");
@@ -647,18 +638,21 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
-  it("defaults canonical Atlas to one target and the same human objective across launch paths", () => {
-    expect(launchDefaultsSource).toContain("targetCount: 1");
-    expect(launchDefaultsSource).toContain("researchLimit: 1");
-    expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
-    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
-    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
+  it("uses a consistent bounded launch batch while preserving model-owned target selection", () => {
+    expect(launchDefaultsSource).toContain("targetCount: 25");
+    expect(launchDefaultsSource).toContain("researchLimit: 25");
+    expect(launchRouteSource).toContain("Number(body.targetCount) || 25");
+    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 25");
+    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 25) || 25");
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     expect(uiObjectiveLiteral).toBeDefined();
     const uiObjective = uiObjectiveLiteral ?? "";
-    expect(uiObjective).toContain("Discover lesser-known people with credible wealth potential and public/professional routes.");
-    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_200);
+    expect(uiObjective).toContain("Identify potential investors and other objective-fit people, companies, assets");
+    expect(uiObjective).toContain("The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping");
+    expect(uiObjective).toContain("Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss");
+    expect(uiObjective).not.toContain("use only human-specified geography");
+    expect(uiObjective.slice(1, -1).length).toBeLessThanOrEqual(1_400);
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
@@ -675,7 +669,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("Boss repeated the invalid discovery continuation twice");
     expect(canonicalDiscoverySource).toContain("finalControlAction = decision.action;");
     expect(canonicalDiscoverySource).toContain("resolveRemainingDiscoveryIterations");
-    expect(canonicalDiscoverySource).toContain("targetResearchReserveIterations");
+    expect(canonicalDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
 
   it("does not blacklist public figures or targets by deterministic name heuristics", () => {

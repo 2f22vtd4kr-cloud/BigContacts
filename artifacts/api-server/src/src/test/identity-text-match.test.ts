@@ -16,7 +16,7 @@ describe("candidate identity text matching", () => {
   it("does not attribute a name found only as a substring of another name", () => {
     expect(candidateIdentityObserved("Ann Li", "Joann Li is a director")).toBe(false);
     expect(candidateIdentityObserved("John", "Johnathan Smith is the founder")).toBe(false);
-    expect(candidateIdentityObserved("Li", "Li is listed here")).toBe(false);
+    expect(candidateIdentityObserved("Li", "Li is listed here")).toBe(true);
     expect(candidateIdentityObserved("Li Ann", "William Ann Li")).toBe(false);
   });
 

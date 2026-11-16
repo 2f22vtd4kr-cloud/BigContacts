@@ -39,7 +39,7 @@ function pinnedStateWithUnfetchedLead(): string {
     },
     admittedCandidates: [],
     findings: [],
-    missionBudget: { investigatorActionsUsed: 5, globalActionsRemaining: 3, discoveryActionsRemaining: 0, discoverySearchActionsUsed: 2, discoverySearchActionsRemaining: 0, targetResearchReserveRemaining: 2 },
+    missionBudget: { investigatorActionsUsed: 5, investigatorActionsRemaining: 3, discoverySearchActionsUsed: 2 },
   });
 }
 
@@ -71,11 +71,12 @@ describe("Atlas control-plane lead continuity", () => {
     expect(atlasRegistryFeasibilityLaw()).toContain("not a natural-person shareholder or beneficial-owner search");
     expect(atlasRegistryFeasibilityLaw()).toContain("must never be described as surfacing disclosed owners/shareholders");
   });
-  it("pins executable action budgets so supervisors cannot confuse local and global limits", () => {
+  it("pins global runtime safeguards while treating search counts as informational", () => {
     const pinned = pinnedStateWithUnfetchedLead();
-    expect(pinned).toContain("AUTHORITATIVE EXECUTABLE ACTION BUDGET");
-    expect(pinned).toContain('"globalActionsRemaining":3');
-    expect(pinned).toContain('"discoverySearchActionsRemaining":0');
+    expect(pinned).toContain("AUTHORITATIVE EXECUTION STATE");
+    expect(pinned).toContain('"investigatorActionsRemaining":3');
+    expect(pinned).toContain('"discoverySearchActionsUsed":2');
+    expect(pinned).not.toContain('"discoverySearchActionsRemaining"');
   });
 
   it("preserves explicitly unfetched search leads in the compact Investigator report", () => {
@@ -161,7 +162,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(omitted).not.toContain(oversizedUrl.slice(0, 110));
   });
 
-  it("keeps mandatory lead counts and one exact unfetched URL in the Right-hand prompt", () => {
+  it("preserves durable lead counts and exact URLs without deterministic ranking gates", () => {
     const urls = [
       "https://www.crunchbase.com/hub/information-technology-companies-less-than-500m-in-revenue",
       "https://www.inc.com/inc5000",
@@ -216,12 +217,10 @@ describe("Atlas control-plane lead continuity", () => {
 
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
     expect(prompt).toContain("AUTHORITATIVE DURABLE LEAD COUNTS");
+    expect(prompt).toContain("Rankings are contextual signals, not eligibility gates.");
+    expect(prompt).not.toMatch(/household-name exclusion/i);
     expect(prompt).toContain(urls[0]);
-    expect(prompt).toContain("Inc. 5000/fast-growth/unicorn rankings");
-    expect(prompt).toContain("ranking-only mentions are leads, not qualified targets");
     expect(prompt).toContain("Only exact admitted name/type pairs may be recommended");
-    expect(prompt).toContain("Operating-company targets need evidence of current operations and objective fit");
-    expect(prompt).toContain("apply private/mid-market constraints only when the human explicitly requests them");
     expect(prompt).toContain("Find source-backed private technology company leads.");
   });
 
@@ -417,7 +416,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
   });
 
-  it("applies household-name reachability realism without excluding objective-fit companies", () => {
+  it("does not impose deterministic fame, ranking, publisher or route eligibility priors", () => {
     const bossPrompt = buildAtlasBossControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
       compactState: "Generic prospect discovery; source-backed review leads remain unverified.",
@@ -438,16 +437,11 @@ describe("Atlas control-plane lead continuity", () => {
       pinnedControlState: pinnedStateWithUnfetchedLead(),
     });
 
-    expect(bossPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
-    expect(bossPrompt).toContain("the human explicitly names or requests prominent public figures");
-    expect(bossPrompt).toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
-    expect(bossPrompt).toContain("well-known/public companies remain eligible when objective-fit");
-    expect(bossPrompt).not.toContain("anti-famous");
-
-    expect(rightHandPrompt).toContain("globally famous/household-name individuals are presumptively poor practical prospects");
-    expect(rightHandPrompt).toContain("explicit human request");
-    expect(rightHandPrompt).toContain("generic corporate, press or IR channels are not personal access");
-    expect(rightHandPrompt).toContain("well-known brands remain eligible when objective-fit");
+    for (const prompt of [bossPrompt, rightHandPrompt]) {
+      expect(prompt).toContain("SOURCE AUTONOMY");
+      expect(prompt).not.toMatch(/globally famous|household-name exclusion|Inc\\. 5000|unicorn rankings/i);
+      expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
+    }
   });
 
   it("restricts the opening Boss response to start or stop with no target or direction", () => {
@@ -494,8 +488,8 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("RIGHT-HAND ADVICE");
     expect(prompt).toContain("RUNTIME SOURCE/REGISTRY FEASIBILITY");
     expect(prompt).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
-    expect(prompt).toContain("SOURCE-MIX CONTRACT");
-    expect(prompt).toContain("Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping");
+    expect(prompt).toContain("SOURCE AUTONOMY");
+    expect(prompt).toContain("Investigator chooses targets, registry IDs, queries, providers, tools, order and stopping from available capabilities");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 
@@ -503,14 +497,14 @@ describe("Atlas control-plane lead continuity", () => {
     const law = atlasRegistryFeasibilityLaw();
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
-    expect(law).toContain("SOURCE-MIX CONTRACT");
+    expect(law).toContain("SOURCE AUTONOMY");
     expect(law).toContain("public-web discovery");
     expect(law).toContain("sec-edgar");
     expect(law).not.toContain("inbiz");
     expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
-    expect(law).toContain("A jurisdiction-specific registry is eligible only when its jurisdiction is grounded");
-    expect(law).toContain("if no jurisdiction is supplied, do not create one");
+    expect(law).toContain("when geography is open, the Investigator may propose an evidence-led jurisdiction to Boss");
+    expect(law).toContain("Use jurisdiction-specific sources when the objective or same-case observations support relevance");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
     expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
     expect(atlasLeadUtilizationLaw()).toContain("relevance is unknown, not disproven");
@@ -531,25 +525,24 @@ describe("Atlas control-plane lead continuity", () => {
     };
     expect(buildAtlasRightHandControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
     expect(buildAtlasBossControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
-    expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
-    expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE-MIX CONTRACT");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE AUTONOMY");
+    expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
   });
 
-  it("keeps the Right-hand focused on an available target and does not request geography expansion", () => {
+  it("lets supervisors weigh a review target against continued discovery without a forced handoff", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
       compactState: "One official registry result identifies a potentially relevant company.",
       pinnedControlState: "One source-attributed organization review target is available.",
     });
-    expect(prompt).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
-    expect(prompt).toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
-    expect(prompt).toContain("do not invent, compare, or broaden geography");
-    expect(prompt).not.toContain("broader discovery has greater expected information gain");
-    expect(prompt).not.toContain("one actual geography/jurisdiction");
+    expect(prompt).toContain("There is no target-count threshold");
+    expect(prompt).toContain("Investigator chooses the action");
+    expect(prompt).not.toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
+    expect(prompt).not.toContain("recommend investigating it now");
   });
 
   it("bounds the post-discovery Right-hand control prompt and rationale contract", () => {

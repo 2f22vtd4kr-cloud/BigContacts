@@ -124,94 +124,48 @@ export function buildMissionActionBudget(input: {
 }
 
 /**
- * Bound a discovery episode so the reserved discovery-action budget can normally
- * accommodate three model-controlled Investigator acts. That gives Boss/Right-hand
- * opportunities to redirect after an unproductive act and still execute the accepted
- * redirect, while preserving the target-research reserve and the configured hard cap.
- * This changes only act size; it does not prescribe any research tools or sequence.
+ * Bound one Investigator episode by its configured technical per-act ceiling.
+ * The same global mission ceiling applies to discovery and target research; no
+ * quota or reserved share is assigned to either phase.
  */
 export function resolveDiscoveryIterationsPerAct(
   config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
-  discoveryIterationCeiling: number,
+  missionIterationCeiling: number,
 ): number {
-  const available = Number.isFinite(discoveryIterationCeiling)
-    ? Math.max(0, Math.floor(discoveryIterationCeiling))
+  const available = Number.isFinite(missionIterationCeiling)
+    ? Math.max(0, Math.floor(missionIterationCeiling))
     : 0;
   if (available === 0) return 0;
   const configuredCap = Number.isFinite(config.investigatorIterationsPerAct)
     && config.investigatorIterationsPerAct > 0
     ? Math.floor(config.investigatorIterationsPerAct)
     : available;
-  return Math.max(1, Math.min(configuredCap, Math.ceil(available / 3)));
+  return Math.min(configuredCap, available);
 }
 
 /**
- * Resolve the remaining actions for a model-approved discovery continuation.
- * Discovery always respects its bounded allocation so a promising lead can receive
- * target-scoped research within the same run. If no lead qualifies by the discovery
- * ceiling, leave the protected budget unused rather than letting discovery expand
- * into the entire job.
- */
-/**
- * The opening Investigator episode gets one bounded correction opportunity
- * beyond the original three-turn cap. Invalid action contracts and deterministic
- * policy blocks are fed back to the model; this extra turn lets it repair its own
- * action without handing research decisions to a deterministic fallback.
+ * The opening episode uses the same configured per-act technical ceiling as
+ * every later episode. No fixed first-pass count or discovery/target allocation.
  */
 export function resolveOpeningInvestigatorIterations(
   config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
-  discoveryIterationCeiling: number,
+  missionIterationCeiling: number,
 ): number {
-  const available = Number.isFinite(discoveryIterationCeiling)
-    ? Math.max(0, Math.floor(discoveryIterationCeiling))
-    : 0;
-  if (available === 0) return 0;
-  const configuredCap = Number.isFinite(config.investigatorIterationsPerAct)
-    && config.investigatorIterationsPerAct > 0
-    ? Math.floor(config.investigatorIterationsPerAct)
-    : available;
-  // The opening correction allowance is deliberately independent of the
-  // three-episode allocation divisor used for later discovery continuations.
-  // Otherwise standard depth (8 discovery actions) silently resolves to 3,
-  // defeating the fourth model-owned correction turn this function promises.
-  return Math.min(4, configuredCap, available);
+  return resolveDiscoveryIterationsPerAct(config, missionIterationCeiling);
 }
 
+/** Remaining technical mission actions, shared by discovery and target research. */
 export function resolveRemainingDiscoveryIterations(input: {
   totalIterationCeiling: number;
-  discoveryIterationCeiling: number;
-  discoveryIterationsUsed: number;
   investigatorIterationsUsed: number;
-  targetResearchReserveIterations: number;
-  hasAdmittedCandidates: boolean;
 }): number {
-  const budgetInputs = [
-    input.totalIterationCeiling,
-    input.discoveryIterationCeiling,
-    input.discoveryIterationsUsed,
-    input.investigatorIterationsUsed,
-    input.targetResearchReserveIterations,
-  ];
-  if (budgetInputs.some((value) => !Number.isFinite(value) || value < 0)) return 0;
-  const nonNegativeInteger = (value: number): number =>
-    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-  const total = nonNegativeInteger(input.totalIterationCeiling);
-  const discoveryUsed = nonNegativeInteger(input.discoveryIterationsUsed);
-  const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
-  const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
-  const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
-  // Keep discovery bounded even before a candidate is admitted. This prevents
-  // an inconclusive opening phase from consuming the target-research budget.
-  // Once a lead is admitted, target-stage actions already used reduce the
-  // remaining reserve; they do not reopen the discovery allocation.
-  const effectiveDiscoveryCeiling = Math.min(configuredDiscoveryCeiling, Math.max(0, total - targetReserve));
-  const targetActionsUsed = Math.max(0, investigatorUsed - discoveryUsed);
-  const effectiveTargetReserve = input.hasAdmittedCandidates
-    ? Math.max(0, targetReserve - targetActionsUsed)
-    : 0;
-  const discoveryRemaining = Math.max(0, effectiveDiscoveryCeiling - discoveryUsed);
-  const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve);
-  return Math.min(discoveryRemaining, globalRemaining);
+  if (
+    !Number.isFinite(input.totalIterationCeiling)
+    || input.totalIterationCeiling < 0
+    || !Number.isFinite(input.investigatorIterationsUsed)
+    || input.investigatorIterationsUsed < 0
+  ) return 0;
+  return Math.max(0, Math.floor(input.totalIterationCeiling) - Math.floor(input.investigatorIterationsUsed));
 }
 
 export function describeResearchDepth(config: ResearchDepthConfig): string {

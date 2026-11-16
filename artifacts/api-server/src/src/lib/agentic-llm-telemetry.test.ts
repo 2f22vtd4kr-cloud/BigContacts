@@ -183,8 +183,85 @@ describe("Investigator LLM telemetry privacy", () => {
       expect(released).toMatchObject({
         reservedTokens: 0, requestCount: 0, successCount: 0, failureCount: 0, estimatedTokens: 600,
       });
+      // A reservation released before the provider request never consumed
+      // daily capacity; the same amount must be reservable again.
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
         .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
+  });
+
+  (process.env.DATABASE_URL ? it : it.skip)("conservatively accounts for a provider-rejected TPM 429 without usage metadata", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-tpm-rejection";
+    const model = "openai/gpt-oss-20b-tpm-rejection-test";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, model),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      const reservation = await reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env });
+      recordAgenticLlmAttempt({
+        provider, role: "investigator", model, promptChars: 1_800, status: 429, success: false,
+        retryIndex: 1, reason: "upstream_rate_limited", providerErrorType: "tokens",
+        providerRequestSent: true, dailyReservationDate: reservation.usageDate,
+        dailyReservationTokens: reservation.reservedTokens, dailyBudgetTokens: reservation.dailyBudgetTokens,
+        estimatedTokens: reservation.reservedTokens,
+      });
+      await flushAgenticLlmUsageLedger();
+      const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(row).toMatchObject({
+        requestCount: 1, successCount: 0, failureCount: 1, totalTokens: 600, reservedTokens: 0,
+      });
+      // The provider received the request but returned no usage metadata;
+      // retain its estimate, leaving only 400 tokens for another reservation.
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 400, env }))
+        .resolves.toMatchObject({ reservedTokens: 400, dailyBudgetTokens: 1000 });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
+  });
+
+  (process.env.DATABASE_URL ? it : it.skip)("charges the reserved estimate when a sent failed request has no provider usage metadata", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-ambiguous-failure";
+    const model = "openai/gpt-oss-20b-ambiguous-failure-test";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, model),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      const reservation = await reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env });
+      recordAgenticLlmAttempt({
+        provider, role: "investigator", model, promptChars: 1_800, status: 400, success: false,
+        retryIndex: 1, reason: "provider_rejected", providerErrorCode: "invalid_request",
+        providerRequestSent: true, dailyReservationDate: reservation.usageDate,
+        dailyReservationTokens: reservation.reservedTokens, dailyBudgetTokens: reservation.dailyBudgetTokens,
+        estimatedTokens: reservation.reservedTokens,
+      });
+      await flushAgenticLlmUsageLedger();
+      const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(row).toMatchObject({
+        requestCount: 1, successCount: 0, failureCount: 1, promptTokens: 0,
+        completionTokens: 0, totalTokens: 600, estimatedTokens: 600, reservedTokens: 0,
+      });
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 401, env }))
+        .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
     } finally {
       await db.delete(agenticLlmDailyUsageTable).where(where);
     }
@@ -232,7 +309,7 @@ describe("Investigator LLM telemetry privacy", () => {
       const reservation = successfulReservations[0].value;
       expect(reservation).toMatchObject({ usageDate, reservedTokens: 600, dailyBudgetTokens: 1000 });
       const [reservedRow] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
-      expect(reservedRow).toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000, budgetExhausted: true });
+      expect(reservedRow).toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000, budgetExhausted: false });
 
       const output = vi.spyOn(console, "log").mockImplementation(() => {});
       recordAgenticLlmAttempt({
@@ -282,7 +359,7 @@ describe("Investigator LLM telemetry privacy", () => {
         lastRequestAt: expect.any(Date),
         reservedTokens: 0,
         dailyBudgetTokens: 1000,
-        budgetExhausted: true,
+        budgetExhausted: false,
         lastRateLimitRemainingTokens: 84500,
         lastRateLimitResetTokensMs: 6020,
         lastRateLimitRemainingRequests: 72,

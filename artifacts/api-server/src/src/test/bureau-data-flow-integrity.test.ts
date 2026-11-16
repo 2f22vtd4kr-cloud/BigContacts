@@ -26,10 +26,10 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     expect(capabilityHistorySource).toContain('trigger,');
 
     for (const content of durableFiles) {
-      const boundedOversightTail = content.match(/recentActs:\s*\[\.\.\.historyRecords, \.\.\.records\]\.slice\(-4\)/)?.[0] ?? "";
       const genericScan = content
         .replace(boundedCapabilityHistory, "")
-        .replace(boundedOversightTail, "recentActs: bounded presentation-only context");
+        .replace(/recentActs:\s*(?:\[\.\.\.historyRecords, \.\.\.records\]|recentActs)\.slice\(-4\)/g, "recentActs: bounded presentation-only context")
+        .replace(/"LATEST INVESTIGATOR OBSERVATIONS:", JSON\.stringify\(\(discovery\.trajectoryRecords \?\? \[\]\)\.slice\(-6\)/g, '"LATEST INVESTIGATOR OBSERVATIONS: bounded Boss-prompt projection');
       expect(genericScan).not.toMatch(/\.slice\(\s*-\d+/);
       expect(genericScan).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(genericScan).not.toMatch(/maxCandidates/);

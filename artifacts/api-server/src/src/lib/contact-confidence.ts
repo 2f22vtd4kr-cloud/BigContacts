@@ -97,21 +97,22 @@ export function computeContactConfidence(entity: {
   type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
   phoneSource?: string | null; linkedinUrl?: string | null; telegramHandle?: string | null;
   twitterHandle?: string | null; instagramHandle?: string | null; knownResidences?: string | null;
-  emailSource?: string | null; metadata?: string | Record<string, unknown> | null;
+  emailSource?: string | null; metadata?: string | Record<string, unknown> | null; validatedDirectContact?: boolean;
 }): number {
-  return hasStrictPersonSpecificInvestigatorProvenance(entity) ? 100 : 0;
+  if (!hasStrictPersonSpecificInvestigatorProvenance(entity)) return 0;
+  return entity.validatedDirectContact === true ? 100 : 50;
 }
 
 export function hasMeaningfulDirectContact(entity: {
   type?: string | null; organizationContact?: boolean; email?: string | null; phone?: string | null;
   phoneSource?: string | null; contactOutcome?: string | null; emailSource?: string | null;
-  metadata?: string | Record<string, unknown> | null;
+  metadata?: string | Record<string, unknown> | null; validatedDirectContact?: boolean;
 }): boolean {
   return hasStrictPersonSpecificInvestigatorProvenance(entity);
 }
 
 export type ContactOutcome="none"|"evidence_only"|"social_only"|"organization_contact"|"direct_contact_candidate"|"direct_contact_verified";
-export function isPersonalContactOutcome(outcome: ContactOutcome): boolean { return outcome === "direct_contact_candidate" || outcome === "direct_contact_verified"; }
+export function isPersonalContactOutcome(outcome: ContactOutcome): boolean { return outcome === "direct_contact_verified"; }
 export function computeContactState(entity:{type?:string|null;organizationContact?:boolean;email?:string|null;phone?:string|null;phoneSource?:string|null;linkedinUrl?:string|null;telegramHandle?:string|null;twitterHandle?:string|null;instagramHandle?:string|null;knownResidences?:string|null;website?:string|null;bizLocation?:string|null;emailSource?:string|null;metadata?:string|Record<string,unknown>|null;validatedDirectContact?:boolean;isGenericPrefix?:boolean}):{contactConfidence:number;contactOutcome:ContactOutcome;isHot:boolean}{const contactConfidence=computeContactConfidence(entity),contactOutcome=computeContactOutcome(entity),directTarget=entity.type==="HNWI"||entity.type==="Gatekeeper";return{contactConfidence,contactOutcome,isHot:directTarget&&contactOutcome==="direct_contact_verified"&&hasMeaningfulDirectContact(entity)};}
 export function computeContactOutcome(entity: { type?: string | null; email?: string | null; phone?: string | null; linkedinUrl?: string | null; twitterHandle?: string | null; instagramHandle?: string | null; telegramHandle?: string | null; website?: string | null; bizLocation?: string | null; validatedDirectContact?: boolean; emailSource?: string | null; phoneSource?: string | null; isGenericPrefix?: boolean; metadata?: string | Record<string, unknown> | null }): ContactOutcome {
   const provenanceInput = {
@@ -119,8 +120,16 @@ export function computeContactOutcome(entity: { type?: string | null; email?: st
     twitterHandle: entity.twitterHandle, instagramHandle: entity.instagramHandle,
     telegramHandle: entity.telegramHandle, personalWebsite: entity.website, metadata: entity.metadata,
   };
-  if (hasStrictPersonSpecificInvestigatorProvenance(provenanceInput)) return entity.validatedDirectContact === true ? "direct_contact_verified" : "direct_contact_candidate";
+  if (hasStrictPersonSpecificInvestigatorProvenance(provenanceInput)) {
+    return entity.validatedDirectContact === true ? "direct_contact_verified" : "direct_contact_candidate";
+  }
   if (hasExplicitOrganizationInvestigatorProvenance(provenanceInput)) return "organization_contact";
+  // Registry/source labels establish provenance only. They do not, by themselves,
+  // establish personal or organization attribution; the Investigator must bind
+  // the exact value to a source passage before either classification is promoted.
+  // Registry phone labels establish provenance only. Until the Investigator
+  // attributes the exact value, keep the route as evidence rather than
+  // guessing personal or organization scope from the provider label.
   if (entity.email?.trim() || entity.phone?.trim()) return "evidence_only";
   if (entity.linkedinUrl?.trim() || entity.twitterHandle?.trim() || entity.instagramHandle?.trim() || entity.telegramHandle?.trim()) return "social_only";
   if (entity.website?.trim() || entity.bizLocation?.trim()) return "evidence_only";

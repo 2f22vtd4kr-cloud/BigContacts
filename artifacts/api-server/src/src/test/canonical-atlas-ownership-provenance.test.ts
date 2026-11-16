@@ -92,7 +92,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
 
   it("retains explicit promotion metadata when canonical evidence is reused", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
-    expect(discovery).toContain('promotionDecision: "promote", role: selectedRole, independentPublisher: support.publisher, reviewOnly: true');
+    expect(discovery).toContain('promotionDecision: "promote", role: selectedRole || null, independentPublisher: support.publisher, reviewOnly: true');
     expect(discovery).toContain("supportingEventId: support.eventId");
   });
 
@@ -102,7 +102,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(discovery).toContain("candidateRoleCorroborationSources");
     expect(discovery).toContain("sources.length >= 1");
     expect(discovery).toContain("Ownership terminology, wealth signals, role keywords and proximity are not admission gates.");
-    expect(discovery).toContain("claimGradeObservations");
+    expect(discovery).toContain("const observations = caseEvents.flatMap");
     expect(discovery).toContain("durableSourceCount >= 1");
     expect(discovery).toContain("reviewOnly: true");
     expect(policy).toContain("const exactQuote = modelQuotes.find");

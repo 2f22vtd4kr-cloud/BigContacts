@@ -48,9 +48,9 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
-    // Source quality is provenance for model interpretation, not a domain
-    // allow/deny list. Aggregator/profile pages may be leads or evidence; the
-    // Investigator and independent reviewer judge their weight and relevance.
+    // Source class is provenance, not a discovery allow/deny list. Aggregator
+    // and profile pages may remain review leads; the target terminal gate does
+    // not let aggregator-only material establish identity or consequential claims.
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
@@ -103,9 +103,8 @@ export function candidateRoleCorroborationSources(input: {
   normalizeSourceUrl: (raw: string) => string | null;
 }): Array<{ sourceUrl: string; publisher: string; eventId: number }> {
   const role = input.role?.trim().replace(/\s+/g, " ") ?? "";
-  if (!role) return [];
   const claimedUrls = new Set(candidateSourceUrlsForIdentity({
-    findings: input.findings, personName: input.personName, role,
+    findings: input.findings, personName: input.personName, role: role || null,
     isClaimGradeSourceUrl: input.isClaimGradeSourceUrl, normalizeSourceUrl: input.normalizeSourceUrl,
   }));
   if (!claimedUrls.size) return [];
