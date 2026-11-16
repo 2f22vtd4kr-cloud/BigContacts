@@ -170,7 +170,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("required fields action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(systemCore).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Omit irrelevant fields; fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
@@ -234,10 +234,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("Search snippets and registry hits are leads; failed/unfetched sources are unknown.");
+    expect(modelPrompt).toContain("EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, exact URLs, quotes, provenance, temporal status and contradictions.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -1603,9 +1603,9 @@ describe("Investigator prompt architecture", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
     expect(compacted).toContain("SCOPE DIAGNOSTIC (historical; no outbound request was made)");
-    expect(compacted).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction");
-    expect(compacted).toContain("If a material scope change is justified, propose it to Boss.");
-    expect(compacted).toContain("propose it to Boss");
+    expect(compacted).toContain("Reassess against the human objective and Boss scope");
+    expect(compacted).toContain("Propose material scope changes to Boss.");
+    expect(compacted).toContain("Propose material scope changes to Boss.");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
     expect(compacted).toContain("Active Boss-approved scope: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries");
 
@@ -1613,8 +1613,8 @@ describe("Investigator prompt architecture", () => {
     const geographyFeedback = compactEmergencyTrajectoryObservation(geographyBlock);
     expect(geographyFeedback).toContain("query geography");
     expect(geographyFeedback).toContain("United Kingdom");
-    expect(geographyFeedback).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction");
-    expect(geographyFeedback).toContain("If a material scope change is justified, propose it to Boss.");
+    expect(geographyFeedback).toContain("Reassess against the human objective and Boss scope");
+    expect(geographyFeedback).toContain("Propose material scope changes to Boss.");
 
     const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = Array.from({ length: 18 }, (_, index) => ({
       turn: index + 1,
@@ -1665,7 +1665,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt.length).toBeLessThan(7_500);
-    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
+    expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
@@ -1686,7 +1686,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "pivot_alignment_guard / ordered_source_stage_guard blocked this outbound action before execution. The active direction requires the first source stage before the later source stage. No outbound request was made.",
     );
     expect(ordered).toContain("HISTORICAL SOURCE-STAGE DIAGNOSTIC");
-    expect(ordered).toContain("Do not treat the old stage order as a fixed research sequence");
+    expect(ordered).toContain("This is not a fixed sequence");
 
     const filteredBatch = compactEmergencyTrajectoryObservation(
       "SCOPE FILTERED PARALLEL SEARCHES: retained 1 scope-aligned query(s); removed 1 out-of-scope query(s) before any outbound request. Rejected dimensions: searches[1] source class. Rejected queries were not sent.",
@@ -1758,7 +1758,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
-    expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
+    expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("No unrequested criteria");
@@ -3355,7 +3355,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
     expect(apexInvestigatorSystemCore()).toContain("Visit handles text/PDF; browser_fetch handles HTML.");
-    expect(prompt).toContain("Distinguish encrypted, protected, malformed and scanned PDFs; use OCR or another readable source.");
+    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, password-protected and malformed PDFs are distinct structured failures.");
     expect(prompt).not.toContain("must visit");
   });
 
@@ -3806,7 +3806,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.profile).toBeDefined();
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("required fields action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
