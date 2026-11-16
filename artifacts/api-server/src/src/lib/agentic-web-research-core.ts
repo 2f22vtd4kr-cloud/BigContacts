@@ -3365,30 +3365,23 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
     const rejectedDimensions = normalized.match(/Rejected dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     return preserveSourceAlongsideGuard(
-      "PARTIAL PARALLEL SCOPE FILTER (no out-of-scope request): only scope-aligned queries were retained for execution; rejected queries were not sent. "
+      "HISTORICAL PARALLEL-SEARCH DIAGNOSTIC (no request for rejected queries): only the retained queries executed; rejected queries produced no evidence. "
       + (rejectedDimensions ? "Rejected dimensions: " + rejectedDimensions + ". " : "")
-      + "Use results and observed URLs only from the queries that actually executed; revise rejected dimensions or seek a new pivot.",
+      + "Use results only from executed queries. Reassess future queries against the human objective and Boss-approved scope; propose material scope changes to Boss rather than treating this filter as a research strategy.",
     );
   }
   if (/ordered_source_stage_guard/i.test(normalized)) {
     return preserveSourceAlongsideGuard(
-      "SOURCE-STAGE GUARD BLOCKED ACTION (no request): fetch an observed page from the required first source stage before advancing to the later source stage; search-result URLs alone do not complete the first stage. Return control if that stage is infeasible.",
+      "HISTORICAL SOURCE-STAGE DIAGNOSTIC (no request): a prior runtime rule blocked this action for stage order. No evidence was added. Do not treat the old stage order as a fixed research sequence; reassess sources and next actions by the objective, evidence, information gain and cost.",
     );
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
     const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     const activePivot = normalized.match(/active Boss-accepted pivot is:\s*((?:(?:e\.g\.|i\.e\.)|[^.\n])*)/i)?.[1]?.trim();
     const activeScope = activePivot ? ` Active Boss-approved scope: ${compactActiveBossScope(activePivot, 260)}.` : "";
-    if (mismatch) {
-      const geographyGuidance = /\bquery geography\b/i.test(mismatch)
-        ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
-        : "";
-      return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): ${mismatch}. market/locale metadata alone is insufficient; query field itself must include the geographic term. Request new scope from Boss/Right-hand when needed. ${geographyGuidance} Fetch only observed aligned URLs; choose an in-scope registry adapter; do not retry unchanged.${activeScope}`,
-      );
-    }
+    const blockedDimension = mismatch ? ` Prior blocked dimension: ${mismatch}.` : "";
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."} fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`,
+      `SCOPE DIAGNOSTIC (historical; no outbound request was made): the prior action was blocked before execution.${blockedDimension} No new evidence was produced. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. If a material scope change is justified, propose it to Boss.${activeScope}`,
     );
   }
   const observationStartMarker = "LATEST_OBSERVATION_START";
