@@ -1320,7 +1320,7 @@ describe("partial model findings", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
-    expect(modelPrompt).toContain("selected leads only");
+    expect(modelPrompt).toContain("REVIEW LEADS: Investigator selects objective-fit people, companies or assets for provisional review.");
   });
 });
 
@@ -1530,7 +1530,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
-    expect(modelPrompt).toMatch(/Verify role, relationship, materiality, counter-evidence and route before promotion/i);
+    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
