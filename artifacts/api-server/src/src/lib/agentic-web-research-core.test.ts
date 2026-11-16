@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, time, contradictions and provenance");
+    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -1519,7 +1519,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
     expect(modelPrompt).toMatch(/Visit handles text\/PDF; browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
+    expect(modelPrompt).toMatch(/search snippets remain leads; registry hits are leads; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
@@ -1602,7 +1602,7 @@ describe("Investigator prompt architecture", () => {
   it("preserves the scope-guard recovery contract in the next Investigator prompt", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
-    expect(compacted).toContain("SCOPE DIAGNOSTIC (historical; no outbound request was made)");
+    expect(compacted).toContain("SCOPE DIAGNOSTIC: prior action blocked before execution; no evidence.");
     expect(compacted).toContain("Reassess against the human objective and Boss scope");
     expect(compacted).toContain("Propose material scope changes to Boss.");
     expect(compacted).toContain("Propose material scope changes to Boss.");
