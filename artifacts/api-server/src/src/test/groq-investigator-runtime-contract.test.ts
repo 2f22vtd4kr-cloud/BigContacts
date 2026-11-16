@@ -324,7 +324,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(submitted).toContain("TERMINAL: Stop at a defensible answer or justified blocker; failed searches, untested hypotheses and unresolved leads are not completion.");
+    expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty searches, failed fetches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
     expect(submitted).toContain("PARALLEL: web items require query+provider; registry items query+registry; other fields are action-specific.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
