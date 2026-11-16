@@ -124,9 +124,9 @@ export function buildMissionActionBudget(input: {
 }
 
 /**
- * Bound one Investigator episode by its configured technical per-act ceiling.
- * The same global mission ceiling applies to discovery and target research; no
- * quota or reserved share is assigned to either phase.
+ * Bound one Investigator episode by its configured technical per-act ceiling
+ * and the capacity allocated to its current phase. This controls resources,
+ * not target admission or the Investigator's research sequence.
  */
 export function resolveDiscoveryIterationsPerAct(
   config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
@@ -152,6 +152,21 @@ export function resolveOpeningInvestigatorIterations(
   missionIterationCeiling: number,
 ): number {
   return resolveDiscoveryIterationsPerAct(config, missionIterationCeiling);
+}
+
+/**
+ * Keep a bounded share of the total Investigator ceiling available for
+ * target-scoped verification after discovery. This is resource allocation,
+ * not a target quota or a prescribed research sequence.
+ */
+export const TARGET_RESEARCH_RESERVED_ITERATION_SHARE = 0.25;
+
+export function resolveDiscoveryIterationCeiling(totalIterationCeiling: number): number {
+  if (!Number.isFinite(totalIterationCeiling) || totalIterationCeiling <= 0) return 0;
+  const total = Math.floor(totalIterationCeiling);
+  if (total <= 1) return total;
+  const reserve = Math.max(1, Math.ceil(total * TARGET_RESEARCH_RESERVED_ITERATION_SHARE));
+  return Math.max(1, total - reserve);
 }
 
 /** Remaining technical mission actions, shared by discovery and target research. */
