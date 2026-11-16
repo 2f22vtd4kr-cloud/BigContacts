@@ -4783,7 +4783,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const blockedScopeDimensions = ["geography", "source class", "target type", "search strategy"]
     .filter((dimension) => blockedScopeObservation.toLowerCase().includes(dimension));
   const blockedScopeRecoveryMarker = /pivot_alignment_guard blocked|SCOPE GUARD BLOCKED ACTION/i.test(blockedScopeObservation)
-    ? "HISTORICAL SCOPE-BLOCK DIAGNOSTIC: prior action was blocked before execution; this is not evidence. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. Blocked dimensions: " + (blockedScopeDimensions.join(", ") || "unspecified") + ". Ask Boss before a material scope change."
+    ? "SCOPE DIAGNOSTIC: prior action was blocked before execution; no evidence was added. Reassess against the human objective and Boss scope; do not repeat rejected wording. Blocked dimensions: " + (blockedScopeDimensions.join(", ") || "unspecified") + ". Ask Boss before a material scope change."
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
