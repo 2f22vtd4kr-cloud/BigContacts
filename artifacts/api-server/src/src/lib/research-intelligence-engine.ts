@@ -194,6 +194,10 @@ function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (hostMatchesDomain(host, "virtualglobetrotting.com")) return "COMMUNITY_OBSERVATION";
   if (["companieshouse.gov.uk", "company-information.service.gov.uk", "sec.gov", "brreg.no", "bodacc.fr", "gleif.org"].some((domain) => hostMatchesDomain(host, domain))) return "REGULATORY";
   if (["linkedin.com", "x.com", "twitter.com", "instagram.com"].some((domain) => hostMatchesDomain(host, domain))) return "SOCIAL_PROFILE";
+  // Data brokers, people-search sites and profile aggregators are provenance
+  // leads, not independent identity/claim sources. Keep them available to the
+  // Investigator, but the target terminal gate must require an independent origin.
+  if (isAggregatorHost(host)) return "AGGREGATOR";
   if (["crunchbase.com", "pitchbook.com", "opencorporates.com"].some((domain) => hostMatchesDomain(host, domain))) return "PROFESSIONAL_DIRECTORY";
   if (["google.com", "bing.com", "serper.dev", "tavily.com", "exa.ai"].some((domain) => hostMatchesDomain(host, domain))) return "SEARCH_RESULT";
   if (["wikipedia.org", "yahoo.com", "medium.com"].some((domain) => hostMatchesDomain(host, domain))) return "AGGREGATOR";
