@@ -105,10 +105,12 @@ export async function flushAgenticLlmUsageLedger(): Promise<void> {
 
 export function canonicalizeAgenticLlmBudgetModel(model: string): string {
   const normalized = model.trim().toLowerCase();
-  const leaf = normalized.split("/").filter(Boolean).at(-1) ?? normalized;
-  const unversioned = leaf.replace(/(?:[:@]|-)(?:latest|current|preview)$/i, "");
-  if (unversioned === "gpt-oss-120b") return "openai/gpt-oss-120b";
-  if (unversioned === "gpt-oss-20b") return "openai/gpt-oss-20b";
+  const unversioned = normalized.replace(/(?:[:@]|-)(?:latest|current|preview)$/i, "");
+  const leaf = unversioned.split("/").filter(Boolean).at(-1) ?? unversioned;
+  if (leaf === "gpt-oss-120b") return "openai/gpt-oss-120b";
+  if (leaf === "gpt-oss-20b") return "openai/gpt-oss-20b";
+  // Preserve namespaces for unknown models: two different providers may
+  // legitimately expose distinct models with the same final path segment.
   return unversioned;
 }
 
