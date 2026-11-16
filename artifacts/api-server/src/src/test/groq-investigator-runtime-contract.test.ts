@@ -180,9 +180,9 @@ describe("Groq Investigator runtime contract", () => {
     const compacted = compactEmergencyTrajectoryObservation(
       "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Perform registry queries on Zefix/Swiss commercial register. The action's actual query/resource is outside that scope. No outbound request was made.",
     );
-    expect(compacted).toContain("SCOPE DIAGNOSTIC (historical; no outbound request was made)");
-    expect(compacted).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction");
-    expect(compacted).toContain("If a material scope change is justified, propose it to Boss.");
+    expect(compacted).toContain("SCOPE DIAGNOSTIC: prior action blocked before execution; no evidence.");
+    expect(compacted).toContain("Reassess against the human objective and Boss scope");
+    expect(compacted).toContain("Propose material scope changes to Boss.");
     expect(compacted).toContain("Active Boss-approved scope: Perform registry queries on Zefix/Swiss commercial register");
     expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
