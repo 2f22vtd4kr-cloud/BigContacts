@@ -814,15 +814,6 @@ describe("Groq Investigator runtime contract", () => {
       promptCompaction: {
         originalPromptChars: promptCompaction.originalPromptChars,
         finalPromptChars: promptCompaction.finalPromptChars,
-        promptReductionChars,
-        twentyBEstimatedInputTokensBefore: Math.ceil((twentyB.systemPromptChars + promptCompaction.originalPromptChars + twentyB.responseFormatChars) / 3.4),
-        twentyBEstimatedInputTokensAfter: twentyB.estimatedInputTokens,
-        oneTwentyBEstimatedInputTokensBefore: Math.ceil((oneTwentyB.systemPromptChars + promptCompaction.originalPromptChars + oneTwentyB.responseFormatChars) / 3.4),
-        oneTwentyBEstimatedInputTokensAfter: oneTwentyB.estimatedInputTokens,
-      },
-      promptCompaction: {
-        originalPromptChars: promptCompaction.originalPromptChars,
-        finalPromptChars: promptCompaction.finalPromptChars,
         promptEnvelopeChars,
         originalRequestUserPromptChars,
         finalRequestUserPromptChars: twentyB.userPromptChars,
