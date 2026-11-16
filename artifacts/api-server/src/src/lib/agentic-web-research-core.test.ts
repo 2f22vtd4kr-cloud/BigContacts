@@ -172,7 +172,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("Omit irrelevant fields; fetched claims need exactQuote+URL; search-only is review-only.");
+    expect(systemCore).toContain("omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
@@ -1692,7 +1692,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "SCOPE FILTERED PARALLEL SEARCHES: retained 1 scope-aligned query(s); removed 1 out-of-scope query(s) before any outbound request. Rejected dimensions: searches[1] source class. Rejected queries were not sent.",
     );
     expect(filteredBatch).toContain("rejected queries produced no evidence");
-    expect(filteredBatch).toContain("Use results only from executed queries");
+    expect(filteredBatch).toContain("Use executed results only");
   });
 
   it("fits the active Central-European ownership-source pivot and latest blocked action into the hard prompt ceiling", () => {
