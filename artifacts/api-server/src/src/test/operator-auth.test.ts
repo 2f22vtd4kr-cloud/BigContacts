@@ -70,7 +70,12 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
     expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
-    expect(replitConfig).toContain('run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"]');
+    expect(replitConfig).toContain('run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true');
+    expect(replitConfig).toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
+    expect(replitConfig).toContain("APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false");
+    expect(replitConfig).toContain("APEX_MODEL_AUDIT_FILE=private-audits/");
+    expect(replitConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false");
+    expect(replitConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false");
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
