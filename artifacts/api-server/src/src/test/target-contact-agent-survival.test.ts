@@ -418,7 +418,8 @@ describe("offline Investigator-to-card survival path", () => {
     expect(contacts).toHaveLength(1);
     expect(contacts[0]).toMatchObject({ scope: "candidate", promote: true, contactAttribution: "person_specific" });
 
-    const runId = result.executionId ?? "offline-three-turn-run";
+    const runId = "offline-three-turn-run";
+    const targetAgentInput = { ...result, executionId: runId };
     testState.events.splice(0, testState.events.length,
       {
         id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
@@ -442,7 +443,7 @@ describe("offline Investigator-to-card survival path", () => {
     // Hand the actual three-turn Investigator result to the real target-contact
     // orchestration layer. Only the provider-facing wrapper is replaced: the
     // target agent's source checks, evidence persistence and card promotion run.
-    vi.mocked(runAgenticWebResearch).mockResolvedValue(result as any);
+    vi.mocked(runAgenticWebResearch).mockResolvedValue(targetAgentInput as any);
     const targetResult = await runTargetContactAgent({
       entityId: 2,
       caseId: 1,
