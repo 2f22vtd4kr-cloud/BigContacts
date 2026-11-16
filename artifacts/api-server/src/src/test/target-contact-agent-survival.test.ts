@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const testState = vi.hoisted(() => {
   const column = (table: string, field: string) => ({ table, field });
@@ -116,6 +116,59 @@ const testState = vi.hoisted(() => {
   return { db, entitiesTable, researchCasesTable, researchCaseEventsTable, contactEvidenceTable, entity, caseRow, events, quote, sourceUrl, insertedContacts, get cardUpdate() { return cardUpdate; } };
 });
 
+const offlineNetwork = vi.hoisted(() => ({
+  actions: [] as Array<Record<string, unknown>>,
+  requests: [] as Array<{ url: string; method: string }>,
+}));
+
+vi.mock("../lib/ssrf-safe-fetch", () => ({
+  safeOutboundFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET").toUpperCase();
+    offlineNetwork.requests.push({ url, method });
+
+    if (url.endsWith("/chat/completions")) {
+      const action = offlineNetwork.actions.shift();
+      if (!action) return new Response("Unexpected extra offline model turn", { status: 599 });
+      return new Response(JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify(action) } }],
+        usage: { prompt_tokens: 500, completion_tokens: 120, total_tokens: 620 },
+      }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "x-ratelimit-limit-tokens": "50000",
+          "x-ratelimit-remaining-tokens": "49000",
+          "x-ratelimit-reset-tokens": "60s",
+        },
+      });
+    }
+
+    if (url === "https://google.serper.dev/search") {
+      return new Response(JSON.stringify({
+        organic: [{
+          title: "Acme Engineering leadership",
+          link: testState.sourceUrl,
+          snippet: "Jane Example, Managing Director.",
+        }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+
+    if (url === testState.sourceUrl) {
+      return new Response(`<!doctype html><html><body><h1>Leadership</h1><p>${testState.quote}</p></body></html>`, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+
+    return new Response("Unexpected offline outbound request", { status: 599 });
+  }),
+}));
+vi.mock("../lib/python-osint-worker-client", () => ({
+  getAvailablePythonOsintActions: () => [],
+  refreshPythonOsintToolAvailability: async () => ({}),
+}));
+
 vi.mock("@workspace/db", () => ({
   db: testState.db,
   entitiesTable: testState.entitiesTable,
@@ -141,14 +194,18 @@ vi.mock("../lib/dig-span", () => ({
 }));
 vi.mock("../lib/canonical-job-lock", () => ({ isCanonicalJobOwner: vi.fn(async () => true) }));
 vi.mock("../lib/investigator-capability-registry", () => ({
-  getAvailableInvestigatorCapabilities: vi.fn(() => ["groq-investigator-1"]),
+  GROQ_INVESTIGATOR_20B_CAPABILITY: "groq-investigator-20b",
+  getAvailableInvestigatorCapabilities: vi.fn(() => ["groq-investigator-1", "groq-investigator-20b"]),
+  investigatorCapabilityKeyName: vi.fn(() => "GROQ_INVESTIGATOR_API_KEY"),
 }));
 vi.mock("../lib/identity-collision", () => ({
   assessIdentityCollision: vi.fn(() => ({ risk: null, identityMatch: 0.95, reason: null })),
 }));
 
 import { runAgenticWebResearch } from "../lib/agentic-web-research";
+import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
+import { persistSourceBackedBureauContactsForEntity } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
   beforeEach(() => {
@@ -242,6 +299,162 @@ describe("offline Investigator-to-card survival path", () => {
       exactQuote: testState.quote,
       investigatorSelectedForCard: true,
     });
+    expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
+    const promotionPayload = testState.cardUpdate.metadata.values.find((value: unknown) =>
+      typeof value === "string" && value.includes("exactQuote"),
+    );
+    expect(JSON.parse(String(promotionPayload))).toMatchObject({
+      contactAttribution: "person_specific",
+      exactQuote: testState.quote,
+      jobId: "job-1",
+    });
+  });
+
+  it("runs three real Investigator turns offline through source filters, evidence persistence and card promotion", async () => {
+    testState.entity.email = null;
+    testState.entity.name = "Jane Example";
+    testState.entity.type = "PersonCandidate";
+    testState.insertedContacts.length = 0;
+    testState.events.splice(0, testState.events.length);
+
+    offlineNetwork.requests = [];
+    offlineNetwork.actions = [
+      {
+        action: "web_search",
+        query: "Jane Example Acme Engineering Managing Director professional email leadership",
+        provider: "serper",
+        thought: "Find a public leadership source that may identify this person and contact route.",
+        hypothesis: "A public leadership page may identify Jane Example and an attributable professional contact.",
+        purpose: "Locate a page whose contents can be fetched and assessed directly.",
+        expectedInformationGain: 0.7,
+        findings: [],
+      },
+      {
+        action: "visit",
+        url: testState.sourceUrl,
+        thought: "Fetch the leadership page before making an attribution decision.",
+        hypothesis: "The page may bind Jane Example's role and professional email in one observation.",
+        purpose: "Verify the exact source passage and contact value.",
+        expectedInformationGain: 0.8,
+        findings: [],
+      },
+      {
+        action: "done",
+        query: null,
+        thought: "The fetched source directly attributes this professional contact to the named person.",
+        hypothesis: "Jane Example is the Managing Director and the displayed email is her professional contact.",
+        purpose: "Return the source-backed finding and model-owned interpretation.",
+        expectedInformationGain: 0.9,
+        findings: [{
+          vectorType: "email",
+          value: "jane@acmeengineering.com",
+          personName: "Jane Example",
+          role: "Managing Director",
+          scope: "candidate",
+          sourceUrls: [testState.sourceUrl],
+          note: "The leadership page attributes the professional email to Jane Example.",
+          contactAttribution: "person_specific",
+          exactQuote: testState.quote,
+          identityAssessment: "same_person",
+          identityRationale: "The same source passage names Jane Example and gives this email as her professional contact.",
+          hypothesisRelation: "supports",
+          hypothesisRationale: "The fetched source directly supports the candidate identity and contact attribution.",
+          relationshipType: "leadership",
+          temporalStatus: "current",
+          interpretationConfidence: 0.95,
+          ambiguityNotes: "",
+          promotionDecision: "promote",
+          promotionReason: "The page itself explicitly links the person and contact value.",
+        }],
+      },
+    ];
+
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_TPM_BUDGET", "50000");
+    vi.stubEnv("SERPER_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
+
+    const result = await runInvestigatorCore({
+      targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
+      objective: "Find source-backed public contact leads. Choose relevance and attribution from the fetched evidence.",
+      investigatorLlm: "groq-investigator-1",
+      mode: "discovery",
+      maxIterations: 3,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.stopReason).toBe("MODEL_DECIDED_DONE");
+    expect(result.researchOutcome).toBe("evidence_backed");
+    expect(result.iterations).toBe(3);
+    expect(result.searches).toBe(1);
+    expect(result.visits).toBe(1);
+    expect(offlineNetwork.actions).toHaveLength(0);
+    expect(offlineNetwork.requests.filter((request) => request.url.endsWith("/chat/completions"))).toHaveLength(3);
+    expect(offlineNetwork.requests.some((request) => request.url === "https://google.serper.dev/search" && request.method === "POST")).toBe(true);
+    expect(offlineNetwork.requests.some((request) => request.url === testState.sourceUrl && request.method === "GET")).toBe(true);
+
+    const modelFinding = result.modelFindings[0];
+    expect(modelFinding).toMatchObject({
+      personName: "Jane Example",
+      role: "Managing Director",
+      contactAttribution: "person_specific",
+      identityAssessment: "same_person",
+      hypothesisRelation: "supports",
+      promotionDecision: "promote",
+      exactQuote: testState.quote,
+    });
+
+    const backed = sourceBackedFindings(result.modelFindings, result.trajectory, result.trajectoryRecords);
+    expect(backed).toHaveLength(1);
+    const contacts = findingsToContacts(backed, "Jane Example");
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]).toMatchObject({ scope: "candidate", promote: true, contactAttribution: "person_specific" });
+
+    const runId = "offline-three-turn-run";
+    testState.events.splice(0, testState.events.length,
+      {
+        id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
+        correlationKey: `${runId}:claim:1`,
+        payload: JSON.stringify({
+          runId, jobId: "job-1",
+          claim: { vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example" },
+          observationEventIds: [32],
+        }),
+      },
+      {
+        id: 32, caseId: 1, eventType: "observation", actorRole: "head_investigator", status: "success",
+        correlationKey: `${runId}:observation:1`,
+        payload: JSON.stringify({
+          runId, jobId: "job-1", action: "visit",
+          observation: testState.quote, observedUrls: [testState.sourceUrl],
+        }),
+      },
+    );
+
+    const persisted = await persistSourceBackedBureauContactsForEntity(
+      2,
+      contacts,
+      "agentic-investigator",
+      "job-1",
+      result.trajectoryRecords.flatMap((record) => record.observedUrls ?? []),
+      { caseId: 1, runId, jobId: "job-1" },
+    );
+    expect(persisted).toBe(1);
+    expect(testState.insertedContacts).toHaveLength(1);
+    const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
+    expect(evidenceMetadata).toMatchObject({
+      scope: "candidate",
+      personName: "Jane Example",
+      contactAttribution: "person_specific",
+      exactQuote: testState.quote,
+      investigatorSelectedForCard: true,
+    });
+    expect(testState.entity.email).toBe("jane@acmeengineering.com");
     expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
     const promotionPayload = testState.cardUpdate.metadata.values.find((value: unknown) =>
       typeof value === "string" && value.includes("exactQuote"),
