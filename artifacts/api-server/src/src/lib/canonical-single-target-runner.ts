@@ -17,6 +17,7 @@ import { lockResearchCaseEventAppendStream } from "./research-case-event-iterati
 import { sanitizeObservableValue } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType, resolveCanonicalSeededTargetEntityType } from "./canonical-seeded-target";
+import { parseJsonRecord } from "./json-record";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; objective?: string; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; currentAction: string | null; iteration: number; objective: string; caseFile: string | null };
@@ -59,15 +60,9 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
       const [entityRow] = await tx.select({ metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, target.id)).for("update").limit(1);
       if (!entityRow) throw new Error(`Target entity ${target.id} disappeared while linking its durable case.`);
       let metadata: Record<string, unknown> = {};
-      if (entityRow.metadata) {
-        try {
-          const parsed: unknown = JSON.parse(entityRow.metadata);
-          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("metadata is not an object");
-          metadata = parsed as Record<string, unknown>;
-        } catch {
-          throw new Error(`Target entity ${target.id} has unreadable metadata; refusing to overwrite it with a case reference.`);
-        }
-      }
+      const parsedMetadata = parseJsonRecord(entityRow.metadata);
+      if (!parsedMetadata) throw new Error(`Target entity ${target.id} has unreadable metadata; refusing to overwrite it with a case reference.`);
+      metadata = parsedMetadata;
       const nextMetadata = { ...metadata, targetCaseId, targetCaseJobId: atlasJobId };
       if (JSON.stringify(nextMetadata) !== JSON.stringify(metadata)) {
         await tx.update(entitiesTable).set({ metadata: JSON.stringify(nextMetadata) }).where(eq(entitiesTable.id, target.id));
@@ -235,12 +230,8 @@ async function clearTargetCaseReferenceIfCancelled(entityId: number, caseId: num
   await db.transaction(async (tx) => {
     const [entity] = await tx.select({ metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, entityId)).for("update").limit(1);
     if (!entity?.metadata) return;
-    let metadata: Record<string, unknown>;
-    try {
-      const parsed: unknown = JSON.parse(entity.metadata);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
-      metadata = parsed as Record<string, unknown>;
-    } catch { return; }
+    const metadata = parseJsonRecord(entity.metadata);
+    if (!metadata) return;
     if (Number(metadata.targetCaseId) !== caseId) return;
     const nextMetadata = { ...metadata };
     delete nextMetadata.targetCaseId;
@@ -280,7 +271,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const manageJobLifecycle = options.manageJobLifecycle !== false;
   const publishJob = async (patch: Parameters<typeof updateJob>[1]) => { if (manageJobLifecycle) await updateJob(atlasJobId, patch); };
   const [targetRow] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, notes: entitiesTable.notes, email: entitiesTable.email, phone: entitiesTable.phone, contactOutcome: entitiesTable.contactOutcome, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!targetRow) throw new Error(`Atlas target entity ${targetId} was not found.`); const target = { ...targetRow, type: resolveCanonicalSeededTargetEntityType({ entityType: targetRow.type, sourceRegistries: targetRow.sourceRegistries, metadata: targetRow.metadata }) };
-  const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
+  const companyName = (() => { const metadata = parseJsonRecord(target.metadata) ?? {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId, options.objective);
   if (caseRow.status !== "active") {
     if (manageJobLifecycle) {
