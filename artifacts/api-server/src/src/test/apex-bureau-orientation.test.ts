@@ -38,7 +38,7 @@ describe("objective-led institutional orientation", () => {
   it("keeps the shared Boss and Right-hand orientation objective-led", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain("The exact human objective");
+      expect(prompt).toContain("The exact human objective and explicit constraints govern");
       expect(prompt).toMatch(/HNWI is (?:an optional classification|optional); do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested/i);
       expect(prompt).toMatch(/do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
@@ -66,7 +66,7 @@ describe("objective-led institutional orientation", () => {
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
       expect(prompt).not.toContain("Tim Cook");
     }
-    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, seniority, size, listing, sector, geography, language and source classes are context, not gates.");
+    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(apexInvestigatorSystemCore()).not.toContain("PERSON REALISM");
     expect(apexOrientationCompact("boss")).not.toContain("quota fillers");
   });
@@ -75,7 +75,7 @@ describe("objective-led institutional orientation", () => {
     const core = apexInvestigatorSystemCore();
     expect(APEX_WHAT_IS_ATLAS).toContain("when geography is open, propose evidence-led sector/geography hypotheses to Boss rather than inventing a preferred region.");
     expect(core).not.toContain("Never infer or introduce a geography from examples or model memory");
-    expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
+    expect(core).toContain("No unrequested criteria or keyword/name heuristics; adjectives/generic nouns are not queries.");
     expect(APEX_BUREAU_PLAYBOOK).toContain("the Investigator may form a jurisdiction hypothesis from actual source observations and propose a strategic pivot to Boss");
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("Never infer or introduce a jurisdiction from examples or model memory");
     expect(APEX_BUREAU_PLAYBOOK).toContain("there is no fixed search-count cap or per-case search quota");
@@ -85,12 +85,12 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
     expect(core).not.toContain("\\n");
-    expect(apexOrientationCompact("investigator")).toContain("The exact human objective");
+    expect(apexOrientationCompact("investigator")).toContain("The exact human objective and explicit constraints govern");
   });
 
   it("keeps qualification and wealth interpretation mission-specific", () => {
     const core = apexInvestigatorSystemCore();
-    expect(core).toContain("No unrequested criteria; generic nouns are not queries.");
+    expect(core).toContain("No unrequested criteria or keyword/name heuristics; adjectives/generic nouns are not queries.");
     expect(core).toContain("HNWI/wealth/success labels are not evidence");
     expect(core).toContain("HNWI/wealth/success labels are not evidence");
     expect(core).toContain("No fixed source/provider/registry order or itinerary");
