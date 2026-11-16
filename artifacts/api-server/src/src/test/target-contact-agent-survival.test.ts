@@ -119,6 +119,7 @@ const testState = vi.hoisted(() => {
 const offlineNetwork = vi.hoisted(() => ({
   actions: [] as Array<Record<string, unknown>>,
   requests: [] as Array<{ url: string; method: string }>,
+  modelRequests: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({
@@ -128,6 +129,8 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({
     offlineNetwork.requests.push({ url, method });
 
     if (url.endsWith("/chat/completions")) {
+      const requestText = typeof init?.body === "string" ? init.body : "";
+      try { offlineNetwork.modelRequests.push(JSON.parse(requestText)); } catch { offlineNetwork.modelRequests.push({ malformedRequestBody: true }); }
       const action = offlineNetwork.actions.shift();
       if (!action) return new Response("Unexpected extra offline model turn", { status: 599 });
       return new Response(JSON.stringify({
@@ -322,6 +325,7 @@ describe("offline Investigator-to-card survival path", () => {
     testState.events.splice(0, testState.events.length);
 
     offlineNetwork.requests = [];
+    offlineNetwork.modelRequests = [];
     offlineNetwork.actions = [
       {
         action: "web_search",
@@ -399,6 +403,8 @@ describe("offline Investigator-to-card survival path", () => {
     expect(result.visits).toBe(1);
     expect(offlineNetwork.actions).toHaveLength(0);
     expect(offlineNetwork.requests.filter((request) => request.url.endsWith("/chat/completions"))).toHaveLength(3);
+    expect(JSON.stringify(offlineNetwork.modelRequests[1])).toContain("Jane Example, Managing Director.");
+    expect(JSON.stringify(offlineNetwork.modelRequests[2])).toContain(testState.quote);
     expect(offlineNetwork.requests.some((request) => request.url === "https://google.serper.dev/search" && request.method === "POST")).toBe(true);
     expect(offlineNetwork.requests.some((request) => request.url === testState.sourceUrl && request.method === "GET")).toBe(true);
 
@@ -421,13 +427,17 @@ describe("offline Investigator-to-card survival path", () => {
 
     const runId = "offline-three-turn-run";
     const targetAgentInput = { ...result, executionId: runId };
+    const persistedFinding = result.modelFindings[0];
+    const fetchedRecord = result.trajectoryRecords.find((record: any) => record.action === "visit");
+    expect(fetchedRecord?.observation).toContain(testState.quote);
+    expect(fetchedRecord?.observedUrls).toContain(testState.sourceUrl);
     testState.events.splice(0, testState.events.length,
       {
         id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
         correlationKey: `${runId}:claim:1`,
         payload: JSON.stringify({
           runId, jobId: "job-1",
-          claim: { vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example" },
+          claim: { vectorType: persistedFinding.vectorType, value: persistedFinding.value, personName: persistedFinding.personName },
           observationEventIds: [32],
         }),
       },
@@ -435,8 +445,8 @@ describe("offline Investigator-to-card survival path", () => {
         id: 32, caseId: 1, eventType: "observation", actorRole: "head_investigator", status: "success",
         correlationKey: `${runId}:observation:1`,
         payload: JSON.stringify({
-          runId, jobId: "job-1", action: "visit",
-          observation: testState.quote, observedUrls: [testState.sourceUrl],
+          runId, jobId: "job-1", action: fetchedRecord.action,
+          observation: fetchedRecord.observation, observedUrls: fetchedRecord.observedUrls,
         }),
       },
     );
