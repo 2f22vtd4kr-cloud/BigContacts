@@ -637,12 +637,10 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
-  it("defaults canonical Atlas launch to one target while preserving model-owned selection", () => {
-    expect(launchDefaultsSource).toContain("targetCount: 1");
-    expect(launchDefaultsSource).toContain("researchLimit: 1");
-    expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
-    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
-    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
+  it("keeps the operator spending-cap behavior covered by executable unit tests", () => {
+    // The actual cap normalization and defaults are exercised in
+    // canonical-atlas-model-owned-target-selection.test.ts; do not freeze
+    // implementation wording or duplicate that behavior with source matching.
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     expect(uiObjectiveLiteral).toBeDefined();
