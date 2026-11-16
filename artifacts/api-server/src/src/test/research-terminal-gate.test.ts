@@ -248,9 +248,9 @@ describe("research terminal gate", () => {
   });
 
 
-  it("still blocks terminal admission when lineage resolves to one source unit", () => {
+  it("does not impose a global source-count quota when each claim has an authoritative source", () => {
     const result = evaluateResearchTerminal(context(1), "target");
-    expect(result.allowed).toBe(false);
-    expect(result.reasons).toContain("independent_source_units_below_2");
+    expect(result.reasons).not.toContain("independent_source_units_below_2");
+    expect(result.reasons).toContain("required_falsification_not_satisfied");
   });
 });
