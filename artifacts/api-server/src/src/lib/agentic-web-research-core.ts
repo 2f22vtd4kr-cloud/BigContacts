@@ -5036,19 +5036,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           (item) => item.turn === matchingRecord.turn && item.action === matchingRecord.action,
         )?.observation
       : undefined;
+    const marker = "[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]";
     if (providerBalancedObservation) {
-      const providerBalancedProjection = "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]\n" + providerBalancedObservation;
-      return compactPromptSectionPreservingUrlTokens(
-        providerBalancedProjection,
-        maxChars,
-        "[OBSERVATION BOUNDED FOR MODEL CONTEXT: provider-balanced search-result projection; full observation remains in immutable event ledger; exact URLs are preserved separately; omitted text is unknown]",
-      );
+      const providerBalancedProjection = marker + "\n" + providerBalancedObservation;
+      return compactPromptSectionPreservingUrlTokens(providerBalancedProjection, maxChars, marker);
     }
-    return compactPromptSectionPreservingUrlTokens(
-      normalized,
-      maxChars,
-      "[OBSERVATION BOUNDED FOR MODEL CONTEXT: full observation remains in the immutable event ledger; exact observed/lead URLs are preserved separately; omitted text is unknown]",
-    );
+    return compactPromptSectionPreservingUrlTokens(normalized, maxChars, marker);
   };
   const serializeDurablePromptRecord = (record: AgenticTrajectoryRecord): Record<string, unknown> => {
     // Keep every complete public URL that fits the provider's atomic URL token
