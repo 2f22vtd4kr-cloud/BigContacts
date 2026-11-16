@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getGroqTokenMaxWaitMs } from "./provider-gate";
+import { getGroqTokenMaxWaitMs, getGroqTokenWindowSnapshot, reconcileGroqTokenWindowFromBody } from "./provider-gate";
 
 const original = process.env.APEX_GROQ_TPM_MAX_WAIT_MS;
 
@@ -19,5 +19,41 @@ describe("Groq token-window wait budget", () => {
     expect(getGroqTokenMaxWaitMs()).toBe(15_000);
     process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "999999";
     expect(getGroqTokenMaxWaitMs()).toBe(120_000);
+  });
+});
+
+describe("Groq adaptive token-window observations", () => {
+  it("learns the provider limit and remaining-token balance from response headers", () => {
+    const key = "test-adaptive-" + Math.random().toString(36).slice(2);
+    const reservation = { createdAt: Date.now(), reservedTokens: 900 };
+    const response = new Response(JSON.stringify({ usage: { total_tokens: 800 } }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "x-ratelimit-limit-tokens": "12000",
+        "x-ratelimit-remaining-tokens": "11200",
+      },
+    });
+    reconcileGroqTokenWindowFromBody(key, reservation, response, JSON.stringify({ usage: { total_tokens: 800 } }));
+    expect(getGroqTokenWindowSnapshot(key)).toMatchObject({
+      providerLimit: 12000,
+      providerRemainingTokens: 11200,
+    });
+    expect(getGroqTokenWindowSnapshot(key).remainingObservedAt).toEqual(expect.any(Number));
+  });
+
+  it("ignores malformed remaining-token headers rather than poisoning the learned balance", () => {
+    const key = "test-adaptive-invalid-" + Math.random().toString(36).slice(2);
+    const reservation = { createdAt: Date.now(), reservedTokens: 900 };
+    const response = new Response(JSON.stringify({ usage: { total_tokens: 800 } }), {
+      status: 200,
+      headers: { "x-ratelimit-remaining-tokens": "unknown" },
+    });
+    reconcileGroqTokenWindowFromBody(key, reservation, response, JSON.stringify({ usage: { total_tokens: 800 } }));
+    expect(getGroqTokenWindowSnapshot(key)).toMatchObject({
+      providerLimit: null,
+      providerRemainingTokens: null,
+      remainingObservedAt: null,
+    });
   });
 });
