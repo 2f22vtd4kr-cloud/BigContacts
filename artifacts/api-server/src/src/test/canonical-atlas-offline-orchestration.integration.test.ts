@@ -308,20 +308,21 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   it("executes multi-turn discovery, target Investigator act, independent oversight, and terminal gating through the canonical pipeline", async () => {
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
-    const investigatorCalls = mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions")).length;
+    const investigatorCalls = mocks.outboundUrls.filter((url) => url.endsWith("/chat/completions")).length;
     expect(investigatorCalls).toBeGreaterThanOrEqual(3);
     expect(investigatorCalls).toBeLessThanOrEqual(4);
-    expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
+    expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
-    expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(mocks.pageUrl, expect.any(Object));
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.admittedEntities).toHaveLength(2);
     expect(outcome.targetCases).toHaveLength(1);
     const targetCaseFile = JSON.parse(outcome.targetCases[0].caseFile);
-    expect(targetCaseFile.investigatorActOversight).toEqual(expect.arrayContaining([expect.objectContaining({ oversight: expect.objectContaining({ action: "stop", status: "completed" }), evidenceGraphs: expect.any(Array) })]));
+    const completedOversight = targetCaseFile.investigatorActOversight?.find((entry: any) => entry?.oversight?.action === "stop");
+    expect(completedOversight?.oversight).toMatchObject({ action: "stop", status: "completed" });
+    expect(completedOversight?.evidenceGraphs).toHaveLength(1);
     expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_person_role_lead", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
