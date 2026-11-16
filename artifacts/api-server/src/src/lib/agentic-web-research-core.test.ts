@@ -1407,7 +1407,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
+    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; falsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -3351,7 +3351,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("CKX Lands");
-    expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
+    expect(prompt).toContain("[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
     expect(apexInvestigatorSystemCore()).toContain("Visit handles text/PDF; browser_fetch handles HTML.");
@@ -3390,7 +3390,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 18");
     expect(prompt).toContain(url);
     expect(prompt).toContain("CKX Lands");
-    expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
+    expect(prompt).toContain("[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]");
     expect(prompt).toContain("observationCharsOmittedFromPrompt");
     expect(prompt).not.toContain(observation);
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
