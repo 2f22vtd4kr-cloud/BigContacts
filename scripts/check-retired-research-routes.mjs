@@ -13,6 +13,7 @@ const canonicalPipeline = read("artifacts/api-server/src/src/routes/ingest-pipel
 const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
 const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
+let failed = false;
 const retiredAtlasOrchestrator = "artifacts/api-server/src/src/lib/atlas-orchestrator.ts";
 if (fs.existsSync(retiredAtlasOrchestrator)) {
   console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`);
@@ -27,7 +28,6 @@ const retired = [
   "/api/research/bulk-hybrid-research",
 ];
 
-let failed = false;
 for (const route of retired) {
   const inCanonicalStartup = canonicalStartup.includes(route);
   const inLegacyStartup = legacyStartup.includes(route);
@@ -105,20 +105,24 @@ if (staleSecondaryHelpers.length) {
   failed = true;
 } else console.log("PASS unreachable secondary-surface entrypoint and all private outbound lookup helpers are removed.");
 
-const walkSourceFiles = (directory) => {
-  if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const full = directory + "/" + entry.name;
+const SCANNABLE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs", ".cjs", ".sh", ".toml", ".json", ".yml", ".yaml", ".replit"];
+const walkSourceFiles = (path) => {
+  if (!fs.existsSync(path)) return [];
+  const stat = fs.statSync(path);
+  if (stat.isFile()) return SCANNABLE_EXTENSIONS.some((extension) => path.endsWith(extension)) ? [path] : [];
+  return fs.readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const full = path + "/" + entry.name;
     if (entry.isDirectory()) {
       if (["node_modules", "dist", ".git"].includes(entry.name)) return [];
       return walkSourceFiles(full);
     }
-    return [".ts", ".tsx", ".js", ".mjs", ".cjs", ".sh", ".toml", ".json", ".yml", ".yaml"].some((extension) => full.endsWith(extension)) ? [full] : [];
+    return SCANNABLE_EXTENSIONS.some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
-// Include app, workflow, and script sources so literal dynamic-import/registry
-// references are caught as well as ordinary static call sites.
-const referenceScanRoots = ["artifacts", "scripts", ".github/workflows"];
+// Include application source, root manifests/configuration, workflows, and
+// scripts so literal dynamic-import/registry references are caught alongside
+// ordinary static call sites.
+const referenceScanRoots = ["package.json", "pnpm-workspace.yaml", ".replit", "artifacts", "scripts", ".github/workflows"];
 const liveSecondaryCallers = referenceScanRoots.flatMap(walkSourceFiles)
   .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
   // Static audit scripts may mention retired symbols as assertions, not executable call sites.
