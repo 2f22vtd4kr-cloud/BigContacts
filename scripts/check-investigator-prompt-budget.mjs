@@ -5,6 +5,8 @@ const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-resea
 const telemetry = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts", "utf8");
 const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
+const boss = fs.readFileSync("artifacts/api-server/src/src/lib/groq-boss.ts", "utf8");
+const rightHand = fs.readFileSync("artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -49,6 +51,9 @@ assert(
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
+assert(/estimatedMessagePromptTokens/.test(core) && /estimatedOriginalMessagePromptTokens/.test(core), "Investigator telemetry must distinguish compacted and original message-token estimates");
+assert(/estimatedMessagePromptTokens/.test(boss) && /estimatedOriginalMessagePromptTokens/.test(boss), "Boss telemetry must distinguish compacted and original message-token estimates");
+assert(/estimatedMessagePromptTokens/.test(rightHand) && /estimatedOriginalMessagePromptTokens/.test(rightHand), "Right-hand telemetry must distinguish compacted and original message-token estimates");
 assert(/waitForKnownGroqTokenWindow/.test(core) && /token_window_wait_exceeded/.test(core), "known token-window exhaustion must be classified as a bounded temporary wait, not hard quota");
 assert(/upstream_token_window_wait_exceeded/.test(core), "local token-window wait ceiling must not emit upstream_quota_exhausted");
 assert(/resetMs > Math\.max\(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS\)/.test(core), "known token-window waits must reserve time for the actual provider inference");
