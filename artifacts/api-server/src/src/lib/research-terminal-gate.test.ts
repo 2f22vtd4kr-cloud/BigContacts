@@ -90,15 +90,15 @@ describe("research-stage terminal contracts", () => {
     expect(result.reasons).toContain("claim_evidence_only_from_non_independent_sources");
   });
 
-  it("does not allow aggregator-only material to establish a target claim", () => {
+  it("does not allow aggregator-only material to establish a target claim even if adapter metadata mislabels it", () => {
     const result = evaluateResearchTerminal(context({
       evidenceCount: 1,
       independentSourceUnits: 1,
       recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to Jane Doe being the current CEO" } }],
       atomicEvidence: [{
         evidenceId: "e1", kind: "claim", claimId: "claim-1", claim: "Jane Doe is the current CEO",
-        sourceUrl: "https://aggregator.example.test/jane", sourceHost: "aggregator.example.test",
-        sourceTier: "C", sourceClass: "AGGREGATOR", sourceName: "Aggregator",
+        sourceUrl: "https://www.rocketreach.co/jane-doe", sourceHost: "www.rocketreach.co",
+        sourceTier: "B", sourceClass: "REPUTABLE_NEWS", sourceName: "Mislabelled aggregator",
         sourceContributor: null, originalObservedAt: null, sourceMechanism: "visit",
         passage: "Jane Doe is the current chief executive officer.", spanBound: true,
         spanBindingKind: "identity_and_value", hypothesisLabel: null, hypothesisRelation: "supports",
