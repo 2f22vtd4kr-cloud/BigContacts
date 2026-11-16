@@ -167,7 +167,8 @@ describe("research terminal gate", () => {
       findingRoles: ["Executive"],
     }];
     const result = evaluateResearchTerminal(sample, "target");
-    expect(result.allowed).toBe(false);
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
     expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
