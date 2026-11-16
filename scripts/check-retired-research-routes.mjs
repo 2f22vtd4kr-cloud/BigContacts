@@ -13,7 +13,12 @@ const canonicalPipeline = read("artifacts/api-server/src/src/routes/ingest-pipel
 const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
 const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
+let failed = false;
 const retiredAtlasOrchestrator = "artifacts/api-server/src/src/lib/atlas-orchestrator.ts";
+if (fs.existsSync(retiredAtlasOrchestrator)) {
+  console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`);
+  failed = true;
+} else console.log("PASS retired deterministic Atlas orchestrator absent.");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -23,7 +28,6 @@ const retired = [
   "/api/research/bulk-hybrid-research",
 ];
 
-let failed = false;
 for (const route of retired) {
   const inCanonicalStartup = canonicalStartup.includes(route);
   const inLegacyStartup = legacyStartup.includes(route);
@@ -85,38 +89,49 @@ if (/\bexpandSecondaryPublicSurface\s*\(/.test(entitiesRoute)) {
   else console.log("PASS secondary-surface endpoint is quarantined at the global mutation boundary.");
 } else console.log("PASS no secondary research caller in entities route.");
 
-const secondaryHelperStart = secondaryPersist.indexOf("export async function expandSecondaryPublicSurface");
-const secondaryHelperEnd = secondaryPersist.indexOf("/** Bounded EDGAR EFTS lookup", secondaryHelperStart);
-const secondaryHelper = secondaryHelperStart >= 0 && secondaryHelperEnd > secondaryHelperStart
-  ? secondaryPersist.slice(secondaryHelperStart, secondaryHelperEnd)
-  : "";
-if (!secondaryHelper || /enrichEntityOsint|fetch\s*\(|lookupCrtShEmails|lookupPublicEmailClaims/.test(secondaryHelper)
-  || !/return \{ linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 \}/.test(secondaryHelper)) {
-  console.log("FAIL deterministic secondary-surface helper is not inert.");
+const retiredSecondaryHelpers = [
+  "expandSecondaryPublicSurface",
+  "lookupEdgarRelatedPeople",
+  "lookupLeadershipPages",
+  "lookupPublicInvestorDirectories",
+  "lookupCrtShEmails",
+  "lookupPublicEmailClaims",
+  "lookupPublicXProfile",
+  "lookupWaybackContactPages",
+];
+const staleSecondaryHelpers = retiredSecondaryHelpers.filter((name) => secondaryPersist.includes(name));
+if (staleSecondaryHelpers.length) {
+  console.log("FAIL retired secondary-surface implementation remains in bureau-contact-persist.ts: " + staleSecondaryHelpers.join(", "));
   failed = true;
-} else console.log("PASS deterministic secondary-surface helper is inert and performs no outbound research.");
+} else console.log("PASS unreachable secondary-surface entrypoint and all private outbound lookup helpers are removed.");
 
-const walkSourceFiles = (directory) => {
-  if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const full = directory + "/" + entry.name;
-    if (entry.isDirectory()) return walkSourceFiles(full);
-    return /\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
+const SCANNABLE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs", ".cjs", ".sh", ".toml", ".json", ".yml", ".yaml", ".replit"];
+const walkSourceFiles = (path) => {
+  if (!fs.existsSync(path)) return [];
+  const stat = fs.statSync(path);
+  if (stat.isFile()) return SCANNABLE_EXTENSIONS.some((extension) => path.endsWith(extension)) ? [path] : [];
+  return fs.readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const full = path + "/" + entry.name;
+    if (entry.isDirectory()) {
+      if (["node_modules", "dist", ".git"].includes(entry.name)) return [];
+      return walkSourceFiles(full);
+    }
+    return SCANNABLE_EXTENSIONS.some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
-const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
-  .filter((file) => !/\.test\.[jt]sx?$/.test(file))
+// Include application source, root manifests/configuration, workflows, and
+// scripts so literal dynamic-import/registry references are caught alongside
+// ordinary static call sites.
+const referenceScanRoots = ["package.json", "pnpm-workspace.yaml", ".replit", "artifacts", "scripts", ".github/workflows"];
+const liveSecondaryCallers = referenceScanRoots.flatMap(walkSourceFiles)
   .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
-  .filter((file) => /\bexpandSecondaryPublicSurface\s*\(/.test(read(file)));
+  // Static audit scripts may mention retired symbols as assertions, not executable call sites.
+  .filter((file) => !file.startsWith("scripts/check-"))
+  .filter((file) => read(file).includes("expandSecondaryPublicSurface"));
 if (liveSecondaryCallers.length) {
-  console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
+  console.log("FAIL repository source still references retired secondary-surface API: " + liveSecondaryCallers.join(", "));
   failed = true;
-} else console.log("PASS no live canonical caller can invoke secondary-surface expansion.");
-
-if (fs.existsSync(retiredAtlasOrchestrator)) { console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`); failed = true; }
-else console.log("PASS retired deterministic Atlas orchestrator removed from the API source tree.");
-
-console.log("PASS retired secondary-surface entrypoint is inert; its old helper code cannot be reached through the canonical path.");
+} else console.log("PASS no static, dynamic-import, registry, workflow, or script reference to retired secondary-surface API remains.");
 
 const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
 
