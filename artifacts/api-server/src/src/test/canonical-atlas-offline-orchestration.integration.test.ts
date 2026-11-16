@@ -85,6 +85,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   const environmentKeys = ["GROQ_INVESTIGATOR_API_KEY", "SERPER_API_KEY", "APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "APEX_GROQ_TPM_BUDGET", "APEX_GROQ_TPM_MAX_WAIT_MS", "APEX_GROQ_DAILY_TOKEN_BUDGET", "APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "APEX_GROQ_DAILY_TOKEN_BUDGET_20B"];
   const originalEnvironment = new Map(environmentKeys.map((key) => [key, process.env[key]]));
   const runToken = randomUUID();
+  const sourceUrl = `https://example.com/apex-offline/${runToken}/company`;
+  const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
+  const secondName = `John Offline ${runToken.slice(0, 8)}`;
 
   beforeAll(async () => {
     const dbModule = await import("@workspace/db");
@@ -154,9 +157,6 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     });
 
     let groqTurn = 0;
-    const sourceUrl = `https://example.com/apex-offline/${runToken}/company`;
-    const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
-    const secondName = `John Offline ${runToken.slice(0, 8)}`;
     const findings = [
       { vectorType: "other", value: firstName, personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead." },
       { vectorType: "other", value: secondName, personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead." },
@@ -284,6 +284,11 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const events = await db.select().from(tables.researchCaseEventsTable)
       .where(eq(tables.researchCaseEventsTable.caseId, ownedCase.id))
       .orderBy(tables.researchCaseEventsTable.id);
+    const allTargetCases = await db.select().from(tables.researchCasesTable)
+      .where(eq(tables.researchCasesTable.caseType, "target"));
+    const targetCases = allTargetCases.filter((row: any) => {
+      try { return JSON.parse(row.caseFile ?? "{}").atlasJobId === jobId; } catch { return false; }
+    });
     const allEntities = await db.select().from(tables.entitiesTable);
     const admittedEntities = allEntities.filter((entity: any) => {
       try {
@@ -296,7 +301,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
           .where(eq(tables.researchEvidenceTable.entityId, admittedEntities[0].id))
       : [];
     const resultPatch = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1)[0];
-    return { jobId, ownedCase, events, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
+    return { jobId, ownedCase, events, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
   it("executes mocked Investigator discovery, evidence persistence, target research, and model-owned stop through the canonical pipeline", async () => {
@@ -304,16 +309,23 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(1);
     expect(mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"))).toHaveLength(3);
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
+    expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(sourceUrl, expect.any(Object));
     expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.admittedEntities).toHaveLength(2);
+    expect(outcome.targetCases).toHaveLength(1);
+    expect(JSON.parse(outcome.targetCases[0].caseFile).evidenceGraph).toHaveLength(1);
     expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_person_role_lead", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
     expect(eventTypes).toContain("tool_observation");
+    const observedActions = outcome.events.filter((event: any) => event.eventType === "tool_observation")
+      .map((event: any) => JSON.parse(event.payload ?? "{}").action);
+    expect(observedActions).toContain("web_search");
+    expect(observedActions).toContain("visit");
     expect(eventTypes).toContain("control_decision");
-    expect(outcome.events.some((event: any) => event.actorRole === "right_hand" && event.eventType === "observation")).toBe(true);
+    expect(outcome.events.some((event: any) => event.actorRole === "right_hand" && event.eventType === "observation" && event.status === "completed")).toBe(true);
     const terminal = JSON.parse(String(outcome.jobUpdate?.result ?? "{}")).terminal;
     expect(terminal).toMatchObject({
       status: "complete",
