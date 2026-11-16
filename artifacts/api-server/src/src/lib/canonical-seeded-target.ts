@@ -1,3 +1,5 @@
+import { parseJsonRecord } from "./json-record";
+
 export type CanonicalSeededTargetKind = "person" | "organization" | "asset" | "other";
 
 const PERSON_TYPES = new Set(["person", "personcandidate", "hnwi", "gatekeeper"]);
@@ -13,14 +15,8 @@ export function classifyCanonicalSeededTargetType(entityType: string | null | un
   return "other";
 }
 
-function parseObject(raw: string | null | undefined): Record<string, unknown> {
-  if (!raw) return {};
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
-  } catch {
-    return {};
-  }
+function parseObject(raw: unknown): Record<string, unknown> {
+  return parseJsonRecord(raw) ?? {};
 }
 
 function parseRegistryNames(raw: unknown): string[] {
@@ -38,7 +34,7 @@ function parseRegistryNames(raw: unknown): string[] {
 export function resolveCanonicalSeededTargetEntityType(input: {
   entityType: string;
   sourceRegistries?: string | null;
-  metadata?: string | null;
+  metadata?: unknown;
 }): string {
   return resolveSeededTargetEntityType(
     input.entityType,
@@ -103,7 +99,7 @@ export function buildCanonicalSeededTargetBinding(input: {
   entityType: string;
   sourceRegistries?: string | null;
   notes?: string | null;
-  metadata?: string | null;
+  metadata?: unknown;
   email?: string | null;
   phone?: string | null;
   contactOutcome?: string | null;
@@ -124,7 +120,7 @@ export function buildCanonicalSeededTargetBinding(input: {
     category: string | null;
     identifier: string | null;
     sourceRegistry: string | null;
-    metadata: string | null;
+    metadata: unknown;
   }>;
 }): CanonicalSeededTargetBinding {
   const metadata = parseObject(input.metadata);

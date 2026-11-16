@@ -1,4 +1,5 @@
 import { canonicalizeUrl } from "./evidence-ledger";
+import { parseJsonRecord } from "./json-record";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateScope =
@@ -69,16 +70,8 @@ const CANDIDATE_VECTORS = new Set<CandidateVector>([
   "email", "phone", "social", "domain", "website", "address", "ownership",
 ]);
 
-function parseStoredDetails(metadata: string | null | undefined): Record<string, unknown> {
-  if (!metadata) return {};
-  try {
-    const parsed: unknown = JSON.parse(metadata);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {};
-  } catch {
-    return {};
-  }
+function parseStoredDetails(metadata: unknown): Record<string, unknown> {
+  return parseJsonRecord(metadata) ?? {};
 }
 
 /** Reconstructs the same funnel used during ingestion from durable evidence. */
