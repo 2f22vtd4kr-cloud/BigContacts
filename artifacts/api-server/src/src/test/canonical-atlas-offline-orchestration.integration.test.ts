@@ -324,7 +324,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
           .where(eq(tables.researchEvidenceTable.entityId, admittedEntities[0].id))
       : [];
     const resultPatch = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1)[0];
-    return { jobId, ownedCase, events, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
+    const eventPayloads = events.map((event: any) => { try { return JSON.parse(event.payload ?? "{}"); } catch { return {}; } });
+    return { jobId, ownedCase, events, eventPayloads, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
   it("executes mocked Investigator discovery, evidence persistence, target research, and model-owned stop through the canonical pipeline", async () => {
