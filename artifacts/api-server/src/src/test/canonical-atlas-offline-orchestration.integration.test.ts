@@ -212,10 +212,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       throw new Error(`Unexpected outbound request in offline integration test: ${url}`);
     });
-    mocks.generateGroqBossText.mockImplementation(async (_selection: any, prompt: string, _options: any) => {
-      if (prompt.includes("JUST-COMPLETED ACT:")) {
-        return { model: "mock-groq-boss", raw: JSON.stringify({ action: "stop", direction: null, reason: "The target act produced a durable exact-source evidence graph; no additional act is needed for this offline test.", confidence: 0.95 }), error: null, attempts: [] };
-      }
+    mocks.generateGroqBossText.mockImplementation(async (_selection: any, _prompt: string, _options: any) => {
       const call = mocks.controlCalls++;
       let action: string;
       let candidateName: string | null = null;
