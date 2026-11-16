@@ -4891,7 +4891,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
     providerGuidance,
-    input.mode === "discovery"
+    input.mode === "discovery" && discoverySearchActionsUsed > 0
       ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
       : "",
     input.mode === "discovery"
