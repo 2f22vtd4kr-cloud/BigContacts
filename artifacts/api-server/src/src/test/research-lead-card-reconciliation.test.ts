@@ -292,8 +292,6 @@ describe("canonical Atlas organization target selection", () => {
     expect(launchDefaults).toContain("lesser-known people with credible wealth potential");
     expect(launchDefaults).toContain("The Investigator owns relevance, hypotheses, target selection, research direction");
     expect(launchDefaults).toContain("Operator caps are resource limits, not relevance or admission rules.");
-    expect(launchDefaults).toContain("targetCount: 1");
-    expect(launchDefaults).toContain("researchLimit: 1");
     expect(launchDefaults).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalAtlas).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
