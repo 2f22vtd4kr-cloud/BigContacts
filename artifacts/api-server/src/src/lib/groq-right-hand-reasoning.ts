@@ -752,19 +752,23 @@ export async function runGroqRightHandReadiness(): Promise<{
 export async function runGroqRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GroqRightHandCaseReasoningResult> {
   const queued = input.file.actionQueue.filter((action) => action.status === "queued");
   const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only.";
+  const compactedCase = compactCase(input.file);
   const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.
 CASE:
-${compactCase(input.file)}
+${compactedCase}
 
 Return {"actionId":"exact queued action id","decision":"short recommendation","reason":"concrete case-file evidence-gap reason","confidence":0.0}.`;
-  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"], additionalProperties: false } });
+  const originalPromptChars = user.length + Math.max(0, JSON.stringify(input.file, null, 2).length - compactedCase.length);
+  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"], additionalProperties: false } }, undefined, { cognitiveTask: "control_advisory", originalPromptChars, promptReductionChars: originalPromptChars - user.length });
   if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error };
   return normalizeGroqRightHandCaseReasoning(extractJson(result.raw), queued.map((action) => action.id), result.model);
 }
 export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GroqRightHandDiscoveryAdviceResult> {
   const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only.";
   const user = boundedDiscoveryPrompt(input.file, input.iteration);
-  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"], additionalProperties: false } });
+  const originalPromptChars = Math.max(user.length, JSON.stringify(input.file, null, 2).length);
+  const promptReductionChars = Math.max(0, originalPromptChars - user.length);
+  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"], additionalProperties: false } }, undefined, { cognitiveTask: "control_advisory", originalPromptChars, promptReductionChars });
   if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
   return normalizeGroqRightHandDiscoveryAdvice(extractJson(result.raw), result.model);
 }
