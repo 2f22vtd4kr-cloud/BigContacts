@@ -66,8 +66,11 @@ describe("operator authentication boundary", () => {
     expect(uiSource).toContain("<AppRouter />");
     expect(replitConfig).toContain("[userenv.development]");
     expect(replitConfig).toContain('NODE_ENV = "development"');
+    expect(replitConfig).toContain('APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
+    expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
+    expect(replitConfig).toContain('run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"]');
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
@@ -81,11 +84,12 @@ describe("operator authentication boundary", () => {
   });
 
 
-  it("bypasses operator authentication only in explicit development mode", () => {
-    expect(isOperatorAuthBypassed({ NODE_ENV: "development" })).toBe(true);
-    expect(isOperatorAuthBypassed({ NODE_ENV: "test" })).toBe(false);
+  it("bypasses operator authentication only with the explicit Replit runtime flag", () => {
+    expect(isOperatorAuthBypassed({ NODE_ENV: "development" })).toBe(false);
     expect(isOperatorAuthBypassed({ NODE_ENV: "production" })).toBe(false);
-    const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "development" }));
+    expect(isOperatorAuthBypassed({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(true);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "false" })).toBe(false);
+    const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "true" }));
     const res = response(); let next = 0;
     guard(request({ method: "POST", path: "/research/launch" }), res.value, (() => { next += 1; }) as never);
     expect(res.result.statusCode).toBe(200);

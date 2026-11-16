@@ -5,7 +5,7 @@ run = "bash scripts/replit-boot.sh"
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "bash scripts/replit-boot.sh"]
+run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
 args = ["npm", "exec", "--yes", "--package=pnpm@9.15.9", "--", "pnpm", "store", "prune"]
@@ -25,7 +25,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm exec --yes --package=pnpm@9.15.9 -- pnpm install --frozen-lockfile && bash scripts/replit-boot.sh"
+args = "npm exec --yes --package=pnpm@9.15.9 -- pnpm install --frozen-lockfile && env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"
 waitForPort = 8080
 
 [agent]
@@ -43,6 +43,7 @@ channel = "stable-25_05"
 
 [userenv.development]
 NODE_ENV = "development"
+APEX_OPERATOR_AUTH_BYPASS = "true"
 VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 APEX_CAPTURE_MODEL_PROMPTS = "true"
 APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"
