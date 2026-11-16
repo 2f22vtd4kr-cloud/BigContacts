@@ -19,6 +19,24 @@ const completeInvestigatorProviderPrompt = [
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+describe("Investigator prompt compaction telemetry", () => {
+  it("reports the actual pre- and post-compaction prompt lengths", () => {
+    let measurement = { originalPromptChars: 0, finalPromptChars: 0 };
+    const prompt = buildStepPrompt({
+      targetName: "Example Target",
+      objective: "Research the target using relevant public evidence and preserve uncertainty.",
+      history: Array.from({ length: 120 }, (_, index) => `Historical observation ${index}: ${"context ".repeat(18)}`),
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "target",
+      onPromptMeasurement: (next) => { measurement = next; },
+    });
+    expect(measurement.finalPromptChars).toBe(prompt.length);
+    expect(measurement.originalPromptChars).toBeGreaterThan(measurement.finalPromptChars);
+  });
+});
+
 describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
