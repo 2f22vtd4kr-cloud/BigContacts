@@ -2917,7 +2917,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
       // the contract-aware reducer that pins active scope, action/schema rules,
       // evidence provenance, and complete URL tokens—not a generic head/tail slice.
       try {
-        boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(prompt) ? "target" : "discovery");
+        boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, input.mode ?? "target");
       } catch (error) {
         const reason = error instanceof Error ? error.message : "investigator_prompt_budget_exceeded";
         setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
