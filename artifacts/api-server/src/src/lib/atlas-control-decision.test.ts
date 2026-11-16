@@ -489,7 +489,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("RUNTIME SOURCE/REGISTRY FEASIBILITY");
     expect(prompt).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");
     expect(prompt).toContain("SOURCE AUTONOMY");
-    expect(prompt).toContain("Investigator chooses exact targets, registry IDs, queries, providers, tools, order and stopping");
+    expect(prompt).toContain("Investigator chooses targets, registry IDs, queries, providers, tools, order and stopping from available capabilities");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 
@@ -503,7 +503,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).not.toContain("inbiz");
     expect(law).toContain("Generic agency pages are web sources, not native registry adapters");
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
-    expect(law).toContain("when geography is open, the Investigator may discover and propose a jurisdiction from evidence and Boss may authorize the strategic pivot");
+    expect(law).toContain("when geography is open, the Investigator may propose an evidence-led jurisdiction to Boss");
     expect(law).toContain("Use jurisdiction-specific sources when the human objective or same-case observations support their relevance");
     expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
     expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
@@ -540,7 +540,7 @@ describe("Atlas control-plane lead continuity", () => {
       pinnedControlState: "One source-attributed organization review target is available.",
     });
     expect(prompt).toContain("There is no target-count threshold");
-    expect(prompt).toContain("The Investigator chooses the action");
+    expect(prompt).toContain("Investigator chooses the action");
     expect(prompt).not.toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(prompt).not.toContain("recommend investigating it now");
   });
