@@ -310,6 +310,10 @@ async function generateGroqBossTextImpl(
     decisionId?: string | null;
     cognitiveTask?: string | null;
     modelCandidates?: string[];
+    /** Character count before upstream semantic compaction; prompt text is never logged. */
+    originalPromptChars?: number;
+    /** Characters removed by upstream prompt compaction. */
+    promptReductionChars?: number;
   },
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
@@ -351,6 +355,9 @@ async function generateGroqBossTextImpl(
     iteration: options?.iteration ?? null,
     decisionId: options?.decisionId ?? null,
     cognitiveTask: options?.cognitiveTask ?? "control_decision",
+    originalPromptChars: Math.max(prompt.length, Math.floor(options?.originalPromptChars ?? prompt.length)),
+    promptReductionChars: Math.max(0, Math.floor(options?.promptReductionChars ?? (prompt.length - boundedPrompt.length))),
+    estimatedPromptTokens: Math.ceil(boundedPrompt.length / 3.4),
   };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
