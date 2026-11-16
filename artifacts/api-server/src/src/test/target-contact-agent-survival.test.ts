@@ -415,7 +415,7 @@ describe("offline Investigator-to-card survival path", () => {
     expect(contacts).toHaveLength(1);
     expect(contacts[0]).toMatchObject({ scope: "candidate", promote: true, contactAttribution: "person_specific" });
 
-    const runId = "offline-three-turn-run";
+    const runId = result.executionId ?? "offline-three-turn-run";
     testState.events.splice(0, testState.events.length,
       {
         id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
@@ -436,15 +436,30 @@ describe("offline Investigator-to-card survival path", () => {
       },
     );
 
-    const persisted = await persistSourceBackedBureauContactsForEntity(
-      2,
-      contacts,
-      "agentic-investigator",
-      "job-1",
-      result.trajectoryRecords.flatMap((record) => record.observedUrls ?? []),
-      { caseId: 1, runId, jobId: "job-1" },
-    );
-    expect(persisted).toBe(1);
+    // Hand the actual three-turn Investigator result to the real target-contact
+    // orchestration layer. Only the provider-facing wrapper is replaced: the
+    // target agent's source checks, evidence persistence and card promotion run.
+    vi.mocked(runAgenticWebResearch).mockResolvedValue(result as any);
+    const targetResult = await runTargetContactAgent({
+      entityId: 2,
+      caseId: 1,
+      jobId: "job-1",
+      targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
+      targetType: "person",
+      investigatorLlm: "groq-investigator-1",
+      contextDocument: "Canonical target case state and prior evidence.",
+      oversightMode: "internal",
+    });
+
+    expect(targetResult.status).toBe("completed");
+    expect(targetResult.stopReason).toBe("MODEL_DECIDED_DONE");
+    expect(targetResult.researchOutcome).toBe("evidence_backed");
+    expect(targetResult.findings).toBe(1);
+    expect(targetResult.iterations).toBe(3);
+    expect(targetResult.searches).toBe(1);
+    expect(targetResult.visits).toBe(1);
+    expect(targetResult.email).toBe("jane@acmeengineering.com");
     expect(testState.insertedContacts).toHaveLength(1);
     const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
     expect(evidenceMetadata).toMatchObject({
