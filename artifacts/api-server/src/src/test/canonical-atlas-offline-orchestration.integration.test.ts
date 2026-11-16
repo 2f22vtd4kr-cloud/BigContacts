@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const mocks = vi.hoisted(() => ({
   jobStatus: "running" as string,
@@ -60,6 +60,7 @@ const databaseEnabled = Boolean(process.env.DATABASE_URL?.trim());
 
 describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integration", () => {
   let db: any;
+  let pool: any;
   let tables: any;
   let pipeline: typeof import("../lib/canonical-atlas-discovery").runCanonicalAtlasPipeline;
   let lockResearchCaseEventAppendStream: typeof import("../lib/research-case-event-iteration").lockResearchCaseEventAppendStream;
@@ -70,6 +71,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   beforeAll(async () => {
     const dbModule = await import("@workspace/db");
     db = dbModule.db;
+    pool = dbModule.pool;
     tables = dbModule;
     ({ runCanonicalAtlasPipeline: pipeline } = await import("../lib/canonical-atlas-discovery"));
     ({ lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } = await import("../lib/research-case-event-iteration"));
@@ -300,15 +302,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     if (originalInvestigatorKey === undefined) delete process.env.GROQ_INVESTIGATOR_API_KEY;
     else process.env.GROQ_INVESTIGATOR_API_KEY = originalInvestigatorKey;
-  });
+    if (pool) await pool.end();
+  }, 30_000);
 
   async function runScenario(scenario: "model-stops" | "operator-cap") {
     mocks.scenario = scenario;
     const jobId = `offline-atlas-${scenario}-${runToken}`;
-    const result = await pipeline(jobId, { targetCount: 1, researchDepth: "fast", targetTimeoutMs: 30_000 });
+    await pipeline(jobId, { targetCount: 1, researchDepth: "fast", targetTimeoutMs: 30_000 });
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
     const cases = await db.select().from(tables.researchCasesTable)
       .where(eq(tables.researchCasesTable.caseType, "discovery"));
@@ -331,7 +334,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
           .where(eq(tables.researchEvidenceTable.entityId, admittedEntities[0].id))
       : [];
     const resultPatch = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1)[0];
-    return { jobId, result, ownedCase, events, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
+    return { jobId, ownedCase, events, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
   it("executes mocked Investigator discovery, evidence persistence, target research, and model-owned stop through the canonical pipeline", async () => {
