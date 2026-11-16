@@ -72,7 +72,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   let pipeline: typeof import("../lib/canonical-atlas-discovery").runCanonicalAtlasPipeline;
   let lockResearchCaseEventAppendStream: typeof import("../lib/research-case-event-iteration").lockResearchCaseEventAppendStream;
   let nextResearchCaseEventIteration: typeof import("../lib/research-case-event-iteration").nextResearchCaseEventIteration;
-  const originalInvestigatorKey = process.env.GROQ_INVESTIGATOR_API_KEY;
+  const environmentKeys = ["GROQ_INVESTIGATOR_API_KEY", "SERPER_API_KEY", "APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "APEX_GROQ_TPM_BUDGET", "APEX_GROQ_TPM_MAX_WAIT_MS", "APEX_GROQ_DAILY_TOKEN_BUDGET", "APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "APEX_GROQ_DAILY_TOKEN_BUDGET_20B"];
+  const originalEnvironment = new Map(environmentKeys.map((key) => [key, process.env[key]]));
   const runToken = randomUUID();
 
   beforeAll(async () => {
@@ -272,9 +273,11 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   });
 
   afterAll(async () => {
-    if (originalInvestigatorKey === undefined) delete process.env.GROQ_INVESTIGATOR_API_KEY;
-    else process.env.GROQ_INVESTIGATOR_API_KEY = originalInvestigatorKey;
-    for (const key of ["SERPER_API_KEY", "APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "APEX_GROQ_TPM_BUDGET", "APEX_GROQ_TPM_MAX_WAIT_MS", "APEX_GROQ_DAILY_TOKEN_BUDGET", "APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "APEX_GROQ_DAILY_TOKEN_BUDGET_20B"]) delete process.env[key];
+    for (const key of environmentKeys) {
+      const original = originalEnvironment.get(key);
+      if (original === undefined) delete process.env[key];
+      else process.env[key] = original;
+    }
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
     if (pool) await pool.end();
@@ -298,7 +301,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const admittedEntities = allEntities.filter((entity: any) => {
       try {
         const metadata = JSON.parse(entity.metadata ?? "{}");
-        return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialOrganizationLead === true;
+        return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialPersonLead === true;
       } catch { return false; }
     });
     const evidence = admittedEntities.length
@@ -318,7 +321,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.admittedEntities).toHaveLength(2);
-    expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_organization_lead", status: "review" })]));
+    expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_person_role_lead", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
     expect(eventTypes).toContain("tool_observation");
