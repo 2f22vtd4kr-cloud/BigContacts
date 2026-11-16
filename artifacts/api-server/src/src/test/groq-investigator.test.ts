@@ -50,10 +50,19 @@ describe("Groq rate-limit header parsing", () => {
 
 describe.sequential("Groq Investigator provider boundary", () => {
   beforeEach(() => {
-    // Provider-boundary tests validate request routing/retry semantics, not the
-    // production TPM ceiling. Dedicated provider-gate tests cover that budget.
+    // Provider-boundary tests validate request routing/retry semantics, not
+    // durable usage persistence or production token budgets. The telemetry and
+    // provider-gate suites cover those paths against their provisioned stores.
+    vi.stubEnv("DATABASE_URL", "");
     process.env.APEX_GROQ_TPM_BUDGET = "1000000";
     process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "50";
+    // These mocked provider-boundary tests do not provision the durable daily
+    // ledger table; its PostgreSQL reservation/reconciliation tests live in
+    // agentic-llm-telemetry.test.ts.
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
     mocks.safeOutboundFetch.mockReset();
@@ -157,6 +166,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     delete process.env.APEX_GROQ_TPM_BUDGET;
     delete process.env.APEX_GROQ_TPM_WINDOW_MS;
     delete process.env.APEX_GROQ_TPM_MAX_WAIT_MS;
+    vi.unstubAllEnvs();
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
     mocks.safeOutboundFetch.mockReset();

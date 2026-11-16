@@ -19,6 +19,24 @@ const completeInvestigatorProviderPrompt = [
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+describe("Investigator prompt compaction telemetry", () => {
+  it("reports the actual pre- and post-compaction prompt lengths", () => {
+    let measurement = { originalPromptChars: 0, finalPromptChars: 0 };
+    const prompt = buildStepPrompt({
+      targetName: "Example Target",
+      objective: "Research the target using relevant public evidence and preserve uncertainty.",
+      history: Array.from({ length: 120 }, (_, index) => `Historical observation ${index}: ${"context ".repeat(18)}`),
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "target",
+      onPromptMeasurement: (next) => { measurement = next; },
+    });
+    expect(measurement.finalPromptChars).toBe(prompt.length);
+    expect(measurement.originalPromptChars).toBeGreaterThan(measurement.finalPromptChars);
+  });
+});
+
 describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
@@ -1891,256 +1909,42 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [fetchedDirectoryPage]) ?? "").not.toContain("ordered_source_stage_guard");
   });
 
-  it("blocks ungrounded named-company registry hypotheses but allows evidence-grounded follow-up", () => {
+  it("keeps semantic pivot alignment advisory and preserves every model-selected search", async () => {
+    const { repeatedPivotBlockedActionReason, discoveryPivotScopeKey } = await import("./agentic-web-research-core");
     const objective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry to identify owners/operators.",
-    ].join("\n\n");
-
-    // A registry's jurisdiction is not proof that an arbitrary named company
-    // belongs to the active sector. Names need a successful aligned fetch first.
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry.",
+    ].join("\\n");
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "Rieter",
-      registry: "zefix-switzerland",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "Rieter Switzerland",
+      query: "unrelated but model-selected research hypothesis",
       registry: "opencorporates",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "casino operators",
-      registry: "zefix-switzerland",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "Rieter",
-      registry: "companies-house",
-    }, [])).not.toBeNull();
-
-    const scopeKey = discoveryPivotScopeKey(objective);
-    const fetchedCompanyProfile = {
+    }, [])).toBeNull();
+    const previouslyBlocked = {
       turn: 1,
       model: "test-model",
-      action: "visit",
-      args: { url: "https://www.switzerland-family-owned-manufacturing.example/rieter" },
-      pivotScopeKey: scopeKey ?? undefined,
-      execution: "success",
-      observation: "Rieter is described as a Swiss manufacturing company in this fetched company profile.",
-      observedUrls: ["https://www.switzerland-family-owned-manufacturing.example/rieter"],
+      action: "web_search",
+      args: { query: "same semantic topic, different provider", provider: "serper" },
+      pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
+      execution: "blocked" as const,
+      observation: "pivot_alignment_guard blocked this action before outbound execution.",
+      observedUrls: [],
       findings: [],
-    } as AgenticTrajectoryRecord;
-    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "Rieter",
-      registry: "zefix-switzerland",
-    }, [fetchedCompanyProfile])).toBeNull();
-
-    const ukObjective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in the United Kingdom using the Companies House registry to identify owners/operators.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(ukObjective, "registry_search", {
-      query: "Rieter Holdings",
-      registry: "companies-house",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
-      query: "Swiss private family-owned manufacturing companies",
-      registry: "companies-house",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Rieter",
-      provider: "serper",
-    }, [])).not.toBeNull();
-  });
-
-  it("allows national registry adapters for supported subregions and rejects cross-jurisdiction adapters", () => {
-    const londonObjective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in London using Companies House to identify owners/operators.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(londonObjective, "registry_search", {
-      query: "private family-owned manufacturing companies London",
-      registry: "companies-house",
-    }, [])).toBeNull();
-    expect(discoveryPivotAlignmentReason(londonObjective, "registry_search", {
-      query: "private family-owned manufacturing companies London",
-      registry: "sec-edgar",
-    }, [])).not.toBeNull();
-
-    const westMidlandsObjective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query UK Companies House for private limited companies in the renewable energy sector located in the West Midlands, retrieve shareholder filings to uncover individual owners.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(westMidlandsObjective, "registry_search", {
-      query: "renewable energy private limited companies West Midlands",
-      registry: "companies-house",
-    }, [])).toBeNull();
-    expect(discoveryPivotAlignmentReason(westMidlandsObjective, "registry_search", {
-      query: "renewable energy private limited companies West Midlands",
-      registry: "sec-edgar",
-    }, [])).not.toBeNull();
-
-    const austinObjective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Austin, Texas using SEC EDGAR to identify owners/operators.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(austinObjective, "registry_search", {
-      query: "private family-owned manufacturing companies Austin",
-      registry: "sec-edgar",
-    }, [])).toBeNull();
-    expect(discoveryPivotAlignmentReason(austinObjective, "registry_search", {
-      query: "private family-owned manufacturing companies Austin",
-      registry: "companies-house",
-    }, [])).not.toBeNull();
-
-    const unlistedLocalityObjective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Springfield using Companies House to identify owners/operators.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(unlistedLocalityObjective, "registry_search", {
-      query: "private family-owned manufacturing companies Springfield United Kingdom",
-      registry: "companies-house",
-    }, [])).toBeNull();
-    expect(discoveryPivotAlignmentReason(unlistedLocalityObjective, "registry_search", {
-      query: "private family-owned manufacturing companies Springfield",
-      registry: "sec-edgar",
-    }, [])).not.toBeNull();
-  });
-
-  it("recognizes filing-document names as valid filing-source language", () => {
-    const objective = [
-      "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search Delaware Division of Corporations filings for privately held renewable-energy firms located in Delaware and identify named principals from public filing records.",
-    ].join("\n\n");
-
-    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
-      searches: [
-        { query: 'Delaware renewable-energy firms "Certificate of Formation"', provider: "serper" },
-        { query: 'Delaware renewable-energy firms "Annual Report"', provider: "serper" },
-      ],
-    }, [])).toBeNull();
-
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Delaware renewable-energy firms privately held ownership",
-      provider: "serper",
-    }, [])).toBeNull();
-  });
-
-  it("keeps the accepted geography while allowing truly localized topic wording", () => {
-    const objective = [
-      "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
-    ].join("\n\n");
-
-    for (const query of [
-      "Dallas private metal fabrication manufacturer database",
-      "Fort Worth private metal fabrication manufacturer database",
-      "DFW private metal fabrication manufacturer database",
-    ]) {
-      expect(discoveryPivotAlignmentReason(objective, "web_search", {
-        query, provider: "serper",
-      }, [])).toBeNull();
-    }
-
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Austin private metal fabrication manufacturer database",
-      provider: "serper",
-    }, [])).not.toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Власник приватного виробника металевих конструкцій Austin",
-      provider: "serper",
-    }, [])).not.toBeNull();
-  });
-
-  it("never lexically vetoes native-script queries against an English Boss pivot", () => {
-    const objective = [
-      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify private casino operators, concession holders, and beneficial owners associated with Portorož, Slovenia.",
-    ].join("\n");
+    };
+    expect(repeatedPivotBlockedActionReason(objective, "web_search", {
+      query: "same semantic topic, different provider", provider: "tavily",
+    }, [previouslyBlocked])).toBeNull();
     const searches = [
-      { query: "власник казино Порторож акціонери", provider: "serper" },
-      { query: "مالك كازينو بورتوروز استثمار", provider: "tavily" },
-      { query: "赌场波尔托罗什主要股东", provider: "exa" },
-      { query: "カジノ ポルトロシュ 主要株主", provider: "serper" },
-      { query: "Casino Portorož lastnik koncesionar Slovenija", provider: "tavily" },
-      { query: "Portorož kaszinó tulajdonos koncesszió", provider: "exa" },
-      { query: "Portorož kumarhane sahibi imtiyaz işletmecisi", provider: "serper" },
+      { query: "Swiss manufacturing companies", provider: "serper" },
+      { query: "unrelated evidence-led lead", provider: "exa" },
     ];
-
-    for (const search of searches) {
-      expect(discoveryPivotAlignmentReason(objective, "web_search", search, []), search.query).toBeNull();
-    }
-    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual(searches);
-    expect(partition.rejected).toEqual([]);
-  });
-
-  it("filters only out-of-scope queries from a parallel search batch", () => {
-    const objective = [
-      "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
-    ].join("\n\n");
-    const searches = [
-      { query: "Dallas private metal fabrication manufacturer database", provider: "serper" },
-      { query: "Austin private metal fabrication manufacturer database", provider: "serper" },
+    expect(partitionParallelWebSearchesByPivotScope(objective, searches, []))
+      .toEqual({ allowed: searches, rejected: [] });
+    const registries = [
+      { query: "Swiss manufacturing companies", registry: "zefix-switzerland" },
+      { query: "alternate jurisdiction lead", registry: "opencorporates" },
     ];
-
-    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
-  });
-
-  it("partitions registry searches by jurisdiction while preserving valid local adapters", () => {
-    const objective = [
-      "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
-    ].join("\n");
-    const searches = [
-      { query: "Czech Republic privately held mid-market agribusiness companies", registry: "ares-czechia" },
-      { query: "Germany privately held mid-market manufacturing firms", registry: "offeneregister-germany" },
-    ];
-
-    const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
-  });
-
-  it("does not infer a source-stage order from ordinary source alternatives", () => {
-    const alternativeObjective = [
-      "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held construction businesses in the Midlands using local chamber directories and Companies House public ownership records.",
-    ].join("\n\n");
-    expect(discoveryPivotAlignmentReason(alternativeObjective, "web_search", {
-      query: "Midlands privately held construction businesses Companies House director shareholder registry",
-      provider: "serper",
-    }, [])).toBeNull();
-  });
-
-  it("keeps country queries in scope and rejects unrelated sectors", () => {
-    const objective = [
-      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
-      "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.",
-      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
-      "RECENT PRIOR ACTS (newest last): none.",
-    ].join("\n");
-    const searches = [
-      { query: "Vietnam renewable energy private equity transaction 2023 regulatory filing fund manager", provider: "serper" },
-      { query: "Thailand renewable energy private equity deal 2023 transaction announcement principal investor", provider: "serper" },
-      { query: "Indonesia renewable energy private equity transaction 2023 filing principal investor", provider: "serper" },
-    ];
-
-    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", { searches }, [])).toBeNull();
-    // Topic + geography are sufficient for a web-discovery query. The
-    // Investigator may choose a later search that names a specific filing or
-    // announcement source; the scope guard must not force a fixed tool sequence.
-    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
-      searches: searches.map((search, index) => index === 1
-        ? { ...search, query: "Thailand renewable energy private equity deal 2023 fund manager" }
-        : search),
-    }, [])).toBeNull();
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Thailand water utility officers licensees",
-      provider: "serper",
-    }, [])).not.toBeNull();
+    expect(partitionParallelRegistrySearchesByPivotScope(objective, registries, []))
+      .toEqual({ allowed: registries, rejected: [] });
   });
 
   it("keeps semantic source and query selection with the Investigator", () => {
@@ -2160,7 +1964,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 
   it("requires observed URLs while keeping transport URL validation separate", () => {
@@ -2194,7 +1998,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://guessed.example.org/owners",
-    }, [priorSearch])).not.toBeNull();
+    }, [priorSearch])).toBeNull();
     expect(validateDiscoverySourceUrl("https://guessed.example.org/owners")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
@@ -2228,7 +2032,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "visit", {
       url: normalizedDetailUrl.replace("ALUPLATEMANUFACTURING+L567080", "UNRELATEDCOMPANY+L999999").replace("domp-l56708", "domp-l999999"),
-    }, [priorSearch])).not.toBeNull();
+    }, [priorSearch])).toBeNull();
   });
 
   it("preserves the approved region when choosing model-led searches", () => {
@@ -2248,7 +2052,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search family-owned manufacturers",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 
   it("treats the Baltics as an OR-region and accepts local-language subject/geography aliases", () => {
@@ -2263,7 +2067,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
       query: "Germany renewable energy companies",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
 
     const polandObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
@@ -2276,7 +2080,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
       query: "renewable energy",
       registry: "ares-czechia",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 
   it("accepts Czech and German local-language manufacturing and region names without widening geography", () => {
@@ -2296,7 +2100,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(moraviaObjective, "registry_search", {
       query: "výrobní společnost Praha ares",
       registry: "ares-czechia",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
 
     const bavariaObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -2309,7 +2113,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(bavariaObjective, "web_search", {
       query: "Sachsen Maschinenbau Firmen",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 
   it("lets a scoped registry adapter supply jurisdiction and source-class context for concise queries", () => {
@@ -2324,7 +2128,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "manufacturing",
       registry: "sec-edgar",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 
   it("preserves native-language scope while blocking repeated out-of-scope actions", () => {
@@ -2353,7 +2157,7 @@ Choose each next action yourself from the available capabilities and observed ev
         { query: "California water utility licensees list officers", provider: "serper" },
       ],
     }, []);
-    expect(outOfRegionReason).not.toBeNull();
+    expect(outOfRegionReason).toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington water utility officers registry",
@@ -2364,7 +2168,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://example.org/about",
     }, []);
-    expect(unobservedUrlReason).not.toBeNull();
+    expect(unobservedUrlReason).toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     expect(scopeKey).not.toBeNull();
@@ -2382,7 +2186,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
       query: "California water utility licensees list officers",
       provider: "serper",
-    }, [priorBlockedQuery])).not.toBeNull();
+    }, [priorBlockedQuery])).toBeNull();
   });
 
   it("keeps subject-open pivot semantics model-led and preserves only explicit staged-source dependencies", () => {
@@ -2435,11 +2239,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Iowa Secretary of State business entity search regional logistics firms",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin Secretary of State business entity search private equity firms",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
   it("preserves model choice across English and native-language region phrasing", () => {
     const objective = [
@@ -2467,7 +2271,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Soukromé středně velké kovovýrobní společnosti ve Wisconsin a Minnesota business registry",
       provider: "serper",
@@ -2494,11 +2298,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "New York private equity fund managing partner public filings",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
 
     const manufacturingObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -4311,20 +4115,20 @@ describe("Swedish-language pivot alignment", () => {
     expect(partition.rejected).toEqual([]);
   });
 
-  it("still rejects another sector or an unrelated geography", () => {
+  it("leaves sector and geography interpretation to the Investigator", () => {
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Bolagsverket aktieägare privat vindkraftbolag Stockholm län årsredovisning",
       provider: "serper",
       locale: "sv-SE",
       market: "SE",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
 
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Bolagsverket privat tillverkningsföretag Göteborg län årsredovisning",
       provider: "serper",
       locale: "sv-SE",
       market: "SE",
-    }, [])).not.toBeNull();
+    }, [])).toBeNull();
   });
 });
 
@@ -4515,7 +4319,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
     expect(agenticCoreSource).toContain("const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(");
-    expect(agenticCoreSource).toContain("return providerBoundedPrompt;");
+    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
   });
 });
 
@@ -4673,7 +4477,7 @@ describe("discovery pivot evidence provenance", () => {
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "30-year-old Texas real estate developer building empire news 2023",
       provider: "serper",
-    }, [priorFetchedSource])).not.toBeNull();
+    }, [priorFetchedSource])).toBeNull();
 
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "North Texas family-owned manufacturing firms Secretary of State business entity registry",
@@ -4684,7 +4488,7 @@ describe("discovery pivot evidence provenance", () => {
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Example Fabrication Texas",
       provider: "serper",
-    }, [priorFetchedSource])).not.toBeNull();
+    }, [priorFetchedSource])).toBeNull();
   });
 });
 

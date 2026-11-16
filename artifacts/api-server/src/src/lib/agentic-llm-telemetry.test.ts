@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
+import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, readGroqUsageMetrics, resolveAgenticLlmAttemptTotalTokens, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -22,6 +22,8 @@ describe("Investigator LLM telemetry privacy", () => {
       cognitiveTask: "ownership_research",
       model: "openai/gpt-oss-120b",
       promptChars: 120,
+      originalPromptChars: 200,
+      promptReductionChars: 80,
       status: 200,
       success: true,
       retryIndex: 1,
@@ -37,6 +39,8 @@ describe("Investigator LLM telemetry privacy", () => {
       iteration: 7,
       decisionId: "fedcba9876543210",
       cognitiveTask: "ownership_research",
+      originalPromptChars: 200,
+      promptReductionChars: 80,
     });
     expect(line).not.toContain("Alice Example");
   });
@@ -57,6 +61,31 @@ describe("Investigator LLM telemetry privacy", () => {
     });
     expect(readGroqUsageMetrics({ prompt_tokens: "3565", completion_tokens: -1 })).toEqual({});
     expect(readGroqUsageMetrics(null)).toEqual({});
+  });
+
+  it("uses the reserved estimate when a sent request has only partial usage metadata", () => {
+    expect(resolveAgenticLlmAttemptTotalTokens({
+      providerRequestSent: true,
+      promptTokens: 1_200,
+      estimatedTokens: 2_000,
+    })).toBe(2_000);
+    expect(resolveAgenticLlmAttemptTotalTokens({
+      providerRequestSent: true,
+      promptTokens: 1_200,
+      completionTokens: 300,
+      estimatedTokens: 2_000,
+    })).toBe(1_500);
+    expect(resolveAgenticLlmAttemptTotalTokens({
+      providerRequestSent: true,
+      promptTokens: 1_200,
+      totalTokens: 1_200,
+      estimatedTokens: 2_000,
+    })).toBe(1_200);
+    expect(resolveAgenticLlmAttemptTotalTokens({
+      providerRequestSent: false,
+      promptTokens: 1_200,
+      estimatedTokens: 2_000,
+    })).toBe(1_200);
   });
 
   it("normalizes only observed Groq token and request quota headers", () => {
@@ -95,6 +124,16 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(boss).toContain("readGroqRateLimitHeaders(response.headers)");
     expect(rightHand).toContain("readGroqRateLimitHeaders(response.headers)");
     expect(control).toContain("targetDigest, iteration: input.controlTurn, decisionId");
+  });
+
+  it("records the pre-compaction prompt length at the provider call boundary", () => {
+    const investigator = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
+    expect(investigator).toContain("onPromptMeasurement: capturePromptMeasurement");
+    expect(investigator).toContain("originalPromptChars: providerBoundedPrompt.length");
+    expect(investigator).toContain("finalPromptChars: value.length");
+    expect(investigator).toContain("promptMeasurement.originalPromptChars");
+    expect(investigator).toContain("originalPromptChars ?? prompt.length");
+    expect(investigator).toContain("promptReductionChars: Math.max(0, Math.floor(originalPromptChars) - prompt.length)");
   });
 
   it("preserves allowlisted generic provider diagnostics", () => {
@@ -276,7 +315,8 @@ describe("Investigator LLM telemetry privacy", () => {
       APEX_GROQ_DAILY_TOKEN_BUDGET_120B: "45000",
       APEX_GROQ_DAILY_TOKEN_BUDGET: "90000",
     } as NodeJS.ProcessEnv)).toBe(45000);
-    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", {} as NodeJS.ProcessEnv)).toBe(0);
+    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", {} as NodeJS.ProcessEnv)).toBe(180_000);
+    expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", { APEX_GROQ_DAILY_TOKEN_BUDGET_120B: "0" } as NodeJS.ProcessEnv)).toBe(0);
   });
 
   (process.env.DATABASE_URL ? it : it.skip)("atomically reserves daily tokens and reconciles actual provider usage in PostgreSQL", async () => {

@@ -804,87 +804,21 @@ function pivotActionRequestIntents(action: string, args: Record<string, unknown>
   return [];
 }
 
+/**
+ * Legacy compatibility hook. A previously rejected semantic scope decision
+ * must never veto a new Investigator-selected action. Repetition and resource
+ * limits may be reported as advisory diagnostics, but semantic alignment is not
+ * an execution admission rule.
+ */
 export function repeatedPivotBlockedActionReason(
-  objective: string,
-  action: string,
-  args: Record<string, unknown>,
-  priorRecords: readonly AgenticTrajectoryRecord[],
+  _objective: string,
+  _action: string,
+  _args: Record<string, unknown>,
+  _priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
-  const scopeKey = discoveryPivotScopeKey(objective);
-  if (!scopeKey) return null;
-  const anchors = pivotScopeAnchors(objective);
-  const direction = extractBossPivotDirectionForCompactPrompt(objective);
-  const exclusions = pivotScopeExclusions(direction);
-  const geographyOptions = pivotScopeGeographyOptions(direction);
-  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  // A missing substantive subject must not disable a source class/geography constraint.
-  if (anchors.length === 0 && exclusions.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, geographyOptions, requiredSourceAnchors, scopeKey);
-  const currentIntents = pivotActionRequestIntents(action, args);
-  if (!currentIntents.length) return null;
-
-  // A valid in-scope action must not be suppressed by earlier scope blocks.
-  // The main guard will only reject the current action when its actual research
-  // intent still falls outside the active Boss-approved pivot.
-  if (!discoveryPivotAlignmentReason(objective, action, args, priorRecords)) return null;
-
-  let priorOutOfScopeActionsWithoutNewEvidence = 0;
-  for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
-    const record = priorRecords[index]!;
-    if (
-      record.pivotScopeKey !== scopeKey
-      || record.execution !== "blocked"
-      || !String(record.observation ?? "").includes("pivot_alignment_guard")
-    ) continue;
-    const newFetchedEvidence = priorRecords.slice(index + 1).some((later) =>
-      later.pivotScopeKey === scopeKey
-      && later.execution === "success"
-      && (later.action === "visit" || later.action === "browser_fetch")
-      && Boolean(String(later.observation ?? "").trim())
-      && (later.observedUrls ?? []).length > 0,
-    );
-    // Once a successful aligned source has been fetched, earlier blocks no
-    // longer count toward a no-evidence retry loop.
-    if (newFetchedEvidence) break;
-    const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
-      if (intent.kind === "query") {
-        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "url") {
-        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "domain") {
-        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "email") {
-        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "username") {
-        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-    });
-    if (!priorIntents.length) continue;
-    priorOutOfScopeActionsWithoutNewEvidence += 1;
-    if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
-      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
-      return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot."
-        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
-        + " Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
-    }
-    // Query wording can change while the research intent remains stuck outside
-    // scope. Two prior blocked actions without new fetched evidence are enough
-    // to return control on the next attempted variant instead of spending every
-    // remaining Investigator turn on the same dead end.
-    if (priorOutOfScopeActionsWithoutNewEvidence >= 2) {
-      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
-      return "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were already rejected under the current Boss-approved pivot, with no new fetched source evidence."
-        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
-        + " Do not keep trying wording variants; return control to Boss/Right-hand for a revised objective or stop decision.";
-    }
-  }
   return null;
 }
+
 export function isTransientInvestigatorCapacityError(result: { error?: string; trajectoryRecords?: Array<{ observation?: string }> }): boolean {
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
@@ -2439,6 +2373,7 @@ async function callGroqJson(
   actionAllowlist?: readonly string[],
   targetName?: string | null,
   iteration?: number,
+  originalPromptChars: number = prompt.length,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -2455,6 +2390,8 @@ async function callGroqJson(
       ? createHash("sha256").update(`${jobId ?? "no-job"}:${caseId ?? "no-case"}:${iteration}:${cognitiveTask}`).digest("hex").slice(0, 16)
       : null,
     cognitiveTask,
+    originalPromptChars: Math.max(prompt.length, Math.floor(originalPromptChars)),
+    promptReductionChars: Math.max(0, Math.floor(originalPromptChars) - prompt.length),
   };
   if (!key) return null;
   let attempt = 0;
@@ -2664,6 +2601,17 @@ async function callGroqJson(
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
           const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
+          // Some provider 400 envelopes include partial usage even when they
+          // reject structured output. Preserve only parsed numeric counters;
+          // never log or persist the raw error body.
+          const errorUsageMetrics = (() => {
+            try {
+              const parsed = JSON.parse(body) as { usage?: unknown };
+              return readGroqUsageMetrics(parsed.usage);
+            } catch {
+              return {};
+            }
+          })();
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -2680,6 +2628,7 @@ async function callGroqJson(
             model,
             promptChars: workingPrompt.length,
             ...promptMeasurement,
+            ...errorUsageMetrics,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -2927,7 +2876,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
   return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   try {
     await acquireProviderSlot(parentSignal);
   } catch (error) {
@@ -2956,7 +2905,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars ?? prompt.length)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -2975,8 +2924,8 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
-  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration));
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
@@ -4607,48 +4556,22 @@ export function discoveryUnscopedGeographyReason(
   return null;
 }
 
+/**
+ * Semantic pivot alignment is deliberately advisory, never an outbound-action
+ * admission gate. The Investigator owns query meaning, source selection and
+ * evidence-led pivots; Boss retains authority over material strategic changes.
+ * Technical safety (SSRF, provider schemas, request bounds and provenance) is
+ * enforced independently and remains mandatory.
+ */
 export function discoveryPivotAlignmentReason(
-  objective: string,
-  action: string,
-  args: Record<string, unknown>,
-  priorRecords: readonly AgenticTrajectoryRecord[],
+  _objective: string,
+  _action: string,
+  _args: Record<string, unknown>,
+  _priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
-  const direction = extractBossPivotDirectionForCompactPrompt(objective);
-  const activePivotScopeKey = discoveryPivotScopeKey(objective);
-  if (!direction || !activePivotScopeKey) return null;
-  const anchors = pivotScopeAnchors(objective);
-  const excludedSubjects = pivotScopeExclusions(direction);
-  const geographyOptions = pivotScopeGeographyOptions(direction);
-  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  // Keep a subject-open pivot model-led while still enforcing every explicit
-  // source class, geography, and exclusion found in the direction.
-  if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  // Boss prose may suggest a sequence, but natural-language "first/then"
-  // wording is not compiled into a deterministic source itinerary. The
-  // Investigator chooses the next capability from current evidence and cost;
-  // provenance and technical execution guards remain deterministic.
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
-  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
-
-  const failureDetails = pivotActionAlignmentFailureDetails(
-    action,
-    args,
-    anchors,
-    excludedSubjects,
-    geographyOptions,
-    requiredSourceAnchors,
-    evidence.sourceUrls,
-    evidence.evidenceText,
-  );
-  const mismatch = failureDetails.length > 0
-    ? failureDetails.join("; ")
-    : "required scope dimensions could not be classified";
-  return "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: "
-    + mismatch
-    + ". The active Boss-accepted pivot is: "
-    + direction.slice(0, 420)
-    + ". Web discovery queries must remain on the substantive topic and active geography, but do not need to repeat source class wording; official registry discovery may precede named-company searches. Native-language equivalents are valid when they express the same topic. Registry searches must use an adapter matching the active jurisdiction/source class. Follow-up URLs must be observed leads or grounded in successful aligned evidence. Revise the actually mismatched dimension or ask Boss/Right-hand for new scope. No outbound request was made.";
+  return null;
 }
+
 /**
  * Split a model-selected parallel web-search batch at the active-pivot boundary.
  * A rejected query is removed before any provider call; it cannot veto other
@@ -4758,7 +4681,7 @@ export function buildDiscoveryScopeAdvisory(
 // Investigator chooses targets and evidence routes from the mission, observations, runtime capabilities and cost.
 // Boss retains authority over strategic scope changes; preserve explicit human constraints and propose evidence-led pivots when scope is open.
 // Preserve useful model-selected review leads without treating them as verified claims.
-export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
+export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onPromptMeasurement?: (measurement: { originalPromptChars: number; finalPromptChars: number }) => void }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
@@ -5264,6 +5187,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
+  const reportPromptMeasurement = (value: string): string => {
+    input.onPromptMeasurement?.({
+      originalPromptChars: providerBoundedPrompt.length,
+      finalPromptChars: value.length,
+    });
+    return value;
+  };
   // Compact auxiliary context toward a preferred size, but never cut the
   // authoritative objective, Boss scope, live action allowlist, exact registry
   // availability, terminal contract, complete output schema or newest durable act.
@@ -5271,10 +5201,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
     4_000,
   );
-  if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
+  if (providerBoundedPrompt.length <= userPromptBudget) return reportPromptMeasurement(providerBoundedPrompt);
 
   const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
-  if (outputContractIndex < 0) return providerBoundedPrompt;
+  if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
   const pinnedContext = [
     authoritativeCaseObjective,
@@ -5315,13 +5245,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // If even the non-lossy objective, scope, action, registry, latest evidence
   // and output contract exceed the preferred size, preserve the full request
   // and let provider/token accounting handle its actual serialized cost.
-  if (prefixBudget < 0) return providerBoundedPrompt;
+  if (prefixBudget < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
-    return providerBoundedPrompt;
+    return reportPromptMeasurement(providerBoundedPrompt);
   }
-  return boundedPrompt;
+  return reportPromptMeasurement(boundedPrompt);
 }
 
 /**
@@ -5891,6 +5821,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = compactedObservation;
       }
       let prompt: string;
+      let promptMeasurement = { originalPromptChars: 0, finalPromptChars: 0 };
+      const capturePromptMeasurement = (measurement: { originalPromptChars: number; finalPromptChars: number }) => {
+        promptMeasurement = measurement;
+      };
       let usedPromptRecoveryFallback = false;
       try {
         prompt = buildStepPrompt({
@@ -5910,6 +5844,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           actionAllowlist: actionAllowlistForTurn,
           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
           aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
         });
       } catch (promptCompositionError) {
         const diagnostic = safeAgenticError(promptCompositionError);
@@ -5960,6 +5895,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
                 aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
               })
             : buildStepPrompt({
                 targetName: name || "",
@@ -5978,6 +5914,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
                 aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
               });
         } catch {
           const message = "Investigator prompt could not be rebuilt with its required AI historical memory. No action was sent.";
@@ -5990,7 +5927,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
       }
-      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars)); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);

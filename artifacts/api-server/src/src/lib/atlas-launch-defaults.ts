@@ -12,7 +12,7 @@
  * not: starting only Phase J, not: mock mode.
  */
 
-export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes that may help the founder present the startup. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class, geography or target quota. Never invent people, relationships, wealth, contacts or URLs.";
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Find lesser-known people with credible wealth potential who may be relevant to the founder’s objective. Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class, geography or target quota. Never invent people, relationships, wealth, contacts or URLs.";
 
 export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
@@ -21,10 +21,10 @@ export const CANONICAL_ATLAS_LAUNCH_BODY = {
    * Operational upper bound only. The Investigator/Boss decide which targets
    * matter and when to stop; this is not a target quota or admission threshold.
    */
-  targetCount: 25,
+  targetCount: 1,
   discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
   /** Operational upper bound matching targetCount; model-owned stopping governs actual work. */
-  researchLimit: 25,
+  researchLimit: 1,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
   hotLeadsOnly: false,
@@ -44,7 +44,7 @@ export type CanonicalAtlasLaunchBody = typeof CANONICAL_ATLAS_LAUNCH_BODY;
 /** Minimal smoke (launch then immediate stop) — not a real bureau cycle */
 export const SMOKE_ATLAS_LAUNCH_BODY = {
   ...CANONICAL_ATLAS_LAUNCH_BODY,
-  targetCount: 25,
-  researchLimit: 25,
+  targetCount: 1,
+  researchLimit: 1,
   targetTimeoutMs: 60_000,
 } as const;

@@ -1170,7 +1170,7 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
     expect(canonicalDiscoverySource).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
     expect(canonicalDiscoverySource).toContain("buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? [])");
     expect(canonicalDiscoverySource).toContain("const controlBudgetState = {");
-    expect(canonicalDiscoverySource).toContain("investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, investigatorIterationsUsed })");
+    expect(canonicalDiscoverySource).toContain("investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed })");
     expect(canonicalDiscoverySource).not.toContain("targetResearchReserveIterations");
     expect(canonicalDiscoverySource).not.toContain("discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");

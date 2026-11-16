@@ -22,11 +22,18 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Right-hand model policy", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalDailyBudget = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+  const originalDailyBudgetModel = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
+  const originalDailyBudget120B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+  const originalDailyBudget20B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
   beforeEach(() => {
-    // Provider behaviour tests use mocked HTTP responses. Keep simulated daily
-    // quota exhaustion out of the shared PostgreSQL ledger; the dedicated
-    // integration test covers durable reservations and exhaustion.
+    // Provider behaviour tests use mocked HTTP responses. Disable the production
+    // daily ledger explicitly; its durable reservation path has dedicated tests.
     process.env.DATABASE_URL = "";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = "0";
   });
 
   afterEach(() => {
@@ -42,6 +49,14 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
     if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = originalDatabaseUrl;
+    if (originalDailyBudget === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = originalDailyBudget;
+    if (originalDailyBudgetModel === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = originalDailyBudgetModel;
+    if (originalDailyBudget120B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = originalDailyBudget120B;
+    if (originalDailyBudget20B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = originalDailyBudget20B;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
