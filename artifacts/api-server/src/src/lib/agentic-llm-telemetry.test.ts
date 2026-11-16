@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, readGroqUsageMetrics, resolveAgenticLlmAttemptTotalTokens, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
+import { canonicalizeAgenticLlmBudgetModel, flushAgenticLlmUsageLedger, getAgenticLlmDailyTokenBudget, readGroqRateLimitHeaders, readGroqUsageMetrics, resolveAgenticLlmAttemptTotalTokens, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -306,6 +306,15 @@ describe("Investigator LLM telemetry privacy", () => {
     }
   });
 
+  it("canonicalizes Groq model aliases without merging distinct model sizes", () => {
+    expect(canonicalizeAgenticLlmBudgetModel("openai/gpt-oss-120b")).toBe("openai/gpt-oss-120b");
+    expect(canonicalizeAgenticLlmBudgetModel("gpt-oss-120b")).toBe("openai/gpt-oss-120b");
+    expect(canonicalizeAgenticLlmBudgetModel("groq/gpt-oss-120b:latest")).toBe("openai/gpt-oss-120b");
+    expect(canonicalizeAgenticLlmBudgetModel("gpt-oss-20b-preview")).toBe("openai/gpt-oss-20b");
+    expect(canonicalizeAgenticLlmBudgetModel("gpt-oss-20b")).not.toBe(canonicalizeAgenticLlmBudgetModel("gpt-oss-120b"));
+    expect(canonicalizeAgenticLlmBudgetModel("openai/gpt-oss-20b-ledger-test")).toBe("gpt-oss-20b-ledger-test");
+  });
+
   it("reads explicit per-model daily token budgets without assuming a provider free-tier limit", () => {
     expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-20b", {
       APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "120000",
@@ -317,6 +326,52 @@ describe("Investigator LLM telemetry privacy", () => {
     } as NodeJS.ProcessEnv)).toBe(45000);
     expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", {} as NodeJS.ProcessEnv)).toBe(180_000);
     expect(getAgenticLlmDailyTokenBudget("openai/gpt-oss-120b", { APEX_GROQ_DAILY_TOKEN_BUDGET_120B: "0" } as NodeJS.ProcessEnv)).toBe(0);
+  });
+
+  (process.env.DATABASE_URL ? it : it.skip)("shares daily reservations across aliases of the same Groq model", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-alias";
+    const canonicalModel = "openai/gpt-oss-20b";
+    const aliasModel = "gpt-oss-20b";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "1000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, canonicalModel),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      const reservation = await reserveAgenticLlmDailyBudget({
+        provider, model: canonicalModel, estimatedTokens: 600, env,
+      });
+      await expect(reserveAgenticLlmDailyBudget({
+        provider, model: aliasModel, estimatedTokens: 401, env,
+      })).rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
+
+      recordAgenticLlmAttempt({
+        provider, role: "investigator", model: aliasModel, promptChars: 1500, status: 200, success: true,
+        retryIndex: 1, promptTokens: 450, completionTokens: 100, totalTokens: 550,
+        providerRequestSent: true, dailyReservationDate: reservation.usageDate,
+        dailyReservationTokens: reservation.reservedTokens, dailyBudgetTokens: reservation.dailyBudgetTokens,
+        estimatedTokens: reservation.reservedTokens,
+      });
+      await flushAgenticLlmUsageLedger();
+      const [row] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(row).toMatchObject({
+        model: canonicalModel,
+        requestCount: 1,
+        successCount: 1,
+        totalTokens: 550,
+        reservedTokens: 0,
+        dailyBudgetTokens: 1000,
+      });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
   });
 
   (process.env.DATABASE_URL ? it : it.skip)("atomically reserves daily tokens and reconciles actual provider usage in PostgreSQL", async () => {
