@@ -1421,7 +1421,7 @@ describe("Investigator prompt architecture", () => {
       mode: "target",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
-    expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; falsification=false;");
+    expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
