@@ -1602,10 +1602,10 @@ describe("Investigator prompt architecture", () => {
   it("preserves the scope-guard recovery contract in the next Investigator prompt", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
-    expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(compacted).toContain("web discovery may search in-scope topic terms and company terms");
-    expect(compacted).toContain("observed aligned URL");
-    expect(compacted).toContain("request new scope");
+    expect(compacted).toContain("SCOPE DIAGNOSTIC (historical; no outbound request was made)");
+    expect(compacted).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction");
+    expect(compacted).toContain("If a material scope change is justified, propose it to Boss.");
+    expect(compacted).toContain("propose it to Boss");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
     expect(compacted).toContain("Active Boss-approved scope: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries");
 
@@ -1613,8 +1613,8 @@ describe("Investigator prompt architecture", () => {
     const geographyFeedback = compactEmergencyTrajectoryObservation(geographyBlock);
     expect(geographyFeedback).toContain("query geography");
     expect(geographyFeedback).toContain("United Kingdom");
-    expect(geographyFeedback).toContain("query field itself must include the geographic term");
-    expect(geographyFeedback).toContain("market/locale metadata");
+    expect(geographyFeedback).toContain("Reassess the proposed research independently against the human objective and the current Boss-approved direction");
+    expect(geographyFeedback).toContain("If a material scope change is justified, propose it to Boss.");
 
     const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = Array.from({ length: 18 }, (_, index) => ({
       turn: index + 1,
