@@ -329,7 +329,13 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       outboundUrls: mocks.outboundUrls,
     })).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
-    expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
+    expect(mocks.runTargetContactAgent, JSON.stringify({
+      phaseSummary: diagnosticResult?.phaseSummary,
+      targetCases: outcome.targetCases.map((row: any) => ({ id: row.id, status: row.status, currentAction: row.currentAction, caseFile: row.caseFile })),
+      bossOpeningCalls: mocks.runGroqBossDiscovery.mock.calls.length,
+      targetCalls: mocks.targetCalls,
+      outboundUrls: mocks.outboundUrls,
+    })).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.targetCases).toHaveLength(1);
@@ -360,7 +366,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
   it("records an operator cap as an incomplete resource outcome, never as a model stop", async () => {
     const outcome = await runScenario("operator-cap");
-    expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
+    const rawDiagnosticResult = (outcome.jobUpdate as any)?.result;
+    const diagnosticResult = typeof rawDiagnosticResult === "string" ? JSON.parse(rawDiagnosticResult) : rawDiagnosticResult ?? {};
+    expect(mocks.runTargetContactAgent, JSON.stringify({
+      phaseSummary: diagnosticResult?.phaseSummary,
+      terminal: diagnosticResult?.terminal,
+      targetCases: outcome.targetCases.map((row: any) => ({ id: row.id, status: row.status, currentAction: row.currentAction, caseFile: row.caseFile })),
+      bossOpeningCalls: mocks.runGroqBossDiscovery.mock.calls.length,
+      targetCalls: mocks.targetCalls,
+      outboundUrls: mocks.outboundUrls,
+    })).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("review");
     const terminal = JSON.parse(String(outcome.jobUpdate?.result ?? "{}")).terminal;
