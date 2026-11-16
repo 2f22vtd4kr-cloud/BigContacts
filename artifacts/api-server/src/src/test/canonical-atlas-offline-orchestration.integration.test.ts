@@ -334,7 +334,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]) })]));
-    expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(sourceUrl, expect.any(Object));
+    expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(mocks.pageUrl, expect.any(Object));
     expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
