@@ -311,6 +311,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     originalPromptChars: systemPrompt.length + measuredOriginalUserChars,
     promptReductionChars: measuredPromptReductionChars,
     estimatedPromptTokens: Math.ceil((systemPrompt.length + normalizedUser.length) / 3.4),
+    estimatedMessagePromptTokens: Math.ceil((systemPrompt.length + normalizedUser.length) / 3.4),
+    estimatedOriginalMessagePromptTokens: Math.ceil((systemPrompt.length + measuredOriginalUserChars) / 3.4),
   };
  const failures: GroqAttemptDiagnostic[] = [];
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;

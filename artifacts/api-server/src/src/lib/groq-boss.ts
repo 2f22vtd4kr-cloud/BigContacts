@@ -358,6 +358,8 @@ async function generateGroqBossTextImpl(
     originalPromptChars: Math.max(prompt.length, Math.floor(options?.originalPromptChars ?? prompt.length)),
     promptReductionChars: Math.max(0, Math.floor(options?.promptReductionChars ?? (prompt.length - boundedPrompt.length))),
     estimatedPromptTokens: Math.ceil(boundedPrompt.length / 3.4),
+    estimatedMessagePromptTokens: Math.ceil(boundedPrompt.length / 3.4),
+    estimatedOriginalMessagePromptTokens: Math.ceil(Math.max(boundedPrompt.length, Math.floor(options?.originalPromptChars ?? prompt.length)) / 3.4),
   };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";

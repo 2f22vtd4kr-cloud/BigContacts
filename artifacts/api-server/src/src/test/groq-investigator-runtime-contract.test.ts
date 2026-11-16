@@ -797,27 +797,40 @@ describe("Groq Investigator runtime contract", () => {
     const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
       capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number };
     };
-    const promptReductionChars = Math.max(0, promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    const promptEnvelopeChars = Math.max(0, twentyB.userPromptChars - prompt.length);
+    const originalRequestUserPromptChars = promptCompaction.originalPromptChars + promptEnvelopeChars;
+    const promptReductionChars = Math.max(0, originalRequestUserPromptChars - twentyB.userPromptChars);
+    const estimatedMessagePromptTokensBefore = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars) / 3.4);
+    const estimatedMessagePromptTokensAfter = Math.ceil((twentyB.systemPromptChars + twentyB.userPromptChars) / 3.4);
+    const estimatedRequestTokensBefore20B = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars + twentyB.responseFormatChars) / 3.4);
+    const estimatedRequestTokensBefore120B = Math.ceil((oneTwentyB.systemPromptChars + originalRequestUserPromptChars + oneTwentyB.responseFormatChars) / 3.4);
     const largestRemainingPromptSections = prompt.split(/\n{2,}/)
       .map((section) => ({ label: section.split("\n")[0]?.slice(0, 100) ?? "(unnamed)", chars: section.length }))
       .sort((a, b) => b.chars - a.chars)
       .slice(0, 8);
     console.info("APEX_INVESTIGATOR_PROMPT_MEASUREMENT " + JSON.stringify({
-      method: "offline character estimate (ceil(total request characters / 3.4)); not a provider tokenizer",
+      method: "ceil((system + user message characters) / 3.4) for prompt; add response_format characters for full request; character-based, not provider tokenizer",
       baseline2026_11_14: replay.capturedSuccessfulResponse,
       promptCompaction: {
         originalPromptChars: promptCompaction.originalPromptChars,
         finalPromptChars: promptCompaction.finalPromptChars,
+        promptEnvelopeChars,
+        originalRequestUserPromptChars,
+        finalRequestUserPromptChars: twentyB.userPromptChars,
         promptReductionChars,
-        twentyBEstimatedInputTokensBefore: Math.ceil((twentyB.systemPromptChars + promptCompaction.originalPromptChars + twentyB.responseFormatChars) / 3.4),
-        twentyBEstimatedInputTokensAfter: twentyB.estimatedInputTokens,
-        oneTwentyBEstimatedInputTokensBefore: Math.ceil((oneTwentyB.systemPromptChars + promptCompaction.originalPromptChars + oneTwentyB.responseFormatChars) / 3.4),
-        oneTwentyBEstimatedInputTokensAfter: oneTwentyB.estimatedInputTokens,
+        estimatedMessagePromptTokensBefore,
+        estimatedMessagePromptTokensAfter,
+        twentyBEstimatedRequestTokensBefore: estimatedRequestTokensBefore20B,
+        twentyBEstimatedRequestTokensAfter: twentyB.estimatedInputTokens,
+        oneTwentyBEstimatedRequestTokensBefore: estimatedRequestTokensBefore120B,
+        oneTwentyBEstimatedRequestTokensAfter: oneTwentyB.estimatedInputTokens,
       },
-      representativeFirstTurn20B: twentyB,
-      representativeFirstTurn120B: oneTwentyB,
+      representativeFirstTurn20B: { ...twentyB, estimatedRequestTokens: twentyB.estimatedInputTokens },
+      representativeFirstTurn120B: { ...oneTwentyB, estimatedRequestTokens: oneTwentyB.estimatedInputTokens },
       largestRemainingPromptSections,
     }));
+    expect(promptReductionChars).toBe(promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    expect(estimatedMessagePromptTokensBefore).toBeGreaterThan(estimatedMessagePromptTokensAfter);
     expect(twentyB.systemPromptChars).toBeGreaterThan(0);
     expect(twentyB.userPromptChars).toBeGreaterThan(0);
     expect(oneTwentyB.responseFormatChars).toBeGreaterThan(0);

@@ -439,9 +439,12 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
+    const rightHandSystemPrompt = "Review the supplied case only.";
+    const rightHandPromptPrefix = "A compact prompt after upstream case-context compaction. ";
+    const compactedRightHandPrompt = rightHandPromptPrefix + "x".repeat(500 - rightHandPromptPrefix.length);
     const result = await runGroqRightHandFreeJson(
-      "A compact prompt after upstream case-context compaction.",
-      "Review the supplied case only.",
+      compactedRightHandPrompt,
+      rightHandSystemPrompt,
       responseFormat,
       isValidDecision,
       { jobId: "job-right-hand-prompt-telemetry", caseId: 49, originalPromptChars: 1_100, promptReductionChars: 600 },
@@ -456,11 +459,22 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
       role: "right_hand",
       jobId: "job-right-hand-prompt-telemetry",
       caseId: 49,
-      originalPromptChars: expect.any(Number),
+      originalPromptChars: rightHandSystemPrompt.length + 1_100,
+      promptChars: rightHandSystemPrompt.length + 500,
       promptReductionChars: 600,
-      estimatedPromptTokens: expect.any(Number),
+      estimatedPromptTokens: 156,
+      estimatedMessagePromptTokens: 156,
+      estimatedOriginalMessagePromptTokens: 332,
     });
     expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
-    expect(Number(record?.estimatedPromptTokens)).toBeGreaterThan(0);
+    console.info("APEX_ROLE_PROMPT_MEASUREMENT " + JSON.stringify({
+      role: "right_hand",
+      originalPromptChars: record?.originalPromptChars,
+      promptReductionChars: record?.promptReductionChars,
+      finalPromptChars: record?.promptChars,
+      estimatedPromptTokensBefore: record?.estimatedOriginalMessagePromptTokens,
+      estimatedPromptTokensAfter: record?.estimatedMessagePromptTokens,
+      method: "ceil(system + user message characters / 3.4); character-based approximation, not provider tokenizer",
+    }));
   });
 });
