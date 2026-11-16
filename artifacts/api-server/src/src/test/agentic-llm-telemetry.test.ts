@@ -202,7 +202,7 @@ describe.sequential("Agentic LLM daily token accounting", () => {
     expect(dbMocks.state.reservedTokens).toBe(900);
     expect(dbMocks.execute).toHaveBeenCalledTimes(4);
     const reservation = results.find((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof reserveAgenticLlmDailyBudget>>> => result.status === "fulfilled");
-    expect(reservation?.value.usageDate).toMatch(/^\\d{4}-\\d{2}-\\d{2}$/);
+    expect(reservation?.value.usageDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("charges a conservative estimate when a sent provider rejection has no usage metadata", async () => {
