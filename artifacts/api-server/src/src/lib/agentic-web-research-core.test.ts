@@ -973,7 +973,7 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
-    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action|no fixed itinerary/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary/i);
   });
 
 describe("discovery lead inventory", () => {
@@ -4280,7 +4280,7 @@ describe("PDF prompt capability contract", () => {
 
     expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
-    expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
+    expect(modelPrompt).toMatch(/encrypted, password-protected and malformed PDFs are distinct structured failures/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
