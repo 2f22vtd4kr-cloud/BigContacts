@@ -2876,7 +2876,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
   return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   try {
     await acquireProviderSlot(parentSignal);
   } catch (error) {
@@ -2905,7 +2905,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, prompt.length)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars ?? prompt.length)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -2924,8 +2924,8 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
-  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration));
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
@@ -4681,7 +4681,7 @@ export function buildDiscoveryScopeAdvisory(
 // Investigator chooses targets and evidence routes from the mission, observations, runtime capabilities and cost.
 // Boss retains authority over strategic scope changes; preserve explicit human constraints and propose evidence-led pivots when scope is open.
 // Preserve useful model-selected review leads without treating them as verified claims.
-export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number }): string {
+export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onPromptMeasurement?: (measurement: { originalPromptChars: number; finalPromptChars: number }) => void }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
@@ -5187,6 +5187,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
     [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
   );
+  const reportPromptMeasurement = (value: string): string => {
+    input.onPromptMeasurement?.({
+      originalPromptChars: providerBoundedPrompt.length,
+      finalPromptChars: value.length,
+    });
+    return value;
+  };
   // Compact auxiliary context toward a preferred size, but never cut the
   // authoritative objective, Boss scope, live action allowlist, exact registry
   // availability, terminal contract, complete output schema or newest durable act.
@@ -5194,10 +5201,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
     4_000,
   );
-  if (providerBoundedPrompt.length <= userPromptBudget) return providerBoundedPrompt;
+  if (providerBoundedPrompt.length <= userPromptBudget) return reportPromptMeasurement(providerBoundedPrompt);
 
   const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
-  if (outputContractIndex < 0) return providerBoundedPrompt;
+  if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
   const pinnedContext = [
     authoritativeCaseObjective,
@@ -5238,13 +5245,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // If even the non-lossy objective, scope, action, registry, latest evidence
   // and output contract exceed the preferred size, preserve the full request
   // and let provider/token accounting handle its actual serialized cost.
-  if (prefixBudget < 0) return providerBoundedPrompt;
+  if (prefixBudget < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
-    return providerBoundedPrompt;
+    return reportPromptMeasurement(providerBoundedPrompt);
   }
-  return boundedPrompt;
+  return reportPromptMeasurement(boundedPrompt);
 }
 
 /**
@@ -5814,6 +5821,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = compactedObservation;
       }
       let prompt: string;
+      let promptMeasurement = { originalPromptChars: 0, finalPromptChars: 0 };
+      const capturePromptMeasurement = (measurement: { originalPromptChars: number; finalPromptChars: number }) => {
+        promptMeasurement = measurement;
+      };
       let usedPromptRecoveryFallback = false;
       try {
         prompt = buildStepPrompt({
@@ -5833,6 +5844,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           actionAllowlist: actionAllowlistForTurn,
           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
           aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
         });
       } catch (promptCompositionError) {
         const diagnostic = safeAgenticError(promptCompositionError);
@@ -5883,6 +5895,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
                 aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
               })
             : buildStepPrompt({
                 targetName: name || "",
@@ -5901,6 +5914,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
                 aiCompactedHistoricalThroughTurn,
+          onPromptMeasurement: capturePromptMeasurement,
               });
         } catch {
           const message = "Investigator prompt could not be rebuilt with its required AI historical memory. No action was sent.";
@@ -5913,7 +5927,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
       }
-      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars)); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
