@@ -5,7 +5,7 @@ run = "bash scripts/replit-boot.sh"
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"]
+run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true APEX_CAPTURE_MODEL_PROMPTS=false APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false APEX_MODEL_AUDIT_FILE=private-audits/APEX_ATLAS_MODEL_AUDIT_{jobId}.md APEX_CAPTURE_MODEL_PROMPTS_IN_TEST=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
 args = ["npm", "exec", "--yes", "--package=pnpm@9.15.9", "--", "pnpm", "store", "prune"]
