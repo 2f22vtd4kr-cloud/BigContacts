@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations } from "./research-depth";
+import { buildMissionActionBudget, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations } from "./research-depth";
+
+
+describe("discovery and target research allocation", () => {
+  it("reserves one quarter of the technical mission ceiling for target verification", () => {
+    expect(resolveDiscoveryIterationCeiling(64)).toBe(48);
+    expect(resolveDiscoveryIterationCeiling(20)).toBe(15);
+    expect(resolveDiscoveryIterationCeiling(4)).toBe(3);
+    expect(resolveDiscoveryIterationCeiling(1)).toBe(1);
+    expect(resolveDiscoveryIterationCeiling(0)).toBe(0);
+  });
+});
 
 describe("shared Investigator technical mission budget", () => {
   it("keeps discovery and target research on the same remaining global action counter", () => {
