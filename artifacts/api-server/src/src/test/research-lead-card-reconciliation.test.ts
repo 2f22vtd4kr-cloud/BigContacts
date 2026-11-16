@@ -145,7 +145,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("no fixed sequence");
     expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain("COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation");
+    expect(canonical).toContain("A successful public search observation contains the exact organization name");
   });
 
   it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
