@@ -80,7 +80,7 @@ describe("research intelligence atomic evidence", () => {
       observation: "Alice Example is founder of Example Labs.",
       urls: [url],
       findings: [{
-        vectorType: "is",
+        vectorType: "other",
         value: "founder of Example Labs",
         personName: "Alice Example",
         exactQuote: "Alice Example is founder of Example Labs.",
@@ -88,8 +88,9 @@ describe("research intelligence atomic evidence", () => {
       }],
     });
     const context = engine.buildContext();
-    expect(context.atomicEvidence.some((item) => item.sourceClass === "AGGREGATOR")).toBe(true);
-    expect(context.atomicEvidence.filter((item) => item.kind === "claim").every((item) => item.sourceClass === "AGGREGATOR")).toBe(true);
+    const claims = context.atomicEvidence.filter((item) => item.kind === "claim");
+    expect(claims.length).toBeGreaterThan(0);
+    expect(claims.every((item) => item.sourceClass === "AGGREGATOR")).toBe(true);
   });
 
   it("does not admit positive findings from a failed source visit", () => {
