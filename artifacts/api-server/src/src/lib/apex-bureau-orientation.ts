@@ -16,6 +16,7 @@ export const APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE = "REVIEW LEADS: Investigator m
 
 export const APEX_WHAT_IS_ATLAS = `APEX ATLAS is an AI-driven investigatory bureau (product: Apex Atlas / BigContacts desk).
 It is not a generic chatbot and not a fixed search script.
+The exact human objective and explicit constraints govern.
 
 The Investigator decides which people, companies, assets, relationships and sources matter to the mission.
 
