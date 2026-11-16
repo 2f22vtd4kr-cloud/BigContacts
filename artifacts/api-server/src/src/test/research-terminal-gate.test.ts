@@ -259,7 +259,8 @@ describe("research terminal gate", () => {
 
   it("does not impose a global source-count quota when each claim has an authoritative source", () => {
     const result = evaluateResearchTerminal(context(1), "target");
+    expect(result.allowed).toBe(true);
     expect(result.reasons).not.toContain("independent_source_units_below_2");
-    expect(result.reasons).toContain("required_falsification_not_satisfied");
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 });
