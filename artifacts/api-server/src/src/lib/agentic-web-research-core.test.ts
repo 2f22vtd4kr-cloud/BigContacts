@@ -1891,7 +1891,8 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [fetchedDirectoryPage]) ?? "").not.toContain("ordered_source_stage_guard");
   });
 
-  it("keeps semantic pivot alignment advisory and preserves every model-selected search", () => {
+  it("keeps semantic pivot alignment advisory and preserves every model-selected search", async () => {
+    const { repeatedPivotBlockedActionReason, discoveryPivotScopeKey } = await import("./agentic-web-research-core");
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry.",
@@ -1900,6 +1901,20 @@ Choose each next action yourself from the available capabilities and observed ev
       query: "unrelated but model-selected research hypothesis",
       registry: "opencorporates",
     }, [])).toBeNull();
+    const previouslyBlocked = {
+      turn: 1,
+      model: "test-model",
+      action: "web_search",
+      args: { query: "same semantic topic, different provider", provider: "serper" },
+      pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
+      execution: "blocked" as const,
+      observation: "pivot_alignment_guard blocked this action before outbound execution.",
+      observedUrls: [],
+      findings: [],
+    };
+    expect(repeatedPivotBlockedActionReason(objective, "web_search", {
+      query: "same semantic topic, different provider", provider: "tavily",
+    }, [previouslyBlocked])).toBeNull();
     const searches = [
       { query: "Swiss manufacturing companies", provider: "serper" },
       { query: "unrelated evidence-led lead", provider: "exa" },
