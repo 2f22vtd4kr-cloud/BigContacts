@@ -3365,14 +3365,14 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
     const rejectedDimensions = normalized.match(/Rejected dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     return preserveSourceAlongsideGuard(
-      "HISTORICAL PARALLEL-SEARCH DIAGNOSTIC (no request for rejected queries): only the retained queries executed; rejected queries produced no evidence. "
+      "HISTORICAL PARALLEL-SEARCH DIAGNOSTIC: retained queries executed; rejected queries produced no evidence. "
       + (rejectedDimensions ? "Rejected dimensions: " + rejectedDimensions + ". " : "")
-      + "Use results only from executed queries. Reassess the proposed research independently against the human objective and the current Boss-approved direction; propose material scope changes to Boss rather than treating this filter as a research strategy.",
+      + "Use executed results only; choose future queries by the human objective and Boss scope.",
     );
   }
   if (/ordered_source_stage_guard/i.test(normalized)) {
     return preserveSourceAlongsideGuard(
-      "HISTORICAL SOURCE-STAGE DIAGNOSTIC (no request): a prior runtime rule blocked this action for stage order. No evidence was added. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not treat the old stage order as fixed. Propose material scope changes to Boss.",
+      "HISTORICAL SOURCE-STAGE DIAGNOSTIC: prior stage-order rule blocked this action before request; no evidence. This is not a fixed sequence. Choose sources and actions by objective, evidence, information gain and cost.",
     );
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
@@ -3381,7 +3381,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
     const activeScope = activePivot ? ` Active Boss-approved scope: ${compactActiveBossScope(activePivot, 260)}.` : "";
     const blockedDimension = mismatch ? ` Prior blocked dimension: ${mismatch}.` : "";
     return preserveSourceAlongsideGuard(
-      `SCOPE DIAGNOSTIC (historical; no outbound request was made): the prior action was blocked before execution.${blockedDimension} No new evidence was produced. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not mechanically repeat rejected wording. If a material scope change is justified, propose it to Boss.${activeScope}`,
+      `SCOPE DIAGNOSTIC: prior action blocked before execution; no evidence.${blockedDimension}${activeScope} Reassess against the human objective and Boss scope; do not repeat rejected wording. Propose material scope changes to Boss.`,
     );
   }
   const observationStartMarker = "LATEST_OBSERVATION_START";
