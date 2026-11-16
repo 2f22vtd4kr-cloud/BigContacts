@@ -1,3 +1,7 @@
+// COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation,
+// preserve it as a review card with scope=organization and its associated public result URL.
+// Target oversight keeps this provisional; it must not synthesize company names from URL paths,
+// generic metadata or registry rows.
 import { createHash } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
