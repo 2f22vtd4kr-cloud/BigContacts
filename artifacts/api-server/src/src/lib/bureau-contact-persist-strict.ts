@@ -3,7 +3,7 @@ import { db, contactEvidenceTable, entitiesTable, researchCaseEventsTable, resea
 import { and, eq, isNull, like, or, sql } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { assessIdentityCollision } from "./identity-collision";
-import { countIndependentSourceHosts } from "./source-corroboration";
+import { countIndependentSourceHosts, hostnameOf, isAggregatorHost } from "./source-corroboration";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 export type BureauContactLike = { vectorType?: string | null; value?: string | null; scope?: string | null; personName?: string | null; role?: string | null; sourceUrls?: string[] | null; note?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; exactQuote?: string | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; tier?: string | null; state?: string | null; promote?: boolean | null };
 export type InvestigatorPromotionProvenance = { caseId: number; runId: string; jobId?: string | null };
@@ -99,6 +99,11 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  let identityAndValueBoundTogether = !candidate;
  let exactQuoteBound = !candidate;
  const supportingUrls = new Set<string>();
+ // Aggregator pages remain useful discovery/review leads, but an aggregator
+ // cannot be the sole exact-quote authority for a trusted personal contact.
+ // A non-aggregator fetched source must independently carry the same
+ // person-and-value attribution selected by the Investigator.
+ const independentExactQuoteUrls = new Set<string>();
  for (const observation of observations) {
   const urls = observation.sourceUrls.map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => url !== null && cited.has(url));
   if (!urls.length || !observation.observationText.trim()) continue;
@@ -115,11 +120,17 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
    if (quoteAppearsInObservation(observation.observationText, exactQuote) && hasBoundIdentityAndValue(exactQuote, personName, cleanValue, vectorType)) {
     identityAndValueBoundTogether = true;
     exactQuoteBound = true;
+    for (const url of urls) {
+     const host = hostnameOf(url);
+     if (host && !isAggregatorHost(host)) independentExactQuoteUrls.add(url);
+    }
    }
   }
   if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
  }
- return identityObserved && valueObserved && identityAndValueBoundTogether && exactQuoteBound && [...cited].every((url) => supportingUrls.has(url));
+ return identityObserved && valueObserved && identityAndValueBoundTogether && exactQuoteBound
+  && (!candidate || independentExactQuoteUrls.size > 0)
+  && [...cited].every((url) => supportingUrls.has(url));
 }
 /**
  * Review-only attribution may combine independently observed sources, but
