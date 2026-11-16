@@ -9,7 +9,7 @@ const REQUIRED_NAMES = Object.keys(OPERATOR_AUTH_MIN_LENGTHS) as Array<keyof typ
 
 /** Development is an explicit server-side mode; never derive this from request input. */
 export function isOperatorAuthBypassed(env: Record<string, string | undefined> = process.env): boolean {
-  return env.NODE_ENV === "development";
+  return env.APEX_OPERATOR_AUTH_BYPASS === "true";
 }
 
 export function missingOperatorAuthNames(env: Record<string, string | undefined> = process.env): string[] {
