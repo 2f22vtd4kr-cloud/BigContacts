@@ -5,6 +5,7 @@ import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, get
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
+import { resolveCanonicalAtlasTargetCount } from "../../lib/atlas-launch-defaults";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
@@ -180,6 +181,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
+  const targetCount = resolveCanonicalAtlasTargetCount(body.targetCount);
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
     : undefined;
@@ -202,7 +204,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
-    total: singleTargetId ? 1 : 0,
+    total: singleTargetId ? 1 : targetCount,
     atlasPhase: 0,
     atlasPhaseTotal: singleTargetId ? 1 : 4,
     message: singleTargetId ? "Canonical single-target investigation initializing…" : "Canonical model-owned discovery initializing…",
@@ -215,6 +217,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
+            targetCount,
             researchDepth,
             targetTimeoutMs,
             ...(discoveryObjective ? { discoveryObjective } : {}),
@@ -262,7 +265,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
-    options: { singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
+    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
     const diagnostic = describeThrownProviderError(error);
