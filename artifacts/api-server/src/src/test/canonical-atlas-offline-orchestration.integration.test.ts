@@ -191,8 +191,6 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       throw new Error(`Unexpected outbound request in offline integration test: ${url}`);
     });
-    const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
-    const secondName = `John Offline ${runToken.slice(0, 8)}`;
     mocks.generateGroqBossText.mockImplementation(async (_selection: any, _prompt: string, _options: any) => {
       const call = mocks.controlCalls++;
       let action: string;
