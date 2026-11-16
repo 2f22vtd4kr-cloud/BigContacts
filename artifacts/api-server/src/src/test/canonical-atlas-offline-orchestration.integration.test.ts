@@ -181,16 +181,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         hypothesis: "The fetched company page may bind both names to their roles.",
         purpose: "Verify the exact names and roles in observed page text.",
         expectedInformationGain: 0.9,
-        findings,
+        findings: [],
       },
       {
         action: "done",
         query: null,
-        thought: "The requested discovery observations have been collected; return control for model adjudication.",
-        hypothesis: null,
-        purpose: null,
-        expectedInformationGain: 0,
-        findings: [],
+        thought: "The fetched source directly attributes both professional roles to the named people.",
+        hypothesis: "The page identifies the named people in their current executive roles.",
+        purpose: "Return the source-backed findings and model-owned interpretation for Boss adjudication.",
+        expectedInformationGain: 0.9,
+        findings,
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -307,11 +307,11 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
     const investigatorCalls = mocks.outboundUrls.filter((url) => url.endsWith("/chat/completions")).length;
-    expect(investigatorCalls).toBeGreaterThanOrEqual(3);
-    expect(investigatorCalls).toBeLessThanOrEqual(4);
+    expect(investigatorCalls).toBe(3);
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
-    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
+    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]) })]));
+    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
     expect(outcome.admittedEntities).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
