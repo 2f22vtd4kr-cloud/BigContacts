@@ -34,12 +34,12 @@ describe("research-stage terminal contracts", () => {
     expect(defaultTerminalContract("discovery").allowHighSeverityContradictions).toBe(Number.MAX_SAFE_INTEGER);
   });
 
-  it("requires falsification and claim-grade provenance without fixed source-count or open-question quotas", () => {
+  it("keeps target provenance checks without a deterministic falsification keyword gate", () => {
     expect(defaultTerminalContract("target")).toEqual({
       minEvidence: 0,
       minIndependentSourceUnits: 0,
       requireExactSpanForFindings: false,
-      requireFalsification: true,
+      requireFalsification: false,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     });
@@ -140,11 +140,13 @@ describe("research-stage terminal contracts", () => {
 
   it("allows the Investigator to stop after a successful external research attempt even when no result was found", () => {
     const state = context({
-      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to the current executive role" }, observation: "Search completed; no matching pages found.", urls: [] }],
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "official company leadership profile for the current executive" }, observation: "Search completed; no matching pages found.", urls: [] }],
     });
     expect(hasSuccessfulExternalResearchAttempt(state)).toBe(true);
     const result = evaluateResearchTerminal(state, "target");
     expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
     expect(result.metrics.evidenceCount).toBe(0);
     expect(result.outcome).toBe("inconclusive");
   });
@@ -153,7 +155,7 @@ describe("research-stage terminal contracts", () => {
     const result = evaluateResearchTerminal(context({
       evidenceCount: 1,
       independentSourceUnits: 2,
-      recentActions: [{ action: "visit", execution: "success", args: { purpose: "seek counterevidence and disprove the current executive role" } }],
+      recentActions: [{ action: "visit", execution: "success", args: { purpose: "verify the current executive role against the official company profile" } }],
     }), "target");
     expect(result.allowed).toBe(true);
     expect(result.outcome).toBe("evidence_backed");
@@ -180,6 +182,17 @@ describe("research-stage terminal contracts", () => {
     expect(evaluateResearchTerminal(context(), "discovery").allowed).toBe(false);
     expect(evaluateResearchTerminal(context({ evidenceCount: 1 }), "discovery").allowed).toBe(false);
     expect(evaluateResearchTerminal(context({ evidenceCount: 1, independentSourceUnits: 1 }), "discovery").allowed).toBe(true);
+  });
+
+  it("does not veto a model-owned target stop because a successful research query uses non-English wording", () => {
+    const state = context({
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "vérifier le dirigeant actuel sur le site officiel" } }],
+    });
+    expect(hasSuccessfulFalsificationAttempt(state)).toBe(false);
+    const result = evaluateResearchTerminal(state, "target");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.outcome).toBe("inconclusive");
   });
 
   it("does not mistake a failed provider attempt for successful research", () => {
