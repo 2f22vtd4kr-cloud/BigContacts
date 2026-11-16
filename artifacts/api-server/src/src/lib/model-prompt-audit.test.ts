@@ -86,6 +86,10 @@ describe("model prompt audit", () => {
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
+    expect(productionConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
+    expect(productionConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+    expect(productionConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
+    expect(productionConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"');
     expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
     expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
   });
