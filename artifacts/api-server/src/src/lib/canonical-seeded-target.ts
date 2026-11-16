@@ -1,3 +1,5 @@
+import { parseJsonRecord } from "./json-record";
+
 export type CanonicalSeededTargetKind = "person" | "organization" | "asset" | "other";
 
 const PERSON_TYPES = new Set(["person", "personcandidate", "hnwi", "gatekeeper"]);
