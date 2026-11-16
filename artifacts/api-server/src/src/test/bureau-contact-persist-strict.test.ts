@@ -315,6 +315,26 @@ describe("multi-source candidate contact attribution", () => {
     ], { ...item, sourceUrls: ["https://example.com/contact"] }, "jane@example.com", "email")).toBe(false);
   });
 
+  it("does not promote an aggregator-only exact contact attribution", () => {
+    const aggregatorUrl = "https://rocketreach.co/jane-example/profile";
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: item.exactQuote, sourceUrls: [aggregatorUrl] },
+    ], { ...item, sourceUrls: [aggregatorUrl] }, "jane@example.com", "email")).toBe(false);
+  });
+
+  it("allows aggregator leads only when a non-aggregator source independently binds the same person and value", () => {
+    const aggregatorUrl = "https://rocketreach.co/jane-example/profile";
+    const primaryUrl = "https://company.example/team/jane";
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: item.exactQuote, sourceUrls: [aggregatorUrl] },
+      { observationText: item.exactQuote, sourceUrls: [primaryUrl] },
+    ], { ...item, sourceUrls: [aggregatorUrl, primaryUrl] }, "jane@example.com", "email")).toBe(true);
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: item.exactQuote, sourceUrls: [aggregatorUrl] },
+      { observationText: "Public email: jane@example.com", sourceUrls: [primaryUrl] },
+    ], { ...item, sourceUrls: [aggregatorUrl, primaryUrl] }, "jane@example.com", "email")).toBe(false);
+  });
+
   it("rejects a cited page that contributes neither identity nor the exact contact value", () => {
     expect(supportsContactClaimAcrossObservations([
       { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
