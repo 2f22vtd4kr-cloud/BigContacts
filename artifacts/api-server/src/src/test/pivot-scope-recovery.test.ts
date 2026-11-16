@@ -35,11 +35,11 @@ function blockedRecord(turn: number, query: string, pivotScopeKey: string): Agen
 }
 
 describe("Right-hand-approved opening scope", () => {
-  it("blocks an unrelated opening search and allows a model-selected in-scope research route", () => {
+  it("keeps opening search semantics with the Investigator rather than a deterministic scope veto", () => {
     expect(discoveryPivotAlignmentReason(approvedOpeningObjective, "web_search", {
       query: "under the radar boutique private equity investors United Kingdom",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
 
     expect(discoveryPivotAlignmentReason(approvedOpeningObjective, "web_search", {
       query: "Bavaria German Mittelstand manufacturing Handelsregister company owners",
@@ -49,7 +49,7 @@ describe("Right-hand-approved opening scope", () => {
 });
 
 describe("repeated pivot-scope recovery", () => {
-  it("returns control after distinct out-of-scope query variants are repeatedly blocked", () => {
+  it("never blocks a new Investigator action because of earlier semantic scope rejections", () => {
     const pivotScopeKey = discoveryPivotScopeKey(objective);
     if (!pivotScopeKey) throw new Error("Expected the fixture to define an active pivot scope");
     const priorRecords: AgenticTrajectoryRecord[] = [
@@ -64,9 +64,7 @@ describe("repeated pivot-scope recovery", () => {
       priorRecords,
     );
 
-    expect(reason).toContain("repeat_pivot_alignment_guard");
-    expect(reason).toContain("multiple distinct actions");
-    expect(reason).toContain("return control to Boss/Right-hand");
+    expect(reason).toBeNull();
   });
 
   it("does not suppress a valid in-scope query after prior scope blocks", () => {
