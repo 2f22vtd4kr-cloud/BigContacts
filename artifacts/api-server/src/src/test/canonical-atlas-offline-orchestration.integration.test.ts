@@ -289,7 +289,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const allEntities = await db.select().from(tables.entitiesTable);
     const admittedEntities = allEntities.filter((entity: any) => {
       try {
-        const metadata = JSON.parse(entity.metadata ?? "{}");
+        const metadata = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : entity.metadata ?? {};
         return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialPersonLead === true;
       } catch { return false; }
     });
