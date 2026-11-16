@@ -180,7 +180,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  const targetCount = Math.max(1, Math.min(25, Math.trunc(Number(body.targetCount) || 1)));
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
     : undefined;
@@ -203,7 +202,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
-    total: singleTargetId ? 1 : targetCount,
+    total: singleTargetId ? 1 : 0,
     atlasPhase: 0,
     atlasPhaseTotal: singleTargetId ? 1 : 4,
     message: singleTargetId ? "Canonical single-target investigation initializing…" : "Canonical model-owned discovery initializing…",
@@ -216,7 +215,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
-            targetCount,
             researchDepth,
             targetTimeoutMs,
             ...(discoveryObjective ? { discoveryObjective } : {}),
@@ -264,7 +262,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
-    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
+    options: { singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
     const diagnostic = describeThrownProviderError(error);
