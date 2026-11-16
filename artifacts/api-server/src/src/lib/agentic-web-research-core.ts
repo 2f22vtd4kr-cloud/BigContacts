@@ -4777,7 +4777,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const rawAiHistoricalMemory = input.aiCompactedHistoricalContext?.trim() ?? "";
   const aiHistoricalMemory = rawAiHistoricalMemory
-    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, 1_200, "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]")
+    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, 900, "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]")
     : "";
   const authoritativeCaseObjective = buildAuthoritativeCaseObjectiveBlock(input.objective);
   const activeBossDirection = extractBossPivotDirectionForCompactPrompt(input.objective)
@@ -4797,9 +4797,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): explain any material deviation from this direction and ask Boss before changing scope.\n"
       + (activeBossDirectionAlreadyPreserved
         ? "The accepted direction is preserved verbatim in the authoritative case objective above; do not duplicate or override it."
-        : boundInvestigatorPromptSection(activeBossDirection, input.mode === "discovery" ? 700 : 1_000))
+        : boundInvestigatorPromptSection(activeBossDirection, input.mode === "discovery" ? 700 : 800))
     : "";
-  const currentControlContext = (input.priorContext?.length ?? 0) <= 800
+  const currentControlContext = (input.priorContext?.length ?? 0) <= 600
     ? (input.priorContext ?? "")
     : "Long prior control context is represented in Boss-generated memory; the current objective and active scope remain authoritative.";
   const aiHistoricalMemorySection = aiHistoricalMemory
