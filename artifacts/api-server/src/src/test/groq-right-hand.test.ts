@@ -23,10 +23,12 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 describe("Groq Right-hand model policy", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
   beforeEach(() => {
-    // Provider behaviour tests use mocked HTTP responses. Keep simulated daily
-    // quota exhaustion out of the shared PostgreSQL ledger; the dedicated
-    // integration test covers durable reservations and exhaustion.
+    // Provider behaviour tests use mocked HTTP responses. Disable the production
+    // daily ledger explicitly; its durable reservation path has dedicated tests.
     process.env.DATABASE_URL = "";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = "0";
   });
 
   afterEach(() => {
@@ -42,6 +44,9 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
     if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = originalDatabaseUrl;
+    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
