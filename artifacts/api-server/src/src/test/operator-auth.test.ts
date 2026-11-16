@@ -50,6 +50,7 @@ describe("operator authentication boundary", () => {
     const preflightSource = fs.readFileSync(path.resolve(process.cwd(), "../../scripts/replit-preflight.mjs"), "utf8");
     const replitConfig = fs.readFileSync(path.resolve(process.cwd(), "../../.replit"), "utf8");
     const apiPackage = fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8");
+    const replitBoot = fs.readFileSync(path.resolve(process.cwd(), "../../scripts/replit-boot.sh"), "utf8");
 
     expect(appSource).toContain('app.use("/api",router)');
     expect(appSource).not.toContain("apiAuthMiddleware");
@@ -66,6 +67,8 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain("[userenv.development]");
     expect(replitConfig).toContain('NODE_ENV = "development"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
+    expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
+    expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
     expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
     expect(preflightSource).toContain("SKIP operator-auth secrets");
