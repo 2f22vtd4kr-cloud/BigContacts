@@ -109,7 +109,7 @@ const walkSourceFiles = (directory) => {
       if (["node_modules", "dist", ".git"].includes(entry.name)) return [];
       return walkSourceFiles(full);
     }
-    return [".ts", ".tsx", ".js", ".mjs", ".cjs"].some((extension) => full.endsWith(extension)) ? [full] : [];
+    return [".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".yml", ".yaml"].some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
 // Include app, workflow, and script sources so literal dynamic-import/registry
