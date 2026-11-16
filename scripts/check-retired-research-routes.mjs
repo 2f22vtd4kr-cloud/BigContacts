@@ -95,9 +95,7 @@ const retiredSecondaryHelpers = [
   "lookupPublicXProfile",
   "lookupWaybackContactPages",
 ];
-const staleSecondaryHelpers = retiredSecondaryHelpers.filter((name) =>
-  new RegExp("\\\\b" + name + "\\\\b").test(secondaryPersist),
-);
+const staleSecondaryHelpers = retiredSecondaryHelpers.filter((name) => secondaryPersist.includes(name));
 if (staleSecondaryHelpers.length) {
   console.log("FAIL retired secondary-surface implementation remains in bureau-contact-persist.ts: " + staleSecondaryHelpers.join(", "));
   failed = true;
@@ -108,19 +106,17 @@ const walkSourceFiles = (directory) => {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const full = directory + "/" + entry.name;
     if (entry.isDirectory()) return walkSourceFiles(full);
-    return /\\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
+    return [".ts", ".tsx", ".js", ".mjs"].some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
 const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
-  .filter((file) => !/\\.test\\.[jt]sx?$/.test(file))
+  .filter((file) => !file.includes(".test."))
   .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
-  .filter((file) => /\\bexpandSecondaryPublicSurface\\s*\\(/.test(read(file)));
+  .filter((file) => read(file).includes("expandSecondaryPublicSurface"));
 if (liveSecondaryCallers.length) {
   console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
   failed = true;
 } else console.log("PASS no live canonical caller can invoke secondary-surface expansion.");
-
-
 
 const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
 
