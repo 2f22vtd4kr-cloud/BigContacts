@@ -234,7 +234,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     await db.insert(table).values({
       usageDate,
       provider: event.provider,
-      model: event.model,
+      model: canonicalizeAgenticLlmBudgetModel(event.model),
       requestCount: requestSent ? 1 : 0,
       successCount: requestSent && event.success ? 1 : 0,
       failureCount: requestSent && !event.success ? 1 : 0,
@@ -338,7 +338,7 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
       INSERT INTO public.agentic_llm_daily_usage
         (usage_date, provider, model, reserved_tokens, daily_budget_tokens)
       VALUES
-        (${usageDate}::date, ${input.provider}, ${input.model}, ${estimatedTokens}, ${dailyBudgetTokens})
+        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens})
       ON CONFLICT (usage_date, provider, model) DO UPDATE
         SET reserved_tokens = public.agentic_llm_daily_usage.reserved_tokens + EXCLUDED.reserved_tokens,
             daily_budget_tokens = EXCLUDED.daily_budget_tokens,
