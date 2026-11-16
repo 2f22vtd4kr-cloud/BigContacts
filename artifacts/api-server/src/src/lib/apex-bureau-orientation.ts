@@ -97,7 +97,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: Human objective governs. Boss authorizes scope changes; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.",
+    "MISSION: The human objective and explicit constraints govern. Boss authorizes scope changes; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.",
     "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority. Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates. No unrequested criteria or keyword/name heuristics; generic nouns are not queries.",
     "HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved; state what would disconfirm them.",
     "AUTONOMY: No fixed source/provider/registry order or mix. Investigator chooses hypotheses, queries, sources, tools, follow-ups, pivots, corroboration, falsification and stopping by evidence, information gain and cost. Source class need not appear in every discovery query.",
@@ -111,7 +111,7 @@ export function apexInvestigatorSystemCore(): string {
     "PARALLEL SHAPES: Web items need query/provider; registry items need query/registry. Other fields are action-specific. Runtime-attested actions/IDs only; parallel execution 1–4.",
     "RANKINGS: Leads, not proof or gates. No invented private/mid-market preference.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
-    "TERMINAL: Stop only at a defensible answer or justified blocker. Empty searches, failed fetches, unresolved leads and budget expiry are not substantiated research; report inconclusive outcomes honestly."
+    "TERMINAL: Stop only at a defensible answer or blocker. Empty searches, failed fetches, unresolved leads and budget expiry are not substantiated; report inconclusive outcomes."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
