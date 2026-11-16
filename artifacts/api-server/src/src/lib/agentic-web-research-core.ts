@@ -4881,6 +4881,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
+    ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
+    : "";
 
   const composedPrompt = [
     assignment,
@@ -4891,9 +4894,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
     providerGuidance,
-    input.mode === "discovery" && discoverySearchActionsUsed > 0
-      ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
-      : "",
+    searchActivityGuidance,
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
       : "",
@@ -5281,6 +5282,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     activeBossScopeSection,
     availableActionsGuidance,
     compactRegistryGuidance,
+    searchActivityGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
     latestRecordTail,
