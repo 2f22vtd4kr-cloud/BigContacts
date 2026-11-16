@@ -8,6 +8,7 @@ function context(input: {
   openQuestions?: string[];
   contradictions?: Array<{ claim: string; evidenceIds: string[]; sources: string[] }>;
   recentActions?: Array<{ action: string; execution: string; args?: Record<string, unknown>; observation?: string; urls?: string[] }>;
+  atomicEvidence?: IntelligenceContext["atomicEvidence"];
 } = {}): IntelligenceContext {
   return {
     evidenceCount: input.evidenceCount ?? 0,
@@ -15,7 +16,7 @@ function context(input: {
     openQuestions: input.openQuestions ?? [],
     contradictions: input.contradictions ?? [],
     recentActions: input.recentActions ?? [],
-    atomicEvidence: [],
+    atomicEvidence: input.atomicEvidence ?? [],
   } as unknown as IntelligenceContext;
 }
 
@@ -31,7 +32,7 @@ describe("research-stage terminal contracts", () => {
     expect(defaultTerminalContract("discovery").allowHighSeverityContradictions).toBe(Number.MAX_SAFE_INTEGER);
   });
 
-  it("requires independent sources and falsification without imposing an open-question quota on target research", () => {
+  it("requires falsification and claim-grade provenance without fixed source-count or open-question quotas", () => {
     expect(defaultTerminalContract("target")).toEqual({
       minEvidence: 0,
       minIndependentSourceUnits: 0,
@@ -40,6 +41,46 @@ describe("research-stage terminal contracts", () => {
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     });
+  });
+
+  it("allows one authoritative source for a directly supported claim without a global source-count quota", () => {
+    const result = evaluateResearchTerminal(context({
+      evidenceCount: 1,
+      independentSourceUnits: 1,
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to Jane Doe being the current CEO" } }],
+      atomicEvidence: [{
+        evidenceId: "e1", kind: "claim", claimId: "claim-1", claim: "Jane Doe is the current CEO",
+        sourceUrl: "https://registry.example.test/company/1", sourceHost: "registry.example.test",
+        sourceTier: "A", sourceClass: "REGULATORY", sourceName: "Official Registry",
+        sourceContributor: null, originalObservedAt: null, sourceMechanism: "visit",
+        passage: "Jane Doe is listed as the current chief executive officer.", spanBound: true,
+        spanBindingKind: "identity_and_value", hypothesisLabel: null, hypothesisRelation: "supports",
+        hypothesisRationale: null, relationshipType: "role", temporalStatus: "current",
+        interpretationConfidence: 0.95, ambiguityNotes: null, attribution: "same-case fetched passage",
+      }],
+    }), "target");
+    expect(result.allowed).toBe(true);
+    expect(result.outcome).toBe("evidence_backed");
+  });
+
+  it("does not allow aggregator-only material to establish a target claim", () => {
+    const result = evaluateResearchTerminal(context({
+      evidenceCount: 1,
+      independentSourceUnits: 1,
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to Jane Doe being the current CEO" } }],
+      atomicEvidence: [{
+        evidenceId: "e1", kind: "claim", claimId: "claim-1", claim: "Jane Doe is the current CEO",
+        sourceUrl: "https://aggregator.example.test/jane", sourceHost: "aggregator.example.test",
+        sourceTier: "C", sourceClass: "AGGREGATOR", sourceName: "Aggregator",
+        sourceContributor: null, originalObservedAt: null, sourceMechanism: "visit",
+        passage: "Jane Doe is the current chief executive officer.", spanBound: true,
+        spanBindingKind: "identity_and_value", hypothesisLabel: null, hypothesisRelation: "supports",
+        hypothesisRationale: null, relationshipType: "role", temporalStatus: "current",
+        interpretationConfidence: 0.6, ambiguityNotes: null, attribution: "aggregator page",
+      }],
+    }), "target");
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toContain("claim_evidence_only_from_non_claim_grade_sources");
   });
 
   it("requires an executed counterevidence attempt rather than treating any successful research as falsification", () => {
