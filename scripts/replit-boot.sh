@@ -47,7 +47,7 @@ fi
 # Development builds embed import.meta.env.DEV into the static desk bundle.
 # Rebuild on every development boot so a stale production bundle cannot put
 # the operator sign-in screen back in front of Replit preview/agent workflows.
-if [[ "${NODE_ENV:-}" == "development" || ! -f artifacts/apex-finder/dist/public/index.html ]]; then
+if [[ "${NODE_ENV:-}" == "development" || "${NODE_ENV:-}" == "production" || ! -f artifacts/apex-finder/dist/public/index.html ]]; then
   pnpm --dir artifacts/apex-finder run build
 fi
 test -f artifacts/apex-finder/dist/public/index.html
