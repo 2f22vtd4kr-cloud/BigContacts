@@ -314,7 +314,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true, personName: firstName, sourceUrls: expect.arrayContaining([mocks.pageUrl]) })]) })]));
     expect(JSON.parse(outcome.ownedCase.caseFile).jobId).toBe(outcome.jobId);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
-    expect(outcome.admittedEntities).toHaveLength(2);
+    expect(outcome.admittedEntities, JSON.stringify({ phaseSummary: outcome.jobUpdate?.result?.phaseSummary, materializedCardCount: outcome.jobUpdate?.result?.materializedCardCount, caseStatus: outcome.ownedCase.status, currentAction: outcome.ownedCase.currentAction })).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
