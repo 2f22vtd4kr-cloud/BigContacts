@@ -66,6 +66,7 @@ describe("operator authentication boundary", () => {
     expect(uiSource).toContain("<AppRouter />");
     expect(replitConfig).toContain("[userenv.development]");
     expect(replitConfig).toContain('NODE_ENV = "development"');
+    expect(replitConfig).toContain('APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
     expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
