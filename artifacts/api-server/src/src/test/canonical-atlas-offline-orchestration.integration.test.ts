@@ -181,16 +181,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         hypothesis: "The fetched company page may bind both names to their roles.",
         purpose: "Verify the exact names and roles in observed page text.",
         expectedInformationGain: 0.9,
-        findings: [],
+        findings,
       },
       {
         action: "done",
         query: null,
-        thought: "The fetched source directly attributes both professional roles to the named people.",
-        hypothesis: "The page identifies the named people in their current executive roles.",
-        purpose: "Return the source-backed findings and model-owned interpretation for Boss adjudication.",
-        expectedInformationGain: 0.9,
-        findings,
+        thought: "The requested discovery observations have been collected; return control for model adjudication.",
+        hypothesis: null,
+        purpose: null,
+        expectedInformationGain: 0,
+        findings: [],
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
