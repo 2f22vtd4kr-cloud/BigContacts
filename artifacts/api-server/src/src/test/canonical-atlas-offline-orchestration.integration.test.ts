@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   runGroqBossDiscovery: vi.fn(),
   runGroqRightHandFreeJson: vi.fn(),
   safeOutboundFetch: vi.fn(),
+  outboundUrls: [] as string[],
   runCanonicalSingleTargetInvestigation: vi.fn(),
 }));
 
@@ -112,6 +113,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     mocks.jobUpdates.length = 0;
     mocks.targetCalls.length = 0;
     mocks.controlCalls = 0;
+    mocks.outboundUrls.length = 0;
     vi.clearAllMocks();
     resetProviderGateForTests();
     resetGroqRateLimitSnapshotsForTests();
@@ -193,7 +195,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input);
+      mocks.outboundUrls.push(url);
       if (url.endsWith("/models")) return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200, headers: { "content-type": "application/json" } });
       if (url.endsWith("/chat/completions")) {
         const payload = actions[Math.min(groqTurn, actions.length - 1)];
@@ -328,6 +331,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(1);
     expect(mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"))).toHaveLength(3);
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
+    expect(mocks.outboundUrls.some((url) => url === sourceUrl || url.startsWith(sourceUrl + "?"))).toBe(true);
+    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([sourceUrl]) })]));
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(sourceUrl, expect.any(Object));
     expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
