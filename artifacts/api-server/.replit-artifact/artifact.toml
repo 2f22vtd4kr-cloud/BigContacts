@@ -30,7 +30,6 @@ args = ["sh", "-c", "pnpm --filter apex-finder-local run build && pnpm --filter 
 
 [services.production.build.env]
 NODE_ENV = "production"
-VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 
 [services.production.run]
 args = ["sh", "-c", "cd ../.. && bash scripts/replit-boot.sh"]
@@ -38,8 +37,6 @@ args = ["sh", "-c", "cd ../.. && bash scripts/replit-boot.sh"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
-APEX_OPERATOR_AUTH_BYPASS = "true"
-VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 
 [services.production.health.startup]
 path = "/api/healthz"

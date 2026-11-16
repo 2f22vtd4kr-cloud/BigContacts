@@ -74,7 +74,7 @@ describe("operator authentication boundary", () => {
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
-    expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
+    expect(preflightSource).toContain('process.env.NODE_ENV === "development" && process.env.APEX_OPERATOR_AUTH_BYPASS === "true"');
     expect(preflightSource).toContain("SKIP operator-auth secrets");
     expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
     expect(preflightSource).toContain("APEX_OPERATOR_PASSWORD");
@@ -84,11 +84,17 @@ describe("operator authentication boundary", () => {
   });
 
 
-  it("bypasses operator authentication only with the explicit Replit runtime flag", () => {
+  it("bypasses operator authentication only with the explicit Replit development flag", () => {
     expect(isOperatorAuthBypassed({ NODE_ENV: "development" })).toBe(false);
     expect(isOperatorAuthBypassed({ NODE_ENV: "production" })).toBe(false);
-    expect(isOperatorAuthBypassed({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(true);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(false);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "true" })).toBe(true);
     expect(isOperatorAuthBypassed({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "false" })).toBe(false);
+    const productionGuard = createRequireOperatorAuth(() => ({ NODE_ENV: "production", APEX_OPERATOR_AUTH_BYPASS: "true" }));
+    const productionResponse = response(); let productionNext = 0;
+    productionGuard(request(), productionResponse.value, (() => { productionNext += 1; }) as never);
+    expect(productionResponse.result.statusCode).toBe(503);
+    expect(productionNext).toBe(0);
     const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "development", APEX_OPERATOR_AUTH_BYPASS: "true" }));
     const res = response(); let next = 0;
     guard(request({ method: "POST", path: "/research/launch" }), res.value, (() => { next += 1; }) as never);
