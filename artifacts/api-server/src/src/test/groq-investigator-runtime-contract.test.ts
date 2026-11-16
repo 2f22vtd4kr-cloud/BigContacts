@@ -321,7 +321,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Omit irrelevant optional fields.");
     expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
-    expect(submitted).toContain("No fixed source/provider/registry order or itinerary");
+    expect(submitted).toContain("No fixed source/provider/registry order or mix.");
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or justified blocker; failed searches, untested hypotheses and unresolved leads are not completion.");
