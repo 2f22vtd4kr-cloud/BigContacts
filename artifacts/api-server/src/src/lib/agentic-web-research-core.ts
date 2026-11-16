@@ -5821,9 +5821,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = compactedObservation;
       }
       let prompt: string;
-      let promptMeasurement = { originalPromptChars: 0, finalPromptChars: 0 };
+      let promptMeasurement = { originalPromptChars: 0, promptReductionChars: 0 };
       const capturePromptMeasurement = (measurement: { originalPromptChars: number; finalPromptChars: number }) => {
-        promptMeasurement = measurement;
+        promptMeasurement = {
+          originalPromptChars: measurement.originalPromptChars,
+          promptReductionChars: Math.max(0, measurement.originalPromptChars - measurement.finalPromptChars),
+        };
       };
       let usedPromptRecoveryFallback = false;
       try {
