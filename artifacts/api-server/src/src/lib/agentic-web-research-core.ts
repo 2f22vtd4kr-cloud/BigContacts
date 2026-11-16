@@ -4846,7 +4846,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 350 : 3_000,
+        maxChars: input.mode === "discovery" ? 350 : 2_600,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
