@@ -22,6 +22,9 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Right-hand model policy", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalDailyBudget = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+  const originalDailyBudget120B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+  const originalDailyBudget20B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
   beforeEach(() => {
     // Provider behaviour tests use mocked HTTP responses. Disable the production
     // daily ledger explicitly; its durable reservation path has dedicated tests.
@@ -44,9 +47,12 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
     if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = originalDatabaseUrl;
-    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
-    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
-    delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
+    if (originalDailyBudget === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = originalDailyBudget;
+    if (originalDailyBudget120B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = originalDailyBudget120B;
+    if (originalDailyBudget20B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = originalDailyBudget20B;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
