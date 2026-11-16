@@ -52,6 +52,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
   beforeEach(() => {
     // Provider-boundary tests validate request routing/retry semantics, not the
     // production TPM ceiling. Dedicated provider-gate tests cover that budget.
+    vi.stubEnv("DATABASE_URL", "");
     process.env.APEX_GROQ_TPM_BUDGET = "1000000";
     process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "50";
     // These mocked provider-boundary tests do not provision the durable daily
