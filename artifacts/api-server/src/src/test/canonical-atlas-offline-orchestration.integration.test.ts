@@ -214,6 +214,18 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     });
     mocks.generateGroqBossText.mockImplementation(async (_selection: any, _prompt: string, _options: any) => {
       const call = mocks.controlCalls++;
+      // The target-act Boss contract is deliberately narrower than discovery:
+      // it accepts only action, direction, reason and confidence. Do not reuse
+      // discovery's candidateName/candidateType fields for this independent
+      // post-act oversight decision.
+      if (call === 2) {
+        return {
+          model: "mock-groq-boss",
+          raw: JSON.stringify({ action: "stop", direction: null, reason: "The completed target act is supported by its durable source evidence.", confidence: 0.9 }),
+          error: null,
+          attempts: [],
+        };
+      }
       let action: string;
       let candidateName: string | null = null;
       let candidateType: string | null = null;
@@ -330,7 +342,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
-    expect(outcome.ownedCase.status, JSON.stringify({ targetCases: outcome.targetCases.map((row: any) => { try { const file = JSON.parse(row.caseFile ?? "{}"); return { status: row.status, currentAction: row.currentAction, oversight: file.investigatorActOversight }; } catch { return { status: row.status, currentAction: row.currentAction, caseFile: row.caseFile }; } }), terminal: diagnosticResult?.terminal })).toBe("complete");
+    expect(outcome.ownedCase.status).toBe("complete");
     expect(outcome.targetCases).toHaveLength(1);
     const targetCaseFile = JSON.parse(outcome.targetCases[0].caseFile);
     const completedOversight = targetCaseFile.investigatorActOversight?.find((entry: any) => entry?.oversight?.action === "stop");
