@@ -74,7 +74,7 @@ describe("operator authentication boundary", () => {
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
-    expect(preflightSource).toContain('process.env.NODE_ENV === "development" && process.env.APEX_OPERATOR_AUTH_BYPASS === "true"');
+    expect(preflightSource).toContain('const explicitOperatorAuthBypass = developmentMode && process.env.APEX_OPERATOR_AUTH_BYPASS === "true"');
     expect(preflightSource).toContain("SKIP operator-auth secrets");
     expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
     expect(preflightSource).toContain("APEX_OPERATOR_PASSWORD");
