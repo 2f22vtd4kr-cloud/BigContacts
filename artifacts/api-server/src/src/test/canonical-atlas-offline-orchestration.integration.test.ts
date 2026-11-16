@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   runGroqRightHandFreeJson: vi.fn(),
   safeOutboundFetch: vi.fn(),
   outboundUrls: [] as string[],
+  pageUrl: "",
   runCanonicalSingleTargetInvestigation: vi.fn(),
 }));
 
@@ -331,8 +332,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(1);
     expect(mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"))).toHaveLength(3);
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
-    expect(mocks.outboundUrls.some((url) => url === sourceUrl || url.startsWith(sourceUrl + "?"))).toBe(true);
-    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([sourceUrl]) })]));
+    expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
+    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]) })]));
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith(sourceUrl, expect.any(Object));
     expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
