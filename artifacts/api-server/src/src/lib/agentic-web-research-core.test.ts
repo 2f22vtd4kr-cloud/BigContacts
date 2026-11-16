@@ -170,11 +170,11 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("required root fields action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(systemCore).toContain("required fields action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("Omit irrelevant optional fields.");
-    expect(systemCore).toContain("PARALLEL SHAPES: web items require query+provider; registry items require query+registry.");
-    expect(systemCore).toContain("registry_search=query/registry");
+    expect(systemCore).toContain("Omit irrelevant fields; fetched claims need exactQuote+URL; search-only is review-only.");
+    expect(systemCore).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
+    expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
     expect(systemCore).toContain("No fixed source/provider/registry order or mix.");
     expect(systemCore).not.toContain("Virtual Globetrotting");
