@@ -105,18 +105,24 @@ const walkSourceFiles = (directory) => {
   if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const full = directory + "/" + entry.name;
-    if (entry.isDirectory()) return walkSourceFiles(full);
-    return [".ts", ".tsx", ".js", ".mjs"].some((extension) => full.endsWith(extension)) ? [full] : [];
+    if (entry.isDirectory()) {
+      if (["node_modules", "dist", ".git"].includes(entry.name)) return [];
+      return walkSourceFiles(full);
+    }
+    return [".ts", ".tsx", ".js", ".mjs", ".cjs"].some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
-const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
-  .filter((file) => !file.includes(".test."))
+// Include app, workflow, and script sources so literal dynamic-import/registry
+// references are caught as well as ordinary static call sites.
+const referenceScanRoots = ["artifacts", "scripts", ".github/workflows"];
+const liveSecondaryCallers = referenceScanRoots.flatMap(walkSourceFiles)
   .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
+  .filter((file) => file !== "scripts/check-retired-research-routes.mjs")
   .filter((file) => read(file).includes("expandSecondaryPublicSurface"));
 if (liveSecondaryCallers.length) {
-  console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
+  console.log("FAIL repository source still references retired secondary-surface API: " + liveSecondaryCallers.join(", "));
   failed = true;
-} else console.log("PASS no live canonical caller can invoke secondary-surface expansion.");
+} else console.log("PASS no static, dynamic-import, registry, workflow, or script reference to retired secondary-surface API remains.");
 
 const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
 
