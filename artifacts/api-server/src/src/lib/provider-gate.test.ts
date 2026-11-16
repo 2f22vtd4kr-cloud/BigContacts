@@ -57,28 +57,37 @@ describe("Groq adaptive token-window observations", () => {
     });
   });
 
-  it("does not let a late higher balance overwrite a lower observation in the same reset window", () => {
-    const key = "test-adaptive-out-of-order-" + Math.random().toString(36).slice(2);
-    const observe = (remaining: number) => {
-      const body = JSON.stringify({ usage: { total_tokens: 800 } });
-      const reservation = { createdAt: Date.now(), reservedTokens: 900 };
-      const response = new Response(body, {
-        status: 200,
-        headers: {
-          "x-ratelimit-limit-tokens": "12000",
-          "x-ratelimit-remaining-tokens": String(remaining),
-          "x-ratelimit-reset-tokens": "60s",
-        },
-      });
-      reconcileGroqTokenWindowFromBody(key, reservation, response, body);
-    };
+  it("does not let a late higher balance overwrite a lower observation or extend its reset deadline", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-16T12:00:00.000Z"));
+      const key = "test-adaptive-out-of-order-" + Math.random().toString(36).slice(2);
+      const observe = (remaining: number, reset: string) => {
+        const body = JSON.stringify({ usage: { total_tokens: 800 } });
+        const reservation = { createdAt: Date.now(), reservedTokens: 900 };
+        const response = new Response(body, {
+          status: 200,
+          headers: {
+            "x-ratelimit-limit-tokens": "12000",
+            "x-ratelimit-remaining-tokens": String(remaining),
+            "x-ratelimit-reset-tokens": reset,
+          },
+        });
+        reconcileGroqTokenWindowFromBody(key, reservation, response, body);
+      };
 
-    observe(2_400);
-    observe(9_800); // Simulates a slower, older response completing last.
-    expect(getGroqTokenWindowSnapshot(key)).toMatchObject({
-      providerLimit: 12_000,
-      providerRemainingTokens: 2_400,
-    });
+      observe(2_400, "30s");
+      const firstExpiry = getGroqTokenWindowSnapshot(key).remainingExpiresAt;
+      vi.advanceTimersByTime(1_000);
+      observe(9_800, "60s"); // Simulates a slower, older response completing last.
+      expect(getGroqTokenWindowSnapshot(key)).toMatchObject({
+        providerLimit: 12_000,
+        providerRemainingTokens: 2_400,
+        remainingExpiresAt: firstExpiry,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("accepts a replenished balance after the previously observed reset expires", () => {
