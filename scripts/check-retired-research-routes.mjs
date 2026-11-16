@@ -14,6 +14,10 @@ const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/resear
 const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
 const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
 const retiredAtlasOrchestrator = "artifacts/api-server/src/src/lib/atlas-orchestrator.ts";
+if (fs.existsSync(retiredAtlasOrchestrator)) {
+  console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`);
+  failed = true;
+} else console.log("PASS retired deterministic Atlas orchestrator absent.");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -109,7 +113,7 @@ const walkSourceFiles = (directory) => {
       if (["node_modules", "dist", ".git"].includes(entry.name)) return [];
       return walkSourceFiles(full);
     }
-    return [".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".yml", ".yaml"].some((extension) => full.endsWith(extension)) ? [full] : [];
+    return [".ts", ".tsx", ".js", ".mjs", ".cjs", ".sh", ".toml", ".json", ".yml", ".yaml"].some((extension) => full.endsWith(extension)) ? [full] : [];
   });
 };
 // Include app, workflow, and script sources so literal dynamic-import/registry
