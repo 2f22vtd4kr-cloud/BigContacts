@@ -1,3 +1,5 @@
+import { hostnameOf, isAggregatorHost } from "./source-corroboration";
+
 import { evaluateTerminalGate, type EvidenceSufficiencyContract, type TerminalGateResult } from "./research-epistemic-vnext";
 import type { IntelligenceContext } from "./research-intelligence-engine";
 
@@ -127,7 +129,7 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
     }
   }));
   const isIndependentClaimSource = (item: (typeof claimEvidence)[number]): boolean => {
-    if (nonClaimGradeSourceClasses.has(item.sourceClass) || !item.sourceUrl) return false;
+    if (nonClaimGradeSourceClasses.has(item.sourceClass) || !item.sourceUrl || isAggregatorHost(hostnameOf(item.sourceUrl))) return false;
     try {
       const url = new URL(item.sourceUrl);
       url.hash = "";
