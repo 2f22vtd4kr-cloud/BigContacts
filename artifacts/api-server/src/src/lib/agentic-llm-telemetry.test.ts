@@ -312,7 +312,8 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(canonicalizeAgenticLlmBudgetModel("groq/gpt-oss-120b:latest")).toBe("openai/gpt-oss-120b");
     expect(canonicalizeAgenticLlmBudgetModel("gpt-oss-20b-preview")).toBe("openai/gpt-oss-20b");
     expect(canonicalizeAgenticLlmBudgetModel("gpt-oss-20b")).not.toBe(canonicalizeAgenticLlmBudgetModel("gpt-oss-120b"));
-    expect(canonicalizeAgenticLlmBudgetModel("openai/gpt-oss-20b-ledger-test")).toBe("gpt-oss-20b-ledger-test");
+    expect(canonicalizeAgenticLlmBudgetModel("openai/gpt-oss-20b-ledger-test")).toBe("openai/gpt-oss-20b-ledger-test");
+    expect(canonicalizeAgenticLlmBudgetModel("namespace-a/custom-27b")).not.toBe(canonicalizeAgenticLlmBudgetModel("namespace-b/custom-27b"));
   });
 
   it("reads explicit per-model daily token budgets without assuming a provider free-tier limit", () => {
