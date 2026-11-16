@@ -299,7 +299,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       : [];
     const resultPatch = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1)[0];
     const eventPayloads = events.map((event: any) => { try { return JSON.parse(event.payload ?? "{}"); } catch { return {}; } });
-    return { jobId, ownedCase, events, eventPayloads, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
+    const controlDecisions = events.filter((event: any) => event.eventType === "control_decision").map((event: any) => { try { return JSON.parse(event.payload ?? "{}"); } catch { return {}; } });
+    return { jobId, ownedCase, events, eventPayloads, controlDecisions, targetCases, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
   it("executes multi-turn discovery, target Investigator act, independent oversight, and terminal gating through the canonical pipeline", async () => {
@@ -311,10 +312,11 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
+    expect(outcome.admittedEntities).toHaveLength(2);
+    expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
-    expect(outcome.admittedEntities).toHaveLength(2);
     expect(outcome.targetCases).toHaveLength(1);
     const targetCaseFile = JSON.parse(outcome.targetCases[0].caseFile);
     const completedOversight = targetCaseFile.investigatorActOversight?.find((entry: any) => entry?.oversight?.action === "stop");
