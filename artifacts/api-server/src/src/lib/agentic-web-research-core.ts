@@ -2439,6 +2439,7 @@ async function callGroqJson(
   actionAllowlist?: readonly string[],
   targetName?: string | null,
   iteration?: number,
+  originalPromptChars: number = prompt.length,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -2455,6 +2456,8 @@ async function callGroqJson(
       ? createHash("sha256").update(`${jobId ?? "no-job"}:${caseId ?? "no-case"}:${iteration}:${cognitiveTask}`).digest("hex").slice(0, 16)
       : null,
     cognitiveTask,
+    originalPromptChars: Math.max(prompt.length, Math.floor(originalPromptChars)),
+    promptReductionChars: Math.max(0, Math.floor(originalPromptChars) - prompt.length),
   };
   if (!key) return null;
   let attempt = 0;
@@ -2664,6 +2667,17 @@ async function callGroqJson(
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
           const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
+          // Some provider 400 envelopes include partial usage even when they
+          // reject structured output. Preserve only parsed numeric counters;
+          // never log or persist the raw error body.
+          const errorUsageMetrics = (() => {
+            try {
+              const parsed = JSON.parse(body) as { usage?: unknown };
+              return readGroqUsageMetrics(parsed.usage);
+            } catch {
+              return {};
+            }
+          })();
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -2680,6 +2694,7 @@ async function callGroqJson(
             model,
             promptChars: workingPrompt.length,
             ...promptMeasurement,
+            ...errorUsageMetrics,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -2956,7 +2971,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, prompt.length)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -4607,48 +4622,22 @@ export function discoveryUnscopedGeographyReason(
   return null;
 }
 
+/**
+ * Semantic pivot alignment is deliberately advisory, never an outbound-action
+ * admission gate. The Investigator owns query meaning, source selection and
+ * evidence-led pivots; Boss retains authority over material strategic changes.
+ * Technical safety (SSRF, provider schemas, request bounds and provenance) is
+ * enforced independently and remains mandatory.
+ */
 export function discoveryPivotAlignmentReason(
-  objective: string,
-  action: string,
-  args: Record<string, unknown>,
-  priorRecords: readonly AgenticTrajectoryRecord[],
+  _objective: string,
+  _action: string,
+  _args: Record<string, unknown>,
+  _priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
-  const direction = extractBossPivotDirectionForCompactPrompt(objective);
-  const activePivotScopeKey = discoveryPivotScopeKey(objective);
-  if (!direction || !activePivotScopeKey) return null;
-  const anchors = pivotScopeAnchors(objective);
-  const excludedSubjects = pivotScopeExclusions(direction);
-  const geographyOptions = pivotScopeGeographyOptions(direction);
-  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  // Keep a subject-open pivot model-led while still enforcing every explicit
-  // source class, geography, and exclusion found in the direction.
-  if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  // Boss prose may suggest a sequence, but natural-language "first/then"
-  // wording is not compiled into a deterministic source itinerary. The
-  // Investigator chooses the next capability from current evidence and cost;
-  // provenance and technical execution guards remain deterministic.
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
-  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
-
-  const failureDetails = pivotActionAlignmentFailureDetails(
-    action,
-    args,
-    anchors,
-    excludedSubjects,
-    geographyOptions,
-    requiredSourceAnchors,
-    evidence.sourceUrls,
-    evidence.evidenceText,
-  );
-  const mismatch = failureDetails.length > 0
-    ? failureDetails.join("; ")
-    : "required scope dimensions could not be classified";
-  return "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: "
-    + mismatch
-    + ". The active Boss-accepted pivot is: "
-    + direction.slice(0, 420)
-    + ". Web discovery queries must remain on the substantive topic and active geography, but do not need to repeat source class wording; official registry discovery may precede named-company searches. Native-language equivalents are valid when they express the same topic. Registry searches must use an adapter matching the active jurisdiction/source class. Follow-up URLs must be observed leads or grounded in successful aligned evidence. Revise the actually mismatched dimension or ask Boss/Right-hand for new scope. No outbound request was made.";
+  return null;
 }
+
 /**
  * Split a model-selected parallel web-search batch at the active-pivot boundary.
  * A rejected query is removed before any provider call; it cannot veto other
