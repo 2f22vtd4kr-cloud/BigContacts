@@ -203,6 +203,7 @@ vi.mock("../lib/identity-collision", () => ({
 }));
 
 import { runAgenticWebResearch } from "../lib/agentic-web-research";
+import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
 
@@ -313,7 +314,7 @@ describe("offline Investigator-to-card survival path", () => {
     });
   });
 
-  it("runs three real Investigator turns offline through source filters, evidence persistence and card promotion", async () => {
+  it("runs three real Investigator turns offline through evidence persistence, card promotion and the terminal evidence gate", async () => {
     testState.entity.email = null;
     testState.entity.name = "Jane Example";
     testState.entity.type = "PersonCandidate";
@@ -483,5 +484,23 @@ describe("offline Investigator-to-card survival path", () => {
       exactQuote: testState.quote,
       jobId: "job-1",
     });
+
+    // The persisted claim event is the evidence graph input to the canonical
+    // terminal authority. A model's "done" response alone cannot complete a
+    // target episode when that evidence is absent.
+    const persistedEvidenceCount = testState.events.filter((event) => event.eventType === "claim").length;
+    expect(persistedEvidenceCount).toBeGreaterThan(0);
+    const terminalInput = {
+      investigatorStatus: targetResult.status,
+      stopReason: targetResult.stopReason,
+      evidenceGraphCount: persistedEvidenceCount,
+      oversightStatus: "completed" as const,
+      oversightAction: "stop" as const,
+      cancelled: false,
+      resourceLimited: false,
+      deadlineExceeded: false,
+    };
+    expect(isCanonicalTargetEpisodeComplete(terminalInput)).toBe(true);
+    expect(isCanonicalTargetEpisodeComplete({ ...terminalInput, evidenceGraphCount: 0 })).toBe(false);
   });
 });
