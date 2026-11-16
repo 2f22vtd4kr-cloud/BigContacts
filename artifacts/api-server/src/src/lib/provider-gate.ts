@@ -205,7 +205,7 @@ export function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqT
     state.providerLimit = state.providerLimit === null ? providerLimit : Math.min(state.providerLimit, providerLimit);
   }
   const remainingRaw = response.headers.get("x-ratelimit-remaining-tokens");
-  const remaining = remainingRaw == null || !/^\\d+$/.test(remainingRaw.trim()) ? null : Number(remainingRaw.trim());
+  const remaining = remainingRaw == null || !/^\d+$/.test(remainingRaw.trim()) ? null : Number(remainingRaw.trim());
   if (remaining !== null && Number.isSafeInteger(remaining) && remaining >= 0) {
     state.providerRemainingTokens = remaining;
     state.remainingObservedAt = Date.now();
