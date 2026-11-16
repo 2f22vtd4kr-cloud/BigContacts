@@ -112,7 +112,7 @@ export function apexInvestigatorSystemCore(): string {
     "PARALLEL SHAPES: Web items need query/provider; registry items need query/registry. Other fields are action-specific. Runtime-attested actions/IDs only; parallel execution 1–4.",
     "RANKINGS: Leads, not proof or gates. No invented private/mid-market preference.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
-    "TERMINAL: Stop at a defensible answer or blocker. Empty searches, failed fetches, unresolved leads and budget expiry are inconclusive, not substantiated."
+    "TERMINAL: Stop at a defensible answer or blocker. Empty searches, failed fetches, unresolved leads and budget expiry are inconclusive."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
