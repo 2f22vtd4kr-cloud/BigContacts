@@ -14,6 +14,8 @@ run = "cd ../.. && bash scripts/replit-boot.sh"
 
 [services.development.env]
 NODE_ENV = "development"
+APEX_OPERATOR_AUTH_BYPASS = "true"
+VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 APEX_CAPTURE_MODEL_PROMPTS = "true"
 APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"
 APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_REPLIT_RUN_{jobId}.md"

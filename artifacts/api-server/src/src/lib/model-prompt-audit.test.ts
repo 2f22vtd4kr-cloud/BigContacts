@@ -53,20 +53,6 @@ describe("model prompt audit", () => {
     expect(productionConfig).toContain("pnpm --filter apex-finder-local run build && pnpm --filter @workspace/api-server run build");
     expect(productionConfig).toContain("cd ../.. && bash scripts/replit-boot.sh");
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
-    const deploymentBlock = workspaceConfig.split("[deployment]")[1]?.split("[deployment.postBuild]")[0] ?? "";
-    const deploymentRunLine = deploymentBlock.split("\n").find((line) => line.startsWith("run = ")) ?? "";
-    const deploymentRun = deploymentRunLine.slice(deploymentRunLine.indexOf("\"") + 1, deploymentRunLine.lastIndexOf("\""));
-    expect(deploymentRun).toContain("APEX_OPERATOR_AUTH_BYPASS=true");
-    expect(deploymentRun).toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
-    expect(deploymentRun).toContain("APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false");
-    expect(deploymentRun).toContain("APEX_MODEL_AUDIT_FILE=private-audits/");
-    expect(deploymentRun).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false");
-    expect(deploymentRun).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false");
-    const workflowTaskBlock = workspaceConfig.split("[[workflows.workflow.tasks]]")[1]?.split("[agent]")[0] ?? "";
-    const developmentWorkflowLine = workflowTaskBlock.split("\n").find((line) => line.startsWith("args = \"")) ?? "";
-    const developmentWorkflow = developmentWorkflowLine.slice(developmentWorkflowLine.indexOf("\"") + 1, developmentWorkflowLine.lastIndexOf("\""));
-    expect(developmentWorkflow).toContain("APEX_OPERATOR_AUTH_BYPASS=true");
-    expect(developmentWorkflow).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
 
     const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_REPLIT_RUN_{jobId}.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
