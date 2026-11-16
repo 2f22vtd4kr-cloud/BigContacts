@@ -804,87 +804,21 @@ function pivotActionRequestIntents(action: string, args: Record<string, unknown>
   return [];
 }
 
+/**
+ * Legacy compatibility hook. A previously rejected semantic scope decision
+ * must never veto a new Investigator-selected action. Repetition and resource
+ * limits may be reported as advisory diagnostics, but semantic alignment is not
+ * an execution admission rule.
+ */
 export function repeatedPivotBlockedActionReason(
-  objective: string,
-  action: string,
-  args: Record<string, unknown>,
-  priorRecords: readonly AgenticTrajectoryRecord[],
+  _objective: string,
+  _action: string,
+  _args: Record<string, unknown>,
+  _priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
-  const scopeKey = discoveryPivotScopeKey(objective);
-  if (!scopeKey) return null;
-  const anchors = pivotScopeAnchors(objective);
-  const direction = extractBossPivotDirectionForCompactPrompt(objective);
-  const exclusions = pivotScopeExclusions(direction);
-  const geographyOptions = pivotScopeGeographyOptions(direction);
-  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  // A missing substantive subject must not disable a source class/geography constraint.
-  if (anchors.length === 0 && exclusions.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, geographyOptions, requiredSourceAnchors, scopeKey);
-  const currentIntents = pivotActionRequestIntents(action, args);
-  if (!currentIntents.length) return null;
-
-  // A valid in-scope action must not be suppressed by earlier scope blocks.
-  // The main guard will only reject the current action when its actual research
-  // intent still falls outside the active Boss-approved pivot.
-  if (!discoveryPivotAlignmentReason(objective, action, args, priorRecords)) return null;
-
-  let priorOutOfScopeActionsWithoutNewEvidence = 0;
-  for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
-    const record = priorRecords[index]!;
-    if (
-      record.pivotScopeKey !== scopeKey
-      || record.execution !== "blocked"
-      || !String(record.observation ?? "").includes("pivot_alignment_guard")
-    ) continue;
-    const newFetchedEvidence = priorRecords.slice(index + 1).some((later) =>
-      later.pivotScopeKey === scopeKey
-      && later.execution === "success"
-      && (later.action === "visit" || later.action === "browser_fetch")
-      && Boolean(String(later.observation ?? "").trim())
-      && (later.observedUrls ?? []).length > 0,
-    );
-    // Once a successful aligned source has been fetched, earlier blocks no
-    // longer count toward a no-evidence retry loop.
-    if (newFetchedEvidence) break;
-    const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
-      if (intent.kind === "query") {
-        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "url") {
-        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "domain") {
-        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "email") {
-        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      if (intent.kind === "username") {
-        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-      }
-      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
-    });
-    if (!priorIntents.length) continue;
-    priorOutOfScopeActionsWithoutNewEvidence += 1;
-    if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
-      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
-      return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot."
-        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
-        + " Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
-    }
-    // Query wording can change while the research intent remains stuck outside
-    // scope. Two prior blocked actions without new fetched evidence are enough
-    // to return control on the next attempted variant instead of spending every
-    // remaining Investigator turn on the same dead end.
-    if (priorOutOfScopeActionsWithoutNewEvidence >= 2) {
-      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
-      return "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were already rejected under the current Boss-approved pivot, with no new fetched source evidence."
-        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
-        + " Do not keep trying wording variants; return control to Boss/Right-hand for a revised objective or stop decision.";
-    }
-  }
   return null;
 }
+
 export function isTransientInvestigatorCapacityError(result: { error?: string; trajectoryRecords?: Array<{ observation?: string }> }): boolean {
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
