@@ -237,7 +237,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions; never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions; never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -1529,7 +1529,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
-    expect(modelPrompt).toContain("CONTACT: Model classifies personal/professional, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).toMatch(/Verify role, relationship, materiality, counter-evidence and route before promotion/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
