@@ -5019,7 +5019,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
-  const compactDurablePromptObservation = (value: unknown, maxChars = 220): string => {
+  const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
@@ -5035,7 +5035,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const providerBalancedProjection = marker + "\n" + providerBalancedObservation;
       return compactPromptSectionPreservingUrlTokens(providerBalancedProjection, maxChars, marker);
     }
-    return compactPromptSectionPreservingUrlTokens(normalized, maxChars, marker);
+    // Preserve the lead-bearing opening of the newest observation (often its
+    // named result/title), then compact the remainder while retaining whole URLs.
+    const prefixChars = Math.min(240, Math.max(120, Math.floor(maxChars / 3)));
+    const prefix = normalized.slice(0, prefixChars);
+    const remainderBudget = Math.max(80, maxChars - marker.length - prefix.length - 2);
+    const remainder = compactPromptSectionPreservingUrlTokens(normalized.slice(prefix.length), remainderBudget, "");
+    return [marker, prefix, remainder].filter(Boolean).join("\n").slice(0, maxChars);
   };
   const serializeDurablePromptRecord = (record: AgenticTrajectoryRecord): Record<string, unknown> => {
     // Keep every complete public URL that fits the provider's atomic URL token
