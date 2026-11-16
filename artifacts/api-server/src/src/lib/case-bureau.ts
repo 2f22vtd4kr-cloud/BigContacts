@@ -331,6 +331,8 @@ export async function generateGeminiBossText(
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
     jobId?: string | null;
     caseId?: number | null;
+    originalPromptChars?: number;
+    promptReductionChars?: number;
   },
 ): Promise<import("./groq-boss").GroqBossTextGenerationResult> {
   return generateGroqBossText(selection, prompt, options);
@@ -523,6 +525,8 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
       thinkingLevel: "medium",
       jobId: input.jobId ?? null,
       caseId: input.caseId ?? null,
+      originalPromptChars: prompt.length,
+      promptReductionChars: 0,
     });
     if (!generated.raw) {
       return {
