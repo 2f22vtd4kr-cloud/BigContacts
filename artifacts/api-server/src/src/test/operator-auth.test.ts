@@ -68,6 +68,8 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain('NODE_ENV = "development"');
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
+    expect(replitConfig).toContain('run = ["sh", "-c", "env -u VITE_APEX_OPERATOR_AUTH_BYPASS NODE_ENV=production bash scripts/replit-boot.sh"]');
+    expect(replitBoot).toContain('"${NODE_ENV:-}" == "production"');
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
