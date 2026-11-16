@@ -28,6 +28,7 @@ const preflightBaseEnv = {
 for (const name of ["APEX_OPERATOR_PASSWORD", "APEX_API_AUTH_TOKEN", "APEX_SESSION_SECRET"]) {
   delete preflightBaseEnv[name];
 }
+// A production process must remain protected even if the development-only bypass flag is accidentally injected.
 const productionBypassPreflight = spawnSync(process.execPath, ["scripts/replit-preflight.mjs"], {
   cwd: root,
   env: { ...preflightBaseEnv, APEX_OPERATOR_AUTH_BYPASS: "true" },
