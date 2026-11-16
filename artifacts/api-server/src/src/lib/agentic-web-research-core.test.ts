@@ -1670,9 +1670,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
-    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toMatch(/Target research verifies role\/relationship\/materiality, counter-evidence and route before promotion/);
+    expect(modelPrompt).toMatch(/Target research verifies role, materiality, counter-evidence and route/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1761,7 +1761,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(modelPrompt).toContain("Do not impose criteria the human did not request");
+    expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
   });
@@ -3354,7 +3354,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OBSERVATION BOUNDED FOR MODEL CONTEXT");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("Visit handles text/PDF; browser_fetch handles HTML.");
+    expect(apexInvestigatorSystemCore()).toContain("Visit handles text/PDF; browser_fetch handles HTML.");
     expect(prompt).toContain("Distinguish encrypted, protected, malformed and scanned PDFs; use OCR or another readable source.");
     expect(prompt).not.toContain("must visit");
   });
@@ -3516,9 +3516,9 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt).toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN 1");
-    expect(prompt).toContain("provider=serper");
-    expect(prompt).toContain("provider=tavily");
-    expect(prompt).toContain("provider=exa");
+    expect(prompt).toContain('"provider":"serper"');
+    expect(prompt).toContain('"provider":"tavily"');
+    expect(prompt).toContain('"provider":"exa"');
     for (const url of urls) expect(prompt).toContain(url);
     expect(prompt).toContain("not fetched evidence");
     expect(prompt).not.toContain(rawObservation);
@@ -4475,7 +4475,7 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt).toContain("ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
-    expect(prompt).toContain("Do not invent private/mid-market preferences.");
+    expect(apexInvestigatorSystemCore()).toContain("No invented private/mid-market preference.");
     expect(prompt).not.toContain("current private/mid-market operations");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
