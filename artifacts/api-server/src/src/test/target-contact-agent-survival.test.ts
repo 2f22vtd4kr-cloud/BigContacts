@@ -119,6 +119,7 @@ const testState = vi.hoisted(() => {
 const offlineNetwork = vi.hoisted(() => ({
   actions: [] as Array<Record<string, unknown>>,
   requests: [] as Array<{ url: string; method: string }>,
+  modelRequests: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({
@@ -128,6 +129,8 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({
     offlineNetwork.requests.push({ url, method });
 
     if (url.endsWith("/chat/completions")) {
+      const requestText = typeof init?.body === "string" ? init.body : "";
+      try { offlineNetwork.modelRequests.push(JSON.parse(requestText)); } catch { offlineNetwork.modelRequests.push({ malformedRequestBody: true }); }
       const action = offlineNetwork.actions.shift();
       if (!action) return new Response("Unexpected extra offline model turn", { status: 599 });
       return new Response(JSON.stringify({
@@ -203,6 +206,7 @@ vi.mock("../lib/identity-collision", () => ({
 }));
 
 import { runAgenticWebResearch } from "../lib/agentic-web-research";
+import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
 
@@ -313,7 +317,7 @@ describe("offline Investigator-to-card survival path", () => {
     });
   });
 
-  it("runs three real Investigator turns offline through source filters, evidence persistence and card promotion", async () => {
+  it("runs three real Investigator turns offline through evidence persistence, card promotion and the terminal evidence gate", async () => {
     testState.entity.email = null;
     testState.entity.name = "Jane Example";
     testState.entity.type = "PersonCandidate";
@@ -321,6 +325,7 @@ describe("offline Investigator-to-card survival path", () => {
     testState.events.splice(0, testState.events.length);
 
     offlineNetwork.requests = [];
+    offlineNetwork.modelRequests = [];
     offlineNetwork.actions = [
       {
         action: "web_search",
@@ -398,6 +403,8 @@ describe("offline Investigator-to-card survival path", () => {
     expect(result.visits).toBe(1);
     expect(offlineNetwork.actions).toHaveLength(0);
     expect(offlineNetwork.requests.filter((request) => request.url.endsWith("/chat/completions"))).toHaveLength(3);
+    expect(JSON.stringify(offlineNetwork.modelRequests[1])).toContain("Jane Example, Managing Director.");
+    expect(JSON.stringify(offlineNetwork.modelRequests[2])).toContain(testState.quote);
     expect(offlineNetwork.requests.some((request) => request.url === "https://google.serper.dev/search" && request.method === "POST")).toBe(true);
     expect(offlineNetwork.requests.some((request) => request.url === testState.sourceUrl && request.method === "GET")).toBe(true);
 
@@ -420,13 +427,18 @@ describe("offline Investigator-to-card survival path", () => {
 
     const runId = "offline-three-turn-run";
     const targetAgentInput = { ...result, executionId: runId };
+    const persistedFinding = result.modelFindings[0];
+    const fetchedRecord = result.trajectoryRecords.find((record: any) => record.action === "visit");
+    if (!fetchedRecord) throw new Error("Expected the three-turn Investigator run to persist a fetched visit record.");
+    expect(fetchedRecord.observation).toContain(testState.quote);
+    expect(fetchedRecord.observedUrls).toContain(testState.sourceUrl);
     testState.events.splice(0, testState.events.length,
       {
         id: 31, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
         correlationKey: `${runId}:claim:1`,
         payload: JSON.stringify({
           runId, jobId: "job-1",
-          claim: { vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example" },
+          claim: { vectorType: persistedFinding.vectorType, value: persistedFinding.value, personName: persistedFinding.personName },
           observationEventIds: [32],
         }),
       },
@@ -434,8 +446,8 @@ describe("offline Investigator-to-card survival path", () => {
         id: 32, caseId: 1, eventType: "observation", actorRole: "head_investigator", status: "success",
         correlationKey: `${runId}:observation:1`,
         payload: JSON.stringify({
-          runId, jobId: "job-1", action: "visit",
-          observation: testState.quote, observedUrls: [testState.sourceUrl],
+          runId, jobId: "job-1", action: fetchedRecord.action,
+          observation: fetchedRecord.observation, observedUrls: fetchedRecord.observedUrls,
         }),
       },
     );
@@ -483,5 +495,23 @@ describe("offline Investigator-to-card survival path", () => {
       exactQuote: testState.quote,
       jobId: "job-1",
     });
+
+    // The persisted claim event is the evidence graph input to the canonical
+    // terminal authority. A model's "done" response alone cannot complete a
+    // target episode when that evidence is absent.
+    const persistedEvidenceCount = testState.events.filter((event) => event.eventType === "claim").length;
+    expect(persistedEvidenceCount).toBeGreaterThan(0);
+    const terminalInput = {
+      investigatorStatus: targetResult.status,
+      stopReason: targetResult.stopReason ?? null,
+      evidenceGraphCount: persistedEvidenceCount,
+      oversightStatus: "completed" as const,
+      oversightAction: "stop" as const,
+      cancelled: false,
+      resourceLimited: false,
+      deadlineExceeded: false,
+    };
+    expect(isCanonicalTargetEpisodeComplete(terminalInput)).toBe(true);
+    expect(isCanonicalTargetEpisodeComplete({ ...terminalInput, evidenceGraphCount: 0 })).toBe(false);
   });
 });

@@ -103,6 +103,17 @@ export async function flushAgenticLlmUsageLedger(): Promise<void> {
   await dailyUsagePersistenceChain;
 }
 
+export function canonicalizeAgenticLlmBudgetModel(model: string): string {
+  const normalized = model.trim().toLowerCase();
+  const unversioned = normalized.replace(/(?:[:@]|-)(?:latest|current|preview)$/i, "");
+  const leaf = unversioned.split("/").filter(Boolean).at(-1) ?? unversioned;
+  if (leaf === "gpt-oss-120b") return "openai/gpt-oss-120b";
+  if (leaf === "gpt-oss-20b") return "openai/gpt-oss-20b";
+  // Preserve namespaces for unknown models: two different providers may
+  // legitimately expose distinct models with the same final path segment.
+  return unversioned;
+}
+
 export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.ProcessEnv = process.env): number {
   const suffix = /120b/i.test(model) ? "120B" : /20b/i.test(model) ? "20B" : "MODEL";
   const raw = env[`APEX_GROQ_DAILY_TOKEN_BUDGET_${suffix}`] ?? env.APEX_GROQ_DAILY_TOKEN_BUDGET;
@@ -225,7 +236,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     await db.insert(table).values({
       usageDate,
       provider: event.provider,
-      model: event.model,
+      model: canonicalizeAgenticLlmBudgetModel(event.model),
       requestCount: requestSent ? 1 : 0,
       successCount: requestSent && event.success ? 1 : 0,
       failureCount: requestSent && !event.success ? 1 : 0,
@@ -329,7 +340,7 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
       INSERT INTO public.agentic_llm_daily_usage
         (usage_date, provider, model, reserved_tokens, daily_budget_tokens)
       VALUES
-        (${usageDate}::date, ${input.provider}, ${input.model}, ${estimatedTokens}, ${dailyBudgetTokens})
+        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens})
       ON CONFLICT (usage_date, provider, model) DO UPDATE
         SET reserved_tokens = public.agentic_llm_daily_usage.reserved_tokens + EXCLUDED.reserved_tokens,
             daily_budget_tokens = EXCLUDED.daily_budget_tokens,
