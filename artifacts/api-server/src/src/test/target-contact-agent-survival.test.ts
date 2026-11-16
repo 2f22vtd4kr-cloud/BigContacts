@@ -208,6 +208,10 @@ import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from 
 import { persistSourceBackedBureauContactsForEntity } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     testState.entity.email = null;
     testState.insertedContacts.length = 0;
