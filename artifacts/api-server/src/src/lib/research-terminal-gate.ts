@@ -107,12 +107,26 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
   };
 
   const result = evaluateTerminalGate(metrics, defaultTerminalContract(mode));
-  const claimEvidenceCount = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").length;
-  const reasons = [...result.reasons];
-  if (mode === "target" && context.evidenceCount > 0 && context.independentSourceUnits < 2 && !reasons.includes("independent_source_units_below_2")) {
-    reasons.push("independent_source_units_below_2");
+  const claimEvidence = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim");
+  const claimGroups = new Map<string, typeof claimEvidence>();
+  for (const item of claimEvidence) {
+    const key = item.claimId?.trim() || item.claim.trim().toLowerCase();
+    const group = claimGroups.get(key) ?? [];
+    group.push(item);
+    claimGroups.set(key, group);
   }
-  if (mode === "target" && claimEvidenceCount > exactSpanBindings && !reasons.includes("exact_source_span_binding_incomplete")) {
+  const nonClaimGradeSourceClasses = new Set(["AGGREGATOR", "SCRAPED_DIRECTORY", "SEARCH_RESULT", "COMMUNITY_OBSERVATION", "UNKNOWN"]);
+  const claimsWithoutClaimGradeSource = [...claimGroups.values()].filter((group) =>
+    group.length > 0 && group.every((item) => nonClaimGradeSourceClasses.has(item.sourceClass)),
+  );
+  const reasons = [...result.reasons];
+  // No global source-count quota: a single authoritative source can substantiate
+  // a directly supported fact. Copied/aggregator/search-only material cannot
+  // independently establish a claim; assess source quality per claim instead.
+  if (mode === "target" && claimsWithoutClaimGradeSource.length > 0) {
+    reasons.push("claim_evidence_only_from_non_claim_grade_sources");
+  }
+  if (mode === "target" && claimEvidence.length > exactSpanBindings && !reasons.includes("exact_source_span_binding_incomplete")) {
     reasons.push("exact_source_span_binding_incomplete");
   }
   if (mode === "target" && context.evidenceCount === 0 && !hasSuccessfulExternalResearchAttempt(context)) {
