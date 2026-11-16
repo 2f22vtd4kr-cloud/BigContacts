@@ -539,7 +539,7 @@ describe("Groq Boss assignment-only opening response", () => {
     expect(parsed.report).toBe("");
     expect(parsed.candidates).toEqual([]);
   });
-
+});
 
 describe("Groq Boss prompt compaction telemetry", () => {
   beforeEach(() => {
