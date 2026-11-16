@@ -1685,14 +1685,14 @@ Choose each next action yourself from the available capabilities and observed ev
     const ordered = compactEmergencyTrajectoryObservation(
       "pivot_alignment_guard / ordered_source_stage_guard blocked this outbound action before execution. The active direction requires the first source stage before the later source stage. No outbound request was made.",
     );
-    expect(ordered).toContain("first source stage");
-    expect(ordered).toContain("search-result URLs alone do not complete");
+    expect(ordered).toContain("HISTORICAL SOURCE-STAGE DIAGNOSTIC");
+    expect(ordered).toContain("Do not treat the old stage order as a fixed research sequence");
 
     const filteredBatch = compactEmergencyTrajectoryObservation(
       "SCOPE FILTERED PARALLEL SEARCHES: retained 1 scope-aligned query(s); removed 1 out-of-scope query(s) before any outbound request. Rejected dimensions: searches[1] source class. Rejected queries were not sent.",
     );
-    expect(filteredBatch).toContain("rejected queries were not sent");
-    expect(filteredBatch).toContain("Use results and observed URLs only from the queries that actually executed");
+    expect(filteredBatch).toContain("rejected queries produced no evidence");
+    expect(filteredBatch).toContain("Use results only from executed queries");
   });
 
   it("fits the active Central-European ownership-source pivot and latest blocked action into the hard prompt ceiling", () => {
