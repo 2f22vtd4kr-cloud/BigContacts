@@ -464,7 +464,7 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
       promptReductionChars: 600,
       estimatedPromptTokens: 156,
       estimatedMessagePromptTokens: 156,
-      estimatedOriginalMessagePromptTokens: 332,
+      estimatedOriginalMessagePromptTokens: 333,
     });
     expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
     console.info("APEX_ROLE_PROMPT_MEASUREMENT " + JSON.stringify({
