@@ -11,6 +11,7 @@ vi.mock("@workspace/db", () => ({
 import { findingsToBureauContacts, sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
 import { supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { buildDiscoverySourceAttribution } from "../lib/discovery-source-attribution";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
 const finding = (overrides: Partial<AgenticFinding> = {}): AgenticFinding => ({
@@ -45,6 +46,15 @@ const successfulTrajectory = [
 ];
 
 describe("agentic source provenance", () => {
+  it("labels data-broker pages as aggregator provenance even without adapter-supplied source metadata", () => {
+    const attribution = buildDiscoverySourceAttribution({
+      sourceUrl: "https://www.rocketreach.co/alice-example",
+      action: "visit",
+    });
+    expect(attribution.sourceClass).toBe("AGGREGATOR");
+    expect(attribution.sourceDomain).toBe("www.rocketreach.co");
+  });
+
   it("keeps structured intelligence grounded in actually observed claim material", async () => {
     const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");
     expect(groundedFindingsForTrajectory([finding()], [observation()])).toHaveLength(1);
