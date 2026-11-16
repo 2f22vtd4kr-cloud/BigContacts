@@ -237,7 +237,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, exact URLs, quotes, provenance, temporal status and contradictions.");
+    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions; Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions.");
+    expect(modelPrompt).toContain("Preserve partial findings and uncertainty, exact URLs, quotes, provenance, temporal status and contradictions; Never use model memory as evidence.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -1521,7 +1521,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/search snippets remain leads; registry hits are leads; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
-    expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
+    expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toMatch(/wealth claims need sourced ownership\/equity\/investment/i);
