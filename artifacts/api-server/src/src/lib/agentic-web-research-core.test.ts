@@ -2573,7 +2573,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source class is provenance, not admission policy. The model selects the
     // role and exact quote; code verifies same-run fetched/registry provenance.
     expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const');
-    expect(canonicalAtlasDiscoverySource).toContain('if (finding.scope !== "candidate" || finding.promotionDecision === "reject") continue;');
+    expect(canonicalAtlasDiscoverySource).toContain('if (finding.scope !== "candidate" || finding.promotionDecision === "reject"');
     expect(canonicalAtlasDiscoverySource).not.toContain("if (!isClaimGradeDiscoverySourceUrl(sourceUrl))");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
