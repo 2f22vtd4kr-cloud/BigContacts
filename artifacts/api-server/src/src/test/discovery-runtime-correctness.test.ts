@@ -638,12 +638,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("aiCompactedHistoricalThroughTurn: Math.max");
   });
 
-  it("defaults canonical Atlas to one target and the same human objective across launch paths", () => {
-    expect(launchDefaultsSource).toContain("targetCount: 1");
-    expect(launchDefaultsSource).toContain("researchLimit: 1");
-    expect(launchRouteSource).toContain("Number(body.targetCount) || 1");
-    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 1");
-    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 1) || 1");
+  it("uses a consistent bounded launch batch while preserving model-owned target selection", () => {
+    expect(launchDefaultsSource).toContain("targetCount: 25");
+    expect(launchDefaultsSource).toContain("researchLimit: 25");
+    expect(launchRouteSource).toContain("Number(body.targetCount) || 25");
+    expect(launchUiSource).toContain("targetCount: opts.targetCount ?? 25");
+    expect(canonicalDiscoverySource).toContain("Number(opts.targetCount ?? 25) || 25");
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     expect(uiObjectiveLiteral).toBeDefined();
