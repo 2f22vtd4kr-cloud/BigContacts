@@ -140,7 +140,7 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
   const newerReservations = observedAt == null ? 0 : state.reservations
     .filter((item) => item.createdAt >= observedAt)
     .reduce((total, item) => total + item.reservedTokens, 0);
-  const adaptiveAvailable = observedRemaining == null ? limit : Math.min(limit, Math.max(0, observedRemaining - newerReservations));
+  const adaptiveAvailable = observedRemaining == null ? limit : Math.min(limit, observedRemaining);
   if (requestedTokens > limit) {
     logger.warn({ modelKeyDigest: createHash("sha256").update(key).digest("hex").slice(0, 12), requestedTokens, tokenBudget: limit }, "Groq request exceeds the safe local TPM reservation");
     throw new ProviderQuotaError("budget_exhausted", "groq", windowMs, "tokens");
