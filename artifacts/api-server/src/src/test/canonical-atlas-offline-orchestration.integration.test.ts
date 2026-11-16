@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   scenario: "model-stops" as "model-stops" | "operator-cap",
   targetCalls: [] as number[],
   controlCalls: 0,
+  generateGroqBossText: vi.fn(),
   getJobStrict: vi.fn(),
   updateJob: vi.fn(),
   clearActiveJobIfOwned: vi.fn(),
@@ -17,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   runGroqRightHandFreeJson: vi.fn(),
   safeOutboundFetch: vi.fn(),
   runCanonicalSingleTargetInvestigation: vi.fn(),
-  decideAtlasNextAction: vi.fn(),
 }));
 
 vi.mock("../lib/job-queue", async () => {
@@ -58,9 +58,19 @@ vi.mock("../lib/canonical-single-target-runner", async () => {
   const actual = await vi.importActual<typeof import("../lib/canonical-single-target-runner")>("../lib/canonical-single-target-runner");
   return { ...actual, runCanonicalSingleTargetInvestigation: mocks.runCanonicalSingleTargetInvestigation };
 });
-vi.mock("../lib/atlas-control-decision", async () => {
-  const actual = await vi.importActual<typeof import("../lib/atlas-control-decision")>("../lib/atlas-control-decision");
-  return { ...actual, decideAtlasNextAction: mocks.decideAtlasNextAction };
+vi.mock("../lib/groq-boss", async () => {
+  const actual = await vi.importActual<typeof import("../lib/groq-boss")>("../lib/groq-boss");
+  return {
+    ...actual,
+    resolveGroqBossModel: vi.fn(async () => ({
+      model: "mock-groq-boss",
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 1,
+      candidateModels: ["mock-groq-boss"],
+    })),
+    generateGroqBossText: mocks.generateGroqBossText,
+  };
 });
 
 const databaseEnabled = Boolean(process.env.DATABASE_URL?.trim());
@@ -128,19 +138,20 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       error: null,
     }));
 
-    mocks.runGroqRightHandFreeJson.mockImplementation(async () => ({
-      status: "completed",
-      model: "mock-groq-right-hand",
-      raw: JSON.stringify({
-        assessment: "support",
-        materialGaps: [],
-        contradictions: [],
-        alternativeInterpretation: "The selected lead remains provisional pending target research.",
-        recommendation: "Allow the model-owned target investigation to proceed.",
-        confidence: 0.9,
-      }),
-      error: null,
-    }));
+    mocks.runGroqRightHandFreeJson.mockImplementation(async (...args: any[]) => {
+      const context = args[4] ?? {};
+      const raw = context.cognitiveTask === "control_advisory"
+        ? JSON.stringify({ decision: "continue_discovery", reason: "Continue testing the evidence trajectory.", direction: null, confidence: 0.9 })
+        : JSON.stringify({
+            assessment: "support",
+            materialGaps: [],
+            contradictions: [],
+            alternativeInterpretation: "The selected lead remains provisional pending target research.",
+            recommendation: "Allow the model-owned target investigation to proceed.",
+            confidence: 0.9,
+          });
+      return { status: "completed", model: "mock-groq-right-hand", raw, error: null };
+    });
 
     let groqTurn = 0;
     const sourceUrl = `https://example.com/apex-offline/${runToken}/company`;
@@ -180,6 +191,41 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       throw new Error(`Unexpected outbound request in offline integration test: ${url}`);
     });
+    const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
+    const secondName = `John Offline ${runToken.slice(0, 8)}`;
+    mocks.generateGroqBossText.mockImplementation(async (_selection: any, _prompt: string, _options: any) => {
+      const call = mocks.controlCalls++;
+      let action: string;
+      let candidateName: string | null = null;
+      let candidateType: string | null = null;
+      if (call === 0) {
+        action = "continue_discovery";
+      } else if (call === 1) {
+        action = "research_candidate";
+        candidateName = firstName;
+        candidateType = "person";
+      } else if (mocks.scenario === "operator-cap") {
+        action = "research_candidate";
+        candidateName = secondName;
+        candidateType = "person";
+      } else {
+        action = "stop";
+      }
+      return {
+        model: "mock-groq-boss",
+        raw: JSON.stringify({
+          action,
+          candidateName,
+          candidateType,
+          direction: null,
+          reason: "Mock provider response: Boss makes the control decision.",
+          confidence: 0.9,
+        }),
+        error: null,
+        attempts: [],
+      };
+    });
+
     mocks.runCanonicalSingleTargetInvestigation.mockImplementation(async (jobId: string, entityId: number) => {
       mocks.targetCalls.push(entityId);
       await db.insert(tables.researchCasesTable).values({
@@ -212,64 +258,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       };
     });
 
-    mocks.decideAtlasNextAction.mockImplementation(async (input: any) => {
-      mocks.controlCalls += 1;
-      const available = Array.isArray(input.admittedCandidates) ? input.admittedCandidates : [];
-      let action: string;
-      let selected: any = null;
-      if (input.opening) {
-        action = "continue_discovery";
-      } else if (mocks.controlCalls === 2) {
-        action = "research_candidate";
-        selected = available[0] ?? null;
-      } else if (mocks.scenario === "operator-cap") {
-        action = "research_candidate";
-        selected = available[1] ?? available[0] ?? null;
-      } else {
-        action = "stop";
-      }
-      const decision = {
-        status: "completed",
-        action,
-        candidateName: action === "research_candidate" ? selected?.name ?? null : null,
-        candidateType: action === "research_candidate" ? selected?.targetType ?? null : null,
-        direction: null,
-        reason: "Offline mocked Boss decision; model owns the transition.",
-        confidence: 0.9,
-        rightHand: {
-          status: "deferred",
-          decision: null,
-          reason: "No separate opening action.",
-          direction: null,
-          confidence: null,
-          model: "none",
-          error: null,
-        },
-        bossModel: "mock-groq-boss",
-        error: null,
-      };
-      await db.transaction(async (tx: any) => {
-        await lockResearchCaseEventAppendStream(tx, input.caseId);
-        const [caseRow] = await tx.select({ iteration: tables.researchCasesTable.iteration })
-          .from(tables.researchCasesTable).where(eq(tables.researchCasesTable.id, input.caseId)).for("update").limit(1);
-        const [latest] = await tx.select({ iteration: tables.researchCaseEventsTable.iteration })
-          .from(tables.researchCaseEventsTable).where(eq(tables.researchCaseEventsTable.caseId, input.caseId))
-          .orderBy(desc(tables.researchCaseEventsTable.id)).limit(1);
-        const iteration = nextResearchCaseEventIteration(caseRow?.iteration, latest?.iteration);
-        await tx.update(tables.researchCasesTable).set({ iteration }).where(eq(tables.researchCasesTable.id, input.caseId));
-        await tx.insert(tables.researchCaseEventsTable).values({
-          caseId: input.caseId,
-          iteration,
-          actorRole: "groq_boss",
-          eventType: "control_decision",
-          status: "recorded",
-          summary: `Offline mocked Boss decision: ${action}.`,
-          correlationKey: `${input.jobId}:offline-control:${input.controlTurn}`,
-          payload: JSON.stringify({ jobId: input.jobId, controlTurn: input.controlTurn, ...decision }),
-        });
-      });
-      return decision;
-    });
+
   });
 
   afterAll(async () => {
