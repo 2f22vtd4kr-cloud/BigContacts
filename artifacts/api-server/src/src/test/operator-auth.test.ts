@@ -71,7 +71,6 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
     expect(replitConfig).toContain('run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"]');
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
-    expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
     expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
     expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
