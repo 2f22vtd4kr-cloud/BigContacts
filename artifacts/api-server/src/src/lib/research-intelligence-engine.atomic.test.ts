@@ -88,7 +88,7 @@ describe("research intelligence atomic evidence", () => {
       }],
     });
     const context = engine.buildContext();
-    const claims = context.atomicEvidence.filter((item) => item.kind === "claim");
+    const claims = context.atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim");
     expect(claims.length).toBeGreaterThan(0);
     expect(claims.every((item) => item.sourceClass === "AGGREGATOR")).toBe(true);
   });
