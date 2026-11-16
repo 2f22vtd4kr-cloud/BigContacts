@@ -38,7 +38,7 @@ describe("objective-aligned Boss planning", () => {
     expect(prompt).toContain(motivation);
     expect(prompt).toContain("The human mission in CASE STATE is authoritative");
         expect(prompt).toContain("Fame, prominence, wealth labels, seniority, size, listing status, ranking badges and route categories are contextual signals, not eligibility gates.");
-    expect(prompt).toContain("General company/press/IR channels are organization routes, not personal access.");
+    expect(prompt).toContain("General company/press/IR channels are organization routes, not personal access; they may remain useful leads or intermediaries.");
     expect(prompt).toContain("Preserve explicitly named targets and objective-fit people and companies.");
     expect(prompt).not.toMatch(/globally famous|household-name.*poor-access|Require a documented person-specific professional route or an explicit human request/i);
     expect(prompt).not.toContain("Prefer less-public, source-backed operators");
