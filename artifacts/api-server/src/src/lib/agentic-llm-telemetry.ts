@@ -262,7 +262,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
  * Atomically reserve the estimated prompt+completion allowance before a model
  * request. Provider-reported daily exhaustion is also sticky for the UTC day.
  */
-export async function reserveAgenticLlmDailyBudget(input: {
+async function reserveAgenticLlmDailyBudgetUnlocked(input: {
   provider: string;
   model: string;
   estimatedTokens: number;
@@ -320,6 +320,28 @@ export async function reserveAgenticLlmDailyBudget(input: {
     // Without a configured local ceiling, preserve the existing provider path if
     // the database is unavailable. The persistence warning remains visible.
     return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
+  }
+}
+
+
+// Serialize reservations within one API process so local callers observe a
+// deterministic reservation order. The INSERT/ON CONFLICT predicate remains
+// the cross-process authority: concurrent API replicas cannot over-reserve.
+let dailyReservationChain: Promise<void> = Promise.resolve();
+export async function reserveAgenticLlmDailyBudget(input: {
+  provider: string;
+  model: string;
+  estimatedTokens: number;
+  env?: NodeJS.ProcessEnv;
+}): Promise<AgenticLlmDailyReservation> {
+  const previous = dailyReservationChain;
+  let release!: () => void;
+  dailyReservationChain = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  try {
+    return await reserveAgenticLlmDailyBudgetUnlocked(input);
+  } finally {
+    release();
   }
 }
 
