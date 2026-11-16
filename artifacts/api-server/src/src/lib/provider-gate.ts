@@ -217,12 +217,17 @@ export function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqT
     // retain the lower observed balance so a late stale response cannot grant
     // capacity that a newer response already showed as consumed. A new balance
     // is accepted once the prior provider window has actually reset.
+    const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
+    const incomingExpiresAt = resetMs === null ? observedAt + groqTokenWindowMs() : observedAt + resetMs;
     state.providerRemainingTokens = priorObservationIsFresh
       ? Math.min(state.providerRemainingTokens!, remaining)
       : remaining;
     state.remainingObservedAt = observedAt;
-    const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
-    state.remainingExpiresAt = resetMs === null ? observedAt + groqTokenWindowMs() : observedAt + resetMs;
+    // A late response can also carry an older reset deadline. Never extend the
+    // current observation's expiry while reconciling out-of-order responses.
+    state.remainingExpiresAt = priorObservationIsFresh && state.remainingExpiresAt !== null
+      ? Math.min(state.remainingExpiresAt, incomingExpiresAt)
+      : incomingExpiresAt;
   }
   let parsedPayload: unknown;
   try { parsedPayload = JSON.parse(bodyText); } catch { return; }
