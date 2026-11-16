@@ -2197,7 +2197,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
-  const inferredMode = input.promptMode ?? (actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(prompt) ? "target" : "discovery");
+  const inferredMode = input.promptMode ?? (input.mode ?? "target");
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
@@ -2375,6 +2375,7 @@ async function callGroqJson(
   targetName?: string | null,
   iteration?: number,
   originalPromptChars: number = prompt.length,
+  promptMode: "discovery" | "target" = "discovery",
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -2426,7 +2427,7 @@ async function callGroqJson(
       const systemPromptCharsBeforeRequest = INVESTIGATOR_SYSTEM_PROMPT().length;
       const promptEnvelopeChars = GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE.length + 2;
       const baseOriginalPromptChars = Math.max(workingPrompt.length, Math.floor(originalPromptChars));
-      const promptMode: "discovery" | "target" = actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(workingPrompt) ? "target" : "discovery";
+      const requestPromptMode = promptMode;
       const defaultUserPromptChars = workingPrompt.length + promptEnvelopeChars;
       const defaultOriginalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
       let promptMeasurement = {
@@ -2488,7 +2489,7 @@ async function callGroqJson(
         dailyReservationTokens = reservation.reservedTokens;
         dailyBudgetTokens = reservation.dailyBudgetTokens;
         const requestBody = {
-          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
+          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist, promptMode: requestPromptMode }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
         };
@@ -2925,7 +2926,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars ?? prompt.length)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars ?? prompt.length, input.mode ?? "target")) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
