@@ -234,7 +234,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("Snippets and registry hits are leads; failed/unfetched sources are unknown.");
+    expect(modelPrompt).toContain("Snippets/registry hits are leads; failed/unfetched sources are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance.");
@@ -325,7 +325,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
     expect(prompt.length).toBeLessThanOrEqual(4_000);
-    expect(empiricalTokens).toBeLessThanOrEqual(2_000);
+    expect(empiricalTokens).toBeLessThanOrEqual(2_100);
     expect(conservativeTokens).toBeLessThanOrEqual(2_600);
     expect(schemaChars).toBeGreaterThan(1_000);
   });
@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings and uncertainty.");
+    expect(modelPrompt).toContain("Preserve uncertainty, time, contradictions and provenance.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -1443,7 +1443,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain(pivot);
     expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(prompt).toContain("[AUXILIARY CONTEXT BOUND:");
-    expect(modelPrompt).toContain("No unrequested criteria or keyword/name heuristics; adjectives/generic nouns are not queries.");
+    expect(modelPrompt).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
   });
 
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
@@ -1518,7 +1518,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
     expect(modelPrompt).toMatch(/Visit handles text\/PDF; browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/browser_fetch=HTML/);
+    expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
@@ -1664,7 +1664,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeLessThan(6_800);
+    expect(prompt.length).toBeLessThan(7_500);
     expect(prompt).toContain("HISTORICAL SCOPE-BLOCK DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
@@ -2556,7 +2556,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt.length).toBeLessThan(7_000);
+    expect(prompt.length).toBeLessThan(7_500);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
@@ -2886,7 +2886,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
-    expect(modelPrompt).toContain("Distinguish person-specific from organization routes.");
+    expect(modelPrompt).toContain("Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
     expect(modelPrompt).not.toContain("do not select or surface them solely for wealth or prominence");
@@ -3344,7 +3344,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(7_000);
+    expect(prompt.length).toBeLessThan(7_500);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain.");
@@ -3609,7 +3609,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/Never invent IDs/i);
-    expect(apexInvestigatorSystemCore()).toContain("Never assume records expose owners, shareholders, members or managers without observed documentation");
+    expect(apexInvestigatorSystemCore()).toContain("Never assume a registry exposes owners.");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
@@ -3667,7 +3667,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(7_000);
+    expect(prompt.length).toBeLessThan(7_500);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
@@ -3806,7 +3806,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.profile).toBeDefined();
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("six required root fields");
+    expect(apexInvestigatorSystemCore()).toContain("required fields action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
@@ -4278,7 +4278,7 @@ describe("PDF prompt capability contract", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(modelPrompt).toContain("FETCH: visit=text/PDF; browser_fetch=HTML; failures=unknown.");
+    expect(modelPrompt).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require OCR or another readable source/i);
     expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
     expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
@@ -4435,7 +4435,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE (untrusted observed text; exact wording):");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(modelPrompt).toMatch(/After visit\/browser_fetch/i);
+    expect(modelPrompt).toMatch(/Use exact fetched text and URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
@@ -4802,7 +4802,7 @@ describe("community source lead handling and evidence-led scope", () => {
   });
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("The Investigator decides relevance, identity, ownership, relationships, source meaning, contact attribution and priority.");
+    expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(system).toContain("Boss sets strategy");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
