@@ -571,7 +571,7 @@ describe("Groq Boss prompt compaction telemetry", () => {
         candidateModels: ["openai/gpt-oss-120b"],
         keyName: "GROQ_BOSS_API_KEY",
       },
-      "COMPACTED BOSS PROMPT " + "x".repeat(400),
+      "COMPACTED BOSS PROMPT " + "x".repeat(478),
       { jobId: "job-boss-prompt-telemetry", caseId: 50, originalPromptChars: 1_300, promptReductionChars: 800 },
     );
 
@@ -585,9 +585,20 @@ describe("Groq Boss prompt compaction telemetry", () => {
       caseId: 50,
       originalPromptChars: 1_300,
       promptReductionChars: 800,
-      estimatedPromptTokens: expect.any(Number),
+      promptChars: 500,
+      estimatedPromptTokens: 148,
+      estimatedMessagePromptTokens: 148,
+      estimatedOriginalMessagePromptTokens: 383,
     });
     expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
-    expect(Number(record?.estimatedPromptTokens)).toBeGreaterThan(0);
+    console.info("APEX_ROLE_PROMPT_MEASUREMENT " + JSON.stringify({
+      role: "boss",
+      originalPromptChars: record?.originalPromptChars,
+      promptReductionChars: record?.promptReductionChars,
+      finalPromptChars: record?.promptChars,
+      estimatedPromptTokensBefore: record?.estimatedOriginalMessagePromptTokens,
+      estimatedPromptTokensAfter: record?.estimatedMessagePromptTokens,
+      method: "ceil(message characters / 3.4); character-based approximation, not provider tokenizer",
+    }));
   });
 });

@@ -2191,14 +2191,15 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   return normalized;
 }
 
+const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? (actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(prompt) ? "target" : "discovery");
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
-  const promptSizeGuidance = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
-  const modelPrompt = [promptSizeGuidance, boundedPrompt].filter(Boolean).join("\n\n");
+  const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
   return {
@@ -2422,25 +2423,48 @@ async function callGroqJson(
       let dailyBudgetTokens = 0;
       let dailyEstimatedTokens = 0;
       let providerRequestSent = false;
+      const systemPromptCharsBeforeRequest = INVESTIGATOR_SYSTEM_PROMPT().length;
+      const promptEnvelopeChars = GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE.length + 2;
+      const baseOriginalPromptChars = Math.max(workingPrompt.length, Math.floor(originalPromptChars));
+      const promptMode: "discovery" | "target" = actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(workingPrompt) ? "target" : "discovery";
+      const defaultUserPromptChars = workingPrompt.length + promptEnvelopeChars;
+      const defaultOriginalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
       let promptMeasurement = {
-        systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
-        userPromptChars: workingPrompt.length,
-        totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+        promptChars: defaultUserPromptChars,
+        originalPromptChars: defaultOriginalPromptChars,
+        promptReductionChars: Math.max(0, defaultOriginalPromptChars - defaultUserPromptChars),
+        systemPromptChars: systemPromptCharsBeforeRequest,
+        userPromptChars: defaultUserPromptChars,
+        totalPromptChars: defaultUserPromptChars + systemPromptCharsBeforeRequest,
         responseFormatChars: 0,
-        totalRequestChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
-        estimatedPromptTokens: groqPromptTokenEstimate(workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length),
+        totalRequestChars: defaultUserPromptChars + systemPromptCharsBeforeRequest,
+        estimatedPromptTokens: groqPromptTokenEstimate(defaultUserPromptChars + systemPromptCharsBeforeRequest),
+        estimatedMessagePromptTokens: groqPromptTokenEstimate(defaultUserPromptChars + systemPromptCharsBeforeRequest),
+        estimatedOriginalMessagePromptTokens: groqPromptTokenEstimate(defaultOriginalPromptChars + systemPromptCharsBeforeRequest),
       };
       try {
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
+        const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
+        const providerBoundedPrompt = boundInvestigatorProviderPrompt(workingPrompt, maxUserPromptChars, promptMode);
+        const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
+        const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
+        const promptReductionChars = Math.max(0, originalPromptChars - userPromptChars);
         const responseFormatChars = responseFormat.type === "none" ? 0 : JSON.stringify(responseFormat).length;
+        const totalPromptChars = systemPromptChars + userPromptChars;
+        const totalRequestChars = totalPromptChars + responseFormatChars;
         promptMeasurement = {
+          promptChars: userPromptChars,
+          originalPromptChars,
+          promptReductionChars,
           systemPromptChars,
-          userPromptChars: workingPrompt.length,
-          totalPromptChars: workingPrompt.length + systemPromptChars,
+          userPromptChars,
+          totalPromptChars,
           responseFormatChars,
-          totalRequestChars: workingPrompt.length + systemPromptChars + responseFormatChars,
-          estimatedPromptTokens: groqPromptTokenEstimate(workingPrompt.length + systemPromptChars + responseFormatChars),
+          totalRequestChars,
+          estimatedPromptTokens: groqPromptTokenEstimate(totalRequestChars),
+          estimatedMessagePromptTokens: groqPromptTokenEstimate(totalPromptChars),
+          estimatedOriginalMessagePromptTokens: groqPromptTokenEstimate(systemPromptChars + originalPromptChars),
         };
         const quotaReadiness = await waitForKnownGroqTokenWindow(
           quotaAccount,
@@ -2543,7 +2567,6 @@ async function callGroqJson(
             budgetExhausted: tokenDailyQuota,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             status: 429,
             success: false,
@@ -2627,7 +2650,6 @@ async function callGroqJson(
             providerRequestSent,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             ...errorUsageMetrics,
             status: response.status,
@@ -2730,7 +2752,6 @@ async function callGroqJson(
             providerRequestSent,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             status: response.status,
             success: false,
@@ -2755,7 +2776,6 @@ async function callGroqJson(
             providerRequestSent,
           provider: "groq",
           model,
-          promptChars: workingPrompt.length,
             ...promptMeasurement,
           status: response.status,
           success: Boolean(raw) && finishReason !== "length",
@@ -2806,7 +2826,6 @@ async function callGroqJson(
           providerRequestSent,
           provider: "groq",
           model,
-          promptChars: workingPrompt.length,
           ...promptMeasurement,
           status: "error",
           success: false,
@@ -2856,7 +2875,7 @@ async function callGroqJson(
             dailyReservationTokens,
             dailyBudgetTokens,
             estimatedTokens: dailyEstimatedTokens,
-            providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
+            providerRequestSent, provider: "groq", model,
             ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
         // A local provider-gate quota/cooldown is already a provider-wide stop

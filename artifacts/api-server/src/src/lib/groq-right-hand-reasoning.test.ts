@@ -429,19 +429,24 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
 
   it("logs original prompt size, compaction reduction and estimated tokens for a Right-hand call", async () => {
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const chatBodies: Array<{ messages: Array<{ role: string; content: string }> }> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith("/models")) {
         return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }] });
       }
+      chatBodies.push(JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> });
       return groqResponse(200, {
         choices: [{ message: { content: JSON.stringify(validDecision) } }],
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
+    const rightHandSystemInstructions = "Review the supplied case only.";
+    const rightHandPromptPrefix = "A compact prompt after upstream case-context compaction. ";
+    const compactedRightHandPrompt = rightHandPromptPrefix + "x".repeat(500 - rightHandPromptPrefix.length);
     const result = await runGroqRightHandFreeJson(
-      "A compact prompt after upstream case-context compaction.",
-      "Review the supplied case only.",
+      compactedRightHandPrompt,
+      rightHandSystemInstructions,
       responseFormat,
       isValidDecision,
       { jobId: "job-right-hand-prompt-telemetry", caseId: 49, originalPromptChars: 1_100, promptReductionChars: 600 },
@@ -452,15 +457,35 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
     const record = output.mock.calls
       .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
       .find((entry) => entry.event === "apex_agentic_llm_attempt" && entry.role === "right_hand");
+    const sentMessages = chatBodies[0]?.messages ?? [];
+    const sentSystemPrompt = sentMessages.find((message) => message.role === "system")?.content ?? "";
+    const sentUserPrompt = sentMessages.find((message) => message.role === "user")?.content ?? "";
+    const transmittedPromptChars = sentSystemPrompt.length + sentUserPrompt.length;
+    expect(sentUserPrompt).toHaveLength(500);
     expect(record).toMatchObject({
       role: "right_hand",
       jobId: "job-right-hand-prompt-telemetry",
       caseId: 49,
-      originalPromptChars: expect.any(Number),
+      systemPromptChars: sentSystemPrompt.length,
+      userPromptChars: sentUserPrompt.length,
+      originalPromptChars: sentSystemPrompt.length + 1_100,
+      promptChars: transmittedPromptChars,
       promptReductionChars: 600,
-      estimatedPromptTokens: expect.any(Number),
+      estimatedPromptTokens: Math.ceil(transmittedPromptChars / 3.4),
+      estimatedMessagePromptTokens: Math.ceil(transmittedPromptChars / 3.4),
+      estimatedOriginalMessagePromptTokens: Math.ceil((sentSystemPrompt.length + 1_100) / 3.4),
     });
     expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
-    expect(Number(record?.estimatedPromptTokens)).toBeGreaterThan(0);
+    expect(Number(record?.originalPromptChars) - Number(record?.promptChars)).toBe(600);
+    expect(Number(record?.estimatedOriginalMessagePromptTokens)).toBeGreaterThan(Number(record?.estimatedMessagePromptTokens));
+    console.info("APEX_ROLE_PROMPT_MEASUREMENT " + JSON.stringify({
+      role: "right_hand",
+      originalPromptChars: record?.originalPromptChars,
+      promptReductionChars: record?.promptReductionChars,
+      finalPromptChars: record?.promptChars,
+      estimatedPromptTokensBefore: record?.estimatedOriginalMessagePromptTokens,
+      estimatedPromptTokensAfter: record?.estimatedMessagePromptTokens,
+      method: "ceil(system + user message characters / 3.4); character-based approximation, not provider tokenizer",
+    }));
   });
 });

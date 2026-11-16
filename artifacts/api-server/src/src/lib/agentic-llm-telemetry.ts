@@ -27,6 +27,8 @@ type Attempt = {
   responseFormatChars?: number;
   totalRequestChars?: number;
   estimatedPromptTokens?: number;
+  estimatedMessagePromptTokens?: number;
+  estimatedOriginalMessagePromptTokens?: number;
   status: number | "error" | "timeout";
   success: boolean;
   promptTokens?: number;
@@ -428,6 +430,8 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     responseFormatChars: event.responseFormatChars ?? null,
     totalRequestChars: event.totalRequestChars ?? ((event.totalPromptChars ?? ((event.systemPromptChars ?? 0) + (event.userPromptChars ?? event.promptChars))) + (event.responseFormatChars ?? 0)),
     estimatedPromptTokens: event.estimatedPromptTokens ?? null,
+    estimatedMessagePromptTokens: event.estimatedMessagePromptTokens ?? null,
+    estimatedOriginalMessagePromptTokens: event.estimatedOriginalMessagePromptTokens ?? null,
     status: event.status,
     success: event.success,
     promptTokens: event.promptTokens ?? null,

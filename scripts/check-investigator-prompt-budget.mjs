@@ -5,6 +5,8 @@ const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-resea
 const telemetry = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts", "utf8");
 const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
+const boss = fs.readFileSync("artifacts/api-server/src/src/lib/groq-boss.ts", "utf8");
+const rightHand = fs.readFileSync("artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -49,12 +51,15 @@ assert(
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
+assert(/estimatedMessagePromptTokens/.test(core) && /estimatedOriginalMessagePromptTokens/.test(core), "Investigator telemetry must distinguish compacted and original message-token estimates");
+assert(/estimatedMessagePromptTokens/.test(boss) && /estimatedOriginalMessagePromptTokens/.test(boss), "Boss telemetry must distinguish compacted and original message-token estimates");
+assert(/estimatedMessagePromptTokens/.test(rightHand) && /estimatedOriginalMessagePromptTokens/.test(rightHand), "Right-hand telemetry must distinguish compacted and original message-token estimates");
 assert(/waitForKnownGroqTokenWindow/.test(core) && /token_window_wait_exceeded/.test(core), "known token-window exhaustion must be classified as a bounded temporary wait, not hard quota");
 assert(/upstream_token_window_wait_exceeded/.test(core), "local token-window wait ceiling must not emit upstream_quota_exhausted");
 assert(/resetMs > Math\.max\(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS\)/.test(core), "known token-window waits must reserve time for the actual provider inference");
 assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /insufficient_quota/.test(core), "hard Investigator quota must require an explicit request-counter or provider hard-quota signal");
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
-assert(/waitForKnownGroqTokenWindow\([\s\S]*?workingPrompt\.length \+ INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "known token-window estimation must include the transmitted Investigator system prompt");
+assert(/const totalPromptChars = systemPromptChars \+ userPromptChars/.test(core) && /const totalRequestChars = totalPromptChars \+ responseFormatChars/.test(core) && /waitForKnownGroqTokenWindow\(\s*quotaAccount,\s*model,\s*promptMeasurement\.totalRequestChars,/s.test(core), "known token-window estimation must include the actual transmitted system/user messages and structured response schema");
 assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core) && /const boundedPrefix = compactPromptSectionPreservingUrlTokens\(/.test(core) && /const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt\.length\)/.test(core), "provider-bound prompt softly compacts auxiliary context while preserving mandatory evidence and the shared provider-size estimate");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
 assert(/const composedPrompt = \[[\s\S]*?authoritativeCaseObjective[\s\S]*?activeBossScopeSection/.test(core), "the complete objective and current Boss scope remain separate in the full Investigator prompt");
