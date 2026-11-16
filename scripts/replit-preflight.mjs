@@ -7,7 +7,9 @@ const AUTH_NAMES = ["APEX_OPERATOR_PASSWORD", "APEX_API_AUTH_TOKEN", "APEX_SESSI
 function value(name) { const raw = process.env[name]; return raw == null ? "" : String(raw).trim(); }
 function present(name) { const v = value(name); return Boolean(v && !v.includes("YOUR_")); }
 const developmentMode = process.env.NODE_ENV === "development";
-console.log(`Apex Atlas preflight — core runtime and configured integrations (presence only); operator auth: ${developmentMode ? "bypassed in development" : "required"}.\n`);
+const explicitOperatorAuthBypass = developmentMode && process.env.APEX_OPERATOR_AUTH_BYPASS === "true";
+const operatorAuthBypassed = explicitOperatorAuthBypass;
+console.log(`Apex Atlas preflight — core runtime and configured integrations (presence only); operator auth: ${operatorAuthBypassed ? "bypassed by explicit Replit development flag" : "required"}.\n`);
 let requiredMiss = 0;
 for (const k of REQUIRED_NAMES) { const ok = present(k); if (!ok) requiredMiss++; console.log(`${ok ? "SET " : "MISS "} ${k}`); }
 const redisConfigured = present("REDIS_URL_1");
@@ -20,8 +22,8 @@ console.log("\nOptional integrations (missing keys disable only their correspond
 for (const k of OPTIONAL_NAMES) console.log(`${present(k) ? "SET " : "SKIP"} ${k}`);
 for (const k of SEARCH_PROVIDER_NAMES) console.log(`${present(k) ? "SET " : "SKIP"} ${k}`);
 let authMiss = 0;
-if (developmentMode) {
-  console.log("\nSKIP operator-auth secrets — development mode does not require APEX_OPERATOR_PASSWORD, APEX_API_AUTH_TOKEN, or APEX_SESSION_SECRET.");
+if (operatorAuthBypassed) {
+  console.log(`\nSKIP operator-auth secrets — APEX_OPERATOR_AUTH_BYPASS=true in development explicitly disables the operator-auth gate.`);
 } else {
   const authMinimum = { APEX_OPERATOR_PASSWORD: 16, APEX_API_AUTH_TOKEN: 32, APEX_SESSION_SECRET: 32 };
   for (const k of AUTH_NAMES) {

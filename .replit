@@ -5,7 +5,7 @@ run = "bash scripts/replit-boot.sh"
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true APEX_CAPTURE_MODEL_PROMPTS=false APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false APEX_MODEL_AUDIT_FILE=private-audits/APEX_ATLAS_MODEL_AUDIT_{jobId}.md APEX_CAPTURE_MODEL_PROMPTS_IN_TEST=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false bash scripts/replit-boot.sh"]
+run = ["sh", "-c", "env NODE_ENV=production APEX_CAPTURE_MODEL_PROMPTS=false APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
 args = ["npm", "exec", "--yes", "--package=pnpm@9.15.9", "--", "pnpm", "store", "prune"]
@@ -46,8 +46,6 @@ NODE_ENV = "development"
 APEX_OPERATOR_AUTH_BYPASS = "true"
 VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 APEX_CAPTURE_MODEL_PROMPTS = "true"
-APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"
 APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_REPLIT_RUN_{jobId}.md"
 APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"
 APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"
-APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"

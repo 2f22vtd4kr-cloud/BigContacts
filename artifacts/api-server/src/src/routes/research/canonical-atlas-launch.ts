@@ -5,6 +5,7 @@ import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, get
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
+import { resolveCanonicalAtlasTargetCount } from "../../lib/atlas-launch-defaults";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
@@ -180,7 +181,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  const targetCount = Math.max(1, Math.min(25, Math.trunc(Number(body.targetCount) || 1)));
+  const targetCount = resolveCanonicalAtlasTargetCount(body.targetCount);
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
     : undefined;
