@@ -234,7 +234,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("Snippets/registry hits are leads; failed/unfetched sources are unknown.");
+    expect(modelPrompt).toContain("Search snippets and registry hits are leads; failed/unfetched sources are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance.");
@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, time, contradictions and provenance.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, time, contradictions and provenance");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -4279,8 +4279,8 @@ describe("PDF prompt capability contract", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
     expect(modelPrompt).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
-    expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require OCR or another readable source/i);
-    expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
+    expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
+    expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
