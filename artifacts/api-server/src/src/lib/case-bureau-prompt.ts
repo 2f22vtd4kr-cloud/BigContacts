@@ -246,6 +246,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
         `Motivation: ${clipPrompt(humanBrief.motivation ?? "", 500)}`,
         `Geography: ${clipPrompt(humanBrief.geography ?? "", 240)}`,
         `Explicit exclusions: ${clipPromptList(humanBrief.exclusions, 8, 220).join("; ")}`,
+        "General company/press/IR channels are organization routes, not personal access; they may remain useful leads or intermediaries.",
       ].join("\n")
     : "HUMAN MISSION: no persisted brief is available; do not invent one.";
   const creative = buildCreativeInvestigatorAngles({
