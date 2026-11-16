@@ -330,7 +330,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
-    expect(outcome.ownedCase.status).toBe("complete");
+    expect(outcome.ownedCase.status, JSON.stringify({ targetCases: outcome.targetCases.map((row: any) => { try { const file = JSON.parse(row.caseFile ?? "{}"); return { status: row.status, currentAction: row.currentAction, oversight: file.investigatorActOversight }; } catch { return { status: row.status, currentAction: row.currentAction, caseFile: row.caseFile }; } }), terminal: diagnosticResult?.terminal })).toBe("complete");
     expect(outcome.targetCases).toHaveLength(1);
     const targetCaseFile = JSON.parse(outcome.targetCases[0].caseFile);
     const completedOversight = targetCaseFile.investigatorActOversight?.find((entry: any) => entry?.oversight?.action === "stop");
