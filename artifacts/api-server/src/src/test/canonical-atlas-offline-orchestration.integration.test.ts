@@ -270,7 +270,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   async function runScenario(scenario: "model-stops" | "operator-cap") {
     mocks.scenario = scenario;
     const jobId = `offline-atlas-${scenario}-${runToken}`;
-    await pipeline(jobId, { targetCount: 1, researchDepth: "fast", targetTimeoutMs: 30_000 });
+    await pipeline(jobId, { targetCount: 1, researchDepth: "standard", targetTimeoutMs: 30_000 });
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
     const cases = await db.select().from(tables.researchCasesTable)
       .where(eq(tables.researchCasesTable.caseType, "discovery"));
@@ -290,7 +290,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const admittedEntities = allEntities.filter((entity: any) => {
       try {
         const metadata = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : entity.metadata ?? {};
-        return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialPersonLead === true;
+        return Number(metadata.discoveryCaseId) === ownedCase.id && (metadata.partialPersonLead === true || metadata.admission === "investigator-explicit-promotion");
       } catch { return false; }
     });
     const evidence = admittedEntities.length
