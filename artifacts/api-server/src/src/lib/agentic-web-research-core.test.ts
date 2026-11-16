@@ -4278,7 +4278,7 @@ describe("PDF prompt capability contract", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(modelPrompt).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
+    expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
     expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
