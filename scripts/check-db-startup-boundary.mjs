@@ -26,7 +26,7 @@ assert(orderedMigrations.every((name, index) => index === 0 || init.indexOf(orde
 assert(boot.includes('bash scripts/initialize-apex-schema.sh'), "explicit Replit schema initialization must delegate to the complete Apex initializer");
 assert(!boot.includes("pnpm --filter @workspace/db run push"), "Replit boot must not run a partial Drizzle-only schema push");
 const initializerCall = boot.indexOf("bash scripts/initialize-apex-schema.sh");
-const normalBoot = boot.indexOf("if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]");
+const normalBoot = boot.indexOf('if [[ "${NODE_ENV:-}" == "development" || ! -f artifacts/apex-finder/dist/public/index.html ]]');
 assert(initializerCall >= 0 && normalBoot > initializerCall && boot.slice(initializerCall, normalBoot).includes("unset APEX_ALLOW_SCHEMA_PUSH"), "schema-push opt-in must be cleared after explicit initialization and before normal application boot");
 assert(/BEGIN;/.test(migration) && /COMMIT;/.test(migration), "hardening migration must be transactional");
 assert(/research_case_events/.test(migration) && /apex_research_case_events_replay_integrity/.test(migration), "hardening migration must preserve research ledger invariants");
