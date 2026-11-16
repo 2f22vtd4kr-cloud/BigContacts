@@ -4975,8 +4975,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : null;
   const compactLatestArgs = (args: Record<string, unknown>): Record<string, unknown> => {
     const orderedKeys = [
-      "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
-      "expectedInformationGain", "target", "targetType", "profile", "searches",
+      "searches", "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
+      "expectedInformationGain", "target", "targetType", "profile",
     ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5);
     const entries: Array<[string, unknown]> = [];
     for (const key of orderedKeys) {
@@ -4995,7 +4995,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       } else if (typeof value === "number" || typeof value === "boolean" || value === null) {
         entries.push([key, value]);
       } else if (key === "searches" && Array.isArray(value)) {
-        const searches: Array<Record<string, string>> = value.slice(0, 1).map((item) => {
+        const searches: Array<Record<string, string>> = value.slice(0, 3).map((item) => {
           if (!item || typeof item !== "object" || Array.isArray(item)) return {};
           const search = item as Record<string, unknown>;
           const selected: Array<[string, string]> = [];
