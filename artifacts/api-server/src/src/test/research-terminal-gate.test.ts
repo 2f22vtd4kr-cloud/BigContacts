@@ -71,7 +71,7 @@ describe("research terminal gate", () => {
     expect(result.metrics.independentSourceUnits).toBe(2);
   });
 
-  it("recognizes explicit falsification intent in nested parallel-search queries", () => {
+  it("records explicit counterevidence attempts without making them a terminal keyword gate", () => {
     const sample = context(2);
     sample.recentActions = [{
       turn: 4,
@@ -98,7 +98,7 @@ describe("research terminal gate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("does not treat arbitrary parallel-search queries as falsification", () => {
+  it("does not veto target completion because a successful parallel query lacks English falsification terms", () => {
     const sample = context(2);
     sample.recentActions = [{
       turn: 4,
@@ -119,17 +119,19 @@ describe("research terminal gate", () => {
     }];
 
     const result = evaluateResearchTerminal(sample, "target");
-    expect(result.allowed).toBe(false);
-    expect(result.reasons).toContain("required_falsification_not_satisfied");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
-  it("blocks a required falsification when the trajectory has no explicit disproof attempt", () => {
+  it("leaves falsification choice to the Investigator when no explicit disproof attempt is recorded", () => {
     const result = evaluateResearchTerminal(context(2), "target");
-    expect(result.allowed).toBe(false);
-    expect(result.reasons).toContain("required_falsification_not_satisfied");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
-  it("uses stage-specific falsification rules even when the adaptive plan has no active discriminator", () => {
+  it("keeps the adaptive falsification plan advisory when no discriminator is active", () => {
     const sample = context(2);
     sample.falsification = {
       ...sample.falsification,
@@ -139,15 +141,16 @@ describe("research terminal gate", () => {
     };
 
     const targetResult = evaluateResearchTerminal(sample, "target");
-    expect(targetResult.allowed).toBe(false);
-    expect(targetResult.reasons).toContain("required_falsification_not_satisfied");
+    expect(targetResult.allowed).toBe(true);
+    expect(targetResult.metrics.falsificationSatisfied).toBe(false);
+    expect(targetResult.reasons).not.toContain("required_falsification_not_satisfied");
 
     const discoveryResult = evaluateResearchTerminal(sample, "discovery");
     expect(discoveryResult.allowed).toBe(true);
     expect(discoveryResult.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
-  it("does not mistake a high falsification priority score for proof of an attempt", () => {
+  it("does not turn a falsification priority score into a deterministic terminal veto", () => {
     const sample = context(2);
     sample.falsification = { required: true, priority: 0.1, discriminator: "competing identity", reason: "test" };
     sample.recentActions = [{
@@ -165,10 +168,10 @@ describe("research terminal gate", () => {
     }];
     const result = evaluateResearchTerminal(sample, "target");
     expect(result.allowed).toBe(false);
-    expect(result.reasons).toContain("required_falsification_not_satisfied");
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
-  it("requires falsification intent to match the active discriminator", () => {
+  it("does not require a keyword match to a deterministic falsification discriminator", () => {
     const sample = context(2);
     sample.recentActions = [{
       turn: 5, action: "web_search",
@@ -183,7 +186,10 @@ describe("research terminal gate", () => {
       execution: "success", observation: "Search completed", urls: ["https://independent.example/results"],
       findingCount: 0, useful: false, informationGain: 0.2, findingNames: [], findingRoles: [],
     }];
-    expect(evaluateResearchTerminal(sample, "target").reasons).toContain("required_falsification_not_satisfied");
+    const result = evaluateResearchTerminal(sample, "target");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
   it("counts a successfully completed empty counterevidence search as an attempt", () => {
@@ -207,7 +213,7 @@ describe("research terminal gate", () => {
     expect(evaluateResearchTerminal(sample, "target").allowed).toBe(true);
   });
 
-  it("does not count a failed nested falsification query hidden by a successful sibling", () => {
+  it("keeps failed nested counterevidence outcomes observable without vetoing a model stop", () => {
     const sample = context(2);
     sample.recentActions = [{
       turn: 7, action: "parallel_web_search",
@@ -224,7 +230,10 @@ describe("research terminal gate", () => {
       execution: "success", observation: "One sibling query returned material", urls: ["https://independent.example/results"],
       findingCount: 0, useful: false, informationGain: 0.2, findingNames: [], findingRoles: [],
     }];
-    expect(evaluateResearchTerminal(sample, "target").reasons).toContain("required_falsification_not_satisfied");
+    const result = evaluateResearchTerminal(sample, "target");
+    expect(result.allowed).toBe(true);
+    expect(result.metrics.falsificationSatisfied).toBe(false);
+    expect(result.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
 
