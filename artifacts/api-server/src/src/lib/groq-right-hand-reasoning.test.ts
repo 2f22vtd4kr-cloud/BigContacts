@@ -406,7 +406,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies.every((body) => body.max_completion_tokens !== 1_280)).toBe(true);
     expect(chatBodies[0].max_completion_tokens).toBe(1_024);
   });
-
+});
 
 describe("Groq Right-hand prompt compaction telemetry", () => {
   beforeEach(() => {
