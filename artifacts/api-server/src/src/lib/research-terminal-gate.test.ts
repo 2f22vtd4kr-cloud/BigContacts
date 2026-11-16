@@ -9,6 +9,7 @@ function context(input: {
   contradictions?: Array<{ claim: string; evidenceIds: string[]; sources: string[] }>;
   recentActions?: Array<{ action: string; execution: string; args?: Record<string, unknown>; observation?: string; urls?: string[] }>;
   atomicEvidence?: IntelligenceContext["atomicEvidence"];
+  sourceLineage?: IntelligenceContext["sourceLineage"];
 } = {}): IntelligenceContext {
   return {
     evidenceCount: input.evidenceCount ?? 0,
@@ -17,6 +18,7 @@ function context(input: {
     contradictions: input.contradictions ?? [],
     recentActions: input.recentActions ?? [],
     atomicEvidence: input.atomicEvidence ?? [],
+    sourceLineage: input.sourceLineage ?? [],
   } as unknown as IntelligenceContext;
 }
 
@@ -63,6 +65,31 @@ describe("research-stage terminal contracts", () => {
     expect(result.outcome).toBe("evidence_backed");
   });
 
+  it("does not count a copied or syndicated page as an independent claim source", () => {
+    const sourceUrl = "https://syndicated.example.test/story";
+    const result = evaluateResearchTerminal(context({
+      evidenceCount: 1,
+      independentSourceUnits: 1,
+      recentActions: [{ action: "web_search", execution: "success", args: { query: "find counterevidence to Jane Doe being the current CEO" } }],
+      atomicEvidence: [{
+        evidenceId: "e-copy", kind: "claim", claimId: "claim-copy", claim: "Jane Doe is the current CEO",
+        sourceUrl, sourceHost: "syndicated.example.test", sourceTier: "B", sourceClass: "REPUTABLE_NEWS",
+        sourceName: "Syndicated outlet", sourceContributor: null, originalObservedAt: null,
+        sourceMechanism: "visit", passage: "Jane Doe is the current chief executive officer.",
+        spanBound: true, spanBindingKind: "identity_and_value", hypothesisLabel: null,
+        hypothesisRelation: "supports", hypothesisRationale: null, relationshipType: "role",
+        temporalStatus: "current", interpretationConfidence: 0.8, ambiguityNotes: null,
+        attribution: "copied syndicated passage",
+      }],
+      sourceLineage: [{
+        sourceId: "copy-1", canonicalUrl: sourceUrl, host: "syndicated.example.test",
+        originSourceId: "original-publisher-1", citedSourceIds: ["original-publisher-1"],
+      }],
+    }), "target");
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toContain("claim_evidence_only_from_non_independent_sources");
+  });
+
   it("does not allow aggregator-only material to establish a target claim", () => {
     const result = evaluateResearchTerminal(context({
       evidenceCount: 1,
@@ -80,7 +107,7 @@ describe("research-stage terminal contracts", () => {
       }],
     }), "target");
     expect(result.allowed).toBe(false);
-    expect(result.reasons).toContain("claim_evidence_only_from_non_claim_grade_sources");
+    expect(result.reasons).toContain("claim_evidence_only_from_non_independent_sources");
   });
 
   it("requires an executed counterevidence attempt rather than treating any successful research as falsification", () => {
