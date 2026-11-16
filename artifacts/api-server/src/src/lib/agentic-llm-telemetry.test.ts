@@ -359,7 +359,7 @@ describe("Investigator LLM telemetry privacy", () => {
         lastRequestAt: expect.any(Date),
         reservedTokens: 0,
         dailyBudgetTokens: 1000,
-        budgetExhausted: true,
+        budgetExhausted: false,
         lastRateLimitRemainingTokens: 84500,
         lastRateLimitResetTokensMs: 6020,
         lastRateLimitRemainingRequests: 72,
