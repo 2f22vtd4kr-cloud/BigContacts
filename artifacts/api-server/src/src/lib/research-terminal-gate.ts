@@ -116,15 +116,39 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
     claimGroups.set(key, group);
   }
   const nonClaimGradeSourceClasses = new Set(["AGGREGATOR", "SCRAPED_DIRECTORY", "SEARCH_RESULT", "COMMUNITY_OBSERVATION", "UNKNOWN"]);
-  const claimsWithoutClaimGradeSource = [...claimGroups.values()].filter((group) =>
-    group.length > 0 && group.every((item) => nonClaimGradeSourceClasses.has(item.sourceClass)),
+  const lineageByUrl = new Map((context.sourceLineage ?? []).map((item) => {
+    try {
+      const url = new URL(item.canonicalUrl);
+      url.hash = "";
+      url.hostname = url.hostname.toLowerCase();
+      return [url.href.replace(/\/$/, ""), item] as const;
+    } catch {
+      return ["", item] as const;
+    }
+  }));
+  const isIndependentClaimSource = (item: (typeof claimEvidence)[number]): boolean => {
+    if (nonClaimGradeSourceClasses.has(item.sourceClass) || !item.sourceUrl) return false;
+    try {
+      const url = new URL(item.sourceUrl);
+      url.hash = "";
+      url.hostname = url.hostname.toLowerCase();
+      const lineage = lineageByUrl.get(url.href.replace(/\/$/, ""));
+      // When lineage is available, copied/syndicated derivatives do not count
+      // as an independent origin. A primary source may stand alone for a fact.
+      return !lineage?.originSourceId;
+    } catch {
+      return false;
+    }
+  };
+  const claimsWithoutIndependentSource = [...claimGroups.values()].filter((group) =>
+    group.length > 0 && group.every((item) => !isIndependentClaimSource(item)),
   );
   const reasons = [...result.reasons];
-  // No global source-count quota: a single authoritative source can substantiate
-  // a directly supported fact. Copied/aggregator/search-only material cannot
-  // independently establish a claim; assess source quality per claim instead.
-  if (mode === "target" && claimsWithoutClaimGradeSource.length > 0) {
-    reasons.push("claim_evidence_only_from_non_claim_grade_sources");
+  // No global source-count quota: a single authoritative origin can substantiate
+  // a directly supported fact. Aggregator-only and copied/syndicated material
+  // cannot independently establish a claim; assess provenance per claim.
+  if (mode === "target" && claimsWithoutIndependentSource.length > 0) {
+    reasons.push("claim_evidence_only_from_non_independent_sources");
   }
   if (mode === "target" && claimEvidence.length > exactSpanBindings && !reasons.includes("exact_source_span_binding_incomplete")) {
     reasons.push("exact_source_span_binding_incomplete");
