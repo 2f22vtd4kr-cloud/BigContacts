@@ -17,7 +17,7 @@ import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } fro
 type ActSourceRecord={turn:number;action:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];model?:string;args?:Record<string,unknown>;stopReason?:string};type ActRecord={turn:number;model:string;action:string;args:Record<string,unknown>;thought?:string;execution:string;observation?:string;observationCompactionMethod?:"ai_semantic"|"deterministic_projection";observedUrls:string[];findings:unknown[];providerFallback?:string[];stopReason?:string;sourceRecords?:ActSourceRecord[]};
 export type TargetActOversight={status:"completed"|"unavailable";action:"continue"|"redirect"|"stop";direction:string|null;reason:string|null;confidence:number|null;rightHand:{status:"completed"|"unavailable"|"deferred";decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;model:string;error:string|null};bossModel:string|null;error:string|null};
 
-/** Right-hand is reserved for consequential independent review, not routine turns. */
+/** Right-hand advises only; the Investigator chooses each research action. Boss retains the continuation decision. */
 export function shouldReviewTargetActWithRightHand(
   act: { action: string; execution?: string | null; stopReason?: string | null; findings?: unknown[] },
   previousBossDisposition?: string | null,
