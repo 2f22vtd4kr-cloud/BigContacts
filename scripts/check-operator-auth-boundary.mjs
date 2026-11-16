@@ -12,6 +12,9 @@ const operatorAuth = read("artifacts/api-server/src/src/lib/operator-auth.ts");
 const preflight = read("scripts/replit-preflight.mjs");
 const replit = read(".replit");
 const artifact = read("artifacts/api-server/.replit-artifact/artifact.toml");
+const artifactDevelopmentEnv = artifact.split("[services.development.env]")[1]?.split("[services.production]")[0] ?? "";
+const artifactProductionBuildEnv = artifact.split("[services.production.build.env]")[1]?.split("[services.production.run]")[0] ?? "";
+const artifactProductionRunEnv = artifact.split("[services.production.run.env]")[1]?.split("[services.production.health")[0] ?? "";
 
 const preflightBaseEnv = {
   ...process.env,
@@ -43,7 +46,8 @@ const checks = [
   ["Replit browser bundle has an explicit auth bypass and retains the gate when unset", ui.includes('import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true"') && ui.includes('if (import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;') && ui.includes("<OperatorGate>{desk}</OperatorGate>") && ui.includes("<AppRouter />")],
   ["API operator auth bypass requires an explicit Replit runtime flag", operatorAuth.includes('env.APEX_OPERATOR_AUTH_BYPASS === "true"') && operatorAuth.includes("if (isOperatorAuthBypassed(env)) return next();")],
   ["root Replit Run and deployment set both browser and API bypass flags", replit.includes('APEX_OPERATOR_AUTH_BYPASS = "true"') && replit.includes('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"') && replit.includes("env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh")],
-  ["separate Replit artifact dev and production environments set the corresponding bypass flags", artifact.includes('APEX_OPERATOR_AUTH_BYPASS = "true"') && artifact.includes('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"') && artifact.includes('[services.production.build.env]') && artifact.includes('[services.production.run.env]')],
+  ["Replit artifact development environment bypasses both UI and API auth", artifactDevelopmentEnv.includes('APEX_OPERATOR_AUTH_BYPASS = "true"') && artifactDevelopmentEnv.includes('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"')],
+  ["Replit artifact production build and run bypass the UI and API auth gates", artifactProductionBuildEnv.includes('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"') && artifactProductionRunEnv.includes('APEX_OPERATOR_AUTH_BYPASS = "true"') && artifactProductionRunEnv.includes('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"')],
   ["session bootstrap reports an authenticated bypass to the browser gate", read("artifacts/api-server/src/src/routes/operator-auth.ts").includes("developmentBypass: true") && read("artifacts/apex-finder/src/components/operator-gate.tsx").includes("data.developmentBypass === true")],
   ["production preflight accepts explicit bypass without operator secrets", productionBypassPreflight.status === 0 && productionBypassPreflight.stdout.includes("SKIP operator-auth secrets")],
   ["production preflight still fails closed when the explicit bypass is absent", productionProtectedPreflight.status !== 0 && productionProtectedPreflight.stdout.includes("MISS APEX_OPERATOR_PASSWORD") && preflight.includes("explicitOperatorAuthBypass")],
