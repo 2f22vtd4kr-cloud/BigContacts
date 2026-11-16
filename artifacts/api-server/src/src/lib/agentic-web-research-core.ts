@@ -3372,7 +3372,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   }
   if (/ordered_source_stage_guard/i.test(normalized)) {
     return preserveSourceAlongsideGuard(
-      "HISTORICAL SOURCE-STAGE DIAGNOSTIC (no request): a prior runtime rule blocked this action for stage order. No evidence was added. Do not treat the old stage order as a fixed research sequence; reassess sources and next actions by the objective, evidence, information gain and cost.",
+      "HISTORICAL SOURCE-STAGE DIAGNOSTIC (no request): a prior runtime rule blocked this action for stage order. No evidence was added. Reassess the proposed research independently against the human objective and the current Boss-approved direction; do not treat the old stage order as fixed. Propose material scope changes to Boss.",
     );
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
