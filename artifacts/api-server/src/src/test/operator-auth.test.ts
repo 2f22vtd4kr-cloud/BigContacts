@@ -60,12 +60,13 @@ describe("operator authentication boundary", () => {
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeGreaterThan(routeSource.indexOf("router.use(operatorAuthRouter)"));
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(healthRouter)"));
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
-    expect(uiSource).toContain("import.meta.env.DEV");
-    expect(uiSource).toContain("if (import.meta.env.DEV) return desk;");
+    expect(uiSource).toContain('import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true"');
+    expect(uiSource).toContain('if (import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;');
     expect(uiSource).toContain("<OperatorGate>{desk}</OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
     expect(replitConfig).toContain("[userenv.development]");
     expect(replitConfig).toContain('NODE_ENV = "development"');
+    expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
