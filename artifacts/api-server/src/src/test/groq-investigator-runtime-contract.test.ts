@@ -446,6 +446,29 @@ describe("Groq Investigator runtime contract", () => {
       responseFormat: "json_object", failureDetailsAvailable: false, completionBudgetRetryUsed: true,
       currentMaxCompletionTokens: 1536, rateLimitRemainingTokens: 6000, promptTokenEstimate: 3565,
     })).toEqual({ action: "fail" });
+
+    // The captured provider error has no usage object. It must take one
+    // compatibility retry and then terminate, never loop on the same error.
+    const noUsageFirstAttempt = chooseGroqInvestigatorOutputRecovery({
+      status: replay.capturedProviderError.status,
+      providerCode: replay.capturedProviderError.code,
+      providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_schema",
+      failureDetailsAvailable: false,
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: replay.capturedRequest.max_completion_tokens,
+    });
+    expect(noUsageFirstAttempt).toEqual({ action: "retry_json_object" });
+    const noUsageSecondAttempt = chooseGroqInvestigatorOutputRecovery({
+      status: replay.capturedProviderError.status,
+      providerCode: replay.capturedProviderError.code,
+      providerMessage: replay.capturedProviderError.message,
+      responseFormat: "json_object",
+      failureDetailsAvailable: false,
+      completionBudgetRetryUsed: true,
+      currentMaxCompletionTokens: replay.capturedRequest.max_completion_tokens,
+    });
+    expect(noUsageSecondAttempt).toEqual({ action: "fail" });
   });
   it("rejects first-turn completion without evidence but allows completion after a real prior fetch", () => {
     const premature = [{
