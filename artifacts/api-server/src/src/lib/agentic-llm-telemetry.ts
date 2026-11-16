@@ -103,6 +103,15 @@ export async function flushAgenticLlmUsageLedger(): Promise<void> {
   await dailyUsagePersistenceChain;
 }
 
+export function canonicalizeAgenticLlmBudgetModel(model: string): string {
+  const normalized = model.trim().toLowerCase();
+  const leaf = normalized.split("/").filter(Boolean).at(-1) ?? normalized;
+  const unversioned = leaf.replace(/(?:[:@]|-)(?:latest|current|preview)$/i, "");
+  if (unversioned === "gpt-oss-120b") return "openai/gpt-oss-120b";
+  if (unversioned === "gpt-oss-20b") return "openai/gpt-oss-20b";
+  return unversioned;
+}
+
 export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.ProcessEnv = process.env): number {
   const suffix = /120b/i.test(model) ? "120B" : /20b/i.test(model) ? "20B" : "MODEL";
   const raw = env[`APEX_GROQ_DAILY_TOKEN_BUDGET_${suffix}`] ?? env.APEX_GROQ_DAILY_TOKEN_BUDGET;
