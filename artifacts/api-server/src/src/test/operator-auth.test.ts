@@ -59,7 +59,9 @@ describe("operator authentication boundary", () => {
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeGreaterThan(routeSource.indexOf("router.use(operatorAuthRouter)"));
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(healthRouter)"));
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
-    expect(uiSource).toContain("<OperatorGate>");
+    expect(uiSource).toContain("import.meta.env.DEV");
+    expect(uiSource).toContain("if (import.meta.env.DEV) return desk;");
+    expect(uiSource).toContain("<OperatorGate>{desk}</OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
     expect(replitConfig).toContain("[userenv.development]");
     expect(replitConfig).toContain('NODE_ENV = "development"');
