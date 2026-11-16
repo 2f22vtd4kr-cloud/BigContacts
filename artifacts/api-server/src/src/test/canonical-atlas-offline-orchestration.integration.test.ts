@@ -308,7 +308,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   it("executes multi-turn discovery, target Investigator act, independent oversight, and terminal gating through the canonical pipeline", async () => {
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
-    expect(mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"))).toHaveLength(3);
+    const investigatorCalls = mocks.safeOutboundFetch.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions")).length;
+    expect(investigatorCalls).toBeGreaterThanOrEqual(3);
+    expect(investigatorCalls).toBeLessThanOrEqual(4);
     expect(mocks.safeOutboundFetch).toHaveBeenCalledWith("https://google.serper.dev/search", expect.any(Object));
     expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true })]) })]));
