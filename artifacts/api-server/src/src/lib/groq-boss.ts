@@ -651,6 +651,10 @@ export function generateGroqBossText(
     decisionId?: string | null;
     cognitiveTask?: string | null;
     modelCandidates?: string[];
+    /** Character count before upstream semantic compaction; prompt text is never logged. */
+    originalPromptChars?: number;
+    /** Characters removed by upstream prompt compaction. */
+    promptReductionChars?: number;
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));
