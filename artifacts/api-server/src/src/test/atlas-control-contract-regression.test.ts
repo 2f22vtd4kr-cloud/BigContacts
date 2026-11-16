@@ -96,7 +96,7 @@ describe("objective-aligned Right-hand control guidance", () => {
       investigatorReport: "No source-backed B2B candidates have been admitted yet.",
       compactState: "Human objective: Find B2B software companies and their current decision-makers.",
     });
-    expect(prompt).toContain("Assess operating businesses, investors, assets and individuals against the actual mission and observations");
+    expect(prompt).toContain("Assess businesses, investors, assets and people against the mission and observations");
     expect(prompt).toContain("do not invent a private/mid-market preference");
     expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
   });
