@@ -840,6 +840,10 @@ function isContactLikeOrganizationReviewValue(value: string): boolean {
   return digits >= 7 && /^[+()\d.\s-]+$/.test(candidate);
 }
 
+// COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation,
+ // preserve it as a review card with scope=organization and its associated public result URL.
+ // Do not synthesize company names from URL paths, generic metadata or registry rows; registry rows may
+ // support only a company already selected by the Investigator.
 async function materializePartialOrganizationLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
