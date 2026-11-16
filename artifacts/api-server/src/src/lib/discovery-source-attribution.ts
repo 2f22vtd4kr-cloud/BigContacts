@@ -1,3 +1,5 @@
+import { isAggregatorHost } from "./source-corroboration";
+
 export type DiscoverySourceAttribution = {
   sourceName: string;
   sourceNameKind: "publisher_name" | "domain_fallback";
@@ -75,9 +77,11 @@ export function buildDiscoverySourceAttribution(input: {
   const sourceDomain = suppliedDomain || urlDomain || "unknown";
   const sourceClass = communityObservationSource
     ? "community_user_submitted_unverified"
-    : typeof input.sourceClass === "string" && input.sourceClass.trim()
-      ? input.sourceClass.trim()
-      : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
+    : isAggregatorHost(urlDomain)
+      ? "AGGREGATOR"
+      : typeof input.sourceClass === "string" && input.sourceClass.trim()
+        ? input.sourceClass.trim()
+        : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
   const sourceContributor = typeof input.sourceContributor === "string" && input.sourceContributor.trim()
     ? input.sourceContributor.trim()
     : null;
