@@ -96,7 +96,7 @@ describe("objective-aligned Right-hand control guidance", () => {
       investigatorReport: "No source-backed B2B candidates have been admitted yet.",
       compactState: "Human objective: Find B2B software companies and their current decision-makers.",
     });
-    expect(prompt).toContain("Assess whether an operating business, investor, asset or individual is relevant using the actual mission and source observations");
+    expect(prompt).toContain("Assess operating businesses, investors, assets and individuals against the actual mission and observations");
     expect(prompt).toContain("do not invent a private/mid-market preference");
     expect(prompt).not.toContain("Operating private/mid-market targets need evidence");
   });
@@ -385,7 +385,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("The complete human objective and explicit constraints govern.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(controlSource).toContain("PIVOT CONTRACT: name the concrete subject or unresolved evidence question");
-    expect(controlSource).toContain("Right-hand advises only; the Investigator chooses each research action.");
+    expect(controlSource).toContain("Right-hand is advisory, never an approval gate.");
   });
 
   it("preserves the Investigator terminal reason and failure class within the bounded control report", () => {
