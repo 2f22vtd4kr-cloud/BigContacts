@@ -768,6 +768,7 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("measures the actual outbound Investigator prompts offline against the 2026-11-14 baseline", () => {
+    let promptCompaction = { originalPromptChars: 0, finalPromptChars: 0 };
     const prompt = buildStepPrompt({
       targetName: "",
       objective: "Discover evidence-backed public decision makers and ownership relationships for a named operating company.",
@@ -778,6 +779,7 @@ describe("Groq Investigator runtime contract", () => {
       intelligenceContext: "RESEARCH INTELLIGENCE STATE: no findings yet; hypotheses and source lineage are empty.",
       mode: "discovery",
       actionAllowlist: ["web_search", "parallel_web_search", "visit", "registry_search", "done"],
+      onPromptMeasurement: (measurement) => { promptCompaction = measurement; },
     });
     const buildMeasurement = (model: string) => {
       const body = buildGroqInvestigatorRequestBody({ model, prompt, cognitiveTask: "discovery", promptMode: "discovery" });
@@ -795,11 +797,26 @@ describe("Groq Investigator runtime contract", () => {
     const replay = JSON.parse(readFileSync(new URL("./fixtures/investigator-2026-11-14-replay.json", import.meta.url), "utf8")) as {
       capturedSuccessfulResponse: { prompt_tokens: number; completion_tokens: number; reasoning_tokens: number };
     };
+    const promptReductionChars = Math.max(0, promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    const largestRemainingPromptSections = prompt.split(/\n{2,}/)
+      .map((section) => ({ label: section.split("\n")[0]?.slice(0, 100) ?? "(unnamed)", chars: section.length }))
+      .sort((a, b) => b.chars - a.chars)
+      .slice(0, 8);
     console.info("APEX_INVESTIGATOR_PROMPT_MEASUREMENT " + JSON.stringify({
       method: "offline character estimate (ceil(total request characters / 3.4)); not a provider tokenizer",
       baseline2026_11_14: replay.capturedSuccessfulResponse,
+      promptCompaction: {
+        originalPromptChars: promptCompaction.originalPromptChars,
+        finalPromptChars: promptCompaction.finalPromptChars,
+        promptReductionChars,
+        twentyBEstimatedInputTokensBefore: Math.ceil((twentyB.systemPromptChars + promptCompaction.originalPromptChars + twentyB.responseFormatChars) / 3.4),
+        twentyBEstimatedInputTokensAfter: twentyB.estimatedInputTokens,
+        oneTwentyBEstimatedInputTokensBefore: Math.ceil((oneTwentyB.systemPromptChars + promptCompaction.originalPromptChars + oneTwentyB.responseFormatChars) / 3.4),
+        oneTwentyBEstimatedInputTokensAfter: oneTwentyB.estimatedInputTokens,
+      },
       representativeFirstTurn20B: twentyB,
       representativeFirstTurn120B: oneTwentyB,
+      largestRemainingPromptSections,
     }));
     expect(twentyB.systemPromptChars).toBeGreaterThan(0);
     expect(twentyB.userPromptChars).toBeGreaterThan(0);
