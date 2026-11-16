@@ -83,6 +83,7 @@ describe("Groq Boss token-window recovery", () => {
     // exhaustion into the shared CI database used by later integration tests.
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL", "0");
     vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
     vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
