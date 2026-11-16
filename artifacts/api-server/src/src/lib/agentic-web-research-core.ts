@@ -2425,7 +2425,8 @@ async function callGroqJson(
       let providerRequestSent = false;
       const systemPromptCharsBeforeRequest = INVESTIGATOR_SYSTEM_PROMPT().length;
       const promptEnvelopeChars = GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE.length + 2;
-      const baseOriginalPromptChars = Math.max(workingPrompt.length, Math.floor(promptMeasurementContext.originalPromptChars ?? workingPrompt.length));
+      const baseOriginalPromptChars = Math.max(workingPrompt.length, Math.floor(originalPromptChars));
+      const promptMode: "discovery" | "target" = actionAllowlist?.some((action) => action.startsWith("footprint_")) || /TARGET-STAGE RESEARCH|TARGET MODE|Operating-company targets need evidence of current operations/.test(workingPrompt) ? "target" : "discovery";
       const defaultUserPromptChars = workingPrompt.length + promptEnvelopeChars;
       const defaultOriginalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
       let promptMeasurement = {
@@ -2566,7 +2567,6 @@ async function callGroqJson(
             budgetExhausted: tokenDailyQuota,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             status: 429,
             success: false,
@@ -2650,7 +2650,6 @@ async function callGroqJson(
             providerRequestSent,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             ...errorUsageMetrics,
             status: response.status,
@@ -2753,7 +2752,6 @@ async function callGroqJson(
             providerRequestSent,
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
             ...promptMeasurement,
             status: response.status,
             success: false,
@@ -2778,7 +2776,6 @@ async function callGroqJson(
             providerRequestSent,
           provider: "groq",
           model,
-          promptChars: workingPrompt.length,
             ...promptMeasurement,
           status: response.status,
           success: Boolean(raw) && finishReason !== "length",
@@ -2829,7 +2826,6 @@ async function callGroqJson(
           providerRequestSent,
           provider: "groq",
           model,
-          promptChars: workingPrompt.length,
           ...promptMeasurement,
           status: "error",
           success: false,
@@ -2879,7 +2875,7 @@ async function callGroqJson(
             dailyReservationTokens,
             dailyBudgetTokens,
             estimatedTokens: dailyEstimatedTokens,
-            providerRequestSent, provider: "groq", model, promptChars: workingPrompt.length,
+            providerRequestSent, provider: "groq", model,
             ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
         // A local provider-gate quota/cooldown is already a provider-wide stop
