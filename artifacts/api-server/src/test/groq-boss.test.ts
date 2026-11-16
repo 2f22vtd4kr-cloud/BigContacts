@@ -8,12 +8,20 @@ import {
 describe("Groq Boss control-plane adapter", () => {
   const originalKey = process.env.GROQ_BOSS_API_KEY;
   const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalDailyBudget = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+  const originalDailyBudgetModel = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
+  const originalDailyBudget120B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+  const originalDailyBudget20B = process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
 
   beforeEach(() => {
     // These tests simulate provider responses; durable TPD state is covered by
     // the dedicated PostgreSQL ledger integration test. Never let a simulated
     // 429 poison the shared CI database for unrelated test files.
     process.env.DATABASE_URL = "";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = "0";
+    process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = "0";
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 
@@ -23,6 +31,14 @@ describe("Groq Boss control-plane adapter", () => {
     else process.env.GROQ_BOSS_API_KEY = originalKey;
     if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = originalDatabaseUrl;
+    if (originalDailyBudget === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET = originalDailyBudget;
+    if (originalDailyBudgetModel === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_MODEL = originalDailyBudgetModel;
+    if (originalDailyBudget120B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_120B = originalDailyBudget120B;
+    if (originalDailyBudget20B === undefined) delete process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B;
+    else process.env.APEX_GROQ_DAILY_TOKEN_BUDGET_20B = originalDailyBudget20B;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 
