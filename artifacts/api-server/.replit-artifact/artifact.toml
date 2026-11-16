@@ -35,6 +35,10 @@ args = ["sh", "-c", "cd ../.. && bash scripts/replit-boot.sh"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+APEX_CAPTURE_MODEL_PROMPTS = "false"
+APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"
+APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"
+APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"
 
 [services.production.health.startup]
 path = "/api/healthz"
