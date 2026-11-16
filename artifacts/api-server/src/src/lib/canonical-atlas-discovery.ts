@@ -8,7 +8,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, hasCanonicalAtlasReachedTargetSpendingCap, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -2096,7 +2096,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         finalControlAction = "stop";
         break;
       }
-      if (researched >= targetLimit) {
+      if (hasCanonicalAtlasReachedTargetSpendingCap(researched, targetLimit)) {
         phaseSummary.operatorTargetSpendingCap = `Operator spending cap reached after ${targetLimit} target investigation(s); no further target-stage provider work will be started.`;
         finalControlAction = "stop";
         break;

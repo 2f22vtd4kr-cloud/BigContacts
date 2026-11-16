@@ -45,6 +45,12 @@ export function resolveCanonicalAtlasTargetCount(value: unknown = CANONICAL_ATLA
   return Math.max(1, Math.min(25, requested));
 }
 
+export function hasCanonicalAtlasReachedTargetSpendingCap(researchedCount: unknown, targetCount: unknown = CANONICAL_ATLAS_LAUNCH_BODY.targetCount): boolean {
+  const parsed = Number(researchedCount);
+  const completed = Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
+  return completed >= resolveCanonicalAtlasTargetCount(targetCount);
+}
+
 export type CanonicalAtlasLaunchBody = typeof CANONICAL_ATLAS_LAUNCH_BODY;
 
 /** Minimal smoke (launch then immediate stop) — not a real bureau cycle */
