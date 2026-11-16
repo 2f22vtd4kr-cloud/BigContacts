@@ -38,7 +38,7 @@ describe("objective-led institutional orientation", () => {
   it("keeps the shared Boss and Right-hand orientation objective-led", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toContain("the exact human objective");
+      expect(prompt).toContain("The exact human objective");
       expect(prompt).toMatch(/HNWI is (?:an optional classification|optional); do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested/i);
       expect(prompt).toMatch(/do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
@@ -85,7 +85,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_BUREAU_PLAYBOOK).not.toContain("inspect one useful in-scope lead before another search");
     expect(core.split("\n").length).toBeGreaterThan(8);
     expect(core).not.toContain("\\n");
-    expect(apexOrientationCompact("investigator")).toContain("the exact human objective");
+    expect(apexOrientationCompact("investigator")).toContain("The exact human objective");
   });
 
   it("keeps qualification and wealth interpretation mission-specific", () => {
