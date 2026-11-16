@@ -2197,7 +2197,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
-  const inferredMode = input.promptMode ?? (input.mode ?? "target");
+  const inferredMode = input.promptMode ?? "discovery";
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
