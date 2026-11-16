@@ -639,7 +639,7 @@ describe("discovery runtime architecture", () => {
 
   it("keeps the operator spending-cap behavior covered by executable unit tests", () => {
     // The actual cap normalization and defaults are exercised in
-    // canonical-atlas-model-owned-target-selection.test.ts; do not freeze
+    // canonical-atlas-target-budget.test.ts; do not freeze
     // implementation wording or duplicate that behavior with source matching.
     const uiObjectiveLiteral = launchUiSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
     const apiObjectiveLiteral = launchDefaultsSource.match(/export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = ("(?:[^"\\\\]|\\\\.)*");/)?.[1];
