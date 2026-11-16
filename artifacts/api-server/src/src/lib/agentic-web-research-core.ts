@@ -2392,6 +2392,7 @@ async function callGroqJson(
     cognitiveTask,
     originalPromptChars: Math.max(prompt.length, Math.floor(originalPromptChars)),
     promptReductionChars: Math.max(0, Math.floor(originalPromptChars) - prompt.length),
+    estimatedPromptTokens: Math.ceil((INVESTIGATOR_SYSTEM_PROMPT().length + prompt.length) / 3.4),
   };
   if (!key) return null;
   let attempt = 0;
@@ -4779,7 +4780,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), input.mode === "discovery" ? (availablePythonActions.size > 0 ? 450 : 350) : (availablePythonActions.size > 0 ? 2_200 : 1_000));
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
-  const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
+  const terminalContractGuidance = "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactQuotes=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; openQuestions=" + terminalContract.allowOpenQuestions + "; severeContradictions=" + terminalContract.allowHighSeverityContradictions + ".";
       const availableActionsGuidance = "Use an action ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn. ACTION ALLOWLIST / AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
@@ -5821,9 +5822,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = compactedObservation;
       }
       let prompt: string;
-      let promptMeasurement = { originalPromptChars: 0, finalPromptChars: 0 };
+      let promptMeasurement = { originalPromptChars: 0, promptReductionChars: 0 };
       const capturePromptMeasurement = (measurement: { originalPromptChars: number; finalPromptChars: number }) => {
-        promptMeasurement = measurement;
+        promptMeasurement = {
+          originalPromptChars: measurement.originalPromptChars,
+          promptReductionChars: Math.max(0, measurement.originalPromptChars - measurement.finalPromptChars),
+        };
       };
       let usedPromptRecoveryFallback = false;
       try {

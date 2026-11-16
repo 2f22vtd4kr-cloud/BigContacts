@@ -310,6 +310,10 @@ async function generateGroqBossTextImpl(
     decisionId?: string | null;
     cognitiveTask?: string | null;
     modelCandidates?: string[];
+    /** Character count before upstream semantic compaction; prompt text is never logged. */
+    originalPromptChars?: number;
+    /** Characters removed by upstream prompt compaction. */
+    promptReductionChars?: number;
   },
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
@@ -351,6 +355,9 @@ async function generateGroqBossTextImpl(
     iteration: options?.iteration ?? null,
     decisionId: options?.decisionId ?? null,
     cognitiveTask: options?.cognitiveTask ?? "control_decision",
+    originalPromptChars: Math.max(prompt.length, Math.floor(options?.originalPromptChars ?? prompt.length)),
+    promptReductionChars: Math.max(0, Math.floor(options?.promptReductionChars ?? (prompt.length - boundedPrompt.length))),
+    estimatedPromptTokens: Math.ceil(boundedPrompt.length / 3.4),
   };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
@@ -422,7 +429,7 @@ async function generateGroqBossTextImpl(
           });
           const responseBody = await response.text();
           const usage = (() => { try { const parsed = JSON.parse(responseBody) as { usage?: unknown }; return readGroqUsageMetrics(parsed.usage); } catch { return {}; } })();
-          recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: isTokenPerDayQuotaError(response.status, responseBody), provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, ...readGroqRateLimitHeaders(response.headers), latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
+          recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: isTokenPerDayQuotaError(response.status, responseBody), provider: "groq", model, promptChars: boundedPrompt.length, originalPromptChars: options?.originalPromptChars ?? prompt.length, promptReductionChars: options?.promptReductionChars ?? Math.max(0, prompt.length - boundedPrompt.length), estimatedPromptTokens: Math.ceil(boundedPrompt.length / 3.4), userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, ...readGroqRateLimitHeaders(response.headers), latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
           attemptTelemetryRecorded = true;
           modelAuditResponseRecorded = emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
@@ -578,7 +585,7 @@ async function generateGroqBossTextImpl(
           }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
-          if (!attemptTelemetryRecorded) recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: error instanceof AgenticDailyTokenBudgetError && error.code === "daily_token_budget_exhausted", provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: "error", success: false, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: error instanceof AgenticDailyTokenBudgetError ? error.code : error instanceof Error && error.name === "AbortError" ? "timeout" : "exception" });
+          if (!attemptTelemetryRecorded) recordAgenticLlmAttempt({ ...telemetryContext, dailyReservationDate, dailyReservationTokens, dailyBudgetTokens, estimatedTokens, providerRequestSent, budgetExhausted: error instanceof AgenticDailyTokenBudgetError && error.code === "daily_token_budget_exhausted", provider: "groq", model, promptChars: boundedPrompt.length, originalPromptChars: options?.originalPromptChars ?? prompt.length, promptReductionChars: options?.promptReductionChars ?? Math.max(0, prompt.length - boundedPrompt.length), estimatedPromptTokens: Math.ceil(boundedPrompt.length / 3.4), userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: "error", success: false, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: error instanceof AgenticDailyTokenBudgetError ? error.code : error instanceof Error && error.name === "AbortError" ? "timeout" : "exception" });
           if (error instanceof AgenticDailyTokenBudgetError) return { model, raw: null, error: error.code, attempts };
           if (!modelAuditResponseRecorded) {
             const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
@@ -644,6 +651,10 @@ export function generateGroqBossText(
     decisionId?: string | null;
     cognitiveTask?: string | null;
     modelCandidates?: string[];
+    /** Character count before upstream semantic compaction; prompt text is never logged. */
+    originalPromptChars?: number;
+    /** Characters removed by upstream prompt compaction. */
+    promptReductionChars?: number;
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));

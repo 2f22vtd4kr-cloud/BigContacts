@@ -1421,13 +1421,13 @@ describe("Investigator prompt architecture", () => {
       mode: "target",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
-    expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; falsification=false;");
+    expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
     expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
-    expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; falsification=true");
+    expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
     expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
   });

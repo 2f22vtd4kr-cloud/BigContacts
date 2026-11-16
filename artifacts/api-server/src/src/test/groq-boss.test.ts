@@ -540,3 +540,54 @@ describe("Groq Boss assignment-only opening response", () => {
     expect(parsed.candidates).toEqual([]);
   });
 });
+
+describe("Groq Boss prompt compaction telemetry", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+    vi.stubEnv("GROQ_BOSS_API_KEY", "test-boss-prompt-telemetry-key");
+    vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("logs original prompt size, upstream compaction reduction and estimated tokens for a Boss call", async () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: "stop", message: { content: '{"decision":"proceed"}' } }],
+    }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["openai/gpt-oss-120b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "COMPACTED BOSS PROMPT " + "x".repeat(400),
+      { jobId: "job-boss-prompt-telemetry", caseId: 50, originalPromptChars: 1_300, promptReductionChars: 800 },
+    );
+
+    expect(result.raw).toBe('{"decision":"proceed"}');
+    const record = output.mock.calls
+      .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
+      .find((entry) => entry.event === "apex_agentic_llm_attempt" && entry.role === "boss");
+    expect(record).toMatchObject({
+      role: "boss",
+      jobId: "job-boss-prompt-telemetry",
+      caseId: 50,
+      originalPromptChars: 1_300,
+      promptReductionChars: 800,
+      estimatedPromptTokens: expect.any(Number),
+    });
+    expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
+    expect(Number(record?.estimatedPromptTokens)).toBeGreaterThan(0);
+  });
+});

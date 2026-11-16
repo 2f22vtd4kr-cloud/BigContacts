@@ -59,7 +59,7 @@ function accountFingerprint(input:string|URL|Request,init?:RequestInit):string{c
 function parseRetryAfter(response:Response):number{const value=response.headers.get("retry-after");if(!value)return 0;const seconds=Number(value);if(Number.isFinite(seconds))return Math.min(5*60_000,Math.max(0,seconds*1000));const timestamp=Date.parse(value);return Number.isFinite(timestamp)?Math.min(5*60_000,Math.max(0,timestamp-Date.now())):0;}
 
 type GroqTokenReservation = { createdAt: number; reservedTokens: number };
-type GroqTokenWindowState = { reservations: GroqTokenReservation[]; cooldownUntil: number; providerLimit: number | null };
+type GroqTokenWindowState = { reservations: GroqTokenReservation[]; cooldownUntil: number; providerLimit: number | null; providerRemainingTokens: number | null; remainingObservedAt: number | null; remainingExpiresAt: number | null };
 const groqTokenWindows = new Map<string, GroqTokenWindowState>();
 const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
 const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
@@ -118,10 +118,15 @@ export function getGroqTokenRequest(input: string | URL | Request, init?: Reques
   }
 }
 
+export function getGroqTokenWindowSnapshot(key: string): { providerLimit: number | null; providerRemainingTokens: number | null; remainingObservedAt: number | null; remainingExpiresAt: number | null } {
+  const state = groqTokenWindowState(key);
+  return { providerLimit: state.providerLimit, providerRemainingTokens: state.providerRemainingTokens, remainingObservedAt: state.remainingObservedAt, remainingExpiresAt: state.remainingExpiresAt };
+}
+
 function groqTokenWindowState(key: string): GroqTokenWindowState {
   const existing = groqTokenWindows.get(key);
   if (existing) return existing;
-  const created: GroqTokenWindowState = { reservations: [], cooldownUntil: 0, providerLimit: null };
+  const created: GroqTokenWindowState = { reservations: [], cooldownUntil: 0, providerLimit: null, providerRemainingTokens: null, remainingObservedAt: null, remainingExpiresAt: null };
   groqTokenWindows.set(key, created);
   return created;
 }
@@ -130,7 +135,11 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
   const windowMs = groqTokenWindowMs();
   const state = groqTokenWindowState(key);
   const configuredLimit = groqTokenBudget();
-  const limit = Math.min(configuredLimit, state.providerLimit ?? configuredLimit);
+  // Before the first provider response, the deployment value is the only
+  // available ceiling. Afterwards, pace against the provider's observed
+  // remaining-token window, subtracting only reservations made since that
+  // observation (the response header already accounts for older requests).
+  const limit = state.providerLimit ?? configuredLimit;
   if (requestedTokens > limit) {
     logger.warn({ modelKeyDigest: createHash("sha256").update(key).digest("hex").slice(0, 12), requestedTokens, tokenBudget: limit }, "Groq request exceeds the safe local TPM reservation");
     throw new ProviderQuotaError("budget_exhausted", "groq", windowMs, "tokens");
@@ -147,7 +156,17 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
       continue;
     }
     const used = state.reservations.reduce((total, reservation) => total + reservation.reservedTokens, 0);
-    if (used + requestedTokens <= limit) {
+    const observationIsFresh = state.providerRemainingTokens !== null
+      && state.remainingObservedAt !== null
+      && (state.remainingExpiresAt !== null ? now < state.remainingExpiresAt : now - state.remainingObservedAt < windowMs);
+    const newerReservations = observationIsFresh
+      ? state.reservations.filter((item) => item.createdAt >= state.remainingObservedAt!)
+          .reduce((total, item) => total + item.reservedTokens, 0)
+      : 0;
+    const effectiveAvailable = observationIsFresh
+      ? Math.min(limit, state.providerRemainingTokens!) - newerReservations
+      : limit - used;
+    if (requestedTokens <= effectiveAvailable) {
       const reservation = { createdAt: now, reservedTokens: requestedTokens };
       state.reservations.push(reservation);
       return reservation;
@@ -176,7 +195,7 @@ function groqResetDurationMs(raw: string | null): number | null {
   return Math.min(maxResetMs, Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000));
 }
 
-function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenReservation, response: Response, bodyText: string): void {
+export function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenReservation, response: Response, bodyText: string): void {
   // The provider window continues to include tokens consumed during generation;
   // start the conservative local expiry at response completion, not request start.
   reservation.createdAt = Date.now();
@@ -184,6 +203,31 @@ function reconcileGroqTokenWindowFromBody(key: string, reservation: GroqTokenRes
   const providerLimit = Number(response.headers.get("x-ratelimit-limit-tokens"));
   if (Number.isFinite(providerLimit) && providerLimit > 0) {
     state.providerLimit = state.providerLimit === null ? providerLimit : Math.min(state.providerLimit, providerLimit);
+  }
+  const remainingRaw = response.headers.get("x-ratelimit-remaining-tokens");
+  const remaining = remainingRaw == null || !/^\d+$/.test(remainingRaw.trim()) ? null : Number(remainingRaw.trim());
+  if (remaining !== null && Number.isSafeInteger(remaining) && remaining >= 0) {
+    const observedAt = Date.now();
+    const priorObservationIsFresh = state.providerRemainingTokens !== null
+      && state.remainingObservedAt !== null
+      && (state.remainingExpiresAt !== null
+        ? observedAt < state.remainingExpiresAt
+        : observedAt - state.remainingObservedAt < groqTokenWindowMs());
+    // Responses can complete out of order. Within one provider reset window,
+    // retain the lower observed balance so a late stale response cannot grant
+    // capacity that a newer response already showed as consumed. A new balance
+    // is accepted once the prior provider window has actually reset.
+    const resetMs = groqResetDurationMs(response.headers.get("x-ratelimit-reset-tokens"));
+    const incomingExpiresAt = resetMs === null ? observedAt + groqTokenWindowMs() : observedAt + resetMs;
+    state.providerRemainingTokens = priorObservationIsFresh
+      ? Math.min(state.providerRemainingTokens!, remaining)
+      : remaining;
+    state.remainingObservedAt = observedAt;
+    // A late response can also carry an older reset deadline. Never extend the
+    // current observation's expiry while reconciling out-of-order responses.
+    state.remainingExpiresAt = priorObservationIsFresh && state.remainingExpiresAt !== null
+      ? Math.min(state.remainingExpiresAt, incomingExpiresAt)
+      : incomingExpiresAt;
   }
   let parsedPayload: unknown;
   try { parsedPayload = JSON.parse(bodyText); } catch { return; }

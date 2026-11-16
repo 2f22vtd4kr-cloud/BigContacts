@@ -114,7 +114,7 @@ export function getGroqRightHandLatencyConfig():GroqRightHandLatencyConfig {
 export type GroqRightHandStatus={configured:boolean;model:string;fallbackModels:string[];endpoint:string;role:"right_hand_advisor";capability:"case_file_reasoning_only";provider:"groq"};
 export type GroqRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
 export type GroqRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
-export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null; targetDigest?: string | null; iteration?: number | null; decisionId?: string | null; cognitiveTask?: string | null };
+export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null; targetDigest?: string | null; iteration?: number | null; decisionId?: string | null; cognitiveTask?: string | null; originalPromptChars?: number; promptReductionChars?: number };
 
 /** Task-scoped generation tuning; omitted options preserve the defaults for every existing caller. */
 export type GroqRightHandRequestOptions = {
@@ -291,7 +291,15 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
-  const telemetryContext = {
+  const measuredOriginalUserChars = Math.max(
+  normalizedUser.length,
+  Math.floor(auditContext?.originalPromptChars ?? normalizedUser.length),
+ );
+ const measuredPromptReductionChars = Math.max(
+  0,
+  Math.floor(auditContext?.promptReductionChars ?? (measuredOriginalUserChars - normalizedUser.length)),
+ );
+ const telemetryContext = {
     role: "right_hand" as const,
     capability: "groq-right-hand",
     jobId: auditContext?.jobId ?? null,
@@ -300,6 +308,9 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     iteration: auditContext?.iteration ?? null,
     decisionId: auditContext?.decisionId ?? null,
     cognitiveTask: auditContext?.cognitiveTask ?? "control_advisory",
+    originalPromptChars: systemPrompt.length + measuredOriginalUserChars,
+    promptReductionChars: measuredPromptReductionChars,
+    estimatedPromptTokens: Math.ceil((systemPrompt.length + normalizedUser.length) / 3.4),
   };
  const failures: GroqAttemptDiagnostic[] = [];
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
@@ -344,7 +355,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     });
     const responseBody=await response.text();
      const usage=(()=>{try{const parsed=JSON.parse(responseBody) as {usage?:unknown};return readGroqUsageMetrics(parsed.usage);}catch{return{};}})();
-     recordAgenticLlmAttempt({...telemetryContext,dailyReservationDate,dailyReservationTokens,dailyBudgetTokens,estimatedTokens,providerRequestSent,budgetExhausted:isTokenPerDayQuotaError(response.status,responseBody),provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:response.status,success:response.ok,...usage,...readGroqRateLimitHeaders(response.headers),latencyMs:Date.now()-attemptStartedAt,retryIndex:outboundAttemptCount,reason:response.ok?undefined:response.status===429?"rate_limited":"provider_rejected",providerErrorCode:providerErrorCode(responseBody)});
+     recordAgenticLlmAttempt({...telemetryContext,dailyReservationDate,dailyReservationTokens,dailyBudgetTokens,estimatedTokens,providerRequestSent,budgetExhausted:isTokenPerDayQuotaError(response.status,responseBody),provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,originalPromptChars:telemetryContext.originalPromptChars,promptReductionChars:telemetryContext.promptReductionChars,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:response.status,success:response.ok,...usage,...readGroqRateLimitHeaders(response.headers),latencyMs:Date.now()-attemptStartedAt,retryIndex:outboundAttemptCount,reason:response.ok?undefined:response.status===429?"rate_limited":"provider_rejected",providerErrorCode:providerErrorCode(responseBody)});
      attemptTelemetryRecorded=true;
      modelAuditResponseRecorded=emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
      if(isModelPromptAuditCaptureEnabled()&&!modelAuditResponseRecorded)throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Right-hand response");
@@ -741,19 +752,23 @@ export async function runGroqRightHandReadiness(): Promise<{
 export async function runGroqRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GroqRightHandCaseReasoningResult> {
   const queued = input.file.actionQueue.filter((action) => action.status === "queued");
   const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only.";
+  const compactedCase = compactCase(input.file);
   const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.
 CASE:
-${compactCase(input.file)}
+${compactedCase}
 
 Return {"actionId":"exact queued action id","decision":"short recommendation","reason":"concrete case-file evidence-gap reason","confidence":0.0}.`;
-  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"], additionalProperties: false } });
+  const originalPromptChars = user.length + Math.max(0, JSON.stringify(input.file, null, 2).length - compactedCase.length);
+  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"], additionalProperties: false } }, undefined, { cognitiveTask: "control_advisory", originalPromptChars, promptReductionChars: originalPromptChars - user.length });
   if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error };
   return normalizeGroqRightHandCaseReasoning(extractJson(result.raw), queued.map((action) => action.id), result.model);
 }
 export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GroqRightHandDiscoveryAdviceResult> {
   const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only.";
   const user = boundedDiscoveryPrompt(input.file, input.iteration);
-  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"], additionalProperties: false } });
+  const originalPromptChars = Math.max(user.length, JSON.stringify(input.file, null, 2).length);
+  const promptReductionChars = Math.max(0, originalPromptChars - user.length);
+  const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"], additionalProperties: false } }, undefined, { cognitiveTask: "control_advisory", originalPromptChars, promptReductionChars });
   if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
   return normalizeGroqRightHandDiscoveryAdvice(extractJson(result.raw), result.model);
 }

@@ -79,7 +79,10 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
       minEvidence: 0,
       minIndependentSourceUnits: 0,
       requireExactSpanForFindings: false,
-      requireFalsification: true,
+      // Falsification is a model-owned research judgment, not a keyword gate.
+      // Keep observing whether a counterevidence attempt occurred, but do not
+      // veto a valid terminal decision because its query used different wording.
+      requireFalsification: false,
       allowOpenQuestions: Number.MAX_SAFE_INTEGER,
       allowHighSeverityContradictions: Number.MAX_SAFE_INTEGER,
     };

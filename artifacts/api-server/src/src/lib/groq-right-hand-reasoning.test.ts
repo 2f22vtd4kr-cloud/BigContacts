@@ -407,3 +407,60 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies[0].max_completion_tokens).toBe(1_024);
   });
 });
+
+describe("Groq Right-hand prompt compaction telemetry", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "test-right-hand-telemetry-key");
+    vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
+    resetGroqRightHandModelCatalogCacheForTests();
+    resetGroqRightHandRequestGateForTests();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    resetGroqRightHandModelCatalogCacheForTests();
+    resetGroqRightHandRequestGateForTests();
+  });
+
+  it("logs original prompt size, compaction reduction and estimated tokens for a Right-hand call", async () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }] });
+      }
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "A compact prompt after upstream case-context compaction.",
+      "Review the supplied case only.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-right-hand-prompt-telemetry", caseId: 49, originalPromptChars: 1_100, promptReductionChars: 600 },
+      { maxCompletionTokens: 512, reasoningEffort: "low", maxAttempts: 1, preferredModel: "openai/gpt-oss-120b", allowModelFallback: false },
+    );
+
+    expect(result.status).toBe("completed");
+    const record = output.mock.calls
+      .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
+      .find((entry) => entry.event === "apex_agentic_llm_attempt" && entry.role === "right_hand");
+    expect(record).toMatchObject({
+      role: "right_hand",
+      jobId: "job-right-hand-prompt-telemetry",
+      caseId: 49,
+      originalPromptChars: expect.any(Number),
+      promptReductionChars: 600,
+      estimatedPromptTokens: expect.any(Number),
+    });
+    expect(Number(record?.originalPromptChars)).toBeGreaterThan(Number(record?.promptChars));
+    expect(Number(record?.estimatedPromptTokens)).toBeGreaterThan(0);
+  });
+});
