@@ -205,7 +205,6 @@ vi.mock("../lib/identity-collision", () => ({
 import { runAgenticWebResearch } from "../lib/agentic-web-research";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
-import { persistSourceBackedBureauContactsForEntity } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
