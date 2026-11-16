@@ -161,17 +161,36 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       { vectorType: "other", value: firstName, personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${firstName} is Chief Executive Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
       { vectorType: "other", value: secondName, personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${secondName} is Chief Financial Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
     ];
-    const common = {
-      query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null,
-      thought: "The next action tests a concrete evidence gap.",
-      hypothesis: "The source may contain relevant identity and role evidence.",
-      purpose: "Test whether the public source supports a provisional person lead.",
-      expectedInformationGain: 0.8, searches: [], findings: [], locale: null, market: null, target: null, targetType: null, profile: null,
-    };
     const actions = [
-      { ...common, action: "web_search", query: `Apex Offline Holdings ${runToken.slice(0, 8)} leadership`, provider: "serper", url: null, hypothesis: "A public company page may identify current leadership.", purpose: "Find a readable source that can be fetched and checked." },
-      { ...common, action: "visit", url: sourceUrl, query: null, provider: null, hypothesis: "The fetched company page may bind both names to their roles.", purpose: "Verify the exact names and roles in observed page text." },
-      { ...common, action: "done", query: null, provider: null, url: null, thought: "The requested discovery observations have been collected; return control for model adjudication.", hypothesis: null, purpose: null, expectedInformationGain: 0, findings },
+      {
+        action: "web_search",
+        query: `Apex Offline Holdings ${runToken.slice(0, 8)} leadership`,
+        provider: "serper",
+        thought: "Search for a public company leadership page.",
+        hypothesis: "A public company page may identify current leadership.",
+        purpose: "Find a readable source that can be fetched and checked.",
+        expectedInformationGain: 0.8,
+        findings: [],
+      },
+      {
+        action: "visit",
+        query: null,
+        url: sourceUrl,
+        thought: "Fetch the discovered page to inspect the named people and roles.",
+        hypothesis: "The fetched company page may bind both names to their roles.",
+        purpose: "Verify the exact names and roles in observed page text.",
+        expectedInformationGain: 0.9,
+        findings,
+      },
+      {
+        action: "done",
+        query: null,
+        thought: "The requested discovery observations have been collected; return control for model adjudication.",
+        hypothesis: null,
+        purpose: null,
+        expectedInformationGain: 0,
+        findings: [],
+      },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
