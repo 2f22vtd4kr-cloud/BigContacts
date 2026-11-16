@@ -1409,7 +1409,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
-    expect(target).toContain("minEvidence=0; minIndependentSourceUnits=0; requireExactSpanForFindings=false; requireFalsification=true");
+    expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; falsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
     expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
   });
