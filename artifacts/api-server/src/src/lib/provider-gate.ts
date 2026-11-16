@@ -118,6 +118,11 @@ export function getGroqTokenRequest(input: string | URL | Request, init?: Reques
   }
 }
 
+export function getGroqTokenWindowSnapshot(key: string): { providerLimit: number | null; providerRemainingTokens: number | null; remainingObservedAt: number | null } {
+  const state = groqTokenWindowState(key);
+  return { providerLimit: state.providerLimit, providerRemainingTokens: state.providerRemainingTokens, remainingObservedAt: state.remainingObservedAt };
+}
+
 function groqTokenWindowState(key: string): GroqTokenWindowState {
   const existing = groqTokenWindows.get(key);
   if (existing) return existing;
