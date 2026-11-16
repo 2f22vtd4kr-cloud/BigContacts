@@ -23,8 +23,6 @@ export const CANONICAL_ATLAS_LAUNCH_BODY = {
    */
   targetCount: 1,
   discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
-  /** Operational upper bound matching targetCount; model-owned stopping governs actual work. */
-  researchLimit: 1,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
   hotLeadsOnly: false,
@@ -51,6 +49,5 @@ export type CanonicalAtlasLaunchBody = typeof CANONICAL_ATLAS_LAUNCH_BODY;
 export const SMOKE_ATLAS_LAUNCH_BODY = {
   ...CANONICAL_ATLAS_LAUNCH_BODY,
   targetCount: 1,
-  researchLimit: 1,
   targetTimeoutMs: 60_000,
 } as const;
