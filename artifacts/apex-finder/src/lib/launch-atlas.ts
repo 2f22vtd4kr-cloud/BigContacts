@@ -12,6 +12,8 @@ export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Find lesser-known people with 
 
 
 export type LaunchAtlasOptions = {
+  /** Operator spending cap; defaults to one target investigation. */
+  targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
   discoveryObjective?: string;
@@ -37,7 +39,8 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
 
   const isSingle = opts.singleTargetId != null;
   const body = {
-    // One target is enough to begin; additional targets should not be discovered while the selected target remains under-researched.
+    // This is a resource ceiling, not a candidate admission or relevance decision.
+    targetCount: opts.targetCount ?? 1,
     researchDepth: opts.researchDepth ?? "standard",
     targetTimeoutMs: 420_000,
     discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
