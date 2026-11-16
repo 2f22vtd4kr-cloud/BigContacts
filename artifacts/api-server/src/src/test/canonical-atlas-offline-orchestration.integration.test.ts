@@ -297,9 +297,6 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const jobId = `offline-atlas-${scenario}-${runToken}`;
     const result = await pipeline(jobId, { targetCount: 1, researchDepth: "fast", targetTimeoutMs: 30_000 });
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
-    const [discoveryCase] = await db.select().from(tables.researchCasesTable)
-      .where(and(eq(tables.researchCasesTable.caseType, "discovery"), eq(tables.researchCasesTable.caseFile, (value: any) => value)))
-      .limit(1);
     const cases = await db.select().from(tables.researchCasesTable)
       .where(eq(tables.researchCasesTable.caseType, "discovery"));
     const ownedCase = cases.find((row: any) => {
@@ -309,10 +306,19 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const events = await db.select().from(tables.researchCaseEventsTable)
       .where(eq(tables.researchCaseEventsTable.caseId, ownedCase.id))
       .orderBy(tables.researchCaseEventsTable.id);
-    const evidence = await db.select().from(tables.researchEvidenceTable)
-      .where(eq(tables.researchEvidenceTable.entityId, tables.entitiesTable.id));
-    const resultPatch = mocks.jobUpdates.findLast((entry) => entry.status === "done" || entry.status === "failed");
-    return { jobId, result, ownedCase, events, jobUpdate: resultPatch ?? jobUpdate, evidence };
+    const allEntities = await db.select().from(tables.entitiesTable);
+    const admittedEntities = allEntities.filter((entity: any) => {
+      try {
+        const metadata = JSON.parse(entity.metadata ?? "{}");
+        return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialOrganizationLead === true;
+      } catch { return false; }
+    });
+    const evidence = admittedEntities.length
+      ? await db.select().from(tables.researchEvidenceTable)
+          .where(eq(tables.researchEvidenceTable.entityId, admittedEntities[0].id))
+      : [];
+    const resultPatch = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1)[0];
+    return { jobId, result, ownedCase, events, jobUpdate: resultPatch ?? jobUpdate, evidence, admittedEntities };
   }
 
   it("executes mocked Investigator discovery, evidence persistence, target research, and model-owned stop through the canonical pipeline", async () => {
@@ -322,6 +328,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("complete");
+    expect(outcome.admittedEntities).toHaveLength(2);
+    expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_organization_lead", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
     expect(eventTypes).toContain("tool_observation");
@@ -340,7 +348,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
   it("records an operator cap as an incomplete resource outcome, never as a model stop", async () => {
     const outcome = await runScenario("operator-cap");
-    expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(2);
+    expect(mocks.runCanonicalSingleTargetInvestigation).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
     expect(outcome.ownedCase.status).toBe("review");
     const terminal = JSON.parse(String(outcome.jobUpdate?.result ?? "{}")).terminal;
