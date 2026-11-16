@@ -4794,7 +4794,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const activeBossDirectionAlreadyPreserved = Boolean(activeBossDirection) && authoritativeCaseObjective.includes(activeBossDirection);
   const activeBossScopeSection = activeBossDirection
-    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): Explain any material deviation from this direction and ask Boss before changing scope.\n"
+    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): explain any material deviation from this direction and ask Boss before changing scope.\n"
       + (activeBossDirectionAlreadyPreserved
         ? "The accepted direction is preserved verbatim in the authoritative case objective above; do not duplicate or override it."
         : boundInvestigatorPromptSection(activeBossDirection, input.mode === "discovery" ? 700 : 1_200))
