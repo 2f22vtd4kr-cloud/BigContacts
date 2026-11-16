@@ -149,7 +149,7 @@ describe("Investigator live discovery budget context", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("SEARCH ACTIVITY (informational only; no fixed search cap)");
+    expect(prompt).toContain("SEARCH ACTIVITY (telemetry only; no fixed search cap)");
     expect(prompt).not.toContain("At zero, no more web/registry searches");
   });
 });
@@ -1409,7 +1409,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality, counter-evidence and route before promotion.");
     expect(modelPrompt).toContain("Target research verifies role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
-    expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
+    expect(target).toContain("minEvidence=0; minIndependentSourceUnits=0; requireExactSpanForFindings=false; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
     expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
   });
@@ -1443,7 +1443,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain(pivot);
     expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(prompt).toContain("[AUXILIARY CONTEXT BOUND:");
-    expect(modelPrompt).toContain("Apply mission-specific standards; adjectives/generic nouns are not queries.");
+    expect(modelPrompt).toContain("Do not impose criteria the human did not request; adjectives/generic nouns are not queries.");
   });
 
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
@@ -2829,8 +2829,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).not.toContain("SEARCH ACTIVITY");
-    expect(prompt).toContain("no fixed search cap");
+    expect(prompt).toContain("SEARCH ACTIVITY (telemetry only; no fixed search cap)");
   });
 
   it("counts only executed outbound searches for observability, without blocking later model-selected searches", () => {
@@ -3609,7 +3608,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/Never invent IDs/i);
-    expect(prompt).toContain("Never assume records expose owners, shareholders, members or managers without observed documentation");
+    expect(apexInvestigatorSystemCore()).toContain("Never assume records expose owners, shareholders, members or managers without observed documentation");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
@@ -4514,7 +4513,8 @@ describe("prompt composition recovery integrity", () => {
     expect(memoryPath).not.toContain("boundInvestigatorPromptSection(aiHistoricalMemory");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
-    expect(agenticCoreSource).toContain("return preserveFetchedClaimAtProviderBoundary(");
+    expect(agenticCoreSource).toContain("const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(");
+    expect(agenticCoreSource).toContain("return providerBoundedPrompt;");
   });
 });
 
