@@ -43,6 +43,7 @@ channel = "stable-25_05"
 
 [userenv.development]
 NODE_ENV = "development"
+APEX_OPERATOR_AUTH_BYPASS = "true"
 VITE_APEX_OPERATOR_AUTH_BYPASS = "true"
 APEX_CAPTURE_MODEL_PROMPTS = "true"
 APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"
