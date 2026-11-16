@@ -30,7 +30,7 @@ describe("Investigator target and source grounding guardrails", () => {
 
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied.");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
-    expect(modelPrompt).toContain("never model memory");
+    expect(modelPrompt).toContain("Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("The full objective is represented in Boss-generated memory");
   });
 
