@@ -159,8 +159,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
     let groqTurn = 0;
     const findings = [
-      { vectorType: "other", value: firstName, personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${firstName} is Chief Executive Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
-      { vectorType: "other", value: secondName, personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${secondName} is Chief Financial Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
+      { vectorType: "other", value: "Chief Executive Officer", personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${firstName} is Chief Executive Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
+      { vectorType: "other", value: "Chief Financial Officer", personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${secondName} is Chief Financial Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
     ];
     const actions = [
       {
@@ -181,16 +181,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         hypothesis: "The fetched company page may bind both names to their roles.",
         purpose: "Verify the exact names and roles in observed page text.",
         expectedInformationGain: 0.9,
-        findings,
+        findings: [],
       },
       {
         action: "done",
         query: null,
-        thought: "The requested discovery observations have been collected; return control for model adjudication.",
-        hypothesis: null,
-        purpose: null,
-        expectedInformationGain: 0,
-        findings: [],
+        thought: "The fetched source directly attributes both professional roles to the named people.",
+        hypothesis: "The page identifies the named people in their current executive roles.",
+        purpose: "Return the source-backed findings and model-owned interpretation for Boss adjudication.",
+        expectedInformationGain: 0.9,
+        findings,
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
