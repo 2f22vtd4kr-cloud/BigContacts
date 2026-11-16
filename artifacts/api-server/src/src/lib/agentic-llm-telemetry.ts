@@ -19,6 +19,8 @@ type Attempt = {
   cognitiveTask?: string | null;
   model: string;
   promptChars: number;
+  originalPromptChars?: number;
+  promptReductionChars?: number;
   systemPromptChars?: number;
   userPromptChars?: number;
   totalPromptChars?: number;
@@ -90,7 +92,8 @@ export class AgenticDailyTokenBudgetError extends Error {
   }
 }
 
-/** Configure per-model daily ceilings from observed account limits; zero means no local ceiling. */
+/** Conservative per-model daily ceiling, leaving margin beneath the approximately 200K free-tier allowance. */
+export const DEFAULT_GROQ_DAILY_TOKEN_BUDGET = 180_000;
 let dailyUsagePersistenceChain: Promise<void> = Promise.resolve();
 
 /** Await queued writes before reading/reserving the same model's daily budget. */
@@ -101,7 +104,7 @@ export async function flushAgenticLlmUsageLedger(): Promise<void> {
 export function getAgenticLlmDailyTokenBudget(model: string, env: NodeJS.ProcessEnv = process.env): number {
   const suffix = /120b/i.test(model) ? "120B" : /20b/i.test(model) ? "20B" : "MODEL";
   const raw = env[`APEX_GROQ_DAILY_TOKEN_BUDGET_${suffix}`] ?? env.APEX_GROQ_DAILY_TOKEN_BUDGET;
-  const value = Number(raw ?? 0);
+  const value = Number(raw ?? DEFAULT_GROQ_DAILY_TOKEN_BUDGET);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
@@ -121,6 +124,30 @@ function parseObservedQuotaDurationMs(raw: string | null): number | null {
   const match = value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
   if (!match || !match[1] && !match[2] && !match[3]) return null;
   return Math.floor((Number(match[1] ?? 0) * 3_600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
+}
+
+/**
+ * Reconcile provider usage conservatively. If a sent request omits any
+ * component and does not report total_tokens, charge the reserved estimate
+ * rather than under-counting a partial error envelope (for example prompt-only
+ * usage on a rejected structured-output request).
+ */
+export function resolveAgenticLlmAttemptTotalTokens(input: {
+  providerRequestSent?: boolean;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedTokens?: number;
+}): number {
+  const nonNegative = (value: number | undefined): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value!)) : 0;
+  if (input.totalTokens != null) return nonNegative(input.totalTokens);
+  const promptReported = input.promptTokens != null && Number.isFinite(input.promptTokens);
+  const completionReported = input.completionTokens != null && Number.isFinite(input.completionTokens);
+  if (input.providerRequestSent !== false && (!promptReported || !completionReported)) {
+    return nonNegative(input.estimatedTokens);
+  }
+  return nonNegative(input.promptTokens) + nonNegative(input.completionTokens);
 }
 
 export type AgenticLlmUsageMetrics = {
@@ -184,8 +211,13 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
     const completion = Math.max(0, Math.floor(event.completionTokens ?? 0));
     const reasoning = Math.max(0, Math.floor(event.reasoningTokens ?? 0));
     const estimated = Math.max(0, Math.floor(event.estimatedTokens ?? 0));
-    const totalFallback = requestSent && event.promptTokens == null && event.totalTokens == null ? estimated : (prompt + completion);
-    const total = Math.max(0, Math.floor(event.totalTokens ?? totalFallback));
+    const total = resolveAgenticLlmAttemptTotalTokens({
+      providerRequestSent: requestSent,
+      promptTokens: event.promptTokens,
+      completionTokens: event.completionTokens,
+      totalTokens: event.totalTokens,
+      estimatedTokens: estimated,
+    });
     const budget = Math.max(0, Math.floor(event.dailyBudgetTokens ?? 0));
     const table = agenticLlmDailyUsageTable;
     await db.insert(table).values({
@@ -388,6 +420,8 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     cognitiveTask: event.cognitiveTask ?? null,
     model: event.model,
     promptChars: event.promptChars,
+    originalPromptChars: event.originalPromptChars ?? event.promptChars,
+    promptReductionChars: event.promptReductionChars ?? 0,
     systemPromptChars: event.systemPromptChars ?? null,
     userPromptChars: event.userPromptChars ?? event.promptChars,
     totalPromptChars: event.totalPromptChars ?? ((event.systemPromptChars ?? 0) + (event.userPromptChars ?? event.promptChars)),
