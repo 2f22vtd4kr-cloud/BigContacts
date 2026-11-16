@@ -5,7 +5,7 @@ run = "bash scripts/replit-boot.sh"
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "bash scripts/replit-boot.sh"]
+run = ["sh", "-c", "env -u VITE_APEX_OPERATOR_AUTH_BYPASS NODE_ENV=production bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
 args = ["npm", "exec", "--yes", "--package=pnpm@9.15.9", "--", "pnpm", "store", "prune"]
