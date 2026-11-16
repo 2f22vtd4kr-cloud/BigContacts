@@ -32,7 +32,7 @@ import {
   readGroqRateLimitHeaders,
 } from "../lib/agentic-llm-telemetry";
 
-describe("Agentic LLM daily token accounting", () => {
+describe.sequential("Agentic LLM daily token accounting", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
 
   beforeEach(() => {
