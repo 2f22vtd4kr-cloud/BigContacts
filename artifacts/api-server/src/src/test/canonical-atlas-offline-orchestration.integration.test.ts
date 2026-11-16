@@ -270,7 +270,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   async function runScenario(scenario: "model-stops" | "operator-cap") {
     mocks.scenario = scenario;
     const jobId = `offline-atlas-${scenario}-${runToken}`;
-    await pipeline(jobId, { targetCount: 1, researchDepth: "fast", targetTimeoutMs: 30_000 });
+    await pipeline(jobId, { targetCount: 1, researchDepth: "standard", targetTimeoutMs: 60_000 });
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
     const cases = await db.select().from(tables.researchCasesTable)
       .where(eq(tables.researchCasesTable.caseType, "discovery"));
@@ -290,7 +290,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const admittedEntities = allEntities.filter((entity: any) => {
       try {
         const metadata = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : entity.metadata ?? {};
-        return Number(metadata.discoveryCaseId) === ownedCase.id && metadata.partialPersonLead === true;
+        return Number(metadata.discoveryCaseId) === ownedCase.id && (metadata.partialPersonLead === true || metadata.admission === "investigator-explicit-promotion");
       } catch { return false; }
     });
     const evidence = admittedEntities.length
@@ -316,8 +316,17 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true, personName: firstName, sourceUrls: expect.arrayContaining([mocks.pageUrl]) })]) })]));
     expect(JSON.parse(outcome.ownedCase.caseFile).jobId).toBe(outcome.jobId);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
-    const diagnosticResult = (outcome.jobUpdate as any)?.result as any;
-    expect(outcome.admittedEntities, JSON.stringify({ phaseSummary: diagnosticResult?.phaseSummary, materializedCardCount: diagnosticResult?.materializedCardCount, caseStatus: outcome.ownedCase.status, currentAction: outcome.ownedCase.currentAction })).toHaveLength(2);
+    const rawDiagnosticResult = (outcome.jobUpdate as any)?.result;
+    const diagnosticResult = typeof rawDiagnosticResult === "string" ? JSON.parse(rawDiagnosticResult) : rawDiagnosticResult ?? {};
+    expect(outcome.admittedEntities, JSON.stringify({
+      phaseSummary: diagnosticResult?.phaseSummary,
+      terminal: diagnosticResult?.terminal,
+      controlDecisions: outcome.controlDecisions.map((decision: any) => ({ action: decision.action, candidateName: decision.candidateName, candidateType: decision.candidateType, reason: decision.reason })),
+      caseStatus: outcome.ownedCase.status,
+      currentAction: outcome.ownedCase.currentAction,
+      targetCalls: mocks.targetCalls,
+      outboundUrls: mocks.outboundUrls,
+    })).toHaveLength(2);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);

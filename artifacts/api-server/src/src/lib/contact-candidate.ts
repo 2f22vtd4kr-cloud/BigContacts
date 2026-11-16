@@ -1,4 +1,5 @@
 import { canonicalizeUrl } from "./evidence-ledger";
+import { parseJsonRecord } from "./json-record";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateScope =
