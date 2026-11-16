@@ -183,8 +183,10 @@ describe("Investigator LLM telemetry privacy", () => {
       expect(released).toMatchObject({
         reservedTokens: 0, requestCount: 0, successCount: 0, failureCount: 0, estimatedTokens: 600,
       });
+      // A reservation released before the provider request never consumed
+      // daily capacity; the same amount must be reservable again.
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
-        .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
+        .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
     } finally {
       await db.delete(agenticLlmDailyUsageTable).where(where);
     }
@@ -219,8 +221,10 @@ describe("Investigator LLM telemetry privacy", () => {
       expect(row).toMatchObject({
         requestCount: 1, successCount: 0, failureCount: 1, totalTokens: 600, reservedTokens: 0,
       });
-      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 600, env }))
-        .resolves.toMatchObject({ reservedTokens: 600, dailyBudgetTokens: 1000 });
+      // The provider received the request but returned no usage metadata;
+      // retain its estimate, leaving only 400 tokens for another reservation.
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 400, env }))
+        .resolves.toMatchObject({ reservedTokens: 400, dailyBudgetTokens: 1000 });
     } finally {
       await db.delete(agenticLlmDailyUsageTable).where(where);
     }
