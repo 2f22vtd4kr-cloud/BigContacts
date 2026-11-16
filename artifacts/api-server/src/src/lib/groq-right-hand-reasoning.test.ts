@@ -442,6 +442,7 @@ describe("Groq Right-hand prompt compaction telemetry", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const rightHandSystemInstructions = "Review the supplied case only.";
+    const rightHandPromptPrefix = "A compact prompt after upstream case-context compaction. ";
     const compactedRightHandPrompt = rightHandPromptPrefix + "x".repeat(500 - rightHandPromptPrefix.length);
     const result = await runGroqRightHandFreeJson(
       compactedRightHandPrompt,
