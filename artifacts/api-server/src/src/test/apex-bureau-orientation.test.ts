@@ -39,7 +39,7 @@ describe("objective-led institutional orientation", () => {
     for (const role of ["boss", "right_hand", "investigator", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
       expect(prompt).toContain("The exact human objective and explicit constraints govern");
-      expect(prompt).toMatch(/do not impose wealth, ownership or investor qualification criteria unless the human objective requires them/i);
+      expect(prompt).toMatch(/(?:HNWI is optional; do not impose wealth, ownership or qualification criteria unless requested by the human objective|do not impose wealth, ownership or investor qualification criteria unless the human objective requires them)/i);
       expect(prompt).toMatch(/do not impose extra (?:wealth\/ownership or )?qualification criteria unless requested|do not impose wealth|no wealth\/ownership criteria may be imposed unless requested/i);
     }
   });
@@ -60,7 +60,7 @@ describe("objective-led institutional orientation", () => {
     expect(APEX_WHAT_IS_ATLAS).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     for (const role of ["boss", "right_hand", "dig_agent"] as const) {
       const prompt = apexOrientationCompact(role);
-      expect(prompt).toMatch(/Fame, wealth, title, prestige, company size, visibility, and listing status are contextual signals, not eligibility gates; seniority, ranking badges, sector, geography, language and route categories are context, not gates/i);
+      expect(prompt).toMatch(/(?:Fame, wealth, seniority, title, prestige, company size, visibility, listing status, ranking, sector, geography, language and source class are contextual signals, not eligibility gates|Fame, wealth, title, prestige, company size, visibility, and listing status are contextual signals, not eligibility gates; seniority, ranking badges, sector, geography, language and route categories are context, not gates)/i);
       expect(prompt).not.toContain("globally famous/household-name");
       expect(prompt).not.toContain("Ranking-only mentions are leads, not qualified targets");
       expect(prompt).not.toContain("Generic corporate, press or investor-relations channels do not qualify as individual access");
