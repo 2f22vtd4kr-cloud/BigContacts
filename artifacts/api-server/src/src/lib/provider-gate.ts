@@ -140,12 +140,6 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
   // remaining-token window, subtracting only reservations made since that
   // observation (the response header already accounts for older requests).
   const limit = Math.min(configuredLimit, state.providerLimit ?? configuredLimit);
-  const observedRemaining = state.providerRemainingTokens;
-  const observedAt = state.remainingObservedAt;
-  const newerReservations = observedAt == null ? 0 : state.reservations
-    .filter((item) => item.createdAt >= observedAt)
-    .reduce((total, item) => total + item.reservedTokens, 0);
-  const adaptiveAvailable = observedRemaining == null ? limit : Math.min(limit, observedRemaining);
   if (requestedTokens > limit) {
     logger.warn({ modelKeyDigest: createHash("sha256").update(key).digest("hex").slice(0, 12), requestedTokens, tokenBudget: limit }, "Groq request exceeds the safe local TPM reservation");
     throw new ProviderQuotaError("budget_exhausted", "groq", windowMs, "tokens");
@@ -162,8 +156,17 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
       continue;
     }
     const used = state.reservations.reduce((total, reservation) => total + reservation.reservedTokens, 0);
-    const effectiveAvailable = observedRemaining == null ? limit - used : adaptiveAvailable - newerReservations;
-    if (requestedTokens <= effectiveAvailable && (observedRemaining != null || used + requestedTokens <= limit)) {
+    const observationIsFresh = state.providerRemainingTokens !== null
+      && state.remainingObservedAt !== null
+      && now - state.remainingObservedAt < windowMs;
+    const newerReservations = observationIsFresh
+      ? state.reservations.filter((item) => item.createdAt >= state.remainingObservedAt!)
+          .reduce((total, item) => total + item.reservedTokens, 0)
+      : 0;
+    const effectiveAvailable = observationIsFresh
+      ? Math.min(limit, state.providerRemainingTokens!) - newerReservations
+      : limit - used;
+    if (requestedTokens <= effectiveAvailable) {
       const reservation = { createdAt: now, reservedTokens: requestedTokens };
       state.reservations.push(reservation);
       return reservation;
