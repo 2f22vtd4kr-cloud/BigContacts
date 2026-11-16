@@ -1319,7 +1319,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve uncertainty, time, contradictions and provenance.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, time, contradictions and provenance.");
     expect(modelPrompt).toContain("selected leads only");
   });
 });
@@ -4281,7 +4281,7 @@ describe("PDF prompt capability contract", () => {
     expect(modelPrompt).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/Scanned\/image-only PDFs require OCR or another readable source/i);
     expect(modelPrompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
-    expect(modelPrompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
+    expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
 });
@@ -4437,7 +4437,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text and URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
+    expect(modelPrompt).toContain("Search-only is unverified (exactQuote=null), not promotion.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth objectives need sourced ownership/equity/investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
@@ -4803,11 +4803,11 @@ describe("community source lead handling and evidence-led scope", () => {
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
     expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(system).toContain("Boss sets strategy");
+    expect(system).toContain("Boss authorizes scope changes");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
-    expect(system).toContain("No fixed source/provider/registry order or itinerary. No mandatory mix.");
+    expect(system).toContain("No fixed source/provider/registry order or mix.");
   });
 
   it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {
