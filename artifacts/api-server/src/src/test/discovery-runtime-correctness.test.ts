@@ -30,6 +30,7 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
+    expect(orientationSource).toContain("INTELLIGENCE SCORE AUTHORITY");
   });
 
   it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
