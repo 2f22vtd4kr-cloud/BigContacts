@@ -1641,11 +1641,11 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toMatch(/wealth claims need sourced ownership\/equity\/investment/i);
+    expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
+    expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
