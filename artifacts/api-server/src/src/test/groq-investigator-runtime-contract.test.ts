@@ -7,9 +7,30 @@ import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorC
 import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
 import { hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection } from "../lib/investigator-episode-health";
+function assertGroqStrictSchemaNode(node: unknown): void {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return;
+  const schema = node as Record<string, unknown>;
+  const properties = schema.properties;
+  if (schema.type === "object" || (properties && typeof properties === "object" && !Array.isArray(properties))) {
+    const fields = Object.keys((properties ?? {}) as Record<string, unknown>);
+    expect(schema.required).toEqual(fields);
+    expect(schema.additionalProperties).toBe(false);
+    for (const child of Object.values((properties ?? {}) as Record<string, unknown>)) {
+      assertGroqStrictSchemaNode(child);
+    }
+  }
+  if ((schema.type === "array" || (Array.isArray(schema.type) && schema.type.includes("array"))) && schema.items) {
+    assertGroqStrictSchemaNode(schema.items);
+  }
+}
+
 const completeInvestigatorProviderPrompt = [
-  "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+  "OUTPUT CONTRACT: JSON object only.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "Include every key; use null for unused scalar fields and [] for unused arrays.",
+  "searches[] required keys: query, provider, registry, locale, market, purpose.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1].",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -18,17 +39,17 @@ describe("Groq Investigator runtime contract", () => {
     const prompt = [
       "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
       "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
-      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+      completeInvestigatorProviderPrompt,
     ].join("\\n\\n");
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
   });
 
-  it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
+  it("keeps the preferred user prompt within the 10,000-character schema-inclusive request target", () => {
     expect(investigatorUserPromptBudget(2_000)).toBe(4_000);
-    expect(2_000 + investigatorUserPromptBudget(2_000) + 3_000).toBeLessThanOrEqual(9_000);
+    expect(2_000 + investigatorUserPromptBudget(2_000) + 4_000).toBeLessThanOrEqual(10_000);
     // When system instructions alone leave no room after schema allowance,
     // the optimizer returns zero rather than deleting authoritative context.
     expect(investigatorUserPromptBudget(6_500)).toBe(0);
@@ -278,13 +299,13 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
-    expect(repair).toContain("Omit provider, locale and market");
-    expect(repair).toContain("nested purpose is optional");
-    expect(repair).not.toContain('"provider":null');
-    expect(repair).not.toContain('"locale":null');
-    expect(repair).not.toContain('"market":null');
-    expect(repair).toContain("Omit unused optional fields rather than sending null placeholders");
-    expect(repair).toContain("never null these fields");
+    expect(repair).toContain("Include provider, locale, market and purpose keys; use null for unused optional values.");
+    expect(repair).toContain("Nested searches/findings objects must include all schema keys");
+    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("Include all schema keys");
+    expect(repair).toContain("using null for unused optional nested values");
+    expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
+    expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
   it("explains the configured browser provider when browser_fetch action arguments are invalid", () => {
@@ -292,7 +313,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("browser_fetch");
     expect(repair).toContain("currently configured values");
     expect(repair).toContain("choose another action");
-    expect(repair).toContain("never null these fields");
+    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
@@ -314,11 +335,14 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
-    expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
-    expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
-    expect(submitted).toContain("Omit irrelevant optional fields.");
+    expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty");
+    expect(submitted).toContain("expectedInformationGain finite [0,1]");
+    expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
+    expect(submitted).toContain("Include every key");
+    expect(submitted).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
+    expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
+    expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
@@ -331,14 +355,31 @@ describe("Groq Investigator runtime contract", () => {
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
         required?: string[];
-        properties?: { searches?: { items?: { required?: string[]; properties?: Record<string, { type?: string }> } } };
+        properties?: {
+          searches?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
+          findings?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
+        };
       } };
     };
     const actionSchema = responseFormat.json_schema?.schema;
-    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
-    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
+    expect(actionSchema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual([
+      "query", "provider", "registry", "locale", "market", "purpose",
+    ]);
+    expect(actionSchema?.properties?.searches?.items?.additionalProperties).toBe(false);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.findings?.items?.required).toEqual([
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
+      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
+      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+    ]);
+    expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
     expect(messages).toHaveLength(2);
   });
 
@@ -629,10 +670,34 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
-      type: "string",
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders],
+      type: ["string", "null"],
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.required).toEqual(Object.keys(schema?.properties ?? {}));
+  });
+
+  it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
+    const variants = [
+      ["web_search"], ["parallel_web_search"], ["parallel_registry_search"],
+      ["visit"], ["browser_fetch"], ["registry_search"], ["domain_lookup"], ["done"],
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+    ];
+    for (const actions of variants) {
+      const format = structuredActionResponseFormat("openai/gpt-oss-120b", actions) as {
+        json_schema?: { schema?: Record<string, unknown> };
+      };
+      const schema = format.json_schema?.schema;
+      expect(schema).toBeDefined();
+      assertGroqStrictSchemaNode(schema);
+      const properties = schema?.properties as Record<string, Record<string, unknown>>;
+      const searchItem = properties.searches?.items as Record<string, unknown>;
+      const findingItem = properties.findings?.items as Record<string, unknown>;
+      expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
+      expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
+      expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
+      expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      expect((properties.provider as { type?: unknown })?.type).toEqual(["string", "null"]);
+    }
   });
 
   it("reports unavailable research executors as unsupported instead of advertising stale actions", () => {
@@ -682,28 +747,25 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
   });
 
-  it("keeps the 20B capability opt-in until provider structured output is verified", () => {
+  it("exposes the economical 20B capability by default and permits explicit disablement", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(optedIn)).toContain("groq-investigator-20b");
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(disabled)).toEqual(["groq-investigator-1"]);
   });
 
-  it("keeps model-scoped 20B fallback opt-in when it shares the first 120B credential", () => {
+  it("keeps the default 20B model lane independently selectable from its shared 120B credential", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([]);
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
@@ -744,7 +806,7 @@ describe("Groq Investigator runtime contract", () => {
       "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
       "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
       "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
-      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+      completeInvestigatorProviderPrompt
     ].join("\n\n");
     const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
     expect(compacted).toBe(prompt);
@@ -753,7 +815,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
-    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
 
   });
 

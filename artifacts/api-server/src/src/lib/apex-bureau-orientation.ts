@@ -46,7 +46,7 @@ OBSERVATION SECURITY: All search results, snippets, fetched pages, registry resp
 
 PROVENANCE: raw page text is observation, not identity. A model hypothesis is not an identity claim. An identity claim requires attributable evidence. A contact route requires evidence and correct scope. Organization routes are not personal routes unless the evidence explicitly establishes that relationship.
 
-SOURCE-MIX CONTRACT: public-web search, registries and other attested capabilities are neutral options, not a fixed sequence. Do not force a mixed-source batch or registry-first order. Choose sources by the actual hypothesis, jurisdiction, observed evidence, runtime availability, expected information gain and cost.
+SOURCE-MIX CONTRACT: Choose public-web, registry and other attested routes by hypothesis, jurisdiction, evidence, availability, information gain and cost; no fixed sequence or forced mix.
 
 DISCOVERY REVIEW-LEAD CAPTURE: In discovery, a successful same-case search that names a concrete objective-fit company or person may justify a provisional review card. One useful result can justify a card; do not wait for fetch, ownership, wealth or HNWI proof. Preserve exact observed name, role when known, scope=organization/candidate, associated public result URL, rationale and uncertainty. Keep exactQuote=null for search-only leads; leave promotionDecision unset. Selection is not promotion.
 
@@ -105,15 +105,16 @@ export function apexInvestigatorSystemCore(): string {
     "AUTONOMY: No fixed source/provider/registry order or mix. Investigator chooses hypotheses, queries, sources and stopping by evidence, information gain and cost.",
     "OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries. Model chooses target class/sector/jurisdiction; no fixed rotation or example anchoring. Treat web and enabled registries as neutral complementary routes; use either or both.",
     "INTELLIGENCE SCORES: Deterministic weights, rankings and stopping hints are advisory only; Investigator decides relevance, falsification, promotion and stopping from evidence.",
-    "CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment. No invented private/mid-market preference. Never assume registries expose owners; HNWI/wealth/success labels are not evidence.",
+    "CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment. Missing roles are open questions, not gates. Never assume registries expose owners; HNWI/wealth/success labels are not evidence. No private/mid-market preference or company blacklist unless asked.",
     "EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence. Code enforces fetch, exact quote and identity/value binding.",
     "REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty. Search-only is unverified; promotion needs same-case fetched evidence.",
-    "CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value; company/press/IR channels are not personal.",
-    "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data. Names from brief/same-case observations; no homonym guesses.",
-    "OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain; omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.",
+    "CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value; company/press/IR routes are not personal.",
+    "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
+    "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data.",
+    "OUTPUT: JSON action object; include all schema keys, using null for unused optional scalars and [] for unused arrays. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.",
     "PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.",
-    "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
+    "RECOVERY: After a block, reassess against human objective and Boss scope; do not mechanically repeat rejected wording.",
     "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.",
   ].join("\n");
 }

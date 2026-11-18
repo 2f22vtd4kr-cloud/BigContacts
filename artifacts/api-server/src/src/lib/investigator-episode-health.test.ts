@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyInvestigatorEpisodeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
+import type { TargetContactAgentResult } from "./target-contact-agent";
 
 describe("canonical Investigator continuation health", () => {
   it("surfaces configured daily token budget exhaustion as a resumable budget stop", () => {
@@ -19,6 +20,26 @@ describe("canonical Investigator continuation health", () => {
       trajectoryRecords: [{ action: "investigator_provider_error", execution: "error", failureDomain: "persistence_database", failureKind: "request_failure" }],
     })).toEqual({ code: "investigator_usage_ledger_unavailable" });
   });
+  it("propagates the terminal provider-contract stop reason through the target-agent result contract", () => {
+    const result: Pick<TargetContactAgentResult, "stopReason"> = { stopReason: "PROVIDER_CONTRACT_ERROR" };
+    expect(result.stopReason).toBe("PROVIDER_CONTRACT_ERROR");
+  });
+
+  it("surfaces provider contract rejection as terminal infrastructure failure, not Boss-recoverable research", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "error",
+      iterations: 1,
+      stopReason: "PROVIDER_CONTRACT_ERROR",
+      trajectoryRecords: [{
+        action: "provider_contract_error",
+        execution: "error",
+        stopReason: "PROVIDER_CONTRACT_ERROR",
+        failureDomain: "provider_contract",
+        failureKind: "invalid_contract",
+      }],
+    })).toEqual({ code: "investigator_provider_contract_error" });
+  });
+
   it("fails closed when the pass wrapper reports an unexpected error with no persisted acts", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "error",

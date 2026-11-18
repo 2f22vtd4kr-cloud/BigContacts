@@ -19,7 +19,7 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
-  // GPT-OSS 20B remains explicitly opt-in until structured-output behavior is verified.
+  // GPT-OSS 20B is available by default when the shared Investigator credential is configured.
   GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
@@ -46,7 +46,9 @@ export function investigatorCapabilityLabel(capability: InvestigatorCapability):
 }
 
 function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
-  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() === "true";
+  // Boss should have the economical routine Investigator lane by default.
+  // Operators can explicitly disable it with APEX_ENABLE_GROQ_INVESTIGATOR_20B=false.
+  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() !== "false";
 }
 
 export function getAvailableInvestigatorCapabilities(

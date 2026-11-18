@@ -27,13 +27,13 @@ describe("Investigator registry schema reflects configured capabilities", () => 
     expect(enums.direct).toContain("sec-edgar");
     expect(enums.direct).toContain("faa");
     expect(enums.direct).not.toContain("bolagsverket-sweden");
-    expect(enums.direct).not.toContain(null);
+    expect(enums.direct).toContain(null);
     expect(enums.direct).not.toContain("opencorporates");
     expect(enums.direct).not.toContain("companies-house");
     expect(enums.parallel).toContain("sec-edgar");
     expect(enums.parallel).toContain("faa");
     expect(enums.parallel).not.toContain("bolagsverket-sweden");
-    expect(enums.parallel).not.toContain(null);
+    expect(enums.parallel).toContain(null);
     expect(enums.parallel).not.toContain("opencorporates");
     expect(enums.parallel).not.toContain("companies-house");
   });

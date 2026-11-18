@@ -25,11 +25,28 @@ vi.mock("./ssrf-safe-fetch", async (importOriginal) => {
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
-  "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+  "OUTPUT CONTRACT: JSON object only.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "Include every key; use null for unused scalar fields and [] for unused arrays.",
+  "searches[] required keys: query, provider, registry, locale, market, purpose.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+describe("Investigator provider prompt schema boundary", () => {
+  it("rejects a prompt with complete root keys but missing nested findings fields", () => {
+    const incomplete = completeInvestigatorProviderPrompt.replace(
+      /findings\[\] required keys:[^\n]+/,
+      "findings[] required keys: vectorType, value",
+    );
+    expect(() => buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt: incomplete,
+      cognitiveTask: "discovery",
+    })).toThrow("complete root and nested action schema");
+  });
+});
+
 describe("Investigator prompt compaction telemetry", () => {
   it("reports the actual pre- and post-compaction prompt lengths", () => {
     let measurement = { originalPromptChars: 0, finalPromptChars: 0 };
@@ -195,13 +212,13 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
     const roleOrientation = apexOrientationFor("investigator");
-    expect(systemCore.length).toBeLessThan(3_200);
+    expect(systemCore.length).toBeLessThan(3_500);
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.");
+    expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
@@ -268,6 +285,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
+    expect(modelPrompt).toContain("Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates.");
+    expect(modelPrompt).toContain("Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate.");
+    expect(modelPrompt).toContain("Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.");
+    expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
@@ -279,7 +300,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(targetPrompt).toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only");
+    expect(targetPrompt).toContain("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
     expect(targetPrompt).toContain("ASSIGNMENT TARGET:");
     expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(targetPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings");
@@ -333,7 +354,7 @@ describe("live discovery semantic-authority boundary", () => {
 });
 
 describe("schema-inclusive Investigator prompt measurement", () => {
-  it("keeps a representative first discovery request near the 2,000-token target", () => {
+  it("measures the representative first discovery request against the advisory schema-inclusive target without clipping mandatory context", () => {
     const objective = "Investigate publicly documented people and companies relevant to private business ownership and asset control. Find useful source-backed leads, preserve uncertainty, and let the Investigator decide which hypotheses, sectors, sources and follow-ups can advance the objective. Explicitly exclude private residential and sensitive personal data. Boss retains authority over material scope changes.";
     const prompt = buildStepPrompt({
       targetName: "",
@@ -346,19 +367,26 @@ describe("schema-inclusive Investigator prompt measurement", () => {
       intelligenceContext: "",
       mode: "discovery",
     });
-    const systemPrompt = apexInvestigatorSystemCore() + "\\nReturn one JSON action object only.";
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b");
-    const schemaChars = JSON.stringify(responseFormat).length;
-    const requestChars = systemPrompt.length + prompt.length + schemaChars;
-    // The November 14 captured request measured 3,565 provider input tokens
-    // for 15,610 system+user prompt characters (~4.38 chars/token). Reuse
-    // that observed ratio for an empirical estimate and retain the stricter
-    // 3.4 chars/token heuristic as a conservative upper bound.
+    const requestBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
+    });
+    const messages = requestBody.messages as Array<{ role: string; content: string }>;
+    const systemPrompt = messages.find((message) => message.role === "system")?.content ?? "";
+    const userPrompt = messages.find((message) => message.role === "user")?.content ?? "";
+    const schemaChars = JSON.stringify(requestBody.response_format).length;
+    const requestChars = systemPrompt.length + userPrompt.length + schemaChars;
+    // The 10,000-character target is advisory, not a hard limit. Measure the
+    // actual provider-facing request and retain a bounded 15% safety ceiling
+    // rather than clipping mandatory objective, schema or evidence context.
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
-    expect(prompt.length).toBeLessThanOrEqual(4_000);
-    expect(empiricalTokens).toBeLessThanOrEqual(2_100);
-    expect(conservativeTokens).toBeLessThanOrEqual(2_700);
+    expect(userPrompt.length).toBeLessThanOrEqual(4_000);
+    expect(requestChars).toBeLessThanOrEqual(11_500);
+    expect(empiricalTokens).toBeLessThanOrEqual(2_650);
+    expect(conservativeTokens).toBeLessThanOrEqual(3_400);
     expect(schemaChars).toBeGreaterThan(1_000);
   });
 });
@@ -1611,7 +1639,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
-    expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
+    expect(modelPrompt).toMatch(/PROVIDERS: web_search=(?:serper|tavily|exa|unavailable)/i);
+    expect(modelPrompt).toContain("Omit provider for a healthy runtime default.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits remain leads, not evidence; failed\/unfetched are unknown/i);
@@ -1619,11 +1648,11 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toMatch(/wealth claims need sourced ownership\/equity\/investment/i);
+    expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
+    expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
@@ -1759,11 +1788,13 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeLessThan(7_500);
+    expect(prompt.length).toBeLessThan(8_500);
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
+    expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
+    expect(prompt).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
+    expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
     expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
@@ -1849,7 +1880,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeLessThan(9_000);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
@@ -2437,7 +2468,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt.length).toBeLessThan(7_500);
+    expect(prompt.length).toBeLessThan(8_500);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
@@ -2821,8 +2852,8 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeLessThanOrEqual(7_000);
-    expect(prompt).toContain("OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt.length).toBeLessThanOrEqual(7_500);
+    expect(prompt).toContain("OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
   });
@@ -3044,14 +3075,29 @@ Choose each next action yourself from the available capabilities and observed ev
     const schema = responseFormat.json_schema?.schema;
     expect(responseFormat.type).toBe("json_schema");
     expect(schema?.additionalProperties).toBe(false);
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls"]);
+    expect(schema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
+    expect(schema?.properties?.findings?.items?.required).toEqual([
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
+      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
+      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+    ]);
+    expect(schema?.properties?.findings?.items?.additionalProperties).toBe(false);
+    expect(schema?.properties?.searches?.items?.required).toEqual(["query", "provider", "registry", "locale", "market", "purpose"]);
+    expect(schema?.properties?.searches?.items?.additionalProperties).toBe(false);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
-    expect(schema?.properties?.provider).toEqual({ type: "string", enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders] });
+    const providerSchema = schema?.properties?.provider as { type?: unknown; enum?: Array<string | null> };
+    expect(providerSchema.type).toEqual(["string", "null"]);
+    expect(providerSchema.enum).toContain(null);
+    expect(providerSchema.enum?.filter((value) => value !== null)).toEqual(["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders]);
     expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
-    expect(schema?.properties?.targetType).toEqual({ type: "string" });
+    expect((schema?.properties?.targetType as { type?: unknown }).type).toEqual(["string", "null"]);
   });
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
@@ -3225,7 +3271,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(8_500);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain.");
@@ -3548,7 +3594,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(8_500);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
@@ -3682,12 +3728,16 @@ Choose each next action yourself from the available capabilities and observed ev
       json_schema?: { schema?: { required?: string[]; properties?: Record<string, unknown> } };
     };
     const schema = responseFormat.json_schema?.schema;
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(schema?.properties?.sources).toBeDefined();
-    expect(schema?.properties?.profile).toBeDefined();
+    expect(schema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
+    expect((schema?.properties?.sources as { type?: unknown }).type).toEqual(["array", "null"]);
+    expect((schema?.properties?.profile as { type?: unknown }).type).toEqual(["string", "null"]);
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
@@ -4335,7 +4385,7 @@ describe("combined-main emergency discovery contract", () => {
       "AVAILABLE ACTIONS: web_search | visit | registry_search | done.",
       "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
       "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "DISCOVERY LEAD HANDOFF: preserve exact observed names and source URLs.",
       "RESEARCH TERMINAL GATE: stop only when the evidence contract permits.",
       "OPTIONAL HISTORICAL DETAIL: " + "older context that may be compacted ".repeat(700),
@@ -4395,7 +4445,8 @@ describe("prompt composition recovery integrity", () => {
     expect(memoryPath).not.toContain("boundInvestigatorPromptSection(aiHistoricalMemory");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
-    expect(agenticCoreSource).toContain("const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(");
+    expect(agenticCoreSource).toContain("const providerBoundedPrompt = [");
+    expect(agenticCoreSource).toContain("preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join");
     expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
   });
 });
@@ -4437,7 +4488,7 @@ describe("small emergency observation budgets", () => {
       "CASE OBJECTIVE: preserve this human objective sentinel.",
       "AVAILABLE ACTIONS: web_search | visit | done.",
       "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "POLICY (paraphrased): the Investigator owns source choice, target relevance, pivots and stopping; search snippets are leads until fetched.",
     ].join("\n\n");
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
@@ -4455,7 +4506,7 @@ describe("small emergency observation budgets", () => {
       "CASE OBJECTIVE: investigate the supplied target class and geography.",
       "AVAILABLE ACTIONS: web_search | visit | done.",
       "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "DECISION OWNERSHIP: the Investigator chooses the hypothesis, evidence route, tools, follow-up and stopping point. Treat snippets as provisional leads and distinguish failed retrieval from a no-hit.",
     ].join("\n\n");
 

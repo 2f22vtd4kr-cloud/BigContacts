@@ -4,7 +4,8 @@ export type InvestigatorEpisodeFailureCode =
   | "investigator_oversight_unavailable"
   | "investigator_episode_no_action"
   | "investigator_daily_token_budget_exhausted"
-  | "investigator_usage_ledger_unavailable";
+  | "investigator_usage_ledger_unavailable"
+  | "investigator_provider_contract_error";
 
 export type InvestigatorEpisodeHealthInput = {
   status: string;
@@ -38,7 +39,7 @@ export function hasExecutedInvestigatorResearchAction(
 ): boolean {
   return records.some((record) => {
     const action = record.action ?? "";
-    if (!action || ["done", "parse_failure", "investigator_provider_error"].includes(action)) return false;
+    if (!action || ["done", "parse_failure", "investigator_provider_error", "provider_contract_error"].includes(action)) return false;
     if (record.execution === "selected" || record.execution === "blocked") return false;
     return typeof record.execution === "string" && record.execution.length > 0;
   });
@@ -61,6 +62,9 @@ export function classifyInvestigatorEpisodeFailure(
   }
   if (input.stopReason === "USAGE_LEDGER_UNAVAILABLE") {
     return { code: "investigator_usage_ledger_unavailable" };
+  }
+  if (input.stopReason === "PROVIDER_CONTRACT_ERROR") {
+    return { code: "investigator_provider_contract_error" };
   }
   if (input.status === "error") {
     const hasDurableTerminalParseFailure = input.stopReason === "PARSE_FAILURE" && episodeRecords.some((record) =>

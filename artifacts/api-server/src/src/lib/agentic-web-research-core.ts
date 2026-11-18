@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } from "./apex-bureau-orientation";
+import { apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { COMMUNITY_SOURCE_OBSERVATION_NOTE, buildDiscoverySourceAttribution, extractCommunityObservationMetadata, isCommunityObservationSourceUrl, sanitizeCommunityObservationText } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { AgenticDailyTokenBudgetError, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
@@ -403,13 +403,13 @@ export function buildDiscoveryLeadUtilizationState(
   };
 }
 
-export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
+export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
-export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const PREFERRED_PROVIDER_PROMPT_CHARS = 9_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 9_000; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000; const INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 3_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
+export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const PREFERRED_PROVIDER_PROMPT_CHARS = 10_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000; const INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
 /** Return the preferred user-message size target; it is not a prompt validity or mission limit. */
 export function investigatorUserPromptBudget(systemPromptChars: number): number {
   const systemChars = Number.isFinite(systemPromptChars) ? Math.max(0, Math.floor(systemPromptChars)) : PREFERRED_INVESTIGATOR_REQUEST_CHARS;
@@ -1810,29 +1810,29 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 /** Give the model a minimal, action-specific correction without selecting its next research action. */
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
-  const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings and expectedInformationGain a finite number in [0,1]; never null these fields. Only action=done may use null for query/thought/hypothesis/purpose/expectedInformationGain. Omit unused optional fields rather than sending null placeholders.";
+  const rationaleContract = "Include all schema keys; use null for unused scalar fields and [] for unused arrays. Nested searches/findings objects must include all schema keys, using null for unused optional nested values. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain finite [0,1]. Action-specific required values remain mandatory.";
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Omit provider, locale and market; nested purpose is optional. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return the six required top-level fields; omit unused optional fields. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Include provider, locale, market and purpose keys; use null for unused optional values. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=parallel_web_search/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); locale and market are optional. Omit registry and unused purpose. Otherwise choose another permitted action. ${rationaleContract} Return the six required top-level fields; omit unused optional fields. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return the six required top-level fields; omit unused optional fields rather than sending null placeholders. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=visit/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Return the six required top-level fields; omit unused optional fields rather than sending null placeholders. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=(?:visit|browser_fetch).*invalid=url/.test(failure)) {
     return "The previous model response contained a malformed URL (" + failure + "); no outbound request ran. Copy the complete URL from an exact same-case observed lead or fetched source. Use exactly one scheme prefix (https:// or http://); do not prepend a second scheme to a URL that already has one, do not concatenate or repair a malformed URL by guessing, and do not shorten or reconstruct its path. If the observed URL is not a valid complete HTTP(S) URL, choose another permitted action or another exact observed URL. The next research action remains your decision. " + rationaleContract + " Return every required top-level field and exactly one JSON object.";
   }
   if (/action=browser_fetch/.test(failure)) {
     const configuredBrowserProviders = getAvailableBrowserFetchProviders().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return the six required top-level fields; omit unused optional fields rather than sending null placeholders. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
-  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return the six required top-level fields; omit unused optional fields rather than sending null placeholders. Do not claim that a tool ran.`;
+  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Do not claim that a tool ran.`;
 }
 
 const MODEL_SELECTABLE_AGENT_ACTIONS = [
@@ -2203,14 +2203,21 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
+  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
+  const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
+  const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
-  const completeSchemaPresent = fieldsAt >= 0
-    && requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field));
+  const schemaSection = fieldsAt >= 0 ? outputSection.slice(fieldsAt, fieldsAt + 2_500) : "";
+  const completeSchemaPresent = requiredSchemaFields.every((field) => schemaSection.includes(field))
+    && requiredSearchFields.every((field) => schemaSection.includes(field))
+    && requiredFindingFields.every((field) => schemaSection.includes(field))
+    && /searches\[\] required keys/i.test(schemaSection)
+    && /findings\[\] required keys/i.test(schemaSection)
+    && /null for unused/i.test(schemaSection);
   if (!completeSchemaPresent) {
-    throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
+    throw new Error("Cannot send an Investigator request without its complete root and nested action schema.");
   }
   return normalized;
 }
@@ -2695,6 +2702,9 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
+          // HTTP 400 means the provider rejected the request contract. Do not
+          // retry it in another output mode or expose it as a research observation.
+          if (response.status === 400) return { model, raw: "", error: "provider_contract_error" };
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode,
@@ -3052,6 +3062,55 @@ const AGENTIC_ACTION_SCHEMA = {
   },
 } as const;
 
+type GroqJsonSchemaNode = Record<string, unknown>;
+
+/** Groq strict mode requires every object key at every depth to be required.
+ * Preserve optional semantics by making formerly optional values nullable;
+ * local parsing and action allowlists remain the authoritative validator.
+ */
+function nullableGroqSchemaNode(schema: GroqJsonSchemaNode): GroqJsonSchemaNode {
+  const next: GroqJsonSchemaNode = { ...schema };
+  const type = next.type;
+  if (typeof type === "string") next.type = type === "null" ? ["null"] : [type, "null"];
+  else if (Array.isArray(type) && !type.includes("null")) next.type = [...type, "null"];
+  if (Array.isArray(next.enum) && !next.enum.includes(null)) next.enum = [...next.enum, null];
+  return next;
+}
+
+function strictifyGroqJsonSchemaNode(schema: GroqJsonSchemaNode, requiredByParent = true): GroqJsonSchemaNode {
+  let next: GroqJsonSchemaNode = { ...schema };
+  const properties = next.properties;
+  if (next.type === "object" || (properties && typeof properties === "object" && !Array.isArray(properties))) {
+    const sourceProperties = (properties ?? {}) as Record<string, unknown>;
+    const sourceRequired = new Set(Array.isArray(next.required)
+      ? next.required.filter((value): value is string => typeof value === "string") : []);
+    const strictProperties: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(sourceProperties)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        strictProperties[key] = value;
+        continue;
+      }
+      const wasRequired = sourceRequired.has(key);
+      const strictChild = strictifyGroqJsonSchemaNode(value as GroqJsonSchemaNode, wasRequired);
+      strictProperties[key] = wasRequired ? strictChild : nullableGroqSchemaNode(strictChild);
+    }
+    next = {
+      ...next,
+      properties: strictProperties,
+      required: Object.keys(sourceProperties),
+      additionalProperties: false,
+    };
+  }
+  if (next.type === "array" && next.items && typeof next.items === "object" && !Array.isArray(next.items)) {
+    next.items = strictifyGroqJsonSchemaNode(next.items as GroqJsonSchemaNode, true);
+  }
+  return requiredByParent ? next : nullableGroqSchemaNode(next);
+}
+
+export function strictifyGroqJsonSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  return strictifyGroqJsonSchemaNode(schema, true);
+}
+
 export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
   // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
   // with json_validate_failed, including after the JSON-object compatibility retry.
@@ -3086,7 +3145,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     },
   };
   return strictSupported
-    ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema } }
+    ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: strictifyGroqJsonSchema(schema as unknown as Record<string, unknown>) } }
     : { type: "json_object" };
 }
 
@@ -4832,33 +4891,26 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const configuredSearchProviders = getConfiguredSearchProviders();
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; configured providers=" + (configuredSearchProviders.join("|") || "unavailable") + " (choose a configured provider; single web_search may omit provider and runtime selects a configured healthy provider; explicitly selected disabled providers are blocked); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson (provider optional; runtime defaults to RDAP). Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
-  const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order." : "";
+  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
+  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates. Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence. No fixed target itinerary, action sequence or tool sequence.";
+  const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order. No fixed action sequence." : "";
+  const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
     ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
     : "";
 
   const composedPrompt = [
-    assignment,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
-    compactWorkerCapabilityGuidance,
-    conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
-    providerGuidance,
     searchActivityGuidance,
-    input.mode === "discovery"
-      ? openDiscoveryGuidance
-      : "",
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
     terminalContractGuidance,
-    "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
-    APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
@@ -4869,7 +4921,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty; expectedInformationGain is finite in [0,1]. Only done may null query/thought/hypothesis/purpose/expectedInformationGain. Omit irrelevant optional fields.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
@@ -4984,6 +5035,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
   const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
+    const marker = "[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
       (record) => typeof record.observation === "string" && record.observation.trim() === normalized,
@@ -4993,7 +5045,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           (item) => item.turn === matchingRecord.turn && item.action === matchingRecord.action,
         )?.observation
       : undefined;
-    const marker = "[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]";
     if (providerBalancedObservation) {
       const providerBalancedProjection = marker + "\n" + providerBalancedObservation;
       return compactPromptSectionPreservingUrlTokens(providerBalancedProjection, maxChars, marker);
@@ -5118,15 +5169,21 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Capability-specific root arguments such as profile, sources, searches and findings are optional unless needed by the selected action.";
-  const requiredFieldList = "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.";
-  const requiredFieldNames = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"] as const;
+  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"] as const;
+  const requiredSearchFieldNames = ["query", "provider", "registry", "locale", "market", "purpose"] as const;
+  const requiredFindingFieldNames = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
     while (markerIndex >= 0) {
       const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
-      if (requiredFieldNames.every((field) => fieldSection.includes(field))) return true;
+      if (requiredFieldNames.every((field) => fieldSection.includes(field))
+        && requiredSearchFieldNames.every((field) => fieldSection.includes(field))
+        && requiredFindingFieldNames.every((field) => fieldSection.includes(field))
+        && /searches\[\] required keys/i.test(fieldSection)
+        && /findings\[\] required keys/i.test(fieldSection)
+        && /null for unused/i.test(fieldSection)) return true;
       markerIndex = value.indexOf(marker, markerIndex + marker.length);
     }
     return false;
@@ -5224,9 +5281,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // objective, active Boss direction, current action schema, and newest durable
   // act envelope. URL tokens are retained whole; omitted middle context is
   // explicitly unknown and remains in the immutable event ledger.
-  const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
-    [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
-  );
+  const providerBoundedPrompt = [
+    preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
+    assignment,
+    providerGuidance,
+    targetModeGuidance,
+    modelOwnedScopeGuidance,
+    openDiscoveryGuidance,
+    compactWorkerCapabilityGuidance,
+    conditionalSpecialistCapabilityGuidance,
+  ].filter(Boolean).join("\n\n");
   const reportPromptMeasurement = (value: string): string => {
     input.onPromptMeasurement?.({
       originalPromptChars: providerBoundedPrompt.length,
@@ -5238,7 +5302,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // authoritative objective, Boss scope, live action allowlist, exact registry
   // availability, terminal contract, complete output schema or newest durable act.
   const userPromptBudget = Math.min(
-    investigatorUserPromptBudget(apexInvestigatorSystemCore().length),
+    investigatorUserPromptBudget(INVESTIGATOR_SYSTEM_PROMPT().length),
     4_000,
   );
   if (providerBoundedPrompt.length <= userPromptBudget) return reportPromptMeasurement(providerBoundedPrompt);
@@ -5251,15 +5315,23 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     activeBossScopeSection,
     availableActionsGuidance,
     compactRegistryGuidance,
-    searchActivityGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
+    // Keep model-owned autonomy and runtime capability guidance visible after
+    // auxiliary-context compaction. These are not research itineraries or gates.
+    providerGuidance,
+    modelOwnedScopeGuidance,
+    openDiscoveryGuidance,
+    searchActivityGuidance,
+    input.mode === "discovery"
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      : "",
     latestRecordTail,
     aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
   let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
   for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
-  const marker = "[INVESTIGATOR PROMPT COMPACTION: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
+  const marker = "[AUXILIARY CONTEXT BOUND: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
   let boundedPinnedContext = [...pinnedContext];
   let requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
   let prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
@@ -5282,10 +5354,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
     }
   }
-  // If even the non-lossy objective, scope, action, registry, latest evidence
-  // and output contract exceed the preferred size, preserve the full request
-  // and let provider/token accounting handle its actual serialized cost.
-  if (prefixBudget < 0) return reportPromptMeasurement(providerBoundedPrompt);
+  // If the non-lossy objective, scope, action, registry, latest evidence
+  // and output contract exceed the preferred size, discard the optional prefix
+  // rather than dropping or clipping any pinned context or the strict schema.
+  if (prefixBudget < 0) return reportPromptMeasurement([marker, requiredTail].filter(Boolean).join("\n\n"));
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
@@ -5974,7 +6046,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
       }
-      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const providerContractError = llm.providerError === "provider_contract_error"; const stopReason = providerContractError ? "PROVIDER_CONTRACT_ERROR" : dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = providerContractError ? "error" : dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: providerContractError ? "provider_contract_error" : "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: providerContractError ? "PROVIDER_CONTRACT_ERROR: Groq rejected the Investigator request (HTTP 400); no model action or research request was generated. The run stopped before Boss adjudication." : dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: ${providerContractError ? "provider_contract_error" : "investigator_provider_error"} execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: providerContractError ? "error" : dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);

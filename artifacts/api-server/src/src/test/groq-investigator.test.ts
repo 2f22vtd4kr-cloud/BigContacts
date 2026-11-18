@@ -76,13 +76,13 @@ describe.sequential("Groq Investigator provider boundary", () => {
       GROQ_INVESTIGATOR_API_KEY_3: "key-4",
     } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-2",
       "groq-investigator-4",
     ]);
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(optedIn)).toEqual([
-      "groq-investigator-20b",
+    const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(disabled)).toEqual([
       "groq-investigator-1",
       "groq-investigator-2",
       "groq-investigator-4",
@@ -480,7 +480,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(result.trajectoryRecords[0]?.observation).toContain("upstream_quota_exhausted");
   });
 
-  it("retries JSON-object mode within the selected Investigator capability after Groq strict-schema rejection", async () => {
+  it("fails fast within the selected Investigator capability after Groq strict-schema rejection", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     const responseFormats: unknown[] = [];
@@ -509,10 +509,12 @@ describe.sequential("Groq Investigator provider boundary", () => {
       hardTimeoutMs: 30_000,
     });
 
-    expect(result.status).toBe("completed");
-    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(result.status).toBe("error");
+    expect(result.stopReason).toBe("PROVIDER_CONTRACT_ERROR");
+    expect(calls).toBe(1);
     expect(responseFormats[0]).toMatchObject({ type: "json_schema" });
-    expect(responseFormats).toContainEqual({ type: "json_object" });
+    expect(responseFormats).toHaveLength(1);
+    expect(responseFormats).not.toContainEqual({ type: "json_object" });
     expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-key"]));
   });
 
@@ -545,6 +547,33 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(mocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
     expect(bodyReads).toBe(1);
     expect(response.bodyUsed).toBe(true);
+  });
+
+  it("fails fast on HTTP 400 provider contract rejection without retrying or emitting a research action", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-contract-error-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: { type: "invalid_request_error", code: "invalid_request_error", message: "invalid JSON schema for response_format" },
+    }), { status: 400, headers: { "content-type": "application/json" } }));
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 4,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.stopReason).toBe("PROVIDER_CONTRACT_ERROR");
+    expect(result.trajectoryRecords).toHaveLength(1);
+    expect(result.trajectoryRecords[0]).toMatchObject({
+      action: "provider_contract_error",
+      execution: "error",
+      stopReason: "PROVIDER_CONTRACT_ERROR",
+      failureDomain: "provider_contract",
+      failureKind: "invalid_contract",
+    });
+    expect(mocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
   });
 
   it("accepts Investigator capability 2 when its dedicated key is configured", async () => {
