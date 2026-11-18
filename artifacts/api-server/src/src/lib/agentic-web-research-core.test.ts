@@ -264,10 +264,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown.");
+    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, dates, contradictions and provenance; model memory is not evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -1411,7 +1411,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, dates, contradictions and provenance; model memory is not evidence.");
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
   });
 });
@@ -1499,7 +1499,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route");
+    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -1621,7 +1621,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
-    expect(modelPrompt).toContain("CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
@@ -1764,7 +1764,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toMatch(/Target research verifies role, materiality, counter-evidence and route/);
+    expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -3233,7 +3233,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
     expect(apexInvestigatorSystemCore()).toContain("visit handles text/PDF; browser_fetch handles HTML.");
-    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, password-protected and malformed PDFs are distinct structured failures.");
+    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.");
     expect(prompt).not.toContain("must visit");
   });
 
@@ -4315,7 +4315,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Search-only is unverified (exactQuote=null), not promotion.");
+    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
