@@ -4849,7 +4849,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     providerGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "OPEN DISCOVERY: target class, sector and jurisdiction are evidence-led; no fixed rotation or source mix."
+      ? openDiscoveryGuidance
       : "",
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
