@@ -204,15 +204,15 @@ export function classifyCanonicalAtlasFailure(input: {
   leaseLost?: boolean;
 }): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const error = safeErrorShape(input.error);
-  if (/investigator_provider_contract_error|provider_contract_error/i.test(error.message)) {
-    return { domain: "provider_contract", kind: "invalid_contract" };
-  }
   if (input.cancelled) return { domain: "lease_job_state", kind: "cancelled" };
   if (input.jobStateUnavailable) return { domain: "lease_job_state", kind: "job_state_unavailable" };
   if (input.jobMissing) return { domain: "lease_job_state", kind: "job_missing" };
   if (input.jobStateMismatch) return { domain: "lease_job_state", kind: "job_state_mismatch" };
   if (input.leaseLost || /canonical atlas lease (?:was )?lost|lease ownership.*lost/i.test(error.message)) {
     return { domain: "lease_job_state", kind: "lease_lost" };
+  }
+  if (/investigator_provider_contract_error|provider_contract_error/i.test(error.message)) {
+    return { domain: "provider_contract", kind: "invalid_contract" };
   }
   if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
     return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
