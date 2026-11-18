@@ -88,7 +88,7 @@ describe("AI investigation context compaction", () => {
       "",
       "COMPLETE STRUCTURED INTELLIGENCE STATE:",
       "Historical evidence and provenance remain durable. ".repeat(280),
-    ].join("\n");
+    ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-120b",
       raw: JSON.stringify({ summary: "Historical evidence and provenance remain in durable state." }),
