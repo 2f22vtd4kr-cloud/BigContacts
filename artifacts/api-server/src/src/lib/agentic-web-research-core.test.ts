@@ -2822,7 +2822,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
     expect(prompt.length).toBeLessThanOrEqual(7_500);
-    expect(prompt).toContain("OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt).toContain("OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
   });
