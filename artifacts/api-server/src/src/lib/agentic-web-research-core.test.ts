@@ -1609,7 +1609,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
-    expect(modelPrompt).toMatch(/Visit handles text\/PDF; browser_fetch handles HTML/);
+    expect(modelPrompt).toMatch(/visit handles text\\/PDF; browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/search snippets remain leads; registry hits are leads; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
