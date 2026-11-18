@@ -26,7 +26,7 @@ function assertGroqStrictSchemaNode(node: unknown): void {
 
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -35,12 +35,12 @@ describe("Groq Investigator runtime contract", () => {
     const prompt = [
       "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
       "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
-      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
     ].join("\\n\\n");
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
   });
 
   it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
@@ -296,11 +296,11 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
     expect(repair).toContain("Include provider, locale, market and purpose; use null for unused optional values.");
-    expect(repair).toContain("Every searches item must include query, provider, registry, locale, market, purpose");
+    expect(repair).toContain("Nested searches/findings objects must include all schema keys");
     expect(repair).toContain("Use null for unused scalar fields and [] for unused arrays");
     expect(repair).toContain("do not omit keys");
-    expect(repair).toContain("every findings item must include all schema fields");
-    expect(repair).toContain("Return all 20 required top-level fields");
+    expect(repair).toContain("use null for unused optional values");
+    expect(repair).toContain("Return the six required top-level fields and include all schema keys");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
@@ -331,11 +331,11 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Use null for unused scalar fields and [] for unused arrays");
-    expect(submitted).toContain("Include every top-level key.");
+    expect(submitted).toContain("Include all schema keys");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
@@ -799,7 +799,7 @@ describe("Groq Investigator runtime contract", () => {
       "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
       "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
       "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
-      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
     ].join("\n\n");
     const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
     expect(compacted).toBe(prompt);
@@ -808,7 +808,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
-    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
 
   });
 
