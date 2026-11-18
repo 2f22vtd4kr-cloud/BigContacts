@@ -122,7 +122,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
     exactQuoteBound = true;
     for (const url of urls) {
      const host = hostnameOf(url);
-     if (host) independentExactQuoteUrls.add(url); // TEMP MUTATION CHECK: deliberately admit aggregator-only evidence
+     if (host && !isAggregatorHost(host)) independentExactQuoteUrls.add(url);
     }
    }
   }
