@@ -567,7 +567,7 @@ async function requestSummary(
     const primary = await requestRightHandSummary(prompt, {
       ...input,
       allowRecoveryModel: false,
-    }, "openai/gpt-oss-20b", 1);
+    }, "openai/gpt-oss-120b", 1);
     const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
