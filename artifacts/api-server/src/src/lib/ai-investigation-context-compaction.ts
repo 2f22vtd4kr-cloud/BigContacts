@@ -586,12 +586,12 @@ async function requestSummary(
 }
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
- * semantic reduction uses the separate Right-hand credential lane, with 20B for routine compaction and 120B only for bounded recovery. A
+ * semantic reduction uses the separate Right-hand credential lane on the 120B model; it never consumes the Investigator 20B bucket. A
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
-const AI_COMPACTION_MIN_SOURCE_CHARS = 12_000;
-const AI_COMPACTION_MAX_SOURCE_CHARS = 14_000;
+const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
+const AI_COMPACTION_MAX_SOURCE_CHARS = 11_000;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
