@@ -297,7 +297,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
     expect(repair).toContain("Include provider, locale, market and purpose; use null for unused optional values.");
     expect(repair).toContain("Nested searches/findings objects must include all schema keys");
-    expect(repair).toContain("Use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
     expect(repair).toContain("do not omit keys");
     expect(repair).toContain("use null for unused optional values");
     expect(repair).toContain("Return the six required top-level fields and include all schema keys");
@@ -334,7 +334,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
-    expect(submitted).toContain("Use null for unused scalar fields and [] for unused arrays");
+    expect(submitted).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
     expect(submitted).toContain("Include all schema keys");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
