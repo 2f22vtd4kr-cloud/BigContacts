@@ -468,6 +468,7 @@ describe("trajectory-local web-search provider failure state", () => {
         const provider = selectConfiguredSearchProvider(new Map());
         expect(provider).toBe("serper");
         const result = await webSearchSerper(action.query);
+        if (!result) throw new Error("Mocked Serper search returned no result object");
         expect(result.status).toBe("success");
         expect(result.urls).toContain("https://example.com/observed-lead");
       }
