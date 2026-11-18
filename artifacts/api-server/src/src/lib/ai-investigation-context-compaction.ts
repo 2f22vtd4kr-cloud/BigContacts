@@ -333,92 +333,10 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
   return /invalid_response|invalid_contract|json_validate_failed|failedGenerationBudgetExhausted/i.test(result.error ?? "");
 }
 
-/**
- * A 20B token-per-minute/model throttle is scoped to that model, not proof that
- * the Right-hand credential is exhausted. Permit one same-role 120B recovery;
- * do not use this path for daily token caps, request quotas, auth failures, or
- * arbitrary provider errors.
- */
-function recoverableCompactionModelThrottle(error: string | null): boolean {
-  const diagnostic = error ?? "";
-  const shortWindowText = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
-  const dailyText = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
-  if (dailyText) return false;
-
-  // Right-hand deliberately redacts provider prose. Its bounded attempt
-  // diagnostic retains only safe quota metadata, so classify from that
-  // structured record rather than depending on the redacted "TPM" message.
-  // Errors can contain several JSON records separated by " | ".
-  const records: Array<Record<string, unknown>> = [];
-  for (const segment of diagnostic.split(/\s+\|\s+/u)) {
-    const jsonStart = segment.indexOf("{");
-    if (jsonStart < 0) continue;
-    try {
-      const parsed = JSON.parse(segment.slice(jsonStart)) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        records.push(parsed as Record<string, unknown>);
-      }
-    } catch {
-      // Keep parsing other bounded attempt records; malformed diagnostics fail closed.
-    }
-  }
-
-  const isShortReset = (value: unknown): boolean => {
-    if (typeof value !== "string" || !value.trim()) return false;
-    const raw = value.trim();
-    const numericSeconds = Number(raw);
-    if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
-      return numericSeconds * 1_000 <= 60 * 60 * 1_000;
-    }
-    const match = raw.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
-    if (!match) return false;
-    const milliseconds = (Number(match[1] ?? 0) * 3_600
-      + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000;
-    return milliseconds > 0 && milliseconds <= 60 * 60 * 1_000;
-  };
-
-  const hasStructuredModelTokenThrottle = records.some((record) => {
-    if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429 || record.dailyTokenQuota === true) return false;
-    const body = record.body && typeof record.body === "object" && !Array.isArray(record.body)
-      ? record.body as Record<string, unknown>
-      : {};
-    const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
-    const explicitDailySignal = quotaSignals.some((signal) =>
-      typeof signal === "string" && /tokens?[_\s-]*per[_\s-]*day|\bTPD\b|daily/i.test(signal));
-    if (explicitDailySignal) return false;
-
-    // Some Groq 429 responses omit reset/remaining headers. When telemetry still
-    // identifies a token/model-scoped 429 and carries no daily-quota signal,
-    // recover once on the same Right-hand credential with the 120B model rather
-    // than misreporting an Investigator outage. This is model fallback, never
-    // credential rotation; explicit daily caps remain non-recoverable here.
-    return true;
-  });
-
-  const hasLocalTokenWindowThrottle = records.some((record) => {
-    const retryAfterMs = record.retryAfterMs;
-    return record.httpStatus === null
-      && record.rateLimitKind === "tokens"
-      && record.failureClass === "rate_limited"
-      && (record.providerCode === "budget_exhausted" || record.providerCode === "cooldown")
-      && typeof retryAfterMs === "number"
-      && Number.isFinite(retryAfterMs)
-      && retryAfterMs >= 0
-      && retryAfterMs <= 60 * 60 * 1_000;
-  });
-  const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
-  // Older safe diagnostics may carry only the classifier field plus an
-  // explicit short-window message. Structured reset metadata is preferred.
-  const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
-    && /rate_limit_exceeded/i.test(diagnostic)
-    && shortWindowText;
-  return (hasStructuredModelTokenThrottle || hasLocalTokenWindowThrottle || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
-    && !dailyText;
-}
 async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
-  preferredModel: "openai/gpt-oss-20b" | "openai/gpt-oss-120b",
+  preferredModel: "openai/gpt-oss-20b",
   maxAttempts: number = 2,
 ): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
   return runGroqRightHandFreeJson(
@@ -475,9 +393,8 @@ async function requestSummaryLegacy(
     // Memory compaction is a non-decision transformation. Use the separate
     // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
     // Boss strategic-control quota or Right-hand 120B advisory capacity.
-    // Compaction must not sit through TPM reset waits or spend a retry on a
-    // throttled 20B model. One attempt yields a structured diagnostic; the
-    // bounded same-role 120B recovery below is the only fallback attempt.
+    // Compaction stays on the dedicated 20B lane; provider throttle or invalid
+    // output returns to the caller's deterministic projection.
     const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
