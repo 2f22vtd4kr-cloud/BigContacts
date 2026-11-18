@@ -656,20 +656,51 @@ describe("AI investigation context compaction", () => {
     expect(extractAiContextUrls(sourceUrl + String.raw`\r\nNext field: additional context`)).toEqual([sourceUrl]);
   });
 
-  it("uses one same-role Boss 120B recovery after primary and original-source 20B repair summaries fail validation", async () => {
+  it("fails closed to deterministic projection when both 20B memory summaries fail validation", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: valid }), error: null });
+      ;
 
-    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(valid);
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(3);
-    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[4]).toMatchObject({ jobId: null, caseId: null, cognitiveTask: "context_compaction" });
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[2]?.[5]).toMatchObject({ preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxCompletionTokens: 768 });
+    await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("COMPLETE ORIGINAL CASE MEMORY");
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null, cognitiveTask: "context_compaction" });
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) => call[5]?.preferredModel === "openai/gpt-oss-20b")).toBe(true);
+  });
+
+  it("keeps turn-scoped AI compaction on 20B and uses deterministic projection on provider throttle", async () => {
+    const source = [
+      "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: the exact objective remains authoritative.",
+      "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "preserve source-linked state and uncertainty. ".repeat(210),
+      "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "older observations remain available in durable events. ".repeat(40),
+    ].join("\n\n");
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: null,
+      error: "HTTP_429 rate_limit_exceeded model token window",
+      attempts: [],
+    });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      maxChars: 1_800,
+      jobId: "job-20b-compaction",
+      caseId: 44,
+      turn: 1,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.text.length).toBeLessThanOrEqual(1_800);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-20b",
+      allowModelFallback: false,
+      maxCompletionTokens: 768,
+    });
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
