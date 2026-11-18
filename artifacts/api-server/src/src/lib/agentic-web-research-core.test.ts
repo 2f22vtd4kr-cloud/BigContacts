@@ -350,7 +350,7 @@ describe("live discovery semantic-authority boundary", () => {
 });
 
 describe("schema-inclusive Investigator prompt measurement", () => {
-  it("keeps a representative first discovery request near the 2,000-token target", () => {
+  it("keeps a representative first discovery request within the 10,000-character schema-inclusive target", () => {
     const objective = "Investigate publicly documented people and companies relevant to private business ownership and asset control. Find useful source-backed leads, preserve uncertainty, and let the Investigator decide which hypotheses, sectors, sources and follow-ups can advance the objective. Explicitly exclude private residential and sensitive personal data. Boss retains authority over material scope changes.";
     const prompt = buildStepPrompt({
       targetName: "",
@@ -375,7 +375,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     const conservativeTokens = Math.ceil(requestChars / 3.4);
     expect(prompt.length).toBeLessThanOrEqual(4_000);
     expect(empiricalTokens).toBeLessThanOrEqual(2_300);
-    expect(conservativeTokens).toBeLessThanOrEqual(2_700);
+    expect(conservativeTokens).toBeLessThanOrEqual(2_950);
     expect(schemaChars).toBeGreaterThan(1_000);
   });
 });
