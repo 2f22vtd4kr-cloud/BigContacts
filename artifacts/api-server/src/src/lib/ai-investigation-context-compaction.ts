@@ -593,7 +593,7 @@ async function requestSummary(
 const AI_COMPACTION_MIN_SOURCE_CHARS = 14_000;
 const AI_COMPACTION_MAX_SOURCE_CHARS = 16_000;
 const AI_COMPACTION_CACHE_LIMIT = 256;
-const aiCompactionCache = new Map<string, string>();
+const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
 const aiCompactionAttemptsByTurn = new Map<string, true>();
 
@@ -755,8 +755,10 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
   const cacheKey = owner + ":" + contentHash;
-  const cached = aiCompactionCache.get(cacheKey);
-  if (cached) return cached.length <= maxChars ? cached : null;
+  if (aiCompactionCache.has(cacheKey)) {
+    const cached = aiCompactionCache.get(cacheKey);
+    return cached && cached.length <= maxChars ? cached : null;
+  }
 
   const turnKey = owner + ":turn:" + turn;
   if (aiCompactionAttemptsByTurn.has(turnKey)) return null;
@@ -768,9 +770,9 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
-  if (!summary) return null;
-
+  // Cache failures as misses too: an unchanged segment is never retried on a later turn.
   aiCompactionCache.set(cacheKey, summary);
+  if (!summary) return null;
   if (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
     const oldest = aiCompactionCache.keys().next().value;
     if (oldest) aiCompactionCache.delete(oldest);
