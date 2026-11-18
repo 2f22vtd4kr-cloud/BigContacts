@@ -5349,10 +5349,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
     }
   }
-  // If even the non-lossy objective, scope, action, registry, latest evidence
-  // and output contract exceed the preferred size, preserve the full request
-  // and let provider/token accounting handle its actual serialized cost.
-  if (prefixBudget < 0) return reportPromptMeasurement(providerBoundedPrompt);
+  // If the non-lossy objective, scope, action, registry, latest evidence
+  // and output contract exceed the preferred size, discard the optional prefix
+  // rather than dropping or clipping any pinned context or the strict schema.
+  if (prefixBudget < 0) return reportPromptMeasurement(requiredTail);
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
