@@ -4891,8 +4891,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const configuredSearchProviders = getConfiguredSearchProviders();
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; configured providers=" + (configuredSearchProviders.join("|") || "unavailable") + " (choose a configured provider; single web_search may omit provider and runtime selects a configured healthy provider; explicitly selected disabled providers are blocked); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson (provider optional; runtime defaults to RDAP).";
-  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates. Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence. Do not impose a fixed target itinerary or source sequence.";
+  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use only configured/attested providers; omit provider to let runtime select a healthy default.";
+  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates. Use locale for language and market as an evidence-backed jurisdictional hypothesis. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence. No fixed target itinerary or source sequence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order." : "";
   const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
@@ -5290,6 +5290,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // explicitly unknown and remains in the immutable event ledger.
   const providerBoundedPrompt = [
     preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
+    assignment,
     providerGuidance,
     targetModeGuidance,
     modelOwnedScopeGuidance,
@@ -5316,18 +5317,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
   const pinnedContext = [
-    assignment,
-    targetModeGuidance,
-    modelOwnedScopeGuidance,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
-    compactWorkerCapabilityGuidance,
-    conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
-    providerGuidance,
-    searchActivityGuidance,
-    openDiscoveryGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
     latestRecordTail,
