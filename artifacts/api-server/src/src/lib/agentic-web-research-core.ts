@@ -2203,14 +2203,21 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
+  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
+  const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
+  const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
-  const completeSchemaPresent = fieldsAt >= 0
-    && requiredSchemaFields.every((field) => outputSection.slice(fieldsAt, fieldsAt + 1_000).includes(field));
+  const schemaSection = fieldsAt >= 0 ? outputSection.slice(fieldsAt, fieldsAt + 2_500) : "";
+  const completeSchemaPresent = requiredSchemaFields.every((field) => schemaSection.includes(field))
+    && requiredSearchFields.every((field) => schemaSection.includes(field))
+    && requiredFindingFields.every((field) => schemaSection.includes(field))
+    && /searches\[\] required keys/i.test(schemaSection)
+    && /findings\[\] required keys/i.test(schemaSection)
+    && /null for unused/i.test(schemaSection);
   if (!completeSchemaPresent) {
-    throw new Error("Cannot send an Investigator request without its complete top-level action schema.");
+    throw new Error("Cannot send an Investigator request without its complete root and nested action schema.");
   }
   return normalized;
 }
