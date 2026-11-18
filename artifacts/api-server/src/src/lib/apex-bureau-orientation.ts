@@ -114,7 +114,12 @@ export function apexInvestigatorSystemCore(): string {
     "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.",
     "PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
-    "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive."
+    "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.",
+    "QUALIFICATION: No invented private/mid-market preference. Wealth claims need sourced ownership/equity/investment; wealth objectives need sourced ownership/equity/investment. HNWI/wealth/success labels are not evidence.",
+    "RESEARCH AUTONOMY: Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification from the live hypothesis; no fixed source itinerary or mandatory web/registry mix.",
+    "REVIEW LEADS: Investigator selects observed leads for provisional review; preserve exact scope, name, source URL, rationale and uncertainty. Target research verifies role, materiality, counter-evidence and route before promotion.",
+    "REGISTRIES: Never assume a registry exposes owners. Registry records are source-specific leads; the Investigator chooses any callable registry that fits the current hypothesis.",
+    "FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown."
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
