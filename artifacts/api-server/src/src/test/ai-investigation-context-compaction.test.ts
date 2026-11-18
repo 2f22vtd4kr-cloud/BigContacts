@@ -172,7 +172,7 @@ describe("AI investigation context compaction", () => {
 
   it("does not reuse a cached summary when fetched-source authority changes", async () => {
     const sourceUrl = "https://registry.example.com/filings/123";
-    const source = "HISTORICAL MEMORY\\nSOURCE_URL: " + sourceUrl + "\\n" + "Source-bound observation and unresolved questions remain durable. ".repeat(190);
+    const source = "HISTORICAL MEMORY\\nSOURCE_URL: " + sourceUrl + "\\n" + "Source-bound observation and unresolved questions remain durable. ".repeat(140);
     const fetchedContext = "BOUNDED TRAJECTORY PROJECTION:\\n" + JSON.stringify([
       { action: "visit", execution: "success", observedUrls: [sourceUrl] },
     ]);
