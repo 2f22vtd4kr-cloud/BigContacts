@@ -4566,6 +4566,10 @@ export function discoveryUnscopedGeographyReason(
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   if (!searchActions.has(action)) return null;
   if (geographicScopeMention(objective)) return null;
+  // Open geography is the default. Only an explicit human restriction may
+  // constrain a model-proposed jurisdiction; an absent country is not a ban.
+  const explicitlyHumanRestricted = /use only human[- ]specified geography|do not add geographic scope|do not search|don\u2019t search|exclude(?:d)? from (?:the )?search|avoid searching/i.test(objective);
+  if (!explicitlyHumanRestricted) return null;
 
   const searches: Array<Record<string, unknown>> = [];
   if (action === "parallel_web_search" || action === "parallel_registry_search") {
