@@ -215,10 +215,10 @@ vi.mock("../lib/bureau-contact-persist-strict", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/bureau-contact-persist-strict")>();
   return {
     ...actual,
-    supportsCandidateContactOnSameObservation: (...args: any[]) =>
-      quoteVerifierMutation.disabled ? true : actual.supportsCandidateContactOnSameObservation(...args),
-    supportsContactClaimAcrossObservations: (...args: any[]) =>
-      quoteVerifierMutation.disabled ? true : actual.supportsContactClaimAcrossObservations(...args),
+    supportsCandidateContactOnSameObservation: (observationText: string, item: any, cleanValue: string, vectorType: string) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsCandidateContactOnSameObservation(observationText, item, cleanValue, vectorType),
+    supportsContactClaimAcrossObservations: (observations: readonly { observationText: string; sourceUrls: readonly string[] }[], item: any, cleanValue: string, vectorType: string) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsContactClaimAcrossObservations(observations, item, cleanValue, vectorType),
   };
 });
 
