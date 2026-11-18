@@ -4891,14 +4891,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const configuredSearchProviders = getConfiguredSearchProviders();
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; configured providers=" + (configuredSearchProviders.join("|") || "unavailable") + " (choose a configured provider; single web_search may omit provider and runtime selects a configured healthy provider; explicitly selected disabled providers are blocked); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson (provider optional; runtime defaults to RDAP). Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; configured providers=" + (configuredSearchProviders.join("|") || "unavailable") + " (choose a configured provider; single web_search may omit provider and runtime selects a configured healthy provider; explicitly selected disabled providers are blocked); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson (provider optional; runtime defaults to RDAP). Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order." : "";
+  const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
     ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
     : "";
 
   const composedPrompt = [
     assignment,
+    targetModeGuidance,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
@@ -4928,7 +4930,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Nested searches/findings objects must include all schema keys, using null for unused optional values. Non-done hypothesis/purpose are non-empty; expectedInformationGain is finite in [0,1]. Action-specific required values and evidence rules remain enforced by the local parser.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
