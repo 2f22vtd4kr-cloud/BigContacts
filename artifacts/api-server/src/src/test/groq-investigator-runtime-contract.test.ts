@@ -298,9 +298,9 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("Include provider, locale, market and purpose keys; use null for unused optional values.");
     expect(repair).toContain("Nested searches/findings objects must include all schema keys");
     expect(repair).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
-    expect(repair).toContain("do not omit keys");
+    expect(repair).toContain("Include all schema keys");
     expect(repair).toContain("use null for unused optional values");
-    expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
+    expect(repair).toContain("Return the six required top-level fields and include all schema keys");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
@@ -309,7 +309,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("browser_fetch");
     expect(repair).toContain("currently configured values");
     expect(repair).toContain("choose another action");
-    expect(repair).toContain("Use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
