@@ -431,9 +431,10 @@ describe("Atlas control-plane contract regression", () => {
   it("records an Investigator provider-contract turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
-    expect(investigatorSource).toContain('action: "investigator_provider_error"');
+    expect(investigatorSource).toContain('action: providerContractError ? "provider_contract_error" : "investigator_provider_error"');
     expect(investigatorSource).toContain('records.push(providerErrorRecord);');
-    expect(investigatorSource).toContain("INVESTIGATOR_PROVIDER_ERROR");
+    expect(investigatorSource).toContain("PROVIDER_CONTRACT_ERROR");
+    expect(investigatorSource).toContain("provider_contract_error");
     expect(investigatorSource).toContain("return resultBase(status, i + 1, stopReason, lastObservation)");
   });
 
@@ -948,6 +949,9 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain('stage: episodeFailure.code === "investigator_oversight_unavailable" ? "oversight_control_decision" : "investigator_episode"');
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
+    expect(canonicalContinuationSource).toContain('classifyInvestigatorEpisodeFailure({status:discovery.status,iterations:discovery.iterations,stopReason:discovery.stopReason,trajectoryRecords:discovery.trajectoryRecords??[]})?.code==="investigator_provider_contract_error"');
+    expect(canonicalContinuationSource).toContain('currentAction:"investigator-provider-contract-error"');
+    expect(canonicalContinuationSource).toContain('failureDomain:"provider_contract"');
   });
 });
 
