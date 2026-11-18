@@ -4718,7 +4718,7 @@ export function buildDiscoveryScopeAdvisory(
 // Preserve useful model-selected review leads without treating them as verified claims.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onPromptMeasurement?: (measurement: { originalPromptChars: number; finalPromptChars: number }) => void }): string {
   const assignment = input.mode === "discovery"
-    ? "DISCOVERY MODE: explore objective-fit targets. COLD START: avoid generic investor/wealth queries; consider registry anchors."
+    ? "DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
