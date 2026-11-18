@@ -216,7 +216,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: JSON action object with every schema key");
+    expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
@@ -290,7 +290,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
