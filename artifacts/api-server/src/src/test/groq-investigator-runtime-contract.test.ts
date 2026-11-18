@@ -303,7 +303,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("Nested searches/findings objects must include all schema keys");
     expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(repair).toContain("Include all schema keys");
-    expect(repair).toContain("use null for unused optional values");
+    expect(repair).toContain("using null for unused optional nested values");
     expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
@@ -335,12 +335,13 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
-    expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
+    expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty");
+    expect(submitted).toContain("expectedInformationGain finite [0,1]");
     expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
-    expect(submitted).toContain("Include all schema keys");
-    expect(submitted).toContain("Nested searches/findings objects must include all schema keys");
+    expect(submitted).toContain("Include every key");
+    expect(submitted).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
+    expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
     expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
