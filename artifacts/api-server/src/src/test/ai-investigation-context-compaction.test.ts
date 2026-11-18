@@ -975,7 +975,7 @@ describe("AI investigation context compaction", () => {
 
   it("rejects numeric paraphrases that retain the same number but alter its denominator", async () => {
     const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
-    const source = "CASE MEMORY " + "context. ".repeat(50) + sourceFact + " " + "more context. ".repeat(50);
+    const source = "CASE MEMORY " + "context. ".repeat(500) + sourceFact + " " + "more context. ".repeat(400);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
       model: "openai/gpt-oss-20b",
       raw: JSON.stringify({ summary: "100% of the company's portfolio was fossil-fuel companies." }),
@@ -989,7 +989,7 @@ describe("AI investigation context compaction", () => {
 
   it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
     const sourceFact = "The tracker states that 100% of the portfolio companies were fossil-fuel companies.";
-    const source = "CASE MEMORY " + "context. ".repeat(50) + sourceFact + " " + "more context. ".repeat(50);
+    const source = "CASE MEMORY " + "context. ".repeat(500) + sourceFact + " " + "more context. ".repeat(400);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
       model: "openai/gpt-oss-20b",
       raw: JSON.stringify({ summary: "One hundred percent of the company's portfolio was fossil-fuel companies." }),
