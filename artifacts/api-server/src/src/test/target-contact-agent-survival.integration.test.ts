@@ -20,6 +20,12 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({
     const method = String(init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     offline.requests.push({ url, method });
 
+    if (url.endsWith("/models")) {
+      return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-20b" }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }
+
     if (url.endsWith("/chat/completions")) {
       const action = offline.actions.shift();
       if (!action) return new Response("Unexpected extra offline Groq turn", { status: 599 });
