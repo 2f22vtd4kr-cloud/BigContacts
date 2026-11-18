@@ -100,9 +100,9 @@ export function getInvestigatorCredentialAliases(
 
 /**
  * Model-scoped quota recovery is a narrow exception to credential deduplication:
- * the explicit 20B capability shares the configured credential but calls a
- * different model, so it can recover a 120B-only token cap. The ordinary
- * registry continues to collapse same-credential slots.
+ * the 20B capability shares the configured credential but calls a different
+ * model, so it can recover a 120B-only token cap. The ordinary registry
+ * continues to collapse same-credential slots.
  */
 export function getModelScopedInvestigatorQuotaFallback(
   env: NodeJS.ProcessEnv,
