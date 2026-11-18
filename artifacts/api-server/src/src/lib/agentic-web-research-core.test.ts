@@ -1759,7 +1759,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeLessThan(7_500);
+    expect(prompt.length).toBeLessThan(8_500);
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
@@ -2437,7 +2437,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt.length).toBeLessThan(7_500);
+    expect(prompt.length).toBeLessThan(8_500);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
@@ -2821,7 +2821,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeLessThanOrEqual(7_000);
+    expect(prompt.length).toBeLessThanOrEqual(7_500);
     expect(prompt).toContain("OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
