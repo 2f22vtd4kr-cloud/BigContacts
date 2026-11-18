@@ -1657,7 +1657,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
-  it("preserves complete fetched PDF evidence and durable URLs while bounding the newest search observation", () => {
+  it("preserves exact fetched PDF claims and durable URLs while bounding fetched-page and search projections", () => {
     const objective = "Discover public-source ownership and transaction evidence relevant to the active human objective.";
     const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
     const fetchedUrl = "https://registry.example.test/filings/" + "f".repeat(120) + ".pdf";
@@ -1715,6 +1715,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]");
     expect(prompt).toContain("observationCharsOmittedFromPrompt");
     expect(prompt).toContain("PDF_OWNERSHIP_CLAIM_SENTINEL");
+    expect(prompt).toContain("[FETCHED PAGE COMPACTED; omitted text is unknown; exact quotes and URLs remain in the durable record]");
     expect(prompt).toContain(fetchedUrl);
     for (const url of latestLeadUrls) expect(prompt).toContain(url);
     for (const url of durableUrls) expect(prompt).toContain(url);
