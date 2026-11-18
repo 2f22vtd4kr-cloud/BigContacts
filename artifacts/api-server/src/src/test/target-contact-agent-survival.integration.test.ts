@@ -266,9 +266,9 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
 
   it("carries a model-selected, fetched person-specific contact through quote verification, evidence persistence and canonical card promotion", async () => {
     const sourceUrl = `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`;
-    const exactQuote = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+    const exactQuote = "Jane Example — Managing Director can be reached directly at jane@exampleengineering.com.";
     const finding = {
-      vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example",
+      vectorType: "email", value: "jane@exampleengineering.com", personName: "Jane Example",
       role: "Managing Director", scope: "candidate", sourceUrls: [sourceUrl],
       note: "The fetched public team page explicitly attributes the professional address to Jane Example.",
       contactAttribution: "person_specific", exactQuote,
@@ -282,7 +282,7 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
     expect(result.stopReason).toBe("MODEL_DECIDED_DONE");
     expect(result.modelFindings).toHaveLength(1);
     expect(result.modelFindings[0]).toMatchObject({
-      personName: "Jane Example", role: "Managing Director", value: "jane@acmeengineering.com",
+      personName: "Jane Example", role: "Managing Director", value: "jane@exampleengineering.com",
       contactAttribution: "person_specific", identityAssessment: "same_person",
       hypothesisRelation: "supports", exactQuote,
     });
@@ -307,10 +307,10 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
     });
     const [card] = await db.select().from(tables.entitiesTable)
       .where(eq(tables.entitiesTable.id, persistedContext.entityId)).limit(1);
-    expect(card.email).toBe("jane@acmeengineering.com");
+    expect(card.email).toBe("jane@exampleengineering.com");
     expect(JSON.parse(card.metadata)).toMatchObject({
       agenticContactProvenance: { email: {
-        value: "jane@acmeengineering.com", personName: "Jane Example",
+        value: "jane@exampleengineering.com", personName: "Jane Example",
         contactAttribution: "person_specific", exactQuote,
         sourceUrls: [sourceUrl], observedSourceUrls: [sourceUrl],
         claimEventId: expect.any(Number), observationEventIds: [expect.any(Number)],
@@ -324,25 +324,25 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
       name: "fabricated exact quote",
       suffix: "fabricated",
       sourceUrl: `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`,
-      pageText: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.",
-      quote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com (direct line).",
+      pageText: "Jane Example — Managing Director can be reached directly at jane@exampleengineering.com.",
+      quote: "Jane Example — Managing Director can be reached directly at jane@exampleengineering.com (direct line).",
     },
     {
       name: "aggregator-only exact quote",
       suffix: "aggregator",
       sourceUrl: `https://www.zoominfo.com/p/jane-example/${runToken}`,
-      pageText: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.",
-      quote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.",
+      pageText: "Jane Example — Managing Director can be reached directly at jane@exampleengineering.com.",
+      quote: "Jane Example — Managing Director can be reached directly at jane@exampleengineering.com.",
     },
     {
       name: "shared inbox mislabeled person-specific without supporting quote",
       suffix: "shared-inbox",
       sourceUrl: `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`,
-      pageText: "Jane Example — Managing Director. General enquiries: info@acmeengineering.com.",
-      quote: "Jane Example — Managing Director can be reached directly at info@acmeengineering.com.",
+      pageText: "Jane Example — Managing Director. General enquiries: info@exampleengineering.com.",
+      quote: "Jane Example — Managing Director can be reached directly at info@exampleengineering.com.",
     },
   ])("does not promote $name", async ({ suffix, sourceUrl, pageText, quote }) => {
-    const value = suffix === "shared-inbox" ? "info@acmeengineering.com" : "jane@acmeengineering.com";
+    const value = suffix === "shared-inbox" ? "info@exampleengineering.com" : "jane@exampleengineering.com";
     const finding = {
       vectorType: "email", value, personName: "Jane Example", role: "Managing Director",
       scope: "candidate", sourceUrls: [sourceUrl],
