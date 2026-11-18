@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -439,22 +439,43 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
 }
 
 describe("trajectory-local web-search provider failure state", () => {
-  it("accepts a single web_search without a provider and selects a configured healthy provider at runtime", () => {
-    const raw = JSON.stringify({
-      action: "web_search",
-      query: "public ownership records for a relevant operating business",
-      hypothesis: "A public record may identify a relevant ownership relationship.",
-      purpose: "Find a source-backed lead for further assessment.",
-      expectedInformationGain: 0.6,
-    });
-    expect(describeAgentActionParseFailure(raw, ["web_search"])).toBe("");
-    expect(parseAgentAction(raw, ["web_search"])).toMatchObject({ action: "web_search", query: "public ownership records for a relevant operating business" });
-
+  it("executes the four audit web_search responses without provider through the configured runtime default", async () => {
+    const auditQueries = [
+      "private equity investor emerging market investor lesser known",
+      "lesser known high net worth individuals potential investors 2024",
+      "lesser-known high-net-worth entrepreneurs startup investment Europe 2024",
+      "lesser known wealthy investors emerging technology venture capital",
+    ];
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      organic: [{ title: "Mocked public source", link: "https://example.com/observed-lead", snippet: "A mocked search result for the regression test." }],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubEnv("SERPER_API_KEY", "configured-serper-test-key");
-    vi.stubEnv("TAVILY_API_KEY", "configured-tavily-test-key");
-    const states = new Map([["serper", { failures: 1, lastFailureClass: "unauthorized" as const, disabled: true }]]);
-    expect(selectConfiguredSearchProvider(states)).toBe("tavily");
-    vi.unstubAllEnvs();
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      for (const query of auditQueries) {
+        const raw = JSON.stringify({
+          action: "web_search",
+          query,
+          hypothesis: "A public source may identify a relevant person or organization.",
+          purpose: "Gather an observed lead for model-led follow-up.",
+          expectedInformationGain: 0.6,
+        });
+        expect(describeAgentActionParseFailure(raw, ["web_search"])).toBe("");
+        const action = parseAgentAction(raw, ["web_search"]);
+        expect(action?.action).toBe("web_search");
+        if (action?.action !== "web_search") throw new Error("Audit response did not parse as web_search");
+
+        const provider = selectConfiguredSearchProvider(new Map());
+        expect(provider).toBe("serper");
+        const result = await webSearchSerper(action.query);
+        expect(result.status).toBe("success");
+        expect(result.urls).toContain("https://example.com/observed-lead");
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
 
