@@ -348,14 +348,31 @@ describe("Groq Investigator runtime contract", () => {
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
         required?: string[];
-        properties?: { searches?: { items?: { required?: string[]; properties?: Record<string, { type?: string }> } } };
+        properties?: {
+          searches?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
+          findings?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
+        };
       } };
     };
     const actionSchema = responseFormat.json_schema?.schema;
-    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
-    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
+    expect(actionSchema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual([
+      "query", "provider", "registry", "locale", "market", "purpose",
+    ]);
+    expect(actionSchema?.properties?.searches?.items?.additionalProperties).toBe(false);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.findings?.items?.required).toEqual([
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
+      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
+      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+    ]);
+    expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
     expect(messages).toHaveLength(2);
   });
 
