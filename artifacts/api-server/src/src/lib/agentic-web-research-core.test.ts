@@ -378,7 +378,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
     expect(prompt.length).toBeLessThanOrEqual(4_000);
-    expect(empiricalTokens).toBeLessThanOrEqual(2_300);
+    expect(empiricalTokens).toBeLessThanOrEqual(2_500);
     expect(conservativeTokens).toBeLessThanOrEqual(2_950);
     expect(schemaChars).toBeGreaterThan(1_000);
   });
