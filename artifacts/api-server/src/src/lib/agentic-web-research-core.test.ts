@@ -268,7 +268,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("COLD START: do not echo broad investor/wealth labels or assume private equity is the mission");
     expect(modelPrompt).toContain("assess whether a callable registry could yield an anchor before choosing web, registry or both");
-    expect(modelPrompt).toContain("human objective and explicit constraints govern");
+    expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
