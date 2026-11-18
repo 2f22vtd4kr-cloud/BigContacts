@@ -110,8 +110,8 @@ describe("AI investigation context compaction", () => {
     const alternate = source.replace("HISTORICAL MEMORY", "HISTORICAL MEMORIES");
     const summary = "Historical observations and unresolved questions are preserved; raw events remain durable.";
     rightHandMocks.runGroqRightHandFreeJson
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
 
     const first = await summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, maxChars: 900, jobId: "job-turn-cache", turn: 4,
@@ -133,7 +133,7 @@ describe("AI investigation context compaction", () => {
     expect(nextTurn).toBe(summary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
-      preferredModel: "openai/gpt-oss-20b", allowModelFallback: false, maxAttempts: 1,
+      preferredModel: "openai/gpt-oss-120b", allowModelFallback: false, maxAttempts: 1,
     });
   });
 
