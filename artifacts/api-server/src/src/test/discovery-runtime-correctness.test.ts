@@ -782,7 +782,7 @@ describe("unapproved discovery geography guard", () => {
     })).toBeNull();
     expect(buildDiscoveryScopeAdvisory(objective, "web_search", examples[0]!, [])).toBeNull();
   });
-  it("blocks model-added countries and regional markets for an unscoped objective, but preserves human-specified geography", async () => {
+  it("reports only explicit human geographic exclusions while open geography remains available", async () => {
     const { discoveryUnscopedGeographyReason } = await import("../lib/agentic-web-research-core");
     const objective = [
       "Discover lesser-known people with credible wealth potential and public/professional routes.",
