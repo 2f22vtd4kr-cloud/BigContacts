@@ -8,6 +8,7 @@
 export type AtlasFailureDomain =
   | "model_oversight"
   | "model_provider"
+  | "provider_contract"
   | "model_action"
   | "tool_execution"
   | "external_page_fetch"
@@ -174,6 +175,7 @@ export function classifyAtlasScopeGuardObservation(observation: string): { domai
 
 export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const code = value.trim().toLowerCase();
+  if (code === "provider_contract_error") return { domain: "provider_contract", kind: "invalid_contract" };
   if (code === "upstream_token_quota_exhausted") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
@@ -202,6 +204,9 @@ export function classifyCanonicalAtlasFailure(input: {
   leaseLost?: boolean;
 }): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const error = safeErrorShape(input.error);
+  if (/investigator_provider_contract_error|provider_contract_error/i.test(error.message)) {
+    return { domain: "provider_contract", kind: "invalid_contract" };
+  }
   if (input.cancelled) return { domain: "lease_job_state", kind: "cancelled" };
   if (input.jobStateUnavailable) return { domain: "lease_job_state", kind: "job_state_unavailable" };
   if (input.jobMissing) return { domain: "lease_job_state", kind: "job_missing" };
