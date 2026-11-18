@@ -1,4 +1,20 @@
 import { describe, expect, it } from "vitest";
+function assertGroqStrictSchemaNode(node: unknown): void {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return;
+  const schema = node as Record<string, unknown>;
+  const properties = schema.properties;
+  if (schema.type === "object" || (properties && typeof properties === "object" && !Array.isArray(properties))) {
+    const fields = Object.keys((properties ?? {}) as Record<string, unknown>);
+    expect(schema.required).toEqual(fields);
+    expect(schema.additionalProperties).toBe(false);
+    for (const child of Object.values((properties ?? {}) as Record<string, unknown>)) {
+      assertGroqStrictSchemaNode(child);
+    }
+  }
+  if ((schema.type === "array" || (Array.isArray(schema.type) && schema.type.includes("array"))) && schema.items) assertGroqStrictSchemaNode(schema.items);
+}
+
+
 import { readFileSync } from "node:fs";
 import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
@@ -335,10 +351,10 @@ describe("Groq Investigator runtime contract", () => {
       } };
     };
     const actionSchema = responseFormat.json_schema?.schema;
-    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
-    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
+    expect(actionSchema?.required).toEqual(Object.keys(actionSchema?.properties ?? {}));
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query", "provider", "registry", "locale", "market", "purpose"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(messages).toHaveLength(2);
   });
 
@@ -629,10 +645,34 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
-      type: "string",
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders],
+      type: ["string", "null"],
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.required).toEqual(Object.keys(schema?.properties ?? {}));
+  });
+
+  it("recursively strictifies every Investigator action-allowlist schema variant", () => {
+    const variants = [
+      ["web_search"], ["parallel_web_search"], ["parallel_registry_search"],
+      ["visit"], ["browser_fetch"], ["registry_search"], ["domain_lookup"], ["done"],
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+    ];
+    for (const actions of variants) {
+      const format = structuredActionResponseFormat("openai/gpt-oss-120b", actions) as {
+        json_schema?: { schema?: Record<string, unknown> };
+      };
+      const schema = format.json_schema?.schema;
+      expect(schema).toBeDefined();
+      assertGroqStrictSchemaNode(schema);
+      const properties = schema?.properties as Record<string, Record<string, unknown>>;
+      const searchItem = (properties.searches?.items ?? {}) as Record<string, unknown>;
+      const findingItem = (properties.findings?.items ?? {}) as Record<string, unknown>;
+      expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
+      expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
+      expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
+      expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      expect((properties.provider as { type?: unknown })?.type).toEqual(["string", "null"]);
+    }
   });
 
   it("reports unavailable research executors as unsupported instead of advertising stale actions", () => {
@@ -682,28 +722,25 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
   });
 
-  it("keeps the 20B capability opt-in until provider structured output is verified", () => {
+  it("exposes the economical 20B capability by default when its credential is configured", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(optedIn)).toContain("groq-investigator-20b");
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(disabled)).toEqual(["groq-investigator-1"]);
   });
 
-  it("keeps model-scoped 20B fallback opt-in when it shares the first 120B credential", () => {
+  it("keeps model-scoped 20B capability first and independently selectable from its shared 120B credential", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([]);
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
