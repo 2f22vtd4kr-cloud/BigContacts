@@ -754,7 +754,11 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const owner = compactionOwnerKey(input);
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
-  const cacheKey = owner + ":" + contentHash;
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
+  const trustedFetchHash = createHash("sha256").update([...trustedFetchUrls].sort().join("\n")).digest("hex");
+  // The same text can have different retrieval authority as the case evolves.
+  // Cache only within the same job, compaction kind and exact fetched-URL authority set.
+  const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash + ":" + trustedFetchHash;
   if (aiCompactionCache.has(cacheKey)) {
     const cached = aiCompactionCache.get(cacheKey);
     return cached && cached.length <= maxChars ? cached : null;
@@ -768,7 +772,6 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     if (oldest) aiCompactionAttemptsByTurn.delete(oldest);
   }
 
-  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
   // Cache failures as misses too: an unchanged segment is never retried on a later turn.
   // Keep the cache bounded for both successful summaries and repeated provider failures.
