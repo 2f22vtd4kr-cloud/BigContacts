@@ -838,3 +838,10 @@ export async function compactRecentObservationWithFallback(
 
 /** Backward-compatible name for older call sites; this is not a Boss decision. */
 export const summarizeInvestigatorContextWithBoss = summarizeInvestigatorContextWithAiCompactor;
+
+
+/** Test isolation for the per-job semantic-compaction cache and per-turn request cap. */
+export function resetAiInvestigationContextCompactionStateForTests(): void {
+  aiCompactionCache.clear();
+  aiCompactionAttemptsByTurn.clear();
+}
