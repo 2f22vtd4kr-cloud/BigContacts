@@ -16,7 +16,7 @@ describe("AI investigation context compaction", () => {
     vi.clearAllMocks();
   });
 
-  it("uses a URL-safe deterministic observation projection instead of consuming the Right-hand 120B lane after a 20B token throttle", async () => {
+  it("uses a URL-safe deterministic observation projection without any model call", async () => {
     const sourceUrl = "https://registry.example.test/records/director-appointment";
     const source = [
       "SCOPE AUTHORITY: the exact human objective is supplied separately.",
@@ -28,18 +28,12 @@ describe("AI investigation context compaction", () => {
         + "SOURCE_URL: " + sourceUrl + " "
         + "OBSERVATION_END " + "remaining source text. ".repeat(70),
     ].join("\n\n");
-    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-20b",
-      raw: null,
-      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","body":{"errorType":"tokens","quotaSignals":[]}}',
-      attempts: [],
-    });
-
     const result = await compactRecentObservationWithFallback({
       rawContext: source,
       maxChars: 1_200,
       jobId: "job-observation-fallback",
       caseId: 42,
+      turn: 2,
     });
 
     expect(result?.method).toBe("deterministic_projection");
@@ -50,15 +44,10 @@ describe("AI investigation context compaction", () => {
     expect(result?.text).toContain("OBSERVATION_END");
     expect(result?.text).toContain(sourceUrl);
     expect(extractAiContextUrls(result?.text ?? "")).toEqual([sourceUrl]);
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
-      preferredModel: "openai/gpt-oss-20b",
-      allowModelFallback: false,
-      maxAttempts: 1,
-    });
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
-  it("uses a deterministic historical-memory projection instead of consuming the Right-hand 120B lane after a 20B throttle", async () => {
+  it("uses a deterministic historical-memory projection for ordinary context without any model call", async () => {
     const source = [
       "CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123",
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: exact objective remains authoritative.",
@@ -66,18 +55,12 @@ describe("AI investigation context compaction", () => {
       "CURRENT FINDINGS: " + "source-bound findings. ".repeat(60),
       "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "prior observation. ".repeat(60),
     ].join("\n\n");
-    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-20b",
-      raw: null,
-      error: 'Groq Right-hand exhausted bounded attempts: {"httpStatus":429,"rateLimitKind":"tokens","body":{"errorType":"tokens","quotaSignals":[]}}',
-      attempts: [],
-    });
-
     const result = await compactInvestigationContextWithFallback({
       rawContext: source,
       maxChars: 1_800,
       jobId: "job-memory-fallback",
       caseId: 43,
+      turn: 1,
     }, "historical_memory");
 
     expect(result?.method).toBe("deterministic_projection");
@@ -86,12 +69,7 @@ describe("AI investigation context compaction", () => {
     expect(result?.text).toContain("source observations, evidence and control decisions remain in durable case events/state");
     expect(result?.text).toContain("omitted context is unknown");
     expect(extractAiContextUrls(result?.text ?? "")).toContain("https://registry.example.test/company/123");
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
-    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
-      preferredModel: "openai/gpt-oss-20b",
-      allowModelFallback: false,
-      maxAttempts: 1,
-    });
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
   it("skips AI compaction for ordinary historical context below the raised threshold", async () => {
