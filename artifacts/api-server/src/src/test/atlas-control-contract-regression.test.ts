@@ -25,7 +25,7 @@ describe("conditional Right-hand review policy", () => {
       priorAction: "continue_discovery" as const,
       priorCandidate: null,
       trajectoryRecords: [
-        { action: "investigator_provider_error", failureDomain: "model_provider", failureKind: "invalid_provider_request" },
+        { action: "provider_contract_error", failureDomain: "model_provider", failureKind: "invalid_provider_request" },
       ],
     };
     expect(shouldInvokeAtlasRightHandReview(noEvidence)).toBe(false);
@@ -428,7 +428,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("failureKind: record.failureKind");
   });
 
-  it("records an Investigator provider-error turn before fail-closed termination", () => {
+  it("records an Investigator provider-contract turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
     expect(investigatorSource).toContain('action: "investigator_provider_error"');
