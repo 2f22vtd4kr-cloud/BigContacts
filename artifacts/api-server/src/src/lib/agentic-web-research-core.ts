@@ -2203,7 +2203,7 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
+  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
@@ -4921,7 +4921,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose are non-empty; expectedInformationGain is finite in [0,1]. Only done may null query/thought/hypothesis/purpose/expectedInformationGain. Omit irrelevant optional fields.",
+    "OUTPUT CONTRACT: JSON object only; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every top-level key. Use null for unused scalar fields and [] for unused arrays. Every searches item must include query, provider, registry, locale, market, purpose; use null for unused optional values. Every findings item must include vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; use null for unused optional values. Non-done hypothesis/purpose are non-empty; expectedInformationGain is finite in [0,1]. Action-specific required values and evidence rules remain enforced by the local parser.",
   ].join("\n");
 
   // The full bounded working context can be cut from the middle when the
