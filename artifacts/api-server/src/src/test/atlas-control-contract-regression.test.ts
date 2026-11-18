@@ -281,7 +281,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(updateObjectiveIndex).toBeLessThan(nextInvestigatorIndex);
 
     expect(canonicalContinuationSource).toContain("restorePersistedDiscoveryObjective({");
-    expect(canonicalContinuationSource).toContain("ACTIVE DISCOVERY OBJECTIVE:");
+    expect(canonicalContinuationSource).toContain("CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):");
     expect(canonicalContinuationSource).toContain("objective:[activeDiscoveryObjective,");
 
   });
