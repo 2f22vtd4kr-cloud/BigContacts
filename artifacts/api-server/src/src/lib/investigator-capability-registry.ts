@@ -46,7 +46,9 @@ export function investigatorCapabilityLabel(capability: InvestigatorCapability):
 }
 
 function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
-  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() === "true";
+  // Boss should have the economical routine Investigator lane by default.
+  // Operators can explicitly disable it with APEX_ENABLE_GROQ_INVESTIGATOR_20B=false.
+  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() !== "false";
 }
 
 export function getAvailableInvestigatorCapabilities(
