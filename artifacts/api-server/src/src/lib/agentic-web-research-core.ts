@@ -4566,18 +4566,16 @@ export function discoveryUnscopedGeographyReason(
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   if (!searchActions.has(action)) return null;
   if (geographicScopeMention(objective)) return null;
-  // Open geography is the default. Only an explicit human restriction may
-  // constrain a model-proposed jurisdiction; an absent country is not a ban.
-  const explicitlyHumanRestricted = /use only human[- ]specified geography|do not add geographic scope|do not search|don\u2019t search|exclude(?:d)? from (?:the )?search|avoid searching/i.test(objective);
-  if (!explicitlyHumanRestricted) return null;
 
+  // An open objective may explore any jurisdiction. Only an explicit human
+  // instruction to use human-specified geography, or an exclusion naming the
+  // same geography, can constrain that choice.
+  const humanSpecifiedOnly = /use only human[- ]specified geography|do not add geographic scope/i.test(objective);
   const searches: Array<Record<string, unknown>> = [];
   if (action === "parallel_web_search" || action === "parallel_registry_search") {
     if (Array.isArray(args.searches)) {
       for (const entry of args.searches) {
-        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-          searches.push(entry as Record<string, unknown>);
-        }
+        if (entry && typeof entry === "object" && !Array.isArray(entry)) searches.push(entry as Record<string, unknown>);
       }
     }
   } else {
@@ -4585,22 +4583,20 @@ export function discoveryUnscopedGeographyReason(
   }
 
   for (const search of searches) {
-    const market = typeof search.market === "string" ? search.market.trim() : "";
-    if (market) {
-      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
-        + "The human objective and approved Boss scope contain no geography, but the proposed search adds market="
-        + market.slice(0, 16)
-        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
-    }
-
     const query = typeof search.query === "string" ? search.query : "";
-    const geography = geographicScopeMention(query);
-    if (geography) {
-      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
-        + "The human objective and approved Boss scope contain no geography, but the proposed query adds "
-        + geography
-        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
-    }
+    const market = typeof search.market === "string" ? search.market.trim() : "";
+    const marketName = /^[A-Za-z]{2}$/.test(market)
+      ? new Intl.DisplayNames(["en"], { type: "region" }).of(market.toUpperCase())
+      : null;
+    const geography = geographicScopeMention(query) ?? (marketName && marketName !== market ? marketName : null);
+    if (!geography) continue;
+    const escaped = escapeDiscoveryRegex(geography);
+    const explicitExclusion = new RegExp(
+      "\\b(?:do\\s+not|don['’]t|avoid|excluding?|without)\\s+(?:(?:search|research|target|explore)\\s+)?(?:the\\s+)?" + escaped + "\\b",
+      "i",
+    ).test(objective);
+    if (!humanSpecifiedOnly && !explicitExclusion) continue;
+    return "explicit_geographic_restriction: the human objective restricts the proposed jurisdiction " + geography + "; no outbound request was made.";
   }
   return null;
 }
