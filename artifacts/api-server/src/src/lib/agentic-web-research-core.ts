@@ -4901,13 +4901,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 
   const composedPrompt = [
     assignment,
-    targetModeGuidance,
-    modelOwnedScopeGuidance,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
-    compactWorkerCapabilityGuidance,
-    conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
     providerGuidance,
     searchActivityGuidance,
@@ -5292,9 +5288,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // objective, active Boss direction, current action schema, and newest durable
   // act envelope. URL tokens are retained whole; omitted middle context is
   // explicitly unknown and remains in the immutable event ledger.
-  const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(
-    [composedPrompt, latestRecordTail].filter(Boolean).join("\n\n"),
-  );
+  const providerBoundedPrompt = [
+    preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
+    targetModeGuidance,
+    modelOwnedScopeGuidance,
+    compactWorkerCapabilityGuidance,
+    conditionalSpecialistCapabilityGuidance,
+  ].filter(Boolean).join("\n\n");
   const reportPromptMeasurement = (value: string): string => {
     input.onPromptMeasurement?.({
       originalPromptChars: providerBoundedPrompt.length,
