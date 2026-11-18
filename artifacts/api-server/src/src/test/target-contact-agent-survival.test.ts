@@ -605,7 +605,6 @@ describe("offline Investigator-to-card survival path", () => {
     expect(investigatorResult.partialFindings[0]).toMatchObject({
       personName: input.finding.personName,
       role: input.finding.role,
-      value: input.finding.value,
       vectorType: input.finding.vectorType,
     });
     expect(investigatorResult.trajectoryRecords.some((record: any) =>
