@@ -4158,7 +4158,7 @@ describe("PDF prompt capability contract", () => {
 
     expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
-    expect(modelPrompt).toMatch(/encrypted, password-protected and malformed PDFs are distinct structured failures/i);
+    expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
