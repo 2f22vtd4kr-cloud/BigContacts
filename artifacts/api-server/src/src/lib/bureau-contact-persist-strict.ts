@@ -62,7 +62,7 @@ export function isOrganizationContactRoute(item: BureauContactLike): boolean {
 function quoteAppearsInObservation(observationText: string, exactQuote: string): boolean {
  const normalizedObservation = observationText.replace(/\s+/gu, " ").trim();
  const normalizedQuote = exactQuote.replace(/\s+/gu, " ").trim();
- return normalizedQuote.length > 0; // TEMP MUTATION CHECK: deliberately bypass fetched-text verification
+ return normalizedQuote.length > 0 && normalizedObservation.includes(normalizedQuote);
 }
 
 export function supportsCandidateContactOnSameObservation(observationText:string,item:BureauContactLike,cleanValue:string,vectorType:string):boolean{
