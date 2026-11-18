@@ -266,7 +266,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
-    expect(modelPrompt).toContain("COLD START: do not echo broad investor/wealth labels or assume private equity is the mission");
+    expect(modelPrompt).toContain("COLD START: avoid generic investor/wealth queries; consider registry anchors");
     expect(modelPrompt).toContain("assess whether a callable registry could yield an anchor before choosing web, registry or both");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
