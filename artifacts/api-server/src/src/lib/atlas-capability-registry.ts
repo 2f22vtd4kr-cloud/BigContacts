@@ -90,11 +90,11 @@ const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
   "registry.search": "Choose any enabled registry matching the current hypothesis; all enabled registries are neutral options; legal role ≠ personal contact; registry role ≠ ownership",
   "registry.search.batch": "2–4 complementary registries; no blind sweeps/fixed order",
   "domain.lookup": "RDAP default; WHOISJSON optional; privacy/proxy may obscure owner",
-  "domain.harvest": "verified domain only; public contact/infrastructure leads",
+  "domain.harvest": `verified domain only; sources=${HARVESTER_SOURCE_IDS.join("|")}; choose a mission-relevant subset; no fixed source order`,
   "contact.email": "observed public email only; service hits need corroboration",
   "identity.maigret": "grounded username; account candidates need corroboration",
   "identity.sherlock": "observed username; profiles are candidates, not identity",
-  "osint.spiderfoot": "grounded seed; match targetType/profile to hypothesis; high cost; correlated events/URLs are leads, not independent proof",
+  "osint.spiderfoot": "grounded seed; targetType=domain|hostname|ip|email|phone|username|person|asn; profile=identity-expansion|domain-infrastructure|organization-footprint|contact-adjacent|broad-osint; high cost; correlated events/URLs are leads, not independent proof",
 };
 
 /**
