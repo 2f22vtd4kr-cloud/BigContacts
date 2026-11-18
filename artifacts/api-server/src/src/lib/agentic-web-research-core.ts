@@ -2078,7 +2078,7 @@ export function selectGroqInvestigatorModel(input: {
 }): string {
   if (input.capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "openai/gpt-oss-20b";
   const configured = input.configuredModel?.trim();
-  return configured || "openai/gpt-oss-20b" || input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
+  return configured || "openai/gpt-oss-20b";
 }
 
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
