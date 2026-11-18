@@ -477,6 +477,7 @@ describe("trajectory-local web-search provider failure state", () => {
       "lesser-known high-net-worth entrepreneurs startup investment Europe 2024",
       "lesser known wealthy investors emerging technology venture capital",
     ];
+    resetProviderGateForTests();
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockImplementation(async () => new Response(JSON.stringify({
       organic: [{ title: "Mocked public source", link: "https://example.com/observed-lead", snippet: "A mocked search result for the regression test." }],
