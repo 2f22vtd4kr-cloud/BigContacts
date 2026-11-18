@@ -516,6 +516,33 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-key"]));
   });
 
+  it("fails fast on an Investigator provider HTTP 400 as an infrastructure contract error", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-contract-error-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: { type: "invalid_request_error", message: "invalid JSON schema for response_format" },
+    }), { status: 400, headers: { "content-type": "application/json" } }));
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 4,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.stopReason).toBe("PROVIDER_CONTRACT_ERROR");
+    expect(result.trajectoryRecords).toHaveLength(1);
+    expect(result.trajectoryRecords[0]).toMatchObject({
+      action: "provider_contract_error",
+      execution: "error",
+      stopReason: "PROVIDER_CONTRACT_ERROR",
+      failureDomain: "provider_contract",
+      failureKind: "invalid_contract",
+    });
+    expect(mocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("reads a successful Groq response body exactly once", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
