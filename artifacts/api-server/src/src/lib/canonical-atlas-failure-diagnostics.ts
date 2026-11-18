@@ -8,6 +8,7 @@
 export type AtlasFailureDomain =
   | "model_oversight"
   | "model_provider"
+  | "provider_contract"
   | "model_action"
   | "tool_execution"
   | "external_page_fetch"
@@ -174,6 +175,7 @@ export function classifyAtlasScopeGuardObservation(observation: string): { domai
 
 export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const code = value.trim().toLowerCase();
+  if (code === "provider_contract_error") return { domain: "provider_contract", kind: "invalid_contract" };
   if (code === "upstream_token_quota_exhausted") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
@@ -208,6 +210,9 @@ export function classifyCanonicalAtlasFailure(input: {
   if (input.jobStateMismatch) return { domain: "lease_job_state", kind: "job_state_mismatch" };
   if (input.leaseLost || /canonical atlas lease (?:was )?lost|lease ownership.*lost/i.test(error.message)) {
     return { domain: "lease_job_state", kind: "lease_lost" };
+  }
+  if (/investigator_provider_contract_error|provider_contract_error/i.test(error.message)) {
+    return { domain: "provider_contract", kind: "invalid_contract" };
   }
   if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
     return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
