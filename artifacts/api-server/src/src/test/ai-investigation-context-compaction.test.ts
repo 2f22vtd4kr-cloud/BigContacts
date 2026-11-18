@@ -87,7 +87,7 @@ describe("AI investigation context compaction", () => {
       "AUTHORITATIVE_OBJECTIVE_SENTINEL: exact human mission and Boss-approved scope.",
       "",
       "COMPLETE STRUCTURED INTELLIGENCE STATE:",
-      "Historical evidence and provenance remain durable. ".repeat(220),
+      "Historical evidence and provenance remain durable. ".repeat(280),
     ].join("\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-120b",
