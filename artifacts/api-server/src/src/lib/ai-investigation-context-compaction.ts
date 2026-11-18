@@ -809,6 +809,10 @@ export async function compactInvestigationContextWithFallback(
 
   const semantic = await summarizeInvestigatorContextWithAiCompactor({
     ...input,
+    // A missing caller turn must not silently enter the legacy multi-chunk path.
+    // Treat it as one conservative per-job turn; production callers pass their
+    // actual Investigator/control turn explicitly.
+    turn: Number.isFinite(input.turn) ? input.turn : 0,
     maxChars,
     compactionKind: kind,
     allowRecoveryModel: false,
