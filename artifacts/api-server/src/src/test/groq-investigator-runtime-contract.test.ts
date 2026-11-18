@@ -25,8 +25,12 @@ function assertGroqStrictSchemaNode(node: unknown): void {
 }
 
 const completeInvestigatorProviderPrompt = [
-  "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+  "OUTPUT CONTRACT: JSON object only.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "Include every key; use null for unused scalar fields and [] for unused arrays.",
+  "searches[] required keys: query, provider, registry, locale, market, purpose.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1].",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -35,7 +39,7 @@ describe("Groq Investigator runtime contract", () => {
     const prompt = [
       "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
       "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
-      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+      completeInvestigatorProviderPrompt,
     ].join("\\n\\n");
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
@@ -801,7 +805,7 @@ describe("Groq Investigator runtime contract", () => {
       "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
       "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
       "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
-      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+      completeInvestigatorProviderPrompt
     ].join("\n\n");
     const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
     expect(compacted).toBe(prompt);
