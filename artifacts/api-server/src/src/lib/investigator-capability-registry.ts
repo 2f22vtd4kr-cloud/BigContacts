@@ -19,7 +19,7 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
-  // GPT-OSS 20B remains explicitly opt-in until structured-output behavior is verified.
+  // GPT-OSS 20B is available by default as the economical routine Investigator capability.
   GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
@@ -46,7 +46,9 @@ export function investigatorCapabilityLabel(capability: InvestigatorCapability):
 }
 
 function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
-  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() === "true";
+  // GPT-OSS 20B is the economical default lane; local action parsing remains authoritative.
+  // Operators may explicitly disable it when they need only the standard model.
+  return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() !== "false";
 }
 
 export function getAvailableInvestigatorCapabilities(
@@ -98,9 +100,9 @@ export function getInvestigatorCredentialAliases(
 
 /**
  * Model-scoped quota recovery is a narrow exception to credential deduplication:
- * the explicit 20B capability shares the configured credential but calls a
- * different model, so it can recover a 120B-only token cap. The ordinary
- * registry continues to collapse same-credential slots.
+ * the 20B capability shares the configured credential but calls a different
+ * model, so it can recover a 120B-only token cap. The ordinary registry
+ * continues to collapse same-credential slots.
  */
 export function getModelScopedInvestigatorQuotaFallback(
   env: NodeJS.ProcessEnv,
