@@ -1764,7 +1764,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
-    expect(prompt).toContain("OPEN DISCOVERY: target class, sector and jurisdiction are evidence-led; no fixed rotation or source mix.");
+    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
