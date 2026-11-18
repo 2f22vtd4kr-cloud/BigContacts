@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { APEX_COMPANY_REALISM_GUIDANCE_COMPACT, apexInvestigatorSystemCore } from "./apex-bureau-orientation";
+import { apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { COMMUNITY_SOURCE_OBSERVATION_NOTE, buildDiscoverySourceAttribution, extractCommunityObservationMetadata, isCommunityObservationSourceUrl, sanitizeCommunityObservationText } from "./discovery-source-attribution";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { AgenticDailyTokenBudgetError, readGroqUsageMetrics, recordAgenticLlmAttempt, reserveAgenticLlmDailyBudget } from "./agentic-llm-telemetry";
@@ -4915,8 +4915,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "CAPABILITIES:",
     capabilityGuidance,
     terminalContractGuidance,
-    "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
-    APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     // Keep Boss-generated semantic memory outside the lossy auxiliary-state
     // slice. Its length is charged to the fixed prompt budget, while canonical
     // state/history can be compacted independently without erasing memory.
