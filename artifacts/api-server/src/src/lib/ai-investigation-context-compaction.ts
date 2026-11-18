@@ -561,9 +561,10 @@ async function requestSummary(
       return null;
     }
 
-    // Compaction is a single, non-decision transformation on the separate
-    // Right-hand lane. No repair loop or 120B fallback: an empty/invalid
-    // response is a cache miss and the caller uses the deterministic projection.
+    // Compaction is a single, non-decision transformation on the Right-hand
+    // 120B model bucket, separate from the Investigator 20B bucket. The 120B
+    // daily budget is shared with Boss/Right-hand control work. No retry or
+    // fallback: an empty/invalid response is a cache miss and uses projection.
     const primary = await requestRightHandSummary(prompt, {
       ...input,
       allowRecoveryModel: false,
