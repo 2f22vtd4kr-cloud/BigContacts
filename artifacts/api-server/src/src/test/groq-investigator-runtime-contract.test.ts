@@ -1,4 +1,20 @@
 import { describe, expect, it } from "vitest";
+function assertGroqStrictSchemaNode(node: unknown): void {
+  if (!node || typeof node !== "object" || Array.isArray(node)) return;
+  const schema = node as Record<string, unknown>;
+  const properties = schema.properties;
+  if (schema.type === "object" || (properties && typeof properties === "object" && !Array.isArray(properties))) {
+    const fields = Object.keys((properties ?? {}) as Record<string, unknown>);
+    expect(schema.required).toEqual(fields);
+    expect(schema.additionalProperties).toBe(false);
+    for (const child of Object.values((properties ?? {}) as Record<string, unknown>)) {
+      assertGroqStrictSchemaNode(child);
+    }
+  }
+  if (schema.type === "array" && schema.items) assertGroqStrictSchemaNode(schema.items);
+}
+
+
 import { readFileSync } from "node:fs";
 import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
@@ -336,9 +352,9 @@ describe("Groq Investigator runtime contract", () => {
     };
     const actionSchema = responseFormat.json_schema?.schema;
     expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query"]);
-    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toBe("string");
-    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toBe("string");
+    expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query", "provider", "registry", "locale", "market", "purpose"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
+    expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(messages).toHaveLength(2);
   });
 
@@ -629,10 +645,34 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
-      type: "string",
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders],
+      type: ["string", "null"],
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
     expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+  });
+
+  it("recursively strictifies every Investigator action-allowlist schema variant", () => {
+    const variants = [
+      ["web_search"], ["parallel_web_search"], ["parallel_registry_search"],
+      ["visit"], ["browser_fetch"], ["registry_search"], ["domain_lookup"], ["done"],
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+    ];
+    for (const actions of variants) {
+      const format = structuredActionResponseFormat("openai/gpt-oss-120b", actions) as {
+        json_schema?: { schema?: Record<string, unknown> };
+      };
+      const schema = format.json_schema?.schema;
+      expect(schema).toBeDefined();
+      assertGroqStrictSchemaNode(schema);
+      const properties = schema?.properties as Record<string, Record<string, unknown>>;
+      const searchItem = (properties.searches?.items ?? {}) as Record<string, unknown>;
+      const findingItem = (properties.findings?.items ?? {}) as Record<string, unknown>;
+      expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
+      expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
+      expect((searchItem.properties as Record<string, { type?: unknown }>).provider.type).toEqual(["string", "null"]);
+      expect((findingItem.properties as Record<string, { type?: unknown }>).note.type).toEqual(["string", "null"]);
+      expect((properties.provider as { type?: unknown }).type).toEqual(["string", "null"]);
+    }
   });
 
   it("reports unavailable research executors as unsupported instead of advertising stale actions", () => {
@@ -759,7 +799,7 @@ describe("Groq Investigator runtime contract", () => {
 
   it("routes by the Boss-selected capability without silently rotating models", () => {
     expect(selectGroqInvestigatorModel({ capability: "groq-investigator-20b" })).toBe("openai/gpt-oss-20b");
-    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-20b");
     expect(selectGroqInvestigatorModel({
       capability: "groq-investigator-1", configuredModel: "custom/explicit-model",
     })).toBe("custom/explicit-model");
