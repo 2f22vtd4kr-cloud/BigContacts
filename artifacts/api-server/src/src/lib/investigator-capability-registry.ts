@@ -19,7 +19,7 @@ export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
-  // GPT-OSS 20B remains explicitly opt-in until structured-output behavior is verified.
+  // GPT-OSS 20B is available by default as the economical routine Investigator capability.
   GROQ_INVESTIGATOR_20B_CAPABILITY,
   ...GROQ_INVESTIGATOR_KEY_NAMES.map(
     (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
