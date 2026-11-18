@@ -33,6 +33,20 @@ const completeInvestigatorProviderPrompt = [
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+describe("Investigator provider prompt schema boundary", () => {
+  it("rejects a prompt with complete root keys but missing nested findings fields", () => {
+    const incomplete = completeInvestigatorProviderPrompt.replace(
+      /findings\[\] required keys:[^\n]+/,
+      "findings[] required keys: vectorType, value",
+    );
+    expect(() => buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt: incomplete,
+      cognitiveTask: "discovery",
+    })).toThrow("complete root and nested action schema");
+  });
+});
+
 describe("Investigator prompt compaction telemetry", () => {
   it("reports the actual pre- and post-compaction prompt lengths", () => {
     let measurement = { originalPromptChars: 0, finalPromptChars: 0 };
