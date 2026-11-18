@@ -216,7 +216,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
+    expect(systemCore).toContain("OUTPUT: JSON action object with every schema key");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
@@ -290,7 +290,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -367,17 +367,23 @@ describe("schema-inclusive Investigator prompt measurement", () => {
       intelligenceContext: "",
       mode: "discovery",
     });
-    const systemPrompt = apexInvestigatorSystemCore() + "\\nReturn one JSON action object only.";
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b");
-    const schemaChars = JSON.stringify(responseFormat).length;
-    const requestChars = systemPrompt.length + prompt.length + schemaChars;
-    // The November 14 captured request measured 3,565 provider input tokens
-    // for 15,610 system+user prompt characters (~4.38 chars/token). Reuse
-    // that observed ratio for an empirical estimate and retain the stricter
-    // 3.4 chars/token heuristic as a conservative upper bound.
+    const requestBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
+    });
+    const messages = requestBody.messages as Array<{ role: string; content: string }>;
+    const systemPrompt = messages.find((message) => message.role === "system")?.content ?? "";
+    const userPrompt = messages.find((message) => message.role === "user")?.content ?? "";
+    const schemaChars = JSON.stringify(requestBody.response_format).length;
+    const requestChars = systemPrompt.length + userPrompt.length + schemaChars;
+    // Measure the actual provider-facing request after the shared schema-aware
+    // boundary optimizer, not the larger internal pre-boundary draft.
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
-    expect(prompt.length).toBeLessThanOrEqual(4_000);
+    expect(userPrompt.length).toBeLessThanOrEqual(4_000);
+    expect(requestChars).toBeLessThanOrEqual(10_000);
     expect(empiricalTokens).toBeLessThanOrEqual(2_300);
     expect(conservativeTokens).toBeLessThanOrEqual(2_950);
     expect(schemaChars).toBeGreaterThan(1_000);
