@@ -187,7 +187,7 @@ describe("AI investigation context compaction", () => {
     });
     expect(trusted).toBe(summary);
     expect(untrusted).toBeNull();
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
   it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
