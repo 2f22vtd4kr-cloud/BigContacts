@@ -153,9 +153,7 @@ describe("cross-pivot scope recovery context", () => {
     const query = "family-owned engineering firms in Austria ownership filings";
     const args = { query, provider: "serper" };
     const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", args, []);
-    expect(advisory).toContain("SCOPE ADVISORY ONLY");
-    expect(advisory).toContain("no action or query was blocked or removed");
-    expect(advisory).toContain("Investigator retains semantic judgement");
+    expect(advisory).toBeNull();
     // The advisory function is diagnostic only: it returns context and never
     // rewrites the model-selected arguments.
     expect(args.query).toBe(query);
