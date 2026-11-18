@@ -22,8 +22,7 @@ export function hasRecoverableInvestigatorDecisionFailure(
   records: readonly { action?: string | null; failureDomain?: string | null; failureKind?: string | null }[],
 ): boolean {
   return records.some((record) =>
-    (record.action === "investigator_provider_error" && record.failureDomain === "model_provider" && record.failureKind === "invalid_provider_request")
-    || (record.action === "parse_failure" && record.failureDomain === "model_action" && record.failureKind === "invalid_contract"),
+    record.action === "parse_failure" && record.failureDomain === "model_action" && record.failureKind === "invalid_contract",
   );
 }
 export function shouldRequireExplicitBossContinueDirection(input: {
@@ -78,7 +77,12 @@ export function classifyInvestigatorEpisodeFailure(
       return { code: "investigator_oversight_unavailable" };
     }
     if (input.stopReason === "LLM_UNAVAILABLE" && episodeRecords.some((record) => record.action === "investigator_provider_error")) {
-      return null;
+      const providerContractFailure = episodeRecords.some((record) =>
+        record.action === "investigator_provider_error"
+        && record.failureDomain === "model_provider"
+        && (record.failureKind === "invalid_provider_request" || record.failureKind === "invalid_contract"),
+      );
+      return providerContractFailure ? { code: "investigator_episode_error" } : null;
     }
     return { code: "investigator_episode_unavailable_without_provider_record" };
   }
