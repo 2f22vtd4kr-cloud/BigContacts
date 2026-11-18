@@ -81,6 +81,29 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
+  it("never sends the authoritative objective or Boss scope to the historical-memory compactor", async () => {
+    const source = [
+      "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:",
+      "AUTHORITATIVE_OBJECTIVE_SENTINEL: exact human mission and Boss-approved scope.",
+      "",
+      "COMPLETE STRUCTURED INTELLIGENCE STATE:",
+      "Historical evidence and provenance remain durable. ".repeat(220),
+    ].join("\\n");
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-120b",
+      raw: JSON.stringify({ summary: "Historical evidence and provenance remain in durable state." }),
+      error: null,
+      attempts: [],
+    });
+    const summary = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-authoritative-objective", turn: 1,
+    });
+    expect(summary).toBe("Historical evidence and provenance remain in durable state.");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? ""))
+      .not.toContain("AUTHORITATIVE_OBJECTIVE_SENTINEL");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
     expect(source.length).toBeGreaterThanOrEqual(14_000);
