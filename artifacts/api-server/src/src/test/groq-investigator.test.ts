@@ -578,7 +578,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-      expect(body.model).toBe("openai/gpt-oss-20b");
+      expect(body.model).toBe("openai/gpt-oss-120b");
       expect(body.include_reasoning).toBe(false);
       expect(body).not.toHaveProperty("reasoning_format");
       return new Response(JSON.stringify({
@@ -639,7 +639,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(result.model).toBe("openai/gpt-oss-120b");
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
