@@ -319,7 +319,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("Omit irrelevant optional fields.");
-    expect(submitted).toContain("OPEN DISCOVERY: no target class, sector, or jurisdiction is preselected.");
+    expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
+    expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
