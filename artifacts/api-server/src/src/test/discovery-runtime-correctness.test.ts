@@ -766,6 +766,22 @@ describe("Apex research runtime readiness hardening", () => {
 
 
 describe("unapproved discovery geography guard", () => {
+  it("allows evidence-led jurisdiction pivots when the human leaves geography open", async () => {
+    const { discoveryUnscopedGeographyReason, buildDiscoveryScopeAdvisory } = await import("../lib/agentic-web-research-core");
+    const objective = "Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss.";
+    const examples = [
+      { query: "casino ownership and operators in Slovenia", market: "SI" },
+      { query: "golf club owners and directors in Norway", market: "NO" },
+      { query: "Dubai private members clubs ownership and management", market: null },
+    ];
+    for (const search of examples) {
+      expect(discoveryUnscopedGeographyReason(objective, "web_search", search)).toBeNull();
+    }
+    expect(discoveryUnscopedGeographyReason(objective, "registry_search", {
+      query: "club operators and registered directors", registry: "brreg",
+    })).toBeNull();
+    expect(buildDiscoveryScopeAdvisory(objective, "web_search", examples[0]!, [])).toBeNull();
+  });
   it("blocks model-added countries and regional markets for an unscoped objective, but preserves human-specified geography", async () => {
     const { discoveryUnscopedGeographyReason } = await import("../lib/agentic-web-research-core");
     const objective = [
