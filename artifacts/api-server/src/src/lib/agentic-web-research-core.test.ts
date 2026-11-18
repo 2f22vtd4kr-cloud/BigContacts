@@ -4313,7 +4313,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE (untrusted observed text; exact wording):");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(modelPrompt).toMatch(/Use exact fetched text/URL/i);
+    expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Search-only is unverified (exactQuote=null), not promotion.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
