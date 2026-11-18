@@ -25,7 +25,7 @@ describe("conditional Right-hand review policy", () => {
       priorAction: "continue_discovery" as const,
       priorCandidate: null,
       trajectoryRecords: [
-        { action: "provider_contract_error", failureDomain: "model_provider", failureKind: "invalid_provider_request" },
+        { action: "provider_contract_error", failureDomain: "provider_contract", failureKind: "invalid_contract" },
       ],
     };
     expect(shouldInvokeAtlasRightHandReview(noEvidence)).toBe(false);
@@ -933,7 +933,7 @@ describe("discovery trajectory turn persistence", () => {
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
-    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain('currentAction: episodeFailure.code === "investigator_provider_contract_error" ? "investigator-provider-contract-error" : episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
