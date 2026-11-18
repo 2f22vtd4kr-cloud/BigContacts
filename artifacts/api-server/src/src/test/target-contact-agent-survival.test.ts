@@ -209,6 +209,7 @@ import { runAgenticWebResearch } from "../lib/agentic-web-research";
 import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
+import * as strictContactPersistence from "../lib/bureau-contact-persist-strict";
 import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
@@ -690,6 +691,44 @@ describe("offline Investigator-to-card survival path", () => {
     expect(testState.insertedContacts).toHaveLength(0);
     expect(testState.entity.email).toBeNull();
     expect(testState.cardUpdate).toBeNull();
+  });
+
+  it("mutation control: a fabricated quote becomes promotable when both exact-quote verifiers are disabled", async () => {
+    const sourceUrl = "https://acmeengineering.com/team/jane-example";
+    const actualText = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+    const finding = {
+      vectorType: "email",
+      value: "jane@acmeengineering.com",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "Mutation control for the exact-quote survival regression.",
+      contactAttribution: "person_specific",
+      exactQuote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com (direct line).",
+      identityAssessment: "same_person",
+      identityRationale: "The model asserts that the person and address refer to the same person.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The model asserts that the source supports the contact hypothesis.",
+      promotionDecision: "promote",
+    };
+    const sameObservationVerifier = vi.spyOn(strictContactPersistence, "supportsCandidateContactOnSameObservation").mockReturnValue(true);
+    const crossObservationVerifier = vi.spyOn(strictContactPersistence, "supportsContactClaimAcrossObservations").mockReturnValue(true);
+    try {
+      const result = await runFindingThroughRealTargetContactHandling({
+        finding, sourceUrl, observation: actualText, runId: "offline-fabricated-quote-mutant",
+      });
+      // This is the mutation proof: disabling the production quote gates lets
+      // the exact fabricated-quote fixture reach card promotion.
+      expect(result.targetResult.status).toBe("completed");
+      expect(result.targetResult.findings).toBe(1);
+      expect(testState.insertedContacts).toHaveLength(1);
+      expect(testState.entity.email).toBe("jane@acmeengineering.com");
+      expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
+    } finally {
+      sameObservationVerifier.mockRestore();
+      crossObservationVerifier.mockRestore();
+    }
   });
 
   it("does not promote an aggregator-only exact quote to a person card", async () => {
