@@ -46,7 +46,7 @@ export function investigatorCapabilityLabel(capability: InvestigatorCapability):
 }
 
 function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
-  // GPT-OSS 20B is the economical, schema-compatible default Investigator lane.
+  // GPT-OSS 20B is the economical default lane; local action parsing remains authoritative.
   // Operators may explicitly disable it when they need only the standard model.
   return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() !== "false";
 }
