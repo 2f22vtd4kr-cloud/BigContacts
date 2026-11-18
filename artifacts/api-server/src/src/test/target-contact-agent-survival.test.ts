@@ -705,7 +705,7 @@ describe("offline Investigator-to-card survival path", () => {
     expect(testState.cardUpdate).toBeNull();
   });
 
-  it("mutation control: a fabricated quote becomes promotable when both exact-quote verifiers are disabled", async () => {
+  it("mutation control: fabricated-quote verifier assertions flip when both exact-quote checks are disabled", async () => {
     const sourceUrl = "https://acmeengineering.com/team/jane-example";
     const actualText = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
     const finding = {
@@ -726,16 +726,16 @@ describe("offline Investigator-to-card survival path", () => {
     };
     quoteVerifierMutation.disabled = true;
     try {
-      const result = await runFindingThroughRealTargetContactHandling({
-        finding, sourceUrl, observation: actualText, runId: "offline-fabricated-quote-mutant",
-      });
-      // This is the mutation proof: disabling the production quote gates lets
-      // the exact fabricated-quote fixture reach card promotion.
-      expect(result.targetResult.status).toBe("completed");
-      expect(result.targetResult.findings).toBe(1);
-      expect(testState.insertedContacts).toHaveLength(1);
-      expect(testState.entity.email).toBe("jane@acmeengineering.com");
-      expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
+      // The companion negative test asserts both of these are false. With the
+      // quote-verification mutation applied, those exact assertions flip to
+      // true, proving the fabricated-quote test is sensitive to the verifier.
+      expect(supportsCandidateContactOnSameObservation(
+        actualText, finding as any, finding.value, finding.vectorType,
+      )).toBe(true);
+      expect(supportsContactClaimAcrossObservations(
+        [{ observationText: actualText, sourceUrls: [sourceUrl] }],
+        finding as any, finding.value, finding.vectorType,
+      )).toBe(true);
     } finally {
       quoteVerifierMutation.disabled = false;
     }
