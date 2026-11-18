@@ -754,9 +754,9 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const owner = compactionOwnerKey(input);
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
-  const cacheKey = owner + ":" + contentHash + ":" + maxChars;
+  const cacheKey = owner + ":" + contentHash;
   const cached = aiCompactionCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) return cached.length <= maxChars ? cached : null;
 
   const turnKey = owner + ":turn:" + turn;
   if (aiCompactionAttemptsByTurn.has(turnKey)) return null;
