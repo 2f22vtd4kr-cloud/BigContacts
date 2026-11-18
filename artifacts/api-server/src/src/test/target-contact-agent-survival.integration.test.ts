@@ -308,7 +308,7 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
       .where(eq(tables.contactEvidenceTable.entityId, persistedContext.entityId)).limit(1);
     expect(stored).toBeTruthy();
     expect(JSON.parse(stored.metadata)).toMatchObject({
-      contactAttribution: "person_specific", exactQuote, sourceUrls: [sourceUrl],
+      role: "Managing Director", contactAttribution: "person_specific", exactQuote, sourceUrls: [sourceUrl],
       investigatorSelectedForCard: true, jobId: persistedContext.jobId,
     });
     const [card] = await db.select().from(tables.entitiesTable)
