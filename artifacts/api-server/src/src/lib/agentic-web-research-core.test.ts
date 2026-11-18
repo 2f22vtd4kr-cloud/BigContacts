@@ -4437,7 +4437,8 @@ describe("prompt composition recovery integrity", () => {
     expect(memoryPath).not.toContain("boundInvestigatorPromptSection(aiHistoricalMemory");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
-    expect(agenticCoreSource).toContain("const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary(");
+    expect(agenticCoreSource).toContain("const providerBoundedPrompt = [");
+    expect(agenticCoreSource).toContain("preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join");
     expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
   });
 });
