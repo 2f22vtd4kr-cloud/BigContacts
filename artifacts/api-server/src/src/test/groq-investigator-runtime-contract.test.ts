@@ -44,12 +44,12 @@ describe("Groq Investigator runtime contract", () => {
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
   });
 
-  it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
+  it("keeps the preferred user prompt within the 10,000-character schema-inclusive request target", () => {
     expect(investigatorUserPromptBudget(2_000)).toBe(4_000);
-    expect(2_000 + investigatorUserPromptBudget(2_000) + 3_000).toBeLessThanOrEqual(9_000);
+    expect(2_000 + investigatorUserPromptBudget(2_000) + 4_000).toBeLessThanOrEqual(10_000);
     // When system instructions alone leave no room after schema allowance,
     // the optimizer returns zero rather than deleting authoritative context.
     expect(investigatorUserPromptBudget(6_500)).toBe(0);
@@ -301,10 +301,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
     expect(repair).toContain("Include provider, locale, market and purpose keys; use null for unused optional values.");
     expect(repair).toContain("Nested searches/findings objects must include all schema keys");
-    expect(repair).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
+    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(repair).toContain("Include all schema keys");
     expect(repair).toContain("use null for unused optional values");
-    expect(repair).toContain("Return the six required top-level fields and include all schema keys");
+    expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
@@ -338,7 +338,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
-    expect(submitted).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
+    expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(submitted).toContain("Include all schema keys");
     expect(submitted).toContain("Nested searches/findings objects must include all schema keys");
     expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
@@ -814,7 +814,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
-    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
 
   });
 
