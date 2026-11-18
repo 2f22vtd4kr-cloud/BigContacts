@@ -110,7 +110,7 @@ export function apexInvestigatorSystemCore(): string {
     "REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty. Search-only is unverified; promotion needs same-case fetched evidence.",
     "CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value; company/press/IR channels are not personal.",
     "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data. Names from brief/same-case observations; no homonym guesses.",
-    "OUTPUT: JSON action object with all 20 top-level schema keys; use null for unused scalar fields and [] for unused arrays. Every searches/findings item must include every schema key, using null for unused optional values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite in [0,1]. Fetched claims need exactQuote+URL; search-only is review-only.",
+    "OUTPUT: JSON action object; include all schema keys, using null for unused optional scalars and [] for unused arrays. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.",
     "PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
