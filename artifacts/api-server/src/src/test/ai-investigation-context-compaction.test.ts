@@ -117,7 +117,7 @@ describe("AI investigation context compaction", () => {
       "Historical evidence and provenance remain durable. ".repeat(180),
     ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-120b",
+      model: "openai/gpt-oss-20b",
       raw: JSON.stringify({ summary: "Historical evidence and provenance remain in durable state." }),
       error: null,
       attempts: [],
@@ -178,8 +178,8 @@ describe("AI investigation context compaction", () => {
     ]);
     const summary = "The filing states Jane Example's appointment. Source: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
     const trusted = await summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, trustedSourceContext: fetchedContext, maxChars: 900, jobId: "job-authority-cache", turn: 1,
     });
@@ -194,7 +194,7 @@ describe("AI investigation context compaction", () => {
   it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-120b", raw: null, error: "empty response", attempts: [],
+      model: "openai/gpt-oss-20b", raw: null, error: "empty response", attempts: [],
     });
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 1,
@@ -481,7 +481,7 @@ describe("AI investigation context compaction", () => {
       "Would the ownership claim be supported as shown on a fetched professional source?",
     ].join(" ");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-120b",
+      model: "openai/gpt-oss-20b",
       raw: JSON.stringify({ summary }),
       error: null,
       attempts: [],
@@ -501,8 +501,8 @@ describe("AI investigation context compaction", () => {
     const unsupported = "Does a fetched visit confirm the role? The fetched professional profile identifies the current director.";
     const corrected = "The possible professional profile remains an unverified search lead; no page was fetched.";
     rightHandMocks.runGroqRightHandFreeJson
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(corrected);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
