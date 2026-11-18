@@ -331,10 +331,10 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
-    expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
-    expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
-    expect(submitted).toContain("use null for unused optional scalar fields and [] for unused optional arrays");
+    expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty");
+    expect(submitted).toContain("expectedInformationGain finite [0,1]");
+    expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(submitted).toContain("Include all schema keys");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
