@@ -319,13 +319,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
     expect(submitted).toContain("Omit irrelevant optional fields.");
-    expect(submitted).toContain("DISCOVERY MODE: no person or entity target is implied");
+    expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
+    expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
-    expect(submitted).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
+    expect(submitted).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {

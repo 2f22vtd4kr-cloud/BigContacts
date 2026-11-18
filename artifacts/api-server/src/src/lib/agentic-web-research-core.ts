@@ -405,7 +405,7 @@ export function buildDiscoveryLeadUtilizationState(
 
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
-type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
+type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
@@ -1141,6 +1141,30 @@ export function isSearchProviderDisabled(
   return states.get(provider.trim().toLowerCase())?.disabled === true;
 }
 
+/** Select a configured, non-disabled provider only when the model omits this infrastructure detail. */
+export function getConfiguredSearchProviders(): Array<"serper" | "tavily" | "exa"> {
+  const configured: Array<{ provider: "serper" | "tavily" | "exa"; keys: Array<string | undefined> }> = [
+    { provider: "serper", keys: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY] },
+    { provider: "tavily", keys: [process.env.TAVILY_API_KEY, ...Array.from({ length: 8 }, (_, i) => process.env[`TAVILY_API_KEY_${i + 1}`])] },
+    { provider: "exa", keys: [process.env.EXA_API_KEY, process.env.EXA_1, process.env.EXA_2, ...Array.from({ length: 8 }, (_, i) => process.env[`EXA_API_KEY_${i + 1}`])] },
+  ];
+  return configured.filter(({ keys }) => keys.some((key) => Boolean(key?.trim()))).map(({ provider }) => provider);
+}
+
+/** Select a configured, non-disabled provider only when the model omits this infrastructure detail. */
+export function selectConfiguredSearchProvider(
+  states: ReadonlyMap<string, SearchProviderFailureState>,
+): "serper" | "tavily" | "exa" | null {
+  return getConfiguredSearchProviders().find((provider) => !isSearchProviderDisabled(states, provider)) ?? null;
+}
+
+/** RDAP is the free, standards-based technical default; WHOISJSON remains an explicit model option. */
+export function resolveDomainLookupProvider(
+  requested?: "rdap" | "whoisjson",
+): "rdap" | "whoisjson" {
+  return requested ?? "rdap";
+}
+
 export function renderSearchProviderAvailabilityNotice(
   states: ReadonlyMap<string, SearchProviderFailureState>,
 ): string {
@@ -1694,7 +1718,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
   const provider = textField("provider", 30);
   if (action === "web_search") {
     if (!textField("query", 300)) return "invalid_action_arguments action=web_search missing=query";
-    if (!["serper", "tavily", "exa"].includes(provider)) return "invalid_action_arguments action=web_search invalid=provider";
+    if (provider && !["serper", "tavily", "exa"].includes(provider)) return "invalid_action_arguments action=web_search invalid=provider";
   } else if (action === "parallel_web_search") {
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_web_search missing=searches";
     if (value.searches.length < 1) return "invalid_action_arguments action=parallel_web_search searches_min=1";
@@ -1735,7 +1759,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
   else if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && textField("username", 80).replace(/^@/, "").length < 2) return `invalid_action_arguments action=${action} invalid=username`;
   else if (action === "domain_lookup") {
     if (!textField("domain", 120).includes(".")) return "invalid_action_arguments action=domain_lookup invalid=domain";
-    if (!["rdap", "whoisjson"].includes(provider)) return "invalid_action_arguments action=domain_lookup invalid=provider";
+    if (provider && !["rdap", "whoisjson"].includes(provider)) return "invalid_action_arguments action=domain_lookup invalid=provider";
   } else if (action === "registry_search") {
     if (textField("query", 200).length < 2) return "invalid_action_arguments action=registry_search invalid=query";
     const registryText = textField("registry", 60);
@@ -1965,7 +1989,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
       validSearches.push({ query: search.query, registry: search.registry, purpose: search.purpose });
     }
     return { action: "parallel_registry_search", searches: validSearches, thought: cleanText(value.thought, 500) || undefined, ...meta };
-  } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: typeof value.locale === "string" && value.locale.trim().length <= 16 ? cleanText(value.locale, 16) || undefined : undefined, market: typeof value.market === "string" && value.market.trim().length <= 16 ? cleanText(value.market, 16) || undefined : undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) { const registry = normalizeRegistryId(cleanText(value.registry, 60)); if (!registry || !getAvailableRegistryIdsForPrompt().includes(registry)) return null; return { action: "registry_search", query: cleanText(value.query, 200), registry, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) { const sources = normalizeHarvesterSourceSelection(value.sources); if (!sources) return null; return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, sources, thought: cleanText(value.thought, 500) || undefined, ...meta }; } const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","phone","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
+  } const webSearchProvider = cleanText(value.provider, 20); if (action === "web_search" && cleanText(value.query, 300) && (!webSearchProvider || ["serper", "tavily", "exa"].includes(webSearchProvider))) return { action: "web_search", query: cleanText(value.query, 300), ...(webSearchProvider ? { provider: webSearchProvider as "serper" | "tavily" | "exa" } : {}), locale: typeof value.locale === "string" && value.locale.trim().length <= 16 ? cleanText(value.locale, 16) || undefined : undefined, market: typeof value.market === "string" && value.market.trim().length <= 16 ? cleanText(value.market, 16) || undefined : undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; const domainLookupProvider = cleanText(value.provider, 30); if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && (!domainLookupProvider || ["rdap","whoisjson"].includes(domainLookupProvider))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, ...(domainLookupProvider ? { provider: domainLookupProvider as "rdap" | "whoisjson" } : {}), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) { const registry = normalizeRegistryId(cleanText(value.registry, 60)); if (!registry || !getAvailableRegistryIdsForPrompt().includes(registry)) return null; return { action: "registry_search", query: cleanText(value.query, 200), registry, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) { const sources = normalizeHarvesterSourceSelection(value.sources); if (!sources) return null; return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, sources, thought: cleanText(value.thought, 500) || undefined, ...meta }; } const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","phone","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
     const findings: AgenticFinding[] = [];
     for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) {
       if (!rawFinding || typeof rawFinding !== "object") continue;
@@ -3453,7 +3477,7 @@ export function appendEmergencyObservationContext(
   };
 
   if (mode === "discovery" && !/DECISION OWNERSHIP|DISCOVERY MODEL POLICY|DISCOVERY MODE:/i.test(base)) {
-    append("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography. No fixed action sequence; the Investigator chooses hypotheses, targets, queries, sources, tools, pivots, corroboration/falsification and stopping by expected information gain. A bounded mixed-source web/registry batch is available when useful, not required. No registry is preferred; choose by evidence. Use a jurisdiction-specific registry only when jurisdiction is grounded in the objective or same-case source observations; a global register may be used when its coverage fits. Never invent a company name, jurisdiction or market. FAST HANDOFF: select the single strongest objective-fit lead; a quick source look is optional. ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact. Do not require private/mid-market status unless requested.");
+    append("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography. No fixed action sequence; the Investigator chooses hypotheses, targets, queries, sources, tools, pivots, corroboration/falsification and stopping by expected information gain. A bounded mixed-source web/registry batch is available when useful, not required. No registry is preferred; choose by evidence. At cold start, do not echo broad investor/wealth labels or assume private equity is the mission; form a concrete hypothesis across objective-fit target classes, sectors and open jurisdictions, and assess whether a callable registry could yield an anchor before choosing web, registry or both. A jurisdiction-specific registry may itself be a discovery route for a concrete model hypothesis; geography need not be pre-specified by the human. Treat registry records as leads until fetched and interpreted. Never present a company name, jurisdiction or market as fact without source evidence. FAST HANDOFF: select the single strongest objective-fit lead; a quick source look is optional. ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact. Do not require private/mid-market status unless requested.");
   } else if (mode === "target") {
     append("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
   }
@@ -4543,13 +4567,15 @@ export function discoveryUnscopedGeographyReason(
   if (!searchActions.has(action)) return null;
   if (geographicScopeMention(objective)) return null;
 
+  // An open objective may explore any jurisdiction. Only an explicit human
+  // instruction to use human-specified geography, or an exclusion naming the
+  // same geography, can constrain that choice.
+  const humanSpecifiedOnly = /use only human[- ]specified geography|do not add geographic scope/i.test(objective);
   const searches: Array<Record<string, unknown>> = [];
   if (action === "parallel_web_search" || action === "parallel_registry_search") {
     if (Array.isArray(args.searches)) {
       for (const entry of args.searches) {
-        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-          searches.push(entry as Record<string, unknown>);
-        }
+        if (entry && typeof entry === "object" && !Array.isArray(entry)) searches.push(entry as Record<string, unknown>);
       }
     }
   } else {
@@ -4557,22 +4583,20 @@ export function discoveryUnscopedGeographyReason(
   }
 
   for (const search of searches) {
-    const market = typeof search.market === "string" ? search.market.trim() : "";
-    if (market) {
-      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
-        + "The human objective and approved Boss scope contain no geography, but the proposed search adds market="
-        + market.slice(0, 16)
-        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
-    }
-
     const query = typeof search.query === "string" ? search.query : "";
-    const geography = geographicScopeMention(query);
-    if (geography) {
-      return "unapproved_geography_guard blocked this discovery search before outbound execution. "
-        + "The human objective and approved Boss scope contain no geography, but the proposed query adds "
-        + geography
-        + ". Keep discovery geographically neutral unless geography is explicitly supplied by the human or approved by Boss. No outbound request was made.";
-    }
+    const market = typeof search.market === "string" ? search.market.trim() : "";
+    const marketName = /^[A-Za-z]{2}$/.test(market)
+      ? new Intl.DisplayNames(["en"], { type: "region" }).of(market.toUpperCase())
+      : null;
+    const geography = geographicScopeMention(query) ?? (marketName && marketName !== market ? marketName : null);
+    if (!geography) continue;
+    const escaped = escapeDiscoveryRegex(geography);
+    const explicitExclusion = new RegExp(
+      "\\b(?:do\\s+not|don['’]t|avoid|excluding?|without)\\s+(?:(?:search|research|target|explore)\\s+)?(?:the\\s+)?" + escaped + "\\b",
+      "i",
+    ).test(objective);
+    if (!humanSpecifiedOnly && !explicitExclusion) continue;
+    return "unapproved_geography_guard: explicit human geographic restriction for jurisdiction " + geography + "; treat this as a scope advisory and do not repeat the excluded search.";
   }
   return null;
 }
@@ -4667,18 +4691,8 @@ export function buildDiscoveryScopeAdvisory(
   priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
   const notes: string[] = [];
-  const queries = action === "web_search" || action === "registry_search"
-    ? [String(args.query ?? "")]
-    : action === "parallel_web_search" || action === "parallel_registry_search"
-      ? (Array.isArray(args.searches) ? args.searches.map((entry) =>
-          entry && typeof entry === "object" && !Array.isArray(entry)
-            ? String((entry as Record<string, unknown>).query ?? "")
-            : "") : [])
-      : [];
-  if (queries.length) {
-    const unsupported = findUnsupportedDiscoverySectorTerms(queries, objective, priorRecords);
-    if (unsupported.length) notes.push("possible sector narrowing: " + unsupported.join(", "));
-  }
+  // Sector and target-class selection are semantic research decisions owned
+  // by the Investigator. Do not inject deterministic sector-narrowing warnings.
   const geography = discoveryUnscopedGeographyReason(objective, action, args);
   if (geography) notes.push(geography.replace(/No outbound request was made\.?/i, ""));
   const pivot = discoveryPivotAlignmentReason(objective, action, args, priorRecords);
@@ -4704,7 +4718,7 @@ export function buildDiscoveryScopeAdvisory(
 // Preserve useful model-selected review leads without treating them as verified claims.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onPromptMeasurement?: (measurement: { originalPromptChars: number; finalPromptChars: number }) => void }): string {
   const assignment = input.mode === "discovery"
-    ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
+    ? "DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
@@ -4817,7 +4831,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const configuredSearchProviders = getConfiguredSearchProviders();
+  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa; configured providers=" + (configuredSearchProviders.join("|") || "unavailable") + " (choose a configured provider; single web_search may omit provider and runtime selects a configured healthy provider; explicitly selected disabled providers are blocked); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson (provider optional; runtime defaults to RDAP). Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
     ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
     : "";
@@ -4833,7 +4849,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     providerGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
+      ? openDiscoveryGuidance
+      : "",
+    input.mode === "discovery"
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5718,6 +5737,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           maxChars: 1_800,
           jobId: input.jobId,
           caseId: input.caseId,
+          turn: priorTurnOffset + i + 1,
         }, "historical_memory");
         if (!compactedMemory?.text) {
           const message = "Historical research context could not be safely projected into the bounded Investigator prompt; the full case history remains durable.";
@@ -5787,6 +5807,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
+            turn: promptRecord.turn,
           });
           compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
@@ -5824,6 +5845,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
+            turn: priorTurnOffset + i + 1,
           });
           compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
@@ -5886,6 +5908,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           maxChars: 900,
           jobId: input.jobId,
           caseId: input.caseId,
+          turn: priorTurnOffset + i + 1,
         }, "historical_memory");
         if (!shorterMemory?.text || shorterMemory.text === aiCompactedHistoricalContext) {
           const message = "Historical research context could not be shortened enough to fit the complete Investigator prompt without removing required schema/action contracts.";
@@ -5979,7 +6002,21 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; // Semantic relevance and scope are decided by the Investigator and Boss, not
+    const selectedArgs = { ...action } as Record<string, unknown>;
+delete selectedArgs.thought;
+delete selectedArgs.partialFindings;
+delete selectedArgs.findings;
+let effectiveWebSearchProvider: "serper" | "tavily" | "exa" | null = null;
+if (action.action === "web_search") {
+  effectiveWebSearchProvider = action.provider ?? selectConfiguredSearchProvider(searchProviderFailures);
+  if (effectiveWebSearchProvider) selectedArgs.provider = effectiveWebSearchProvider;
+}
+let effectiveDomainLookupProvider: "rdap" | "whoisjson" | null = null;
+if (action.action === "domain_lookup") {
+  effectiveDomainLookupProvider = resolveDomainLookupProvider(action.provider);
+  selectedArgs.provider = effectiveDomainLookupProvider;
+}
+const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; // Semantic relevance and scope are decided by the Investigator and Boss, not
 // reconstructed from keyword/geography/source-class aliases in the executor.
 // Keep this field only for technical provider-availability diagnostics below.
 let scopeFilterSummary: string | null = null;
@@ -6011,7 +6048,7 @@ if (scopeFilterSummary) {
   selectedArgs.scopeAdvisory = scopeFilterSummary;
   record.args = selectedArgs;
 }
-const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const unavailableSearchProvider = action.action === "web_search" && isSearchProviderDisabled(searchProviderFailures, action.provider) ? action.provider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } if (action.action === "web_search" && !effectiveWebSearchProvider) { record.execution = "blocked"; record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; record.observation = "NO_CONFIGURED_SEARCH_PROVIDER: no configured healthy search provider is available; no outbound request was made."; lastObservation = record.observation; await emitSanitizedTrajectoryRecord(record); emit("web_search", { status: "blocked", summary: record.observation }); continue; } const unavailableSearchProvider = action.action === "web_search" && effectiveWebSearchProvider && isSearchProviderDisabled(searchProviderFailures, effectiveWebSearchProvider) ? effectiveWebSearchProvider : null; if (unavailableSearchProvider) {   record.execution = "blocked";   record.failureDomain = "tool_execution";   record.failureKind = "request_failure";   record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo outbound request was made because provider " + unavailableSearchProvider + " is disabled for this trajectory.";   lastObservation = record.observation;   pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=search_provider_disabled");   await emitSanitizedTrajectoryRecord(record);   emit("web_search", { provider: unavailableSearchProvider, status: "blocked", summary: "Disabled search provider blocked before outbound request." });   continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       // Carry only bounded binding metadata while evaluating the terminal evidence gate.
       // The metadata is attached to the durable terminal event only if the gate accepts it.
@@ -6065,7 +6102,7 @@ const repeatActionReason = redundantResearchActionReason(action.action, selected
   const resultText = communityUrls.length ? result.text + "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : result.text;
   return "PARALLEL_SEARCH " + (index + 1) + " provider=" + result.provider + "\n" + result.urls.join("\n") + "\n" + resultText;
 }).join("\n\n") + (queryQualityWarnings.length ? "\n\nINVESTIGATOR QUERY GUIDANCE (advisory, not a plan):\n" + queryQualityWarnings.join("\n") : ""); lastObservation = record.observation; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; record.observation = (scopeFilterSummary ? scopeFilterSummary + "\n\n" : "") + safeAgenticError(error, runController.signal.aborted); lastObservation = record.observation ?? ""; } pushHistory("step" + (i + 1) + ": parallel_web_search execution=" + record.execution + " searches=" + action.searches.length); await emitSanitizedTrajectoryRecord(record); emit("parallel_web_search", { provider: "multi", status: record.execution, summary: (record.leadUrls?.length ?? 0) + " search-result lead URLs surfaced from independent searches" }); continue; }
-if (action.action === "web_search") { record.args = { ...record.args, executionMode: input.mode ?? "target", discoveryPolicyVersion: "realistic-targetability-v2" }; let queryQualityWarning = ""; if (input.mode === "discovery") { const validation = validateDiscoverySearchQuery(action.query, searchQueriesUsed); if (!validation.allowed) { record.execution = "blocked"; record.observation = validation.reason; lastObservation = record.observation; pushHistory(`step${i + 1}: web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } queryQualityWarning = validation.warning ?? ""; const repeatReason = repeatedDiscoverySearchReason(action, previousResearchRecords); if (repeatReason) { record.execution = "blocked"; record.observation = repeatReason; lastObservation = repeatReason; pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=repeat_discovery_search"); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(action.query); } searches += 1; try { const result = await toolWebSearch(action.query, action.provider, action.locale, action.market, runController.signal); record.args = { ...record.args, searchOutcome: { provider: result.provider, status: result.status, failureClass: result.failureClass ?? null } }; observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.execution = providerSearchExecutionStatus(result); if (record.execution === "error") { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } const communityUrls = result.urls.filter((url) => isCommunityObservationSourceUrl(url));
+if (action.action === "web_search") { record.args = { ...record.args, executionMode: input.mode ?? "target", discoveryPolicyVersion: "realistic-targetability-v2" }; let queryQualityWarning = ""; if (input.mode === "discovery") { const validation = validateDiscoverySearchQuery(action.query, searchQueriesUsed); if (!validation.allowed) { record.execution = "blocked"; record.observation = validation.reason; lastObservation = record.observation; pushHistory(`step${i + 1}: web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } queryQualityWarning = validation.warning ?? ""; const repeatReason = repeatedDiscoverySearchReason({ query: action.query, provider: effectiveWebSearchProvider!, locale: action.locale, market: action.market }, previousResearchRecords); if (repeatReason) { record.execution = "blocked"; record.observation = repeatReason; lastObservation = repeatReason; pushHistory("step" + (i + 1) + ": web_search execution=blocked reason=repeat_discovery_search"); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(action.query); } searches += 1; try { const result = await toolWebSearch(action.query, effectiveWebSearchProvider!, action.locale, action.market, runController.signal); record.args = { ...record.args, searchOutcome: { provider: result.provider, status: result.status, failureClass: result.failureClass ?? null } }; observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.execution = providerSearchExecutionStatus(result); if (record.execution === "error") { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } const communityUrls = result.urls.filter((url) => isCommunityObservationSourceUrl(url));
 const searchText = communityUrls.length > 0
   ? result.text + "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE
   : result.text;
@@ -6073,7 +6110,7 @@ record.observation = `WEB_SEARCH provider=${result.provider}
 ${result.urls.join("\n")}
 
 ${searchText}${queryQualityWarning ? "\n\nINVESTIGATOR QUERY GUIDANCE (advisory, not a plan): " + queryQualityWarning : ""}`;
-assignSearchResultLeads(record, record.execution === "success" ? result.urls : []); lastObservation = record.observation ?? ""; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; record.observation = safeAgenticError(error, runController.signal.aborted); lastObservation = record.observation ?? ""; } pushHistory(`step${i + 1}: web_search execution=${record.execution} provider=${action.provider} query=${action.query}`); await emitSanitizedTrajectoryRecord(record); emit("web_search", { query: action.query, provider: action.provider, status: record.execution, summary: `${record.leadUrls?.length ?? 0} search-result lead URLs surfaced` }); continue; } if (action.action === "visit") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: visit ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("visit", { url: sanitizeUrlForEvidence(action.url), provider: "page-fetch", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } } const canonical = normalizedUrl(action.url) || action.url;
+assignSearchResultLeads(record, record.execution === "success" ? result.urls : []); lastObservation = record.observation ?? ""; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; record.observation = safeAgenticError(error, runController.signal.aborted); lastObservation = record.observation ?? ""; } pushHistory(`step${i + 1}: web_search execution=${record.execution} provider=${effectiveWebSearchProvider} query=${action.query}`); await emitSanitizedTrajectoryRecord(record); emit("web_search", { query: action.query, provider: effectiveWebSearchProvider!, status: record.execution, summary: `${record.leadUrls?.length ?? 0} search-result lead URLs surfaced` }); continue; } if (action.action === "visit") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: visit ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("visit", { url: sanitizeUrlForEvidence(action.url), provider: "page-fetch", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } } const canonical = normalizedUrl(action.url) || action.url;
 visits += 1;
 runtimeStage = "external_page_fetch";
 const page = await toolVisit(canonical, runController.signal);
@@ -6136,7 +6173,7 @@ if (result.html && communityObservationSource) {
     }),
   };
 }
-record.args = { ...record.args, observedPageIdentity: result.html && observedBrowserUrl && !communityObservationSource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null }; } } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "external_page_fetch"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; lastObservation = `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${safeAgenticError(error, runController.signal.aborted)}`; record.observation = lastObservation; } pushHistory(`step${i + 1}: browser_fetch ${action.url} execution=${record.execution}`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: action.url, provider: "browser", status: record.execution, summary: lastObservation.slice(0, 180) }); continue; } if (action.action === "domain_lookup") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoveryDomainLookup(action.domain, searchQueriesUsed); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: domain_lookup ${action.domain} execution=blocked reason=discovery_targetability`); await emitSanitizedTrajectoryRecord(record); emit("domain_lookup", { query: action.domain, provider: action.provider, status: "blocked", summary: "Discovery targetability gate blocked domain lookup before outbound request." }); continue; } } pushHistory(`step${i + 1}: domain_lookup ${action.domain} execution=selected`); try { const { lookupDomainSurface, domainSurfaceExecutionStatus } = await import("./domain-surface"); const result = await lookupDomainSurface(action.domain, { provider: action.provider, signal: runController.signal }); record.execution = domainSurfaceExecutionStatus(result, action.provider); const sourceUrl = action.provider === "rdap" && result.rdap.ok ? result.rdap.sourceUrl : undefined; record.observedUrls = sourceUrl ? [sourceUrl] : []; const providerError = action.provider === "rdap" ? result.rdap.error : result.whoisjson.error; lastObservation = `DOMAIN_LOOKUP ${action.domain}\n${result.summary}${sourceUrl ? `\nRDAP_SOURCE_URL: ${sourceUrl}` : ""}${record.execution === "error" ? `\nPROVIDER_ERROR: ${safeToolError(providerError || "Provider returned no usable response.")}` : ""}`; record.observation = lastObservation; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; lastObservation = `domain_lookup failed: ${safeAgenticError(error, runController.signal.aborted)}`; record.observation = lastObservation; } history[history.length - 1] = `step${i + 1}: domain_lookup ${action.domain} execution=${record.execution}`; await emitSanitizedTrajectoryRecord(record); emit("domain_lookup", { query: action.domain, provider: action.provider, status: record.execution, summary: lastObservation.slice(0, 180) }); continue; } if (action.action === "parallel_registry_search") {
+record.args = { ...record.args, observedPageIdentity: result.html && observedBrowserUrl && !communityObservationSource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null }; } } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "external_page_fetch"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; lastObservation = `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${safeAgenticError(error, runController.signal.aborted)}`; record.observation = lastObservation; } pushHistory(`step${i + 1}: browser_fetch ${action.url} execution=${record.execution}`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: action.url, provider: "browser", status: record.execution, summary: lastObservation.slice(0, 180) }); continue; } if (action.action === "domain_lookup") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoveryDomainLookup(action.domain, searchQueriesUsed); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: domain_lookup ${action.domain} execution=blocked reason=discovery_targetability`); await emitSanitizedTrajectoryRecord(record); emit("domain_lookup", { query: action.domain, provider: effectiveDomainLookupProvider!, status: "blocked", summary: "Discovery targetability gate blocked domain lookup before outbound request." }); continue; } } pushHistory(`step${i + 1}: domain_lookup ${action.domain} execution=selected`); try { const { lookupDomainSurface, domainSurfaceExecutionStatus } = await import("./domain-surface"); const result = await lookupDomainSurface(action.domain, { provider: effectiveDomainLookupProvider!, signal: runController.signal }); record.execution = domainSurfaceExecutionStatus(result, action.provider ?? effectiveDomainLookupProvider!); const sourceUrl = effectiveDomainLookupProvider! === "rdap" && result.rdap.ok ? result.rdap.sourceUrl : undefined; record.observedUrls = sourceUrl ? [sourceUrl] : []; const providerError = effectiveDomainLookupProvider! === "rdap" ? result.rdap.error : result.whoisjson.error; lastObservation = `DOMAIN_LOOKUP ${action.domain}\n${result.summary}${sourceUrl ? `\nRDAP_SOURCE_URL: ${sourceUrl}` : ""}${record.execution === "error" ? `\nPROVIDER_ERROR: ${safeToolError(providerError || "Provider returned no usable response.")}` : ""}`; record.observation = lastObservation; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; lastObservation = `domain_lookup failed: ${safeAgenticError(error, runController.signal.aborted)}`; record.observation = lastObservation; } history[history.length - 1] = `step${i + 1}: domain_lookup ${action.domain} execution=${record.execution}`; await emitSanitizedTrajectoryRecord(record); emit("domain_lookup", { query: action.domain, provider: effectiveDomainLookupProvider!, status: record.execution, summary: lastObservation.slice(0, 180) }); continue; } if (action.action === "parallel_registry_search") {
       const runnableSearches = action.searches.filter((search) => !registryAdapterRetryBlockedReason(search.registry, failedRegistryAdapters));
       const skippedFailedAdapterSearches = action.searches.length - runnableSearches.length;
       if (runnableSearches.length === 0 && action.searches.length > 0) {

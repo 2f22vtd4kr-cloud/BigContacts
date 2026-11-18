@@ -42,7 +42,7 @@ describe("Atlas capability prompt guidance", () => {
     );
     const guidance = renderAtlasCapabilityGuidanceCompact(attestedCapabilities);
 
-    expect(guidance).toContain("- osint.spiderfoot (footprint_spiderfoot): grounded seed; match targetType/profile to hypothesis; high cost; correlated events/URLs are leads, not independent proof");
+    expect(guidance).toContain("- osint.spiderfoot (footprint_spiderfoot): grounded seed; targetType=domain|hostname|ip|email|phone|username|person|asn; profile=identity-expansion|domain-infrastructure|organization-footprint|contact-adjacent|broad-osint; high cost; correlated events/URLs are leads, not independent proof");
     expect(guidance.length).toBeLessThanOrEqual(2_200);
   });
 
@@ -83,7 +83,7 @@ describe("runtime-attested capability exposure", () => {
 
     const attested = exposeAttestedCapabilities(["harvest_domain"]);
     expect(attested.find((capability) => capability.id === "domain.harvest")?.investigatorSelectable).toBe(true);
-    expect(renderAtlasCapabilityGuidanceCompact(attested)).toContain("- domain.harvest (harvest_domain):");
+    expect(renderAtlasCapabilityGuidanceCompact(attested)).toContain("- domain.harvest (harvest_domain): verified domain only; sources=bing|duckduckgo|yahoo|certspotter|crtsh; choose a mission-relevant subset; no fixed source order");
     expect(HARVESTER_SOURCE_IDS).toEqual(["bing", "duckduckgo", "yahoo", "certspotter", "crtsh"]);
     expect(normalizeHarvesterSourceSelection(["crtsh", "bing"])).toEqual(["crtsh", "bing"]);
     expect(normalizeHarvesterSourceSelection(["bing", "unsupported"])).toBeNull();

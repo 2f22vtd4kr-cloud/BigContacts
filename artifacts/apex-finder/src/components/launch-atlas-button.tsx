@@ -137,7 +137,7 @@ export function LaunchAtlasButton({
             data-testid="textarea-atlas-discovery-objective"
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
-            maxLength={1_200}
+            maxLength={1_600}
             rows={4}
             disabled={busy || stopping}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"

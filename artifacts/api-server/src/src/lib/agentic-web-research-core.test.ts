@@ -2,15 +2,26 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
-import { getGroqTokenRequest } from "./provider-gate";
+import { getGroqTokenRequest, resetProviderGateForTests } from "./provider-gate";
 import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
+
+const outboundMocks = vi.hoisted(() => ({
+  safeOutboundFetch: vi.fn(),
+  originalSafeOutboundFetch: null as ((...args: any[]) => any) | null,
+}));
+vi.mock("./ssrf-safe-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./ssrf-safe-fetch")>();
+  outboundMocks.originalSafeOutboundFetch = actual.safeOutboundFetch as (...args: any[]) => any;
+  outboundMocks.safeOutboundFetch.mockImplementation(actual.safeOutboundFetch);
+  return { ...actual, safeOutboundFetch: outboundMocks.safeOutboundFetch };
+});
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
@@ -191,7 +202,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.");
-    expect(systemCore).toContain("PARALLEL SHAPES: Web items need query/provider; registry items need query/registry.");
+    expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
+    expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
     expect(systemCore).toContain("No fixed source/provider/registry order or mix.");
@@ -252,10 +264,12 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown.");
+    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
-    expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
+    expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
+    expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
+    expect(modelPrompt).toContain("Human objective/constraints govern.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -438,6 +452,69 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
 }
 
 describe("trajectory-local web-search provider failure state", () => {
+  it("accepts domain_lookup without an infrastructure provider and leaves RDAP defaulting to runtime", () => {
+    const raw = JSON.stringify({
+      action: "domain_lookup",
+      domain: "northstarventures.io",
+      hypothesis: "Registration metadata may help corroborate the organization's public domain.",
+      purpose: "Inspect public domain registration metadata.",
+      expectedInformationGain: 0.3,
+    });
+    expect(describeAgentActionParseFailure(raw, ["domain_lookup"])).toBe("");
+    expect(parseAgentAction(raw, ["domain_lookup"])).toMatchObject({
+      action: "domain_lookup",
+      domain: "northstarventures.io",
+    });
+    const parsed = parseAgentAction(raw, ["domain_lookup"]);
+    if (parsed?.action !== "domain_lookup") throw new Error("Domain lookup response did not parse");
+    expect(parsed.provider).toBeUndefined();
+    expect(resolveDomainLookupProvider(parsed.provider)).toBe("rdap");
+    expect(resolveDomainLookupProvider("whoisjson")).toBe("whoisjson");
+  });
+
+  it("executes the four audit web_search responses without provider through the configured runtime default", async () => {
+    const auditQueries = [
+      "private equity investor emerging market investor lesser known",
+      "lesser known high net worth individuals potential investors 2024",
+      "lesser-known high-net-worth entrepreneurs startup investment Europe 2024",
+      "lesser known wealthy investors emerging technology venture capital",
+    ];
+    resetProviderGateForTests();
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockImplementation(async () => new Response(JSON.stringify({
+      organic: [{ title: "Mocked public source", link: "https://example.com/observed-lead", snippet: "A mocked search result for the regression test." }],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubEnv("SERPER_API_KEY", "configured-serper-test-key");
+    try {
+      for (const query of auditQueries) {
+        const raw = JSON.stringify({
+          action: "web_search",
+          query,
+          hypothesis: "A public source may identify a relevant person or organization.",
+          purpose: "Gather an observed lead for model-led follow-up.",
+          expectedInformationGain: 0.6,
+        });
+        expect(describeAgentActionParseFailure(raw, ["web_search"])).toBe("");
+        const action = parseAgentAction(raw, ["web_search"]);
+        expect(action?.action).toBe("web_search");
+        if (action?.action !== "web_search") throw new Error("Audit response did not parse as web_search");
+
+        const provider = selectConfiguredSearchProvider(new Map());
+        expect(provider).toBe("serper");
+        const result = await webSearchSerper(action.query);
+        if (!result) throw new Error("Mocked Serper search returned no result object");
+        expect(result.status).toBe("success");
+        expect(result.urls).toContain("https://example.com/observed-lead");
+      }
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(4);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+      vi.unstubAllEnvs();
+    }
+  });
+
+
   it("disables a provider only after repeated invalid requests and leaves other providers selectable", () => {
     const states = new Map();
     expect(recordSearchProviderFailure(states, "serper", "invalid_request")).toEqual({ failures: 1, lastFailureClass: "invalid_request", disabled: false });
@@ -1337,8 +1414,8 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence.");
-    expect(modelPrompt).toContain("REVIEW LEADS: Investigator selects objective-fit people, companies or assets for provisional review.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
   });
 });
 
@@ -1424,8 +1501,8 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -1535,9 +1612,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
-    expect(modelPrompt).toMatch(/Visit handles text\/PDF; browser_fetch handles HTML/);
+    expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/search snippets remain leads; registry hits are leads; failed\/unfetched are unknown/i);
+    expect(modelPrompt).toMatch(/Search snippets\/registry hits remain leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
@@ -1547,8 +1624,8 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("Names from brief/same-case observations; no homonym guesses.");
-    expect(modelPrompt).toContain("CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
+    expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1687,10 +1764,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
-    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
+    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toMatch(/Target research verifies role, materiality, counter-evidence and route/);
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1780,8 +1857,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2365,9 +2442,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
-    expect(modelPrompt).toContain("Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.");
+    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
   });
 
   it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
@@ -2558,8 +2635,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeGreaterThan(-1);
     expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
     expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeGreaterThan(-1);
-    expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
-    expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeGreaterThan(-1);
+    expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query, effectiveWebSearchProvider!"));
+    expect(singleDispatch.indexOf("repeatedDiscoverySearchReason({ query: action.query, provider: effectiveWebSearchProvider!")).toBeGreaterThan(-1);
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
@@ -2690,7 +2767,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
-    expect(modelPrompt).toContain("Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
     expect(modelPrompt).not.toContain("do not select or surface them solely for wealth or prominence");
@@ -3158,8 +3235,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]");
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(apexInvestigatorSystemCore()).toContain("Visit handles text/PDF; browser_fetch handles HTML.");
-    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, password-protected and malformed PDFs are distinct structured failures.");
+    expect(apexInvestigatorSystemCore()).toContain("visit handles text/PDF; browser_fetch handles HTML.");
+    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.");
     expect(prompt).not.toContain("must visit");
   });
 
@@ -3413,7 +3490,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/Never invent IDs/i);
-    expect(apexInvestigatorSystemCore()).toContain("Never assume a registry exposes owners.");
+    expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners;");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
@@ -4082,9 +4159,9 @@ describe("PDF prompt capability contract", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML.");
+    expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML.");
     expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
-    expect(modelPrompt).toMatch(/encrypted, password-protected and malformed PDFs are distinct structured failures/i);
+    expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
@@ -4239,11 +4316,11 @@ describe("latest fetched source evidence survives emergency Investigator compact
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE (untrusted observed text; exact wording):");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(modelPrompt).toMatch(/Use exact fetched text and URL/i);
+    expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Search-only is unverified (exactQuote=null), not promotion.");
+    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
-    expect(modelPrompt).toContain("wealth objectives need sourced ownership/equity/investment");
+    expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
@@ -4279,7 +4356,7 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt).toContain("ORG LEAD: preserve Investigator-selected exact-name organization leads as review-only for target research, not final CRM/contact.");
     expect(prompt).toContain("companies-house");
     expect(prompt).toContain("sec-edgar");
-    expect(apexInvestigatorSystemCore()).toContain("No invented private/mid-market preference.");
+    expect(apexInvestigatorSystemCore()).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(prompt).not.toContain("current private/mid-market operations");
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
@@ -4607,7 +4684,7 @@ describe("community source lead handling and evidence-led scope", () => {
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
     expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(system).toContain("Boss authorizes scope changes");
+    expect(system).toContain("Boss approves scope");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");

@@ -19,6 +19,7 @@ const bureauPassFailureSource = fs.readFileSync(path.join(libDir, "bureau-agenti
 const launchDefaultsSource = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
 const launchRouteSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const launchUiSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
+const launchButtonSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/components/launch-atlas-button.tsx"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -29,6 +30,7 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
+    expect(orientationSource).toContain("INTELLIGENCE SCORES: Deterministic weights, rankings and stopping hints are advisory only; Investigator decides relevance, falsification, promotion and stopping from evidence.");
   });
 
   it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
@@ -62,6 +64,7 @@ describe("discovery runtime architecture", () => {
     expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
     expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientationSource).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
+    expect(researchCoreSource).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
     expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
@@ -653,6 +656,11 @@ describe("discovery runtime architecture", () => {
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600");
+    expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
+    expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS");
+    expect(launchButtonSource).toContain("maxLength={1_600}");
     expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
   });
 
@@ -758,7 +766,23 @@ describe("Apex research runtime readiness hardening", () => {
 
 
 describe("unapproved discovery geography guard", () => {
-  it("blocks model-added countries and regional markets for an unscoped objective, but preserves human-specified geography", async () => {
+  it("allows evidence-led jurisdiction pivots when the human leaves geography open", async () => {
+    const { discoveryUnscopedGeographyReason, buildDiscoveryScopeAdvisory } = await import("../lib/agentic-web-research-core");
+    const objective = "Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss.";
+    const examples = [
+      { query: "casino ownership and operators in Slovenia", market: "SI" },
+      { query: "golf club owners and directors in Norway", market: "NO" },
+      { query: "Dubai private members clubs ownership and management", market: null },
+    ];
+    for (const search of examples) {
+      expect(discoveryUnscopedGeographyReason(objective, "web_search", search)).toBeNull();
+    }
+    expect(discoveryUnscopedGeographyReason(objective, "registry_search", {
+      query: "club operators and registered directors", registry: "brreg",
+    })).toBeNull();
+    expect(buildDiscoveryScopeAdvisory(objective, "web_search", examples[0]!, [])).toBeNull();
+  });
+  it("reports only explicit human geographic exclusions while open geography remains available", async () => {
     const { discoveryUnscopedGeographyReason } = await import("../lib/agentic-web-research-core");
     const objective = [
       "Discover lesser-known people with credible wealth potential and public/professional routes.",

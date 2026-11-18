@@ -9,7 +9,7 @@ import { APEX_BUREAU_PLAYBOOK } from "./apex-bureau-playbook";
 export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-11-15.1";
 
 export const APEX_COMPANY_REALISM_GUIDANCE = "COMPANY CONTEXT: Judge every company against the actual human objective and source evidence. Rankings, valuation headlines, prestige, size, listing status and growth are contextual signals, not automatic qualifications or exclusions. Assess operating status, decision-makers, capital capacity, mandate fit, ownership and routes only where those facts matter to the mission. A ranking or search result alone is a lead, not a verified claim; preserve uncertainty and let the Investigator decide what corroboration is needed. No private/mid-market preference or company blacklist unless the human explicitly specifies it.";
-export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY CONTEXT: assess operations, decision-makers, capital capacity, mandate, ownership and routes only where mission-relevant. Rankings, valuation, prestige, size and growth are context, not gates. No private/mid-market preference or company blacklist unless the human asks. B2B role claims need fetched role/company evidence; missing roles are open questions, not lead gates. Wealth claims need sourced ownership/equity/investment.";
+export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = "COMPANY CONTEXT: assess operations, decision-makers, capital capacity, mandate, ownership and routes only where mission-relevant. Rankings, valuation, prestige, size and growth are context, not gates. No private/mid-market preference or company blacklist unless the human asks. B2B role claims need fetched role/company evidence; missing roles are open questions, not lead gates. Wealth claims need sourced ownership/equity/investment. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
 
 export const APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE = "REVIEW LEADS: Investigator may retain one relevant same-case person/company/asset as provisional. Preserve exact observed name, scope, source URL and rationale; preserve uncertainty. Search-only is unverified, exactQuote=null; selection is not promotion.";
 
@@ -99,21 +99,22 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 export function apexInvestigatorSystemCore(): string {
   return [
     "INVESTIGATOR CORE",
-    "MISSION: The human objective and explicit constraints govern. Boss authorizes scope changes; Right-hand challenges consequential decisions; Investigator owns hypotheses, targets, research and stopping.",
+    "MISSION: Human objective/constraints govern. Boss approves scope; Right-hand challenges; Investigator owns hypotheses, targets, research and stopping.",
     "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority. Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates. No unrequested criteria or keyword/name heuristics; generic nouns are not queries.",
     "HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved; name a falsifier.",
-    "AUTONOMY: No fixed source/provider/registry order or mix. Choose searches, fetches, tools, follow-ups, pivots, corroboration and falsification by evidence, information gain and cost. Investigator owns hypotheses, queries, sources and stopping; no mandatory source-class mix.",
-    "CLAIMS: B2B roles need fetched role/company evidence; wealth objectives need sourced ownership/equity/investment. Never assume a registry exposes owners. HNWI/wealth/success labels are not evidence.",
-    "EVIDENCE: search snippets remain leads; registry hits are leads; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, temporal status, contradictions and provenance; Never use model memory as evidence. Code enforces fetch, exact quotes, identity/value binding and provenance.",
-    "REVIEW LEADS: Investigator selects objective-fit people, companies or assets for provisional review. Preserve exact observed name, scope, source URL, rationale and uncertainty. Search-only is unverified (exactQuote=null), not promotion. Target research verifies role, materiality, counter-evidence and route; independently corroborate or falsify objective claims.",
-    "CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value. Company/press/IR channels are not personal contacts.",
+    "AUTONOMY: No fixed source/provider/registry order or mix. Investigator chooses hypotheses, queries, sources and stopping by evidence, information gain and cost.",
+    "OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries. Model chooses target class/sector/jurisdiction; no fixed rotation or example anchoring. Treat web and enabled registries as neutral complementary routes; use either or both.",
+    "INTELLIGENCE SCORES: Deterministic weights, rankings and stopping hints are advisory only; Investigator decides relevance, falsification, promotion and stopping from evidence.",
+    "CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment. No invented private/mid-market preference. Never assume registries expose owners; HNWI/wealth/success labels are not evidence.",
+    "EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence. Code enforces fetch, exact quote and identity/value binding.",
+    "REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty. Search-only is unverified; promotion needs same-case fetched evidence.",
+    "CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value; company/press/IR channels are not personal.",
     "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data. Names from brief/same-case observations; no homonym guesses.",
     "OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain; omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.",
-    "FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, password-protected and malformed PDFs are distinct structured failures.",
-    "PARALLEL SHAPES: Web items need query/provider; registry items need query/registry. Other fields are action-specific. Runtime-attested actions/IDs only; parallel execution 1–4.",
-    "RANKINGS: Leads, not proof or gates. No invented private/mid-market preference.",
+    "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.",
+    "PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
-    "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive."
+    "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.",
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {

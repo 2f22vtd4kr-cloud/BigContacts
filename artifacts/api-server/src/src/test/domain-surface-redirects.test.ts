@@ -147,7 +147,7 @@ describe("RDAP redirect correctness and provenance", () => {
     const start = coreSource.indexOf('if (action.action === "domain_lookup")');
     const end = coreSource.indexOf('if (action.action === "registry_search")', start);
     const handler = coreSource.slice(start, end);
-    expect(handler).toContain("domainSurfaceExecutionStatus(result, action.provider)");
+    expect(handler).toContain("domainSurfaceExecutionStatus(result, action.provider ?? effectiveDomainLookupProvider!)");
     expect(handler).toContain("record.observedUrls = sourceUrl ? [sourceUrl] : []");
     expect(handler).toContain("PROVIDER_ERROR:");
   });

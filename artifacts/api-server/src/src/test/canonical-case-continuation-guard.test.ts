@@ -46,8 +46,8 @@ describe("canonicalCaseContinuationGuard", () => {
   });
   it("compacts durable context before model review and preserves the specific Boss rejection", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
-    expect(source).toContain("summarizeInvestigatorContextWithAiCompactor({rawContext:initialContext,trustedSourceContext:trustedCaseContextDocument,maxChars:7000,jobId:jobId!,caseId})");
-    expect(source).toContain("refusing a deterministic excerpt of durable case context");
+    expect(source).toContain('compactInvestigationContextWithFallback({rawContext:trustedCaseContextDocument,trustedSourceContext:trustedCaseContextDocument,maxChars:7000,jobId:jobId!,caseId,turn:iteration},"historical_memory")');
+    expect(source).toContain("Continuation context could not be safely projected; the full persisted case state remains durable.");
     expect(source).not.toContain("compactCanonicalDiscoveryContinuationContext(context,7000)");
     expect(source).not.toContain("context.length<=16000");
     expect(source).toContain('new Error(boss.error??"Groq Boss did not select a Groq Investigator.")');
@@ -85,7 +85,7 @@ describe("canonicalCaseContinuationGuard", () => {
   });
   it("rebuilds continuation control context from the row-locked durable case", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
-    expect(source).toContain("initialContext=`ACTIVE DISCOVERY OBJECTIVE:");
+    expect(source).toContain("initialContext=`CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):");
     expect(source).toContain("trustedCaseContextDocument=contextOf(lockedFile)");
     expect(source).toContain("${trustedCaseContextDocument}`");
     expect(source).toContain("restorePersistedDiscoveryObjective({");

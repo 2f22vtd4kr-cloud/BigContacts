@@ -33,6 +33,23 @@ The two daily budgets are model-scoped, not one shared bucket. The durable `agen
 
 Do not set an invented `GROQ_BOSS_MODEL` or `GROQ_RIGHT_HAND_MODEL`; those are not runtime overrides in the current code.
 
+## Context compaction and model budgets
+
+- Ordinary context below 9,000 characters and all latest-observation compaction use deterministic, URL-safe projections; the full observations and evidence remain durable. The 6,300–8,800-character segments in the 18 November audit therefore require **zero AI compaction calls**.
+- Only genuinely long historical memory between 9,000 and 11,000 characters may use one AI compaction request per Investigator/control turn. Identical job content is cached by per-job SHA-256; cached summaries are revalidated against current fetched-source authority before reuse. A second distinct compaction request in the same turn falls back to deterministic projection. Empty or invalid responses do not trigger repair/retry loops.
+- Audit replay estimate: the repeated 8,194-, 8,752- and 6,336-character segments now produce **0 compaction model calls across five turns**. The old run spent 39,383 reported tokens on 15 compaction calls across five Investigator calls (about 7,877 compaction tokens per Investigator call); the new path spends 0 separate compaction-provider tokens on those segment sizes. The combined 23,282 raw characters are about 6,848 tokens at the rough 3.4-characters/token estimate; deterministic projection still contributes to the normal Investigator/oversight prompt, so this is not a claim that all prompt tokens disappear.
+- Production compaction uses the Right-hand GPT-OSS 120B model bucket, not the Investigator GPT-OSS 20B bucket. The 120B daily model budget is shared by the Boss/Right-hand roles; there is no separate cheap compaction model bucket configured. No new provider or model was added.
+
+## Open-ended discovery objective and source mix
+
+Keep the default evidence-led objective unless the human has a genuine case-specific constraint to add. It is intentionally open across sectors, countries, people, organizations and assets. Do not narrow it to one sector or country merely to make the first run easier to measure.
+
+`targetCount: 1` is an operator spending ceiling for the number of target investigations, not a discovery filter or a one-sector/one-country instruction. The Investigator should form a concrete, falsifiable hypothesis from the objective and evidence, then choose whether public-web search, one or more enabled registries, or both offer the best information gain. The available registry catalog is randomized at runtime; the model chooses which adapters and queries are relevant. There is no mandatory mixed-source first pass, fixed order, registry sweep, or preferred geography.
+
+Avoid turning generic labels such as “potential investors” or “high-net-worth individuals” into broad glossary searches. The model should develop a concrete hypothesis about a person, organization, asset, ownership/control relationship, activity or public route. Different runs may legitimately investigate entirely different domains and jurisdictions. Search results and registry hits remain leads until fetched and interpreted.
+
+The operator objective has its own 1,600-character limit. Historical discovery context retains its separate 1,200-character limit; do not conflate the two.
+
 ## Launch: one target, at most three Boss control turns
 
 1. Set `APEX_ATLAS_MAX_CONTROL_TURNS=3` in the API server environment. This existing ceiling limits post-discovery Boss control turns; it is not a cap on total Investigator actions or provider calls.
@@ -70,7 +87,7 @@ The immutable `control_decision` event records the Boss action; `observation` ev
 
 ## Outstanding scripted judgments (not changed in this PR)
 
-- **Generic-inbox and placeholder lists in `ai-extractor.ts`: CONVERT.** Keep syntax validation and any explicitly non-authoritative warning, but do not let local-part heuristics decide person-specific meaning or veto a valid model-attributed finding. The model owns attribution; runtime verifies the cited quote and contact syntax.
-- **Hand-set evidence weights in `research-intelligence-engine.ts`: CONVERT.** Preserve observable provenance facts (source URL/class, independence, observed span and chronology), but treat hand-set weights as advisory context for model review, not deterministic relevance, admission, falsification or promotion authority.
+- **Generic-inbox and placeholder lists in `ai-extractor.ts`: legacy-path follow-up, not a canonical-launch gate.** The canonical Atlas Investigator does not use this extractor for target-contact promotion; its card path uses model attribution plus same-observation quote verification. Do not treat the legacy local-part heuristic as person-specific meaning or as authority to promote a contact.
+- **Hand-set evidence weights in `research-intelligence-engine.ts`: advisory only.** Observable provenance facts remain available; the Investigator system contract now explicitly states that deterministic weights, rankings, hypothesis statuses and suggested falsification/stopping assessments cannot decide relevance, admission, falsification requirements, attribution, promotion or stopping.
 
 No dead-code cleanup is included. These judgments are recorded for a later, separately reviewed change.

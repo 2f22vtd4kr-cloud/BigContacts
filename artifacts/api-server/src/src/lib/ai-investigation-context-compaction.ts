@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { GROQ_RIGHT_HAND_MAX_PROMPT_CHARS, runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { logger } from "./logger";
 import { buildDeterministicContextProjection } from "./investigation-context-compaction";
@@ -11,6 +12,10 @@ export type AiInvestigationContextCompactionInput = {
   trustedSourceContext?: string;
   /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
   allowRecoveryModel?: boolean;
+  /** Investigator turn owning this bounded context transformation. */
+  turn?: number;
+  /** Observation text is projected deterministically; only historical memory may use AI compaction. */
+  compactionKind?: "observation" | "historical_memory";
 };
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
@@ -455,7 +460,7 @@ function logPromptBudgetFailure(
   }, "AI memory compaction prompt exceeded the bounded Right-hand request budget; source was not truncated or sent");
 }
 
-async function requestSummary(
+async function requestSummaryLegacy(
   source: string,
   allowedSource: string,
   maxChars: number,
@@ -540,13 +545,69 @@ async function requestSummary(
     return null;
   }
 }
+
+async function requestSummary(
+  source: string,
+  allowedSource: string,
+  maxChars: number,
+  input: AiInvestigationContextCompactionInput,
+  successfulFetchUrls: ReadonlySet<string> = sourceSuccessfulFetchUrls(allowedSource),
+): Promise<string | null> {
+  try {
+    const maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
+    const prompt = buildSummaryPrompt(source, maxChars);
+    if (prompt.length > maximumPromptChars) {
+      logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars);
+      return null;
+    }
+
+    // Compaction is a single, non-decision transformation on the Right-hand
+    // 120B model bucket, separate from the Investigator 20B bucket. The 120B
+    // daily budget is shared with Boss/Right-hand control work. No retry or
+    // fallback: an empty/invalid response is a cache miss and uses projection.
+    const primary = await requestRightHandSummary(prompt, {
+      ...input,
+      allowRecoveryModel: false,
+    }, "openai/gpt-oss-120b", 1);
+    const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
+    return null;
+  } catch (error) {
+    logger.warn({
+      role: "apex_memory_compaction",
+      phase: "request_failed",
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      errorName: error instanceof Error ? error.name : "unknown",
+    }, "AI memory compaction request failed");
+    return null;
+  }
+}
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
- * semantic reduction uses the separate Right-hand credential lane, with 20B for routine compaction and 120B only for bounded recovery. A
+ * semantic reduction uses the separate Right-hand credential lane on the 120B model; it never consumes the Investigator 20B bucket. A
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
-export async function summarizeInvestigatorContextWithAiCompactor(
+const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
+const AI_COMPACTION_MAX_SOURCE_CHARS = 11_000;
+const AI_COMPACTION_CACHE_LIMIT = 256;
+const aiCompactionCache = new Map<string, string | null>();
+const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
+const aiCompactionAttemptsByTurn = new Map<string, true>();
+
+function compactionOwnerKey(input: AiInvestigationContextCompactionInput): string {
+  return input.jobId?.trim() || (input.caseId != null ? "case:" + input.caseId : "unscoped");
+}
+
+/**
+ * AI compaction is reserved for genuinely long historical memory. Ordinary
+ * turn context and latest observations use the lossless durable state plus a
+ * deterministic projection; objective/scope are supplied verbatim elsewhere.
+ * At most one model request is allowed per job/turn, with exact-content reuse.
+ */
+async function summarizeInvestigatorContextWithAiCompactorLegacy(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
@@ -586,7 +647,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
     return null;
   }
-  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input, trustedFetchUrls);
+  if (sourceChunks.length === 1) return requestSummaryLegacy(source, source, maxChars, input, trustedFetchUrls);
 
   // A 1,200-character floor rejected otherwise usable 1,393-character partial
   // memories in the live run. Give intermediate model summaries bounded headroom;
@@ -600,7 +661,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   for (const chunk of sourceChunks) {
     const chunkSuccessfulFetchUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
     for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
-    const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
+    const summary = await requestSummaryLegacy(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
     if (!summary) return null;
     partialSummaries.push(summary);
   }
@@ -615,7 +676,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     const combined = combine(summaries);
     if (combined.length <= promptInputBudget) {
       // Do not return a mechanical concatenation as though it were a summary.
-      return requestSummary(combined, combined, maxChars, input, successfulFetchUrls);
+      return requestSummaryLegacy(combined, combined, maxChars, input, successfulFetchUrls);
     }
 
     const batches: string[][] = [];
@@ -641,7 +702,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
       const currentBatch = batches.slice(offset, offset + 2);
       for (const batch of currentBatch) {
         const batchSource = combine(batch);
-        const summary = await requestSummary(batchSource, batchSource, nextTarget, input, successfulFetchUrls);
+        const summary = await requestSummaryLegacy(batchSource, batchSource, nextTarget, input, successfulFetchUrls);
         if (!summary) return null;
         reduced.push(summary);
       }
@@ -649,6 +710,81 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     summaries = reduced;
   }
   return null;
+}
+
+export async function summarizeInvestigatorContextWithAiCompactor(
+  input: AiInvestigationContextCompactionInput,
+): Promise<string | null> {
+  // Compatibility for older non-turn-scoped callers. Every production Investigator
+  // call site supplies turn; that path below is capped to one model request/turn.
+  if (input.turn == null && input.compactionKind !== "observation") {
+    return summarizeInvestigatorContextWithAiCompactorLegacy(input);
+  }
+  const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
+  if (!source) return "";
+  if (input.compactionKind === "observation") return null;
+
+  const objectiveSection = source.match(
+    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
+  );
+  if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
+  // The objective is authoritative and is supplied verbatim to the Investigator.
+  // Do not spend model tokens summarizing it as historical memory.
+  const historicalSource = objectiveSection
+    ? source.replace(objectiveSection[0], "\n").trim()
+    : source;
+
+  const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
+  const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
+  if (historicalSource.length <= maxChars || historicalSource.length < AI_COMPACTION_MIN_SOURCE_CHARS) return null;
+  if (historicalSource.length > AI_COMPACTION_MAX_SOURCE_CHARS) return null;
+
+  let maximumPromptChars: number;
+  try {
+    maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
+  } catch {
+    return null;
+  }
+  const prompt = buildSummaryPrompt(historicalSource, maxChars);
+  if (prompt.length > maximumPromptChars) {
+    logPromptBudgetFailure(input, "primary", historicalSource.length, prompt.length, maximumPromptChars);
+    return null;
+  }
+
+  const owner = compactionOwnerKey(input);
+  const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
+  const contentHash = createHash("sha256").update(historicalSource).digest("hex");
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
+  // Per-job content cache: unchanged text is never summarized twice. A cached
+  // summary is revalidated against the current fetched-source authority before reuse.
+  const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash;
+  if (aiCompactionCache.has(cacheKey)) {
+    const cached = aiCompactionCache.get(cacheKey);
+    if (!cached || cached.length > maxChars) return null;
+    const cachedValidation = validateSummary(cached, historicalSource, maxChars, trustedFetchUrls);
+    return cachedValidation.issues.length ? null : cachedValidation.summary;
+  }
+
+  const turnKey = owner + ":turn:" + turn;
+  if (aiCompactionAttemptsByTurn.has(turnKey)) return null;
+  aiCompactionAttemptsByTurn.set(turnKey, true);
+  if (aiCompactionAttemptsByTurn.size > AI_COMPACTION_TURN_CACHE_LIMIT) {
+    const oldest = aiCompactionAttemptsByTurn.keys().next().value;
+    if (oldest) aiCompactionAttemptsByTurn.delete(oldest);
+  }
+
+  const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
+  // Cache failures as misses too: an unchanged segment is never retried on a later turn.
+  // Keep the cache bounded for both successful summaries and repeated provider failures.
+  // The cache stores the validated summary as the same JSON envelope consumed by parseSummary.
+  // Storing the plain text here would make every cache hit look like a parse failure.
+  aiCompactionCache.set(cacheKey, summary ? JSON.stringify({ summary }) : null);
+  while (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
+    const oldest = aiCompactionCache.keys().next().value;
+    if (!oldest) break;
+    aiCompactionCache.delete(oldest);
+  }
+  return summary;
 }
 
 
@@ -660,9 +796,10 @@ export type InvestigationContextCompactionResult = {
 export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * A non-authoritative context transformation may try one 20B semantic
- * compaction. It must never consume the 120B Right-hand advisory lane. If the
- * semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
+ * A non-authoritative context transformation may try one bounded 120B semantic
+ * compaction request for genuinely long historical memory. This shares the
+ * Boss/Right-hand daily model budget but never consumes the Investigator 20B bucket.
+ * If the semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
  * projection instead; the complete source remains durable and omissions are
  * explicitly unknown. This does not replace or simulate any oversight decision.
  */
@@ -678,7 +815,12 @@ export async function compactInvestigationContextWithFallback(
 
   const semantic = await summarizeInvestigatorContextWithAiCompactor({
     ...input,
+    // A missing caller turn must not silently enter the legacy multi-chunk path.
+    // Treat it as one conservative per-job turn; production callers pass their
+    // actual Investigator/control turn explicitly.
+    turn: Number.isFinite(input.turn) ? input.turn : 0,
     maxChars,
+    compactionKind: kind,
     allowRecoveryModel: false,
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
@@ -698,3 +840,10 @@ export async function compactRecentObservationWithFallback(
 
 /** Backward-compatible name for older call sites; this is not a Boss decision. */
 export const summarizeInvestigatorContextWithBoss = summarizeInvestigatorContextWithAiCompactor;
+
+
+/** Test isolation for the per-job semantic-compaction cache and per-turn request cap. */
+export function resetAiInvestigationContextCompactionStateForTests(): void {
+  aiCompactionCache.clear();
+  aiCompactionAttemptsByTurn.clear();
+}

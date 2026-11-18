@@ -210,9 +210,22 @@ import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-auth
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
 import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+const quoteVerifierMutation = vi.hoisted(() => ({ disabled: false }));
+vi.mock("../lib/bureau-contact-persist-strict", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/bureau-contact-persist-strict")>();
+  return {
+    ...actual,
+    supportsCandidateContactOnSameObservation: (observationText: string, item: any, cleanValue: string, vectorType: string) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsCandidateContactOnSameObservation(observationText, item, cleanValue, vectorType),
+    supportsContactClaimAcrossObservations: (observations: readonly { observationText: string; sourceUrls: readonly string[] }[], item: any, cleanValue: string, vectorType: string) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsContactClaimAcrossObservations(observations, item, cleanValue, vectorType),
+  };
+});
+
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -690,6 +703,42 @@ describe("offline Investigator-to-card survival path", () => {
     expect(testState.insertedContacts).toHaveLength(0);
     expect(testState.entity.email).toBeNull();
     expect(testState.cardUpdate).toBeNull();
+  });
+
+  it("mutation control: fabricated-quote verifier assertions flip when both exact-quote checks are disabled", async () => {
+    const sourceUrl = "https://acmeengineering.com/team/jane-example";
+    const actualText = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+    const finding = {
+      vectorType: "email",
+      value: "jane@acmeengineering.com",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "Mutation control for the exact-quote survival regression.",
+      contactAttribution: "person_specific",
+      exactQuote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com (direct line).",
+      identityAssessment: "same_person",
+      identityRationale: "The model asserts that the person and address refer to the same person.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The model asserts that the source supports the contact hypothesis.",
+      promotionDecision: "promote",
+    };
+    quoteVerifierMutation.disabled = true;
+    try {
+      // The companion negative test asserts both of these are false. With the
+      // quote-verification mutation applied, those exact assertions flip to
+      // true, proving the fabricated-quote test is sensitive to the verifier.
+      expect(supportsCandidateContactOnSameObservation(
+        actualText, finding as any, finding.value, finding.vectorType,
+      )).toBe(true);
+      expect(supportsContactClaimAcrossObservations(
+        [{ observationText: actualText, sourceUrls: [sourceUrl] }],
+        finding as any, finding.value, finding.vectorType,
+      )).toBe(true);
+    } finally {
+      quoteVerifierMutation.disabled = false;
+    }
   });
 
   it("does not promote an aggregator-only exact quote to a person card", async () => {

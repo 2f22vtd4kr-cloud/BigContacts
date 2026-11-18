@@ -149,15 +149,13 @@ describe("cross-pivot scope recovery context", () => {
     expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
   });
 
-  it("reports semantic scope mismatches as advisory and preserves the Investigator-selected query", () => {
+  it("does not inject deterministic sector warnings into an open opening direction", () => {
     const query = "family-owned engineering firms in Austria ownership filings";
     const args = { query, provider: "serper" };
     const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", args, []);
-    expect(advisory).toContain("SCOPE ADVISORY ONLY");
-    expect(advisory).toContain("no action or query was blocked or removed");
-    expect(advisory).toContain("Investigator retains semantic judgement");
-    // The advisory function is diagnostic only: it returns context and never
-    // rewrites the model-selected arguments.
+    expect(advisory).toBeNull();
+    // Open sector choice is not a deterministic scope warning; preserve the
+    // model-selected query unchanged.
     expect(args.query).toBe(query);
   });
 
