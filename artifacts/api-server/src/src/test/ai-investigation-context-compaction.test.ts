@@ -131,9 +131,9 @@ describe("AI investigation context compaction", () => {
   });
 
   it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
-    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
-    expect(source.length).toBeGreaterThanOrEqual(14_000);
-    expect(source.length).toBeLessThanOrEqual(16_000);
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(170);
+    expect(source.length).toBeGreaterThanOrEqual(12_000);
+    expect(source.length).toBeLessThanOrEqual(14_000);
     const alternate = source.replace("HISTORICAL MEMORY", "HISTORICAL MEMORIES");
     const summary = "Historical observations and unresolved questions are preserved; raw events remain durable.";
     rightHandMocks.runGroqRightHandFreeJson
@@ -170,8 +170,8 @@ describe("AI investigation context compaction", () => {
   });
 
   it("does not reuse a cached summary when fetched-source authority changes", async () => {
-    const sourceUrl = "https://registry.example.test/filings/123";
-    const source = "HISTORICAL MEMORY\\nSOURCE_URL: " + sourceUrl + "\\n" + "Source-bound observation and unresolved questions remain durable. ".repeat(205);
+    const sourceUrl = "https://registry.example.com/filings/123";
+    const source = "HISTORICAL MEMORY\\nSOURCE_URL: " + sourceUrl + "\\n" + "Source-bound observation and unresolved questions remain durable. ".repeat(190);
     const fetchedContext = "BOUNDED TRAJECTORY PROJECTION:\\n" + JSON.stringify([
       { action: "visit", execution: "success", observedUrls: [sourceUrl] },
     ]);
@@ -191,7 +191,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
-    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(170);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-120b", raw: null, error: "empty response", attempts: [],
     });
