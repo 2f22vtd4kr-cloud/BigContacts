@@ -483,23 +483,6 @@ async function requestSummaryLegacy(
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
 
-    // Do not spend another 20B request repairing a request that failed because
-    // that model's short token window is exhausted. Recover once on the
-    // already-configured Right-hand 120B model, retaining the same task/role.
-    if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
-      if (input.allowRecoveryModel === false) return null;
-      const fallbackPrompt = buildSummaryPrompt(
-        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-        maxChars,
-        "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
-      );
-      if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-      validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-      if (!validation.issues.length) return validation.summary;
-      logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
-      return null;
-    }
     if (!retryableSummaryResponse(primary)) return null;
 
     const repairPrompt = buildSummaryPrompt(
@@ -512,27 +495,9 @@ async function requestSummaryLegacy(
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
-    // A non-empty but invalid primary summary can still be followed by a
-    // model-scoped TPM throttle on the 20B repair request. The repair throttle
-    // must receive the same bounded, same-role 120B recovery as a primary
-    // throttle; otherwise compaction fails despite a healthy recovery model.
-    const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
-    if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
-
-    if (input.allowRecoveryModel === false) return null;
-    const fallbackReason = repairWasModelThrottled
-      ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
-      : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
-    const fallbackPrompt = buildSummaryPrompt(
-      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-      maxChars,
-      fallbackReason,
-    );
-    if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-    validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-    if (!validation.issues.length) return validation.summary;
-    logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    // If the dedicated 20B lane cannot produce a valid summary, leave
+    // compaction to the caller's deterministic projection. Never borrow the
+    // 120B Boss/control budget for memory formatting.
     return null;
   } catch (error) {
     logger.warn({
@@ -561,14 +526,13 @@ async function requestSummary(
       return null;
     }
 
-    // Compaction is a single, non-decision transformation on the Right-hand
-    // 120B model bucket, separate from the Investigator 20B bucket. The 120B
-    // daily budget is shared with Boss/Right-hand control work. No retry or
-    // fallback: an empty/invalid response is a cache miss and uses projection.
+    // Compaction is a non-decision transformation on the dedicated Right-hand
+    // 20B lane. Never spend the shared 120B Boss/control budget on memory
+    // formatting; an empty/invalid response is a cache miss and uses projection.
     const primary = await requestRightHandSummary(prompt, {
       ...input,
       allowRecoveryModel: false,
-    }, "openai/gpt-oss-120b", 1);
+    }, "openai/gpt-oss-20b", 1);
     const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
@@ -586,7 +550,7 @@ async function requestSummary(
 }
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
- * semantic reduction uses the separate Right-hand credential lane on the 120B model; it never consumes the Investigator 20B bucket. A
+ * semantic reduction uses the dedicated Right-hand credential lane on the 20B model; it never consumes the shared 120B Boss/control bucket. A
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
