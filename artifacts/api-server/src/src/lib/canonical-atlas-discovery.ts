@@ -2953,6 +2953,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
     const dailyTokenBudgetExhausted = /daily_token_budget_exhausted/i.test(rawMessage);
     const usageLedgerUnavailable = /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(rawMessage);
+    const providerContractError = /investigator_provider_contract_error|provider_contract_error/i.test(rawMessage);
     const recoverableRightHandOpeningFailure = isRecoverableRightHandOpeningFailure(failureStage, error);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -2968,7 +2969,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 ? "daily-token-budget-exhausted"
                 : usageLedgerUnavailable
                   ? "daily-usage-ledger-unavailable"
-                  : "canonical-atlas-failed";
+                  : providerContractError
+                    ? "investigator-provider-contract-error"
+                    : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
@@ -2987,6 +2990,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       jobStateUnavailable,
       budgetExhausted: dailyTokenBudgetExhausted,
       usageLedgerUnavailable,
+      providerContractError,
       resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
@@ -2998,7 +3002,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           ? `Canonical Atlas Investigator daily token budget exhausted; no further provider request was attempted and the case is preserved for resume after the configured budget resets. (${diagnosticSuffix})`
           : usageLedgerUnavailable
             ? `Canonical Atlas stopped because the durable daily usage ledger was unavailable; provider egress was blocked and the case is preserved for review. (${diagnosticSuffix})`
-            : `${safeFailureSummary} (${diagnosticSuffix})`;
+            : providerContractError
+              ? `Canonical Atlas Investigator provider contract rejected the request (HTTP 400); run stopped before research or Boss adjudication. (${diagnosticSuffix})`
+              : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({
