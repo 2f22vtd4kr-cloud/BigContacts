@@ -214,6 +214,7 @@ import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossOb
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
