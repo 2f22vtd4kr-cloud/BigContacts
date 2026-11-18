@@ -594,7 +594,8 @@ const AI_COMPACTION_MIN_SOURCE_CHARS = 14_000;
 const AI_COMPACTION_MAX_SOURCE_CHARS = 16_000;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string>();
-const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;\nconst aiCompactionAttemptsByTurn = new Map<string, true>();
+const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
+const aiCompactionAttemptsByTurn = new Map<string, true>();
 
 function compactionOwnerKey(input: AiInvestigationContextCompactionInput): string {
   return input.jobId?.trim() || (input.caseId != null ? "case:" + input.caseId : "unscoped");
@@ -759,7 +760,11 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 
   const turnKey = owner + ":turn:" + turn;
   if (aiCompactionAttemptsByTurn.has(turnKey)) return null;
-  aiCompactionAttemptsByTurn.set(turnKey, true);\n  if (aiCompactionAttemptsByTurn.size > AI_COMPACTION_TURN_CACHE_LIMIT) {\n    const oldest = aiCompactionAttemptsByTurn.keys().next().value;\n    if (oldest) aiCompactionAttemptsByTurn.delete(oldest);\n  }
+  aiCompactionAttemptsByTurn.set(turnKey, true);
+  if (aiCompactionAttemptsByTurn.size > AI_COMPACTION_TURN_CACHE_LIMIT) {
+    const oldest = aiCompactionAttemptsByTurn.keys().next().value;
+    if (oldest) aiCompactionAttemptsByTurn.delete(oldest);
+  }
 
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
