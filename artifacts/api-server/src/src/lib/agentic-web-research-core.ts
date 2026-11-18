@@ -4900,12 +4900,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
 
   const composedPrompt = [
-    assignment,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
     compactRegistryGuidance,
-    providerGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
       ? openDiscoveryGuidance
