@@ -5177,7 +5177,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     let markerIndex = value.indexOf(marker);
     while (markerIndex >= 0) {
       const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
-      if (requiredFieldNames.every((field) => fieldSection.includes(field))) return true;
+      if (requiredFieldNames.every((field) => fieldSection.includes(field))
+        && /include all schema keys/i.test(fieldSection)
+        && /null for unused optional/i.test(fieldSection)) return true;
       markerIndex = value.indexOf(marker, markerIndex + marker.length);
     }
     return false;
