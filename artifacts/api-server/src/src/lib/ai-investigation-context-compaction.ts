@@ -771,11 +771,12 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
   const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
   // Cache failures as misses too: an unchanged segment is never retried on a later turn.
+  // Keep the cache bounded for both successful summaries and repeated provider failures.
   aiCompactionCache.set(cacheKey, summary);
-  if (!summary) return null;
-  if (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
+  while (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
     const oldest = aiCompactionCache.keys().next().value;
-    if (oldest) aiCompactionCache.delete(oldest);
+    if (!oldest) break;
+    aiCompactionCache.delete(oldest);
   }
   return summary;
 }
@@ -789,9 +790,10 @@ export type InvestigationContextCompactionResult = {
 export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * A non-authoritative context transformation may try one 20B semantic
- * compaction. It must never consume the 120B Right-hand advisory lane. If the
- * semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
+ * A non-authoritative context transformation may try one bounded 120B semantic
+ * compaction request for genuinely long historical memory. This shares the
+ * Boss/Right-hand daily model budget but never consumes the Investigator 20B bucket.
+ * If the semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
  * projection instead; the complete source remains durable and omissions are
  * explicitly unknown. This does not replace or simulate any oversight decision.
  */
