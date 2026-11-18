@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyInvestigatorEpisodeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 
 describe("canonical Investigator continuation health", () => {
   it("surfaces configured daily token budget exhaustion as a resumable budget stop", () => {
@@ -26,6 +26,24 @@ describe("canonical Investigator continuation health", () => {
       trajectoryRecords: [],
       stopReason: "PARSE_FAILURE",
     })).toEqual({ code: "investigator_episode_error" });
+  });
+
+  it("treats a provider contract rejection as terminal infrastructure, not research or a Boss recovery decision", () => {
+    const records = [{
+      action: "provider_contract_error",
+      execution: "error",
+      stopReason: "PROVIDER_CONTRACT_ERROR",
+      failureDomain: "provider_contract",
+      failureKind: "invalid_contract",
+    }];
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "error",
+      iterations: 1,
+      stopReason: "PROVIDER_CONTRACT_ERROR",
+      trajectoryRecords: records,
+    })).toEqual({ code: "investigator_episode_error" });
+    expect(hasRecoverableInvestigatorDecisionFailure(records)).toBe(false);
+    expect(hasExecutedInvestigatorResearchAction(records)).toBe(false);
   });
 
   it("hands a durably classified terminal PARSE_FAILURE to model-owned Boss control", () => {
