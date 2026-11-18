@@ -9,7 +9,7 @@ import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./i
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
-import { getGroqTokenRequest } from "./provider-gate";
+import { getGroqTokenRequest, resetProviderGateForTests } from "./provider-gate";
 import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
 
 const outboundMocks = vi.hoisted(() => ({
