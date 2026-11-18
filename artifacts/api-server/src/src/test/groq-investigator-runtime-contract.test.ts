@@ -26,7 +26,7 @@ function assertGroqStrictSchemaNode(node: unknown): void {
 
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -40,7 +40,7 @@ describe("Groq Investigator runtime contract", () => {
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
   });
 
   it("keeps the preferred user prompt within the 9,000-character schema-inclusive request target", () => {
