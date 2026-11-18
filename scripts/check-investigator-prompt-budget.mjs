@@ -9,13 +9,13 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
+assert(/PREFERRED_PROVIDER_PROMPT_CHARS = 10_000/.test(core), "provider prompt size must be represented as a preferred optimization target");
 assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \}\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")), "per-action Investigator objective budget must preserve the complete default objective plus safety text");
 assert(/maxChars: input\.mode === "discovery" \? 350 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 150 : 700/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 450 : 350\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
 assert(/const providerBoundedPrompt = preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and latest durable evidence are never clipped to meet it");
-assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 9_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 3_000/.test(core), "the schema-inclusive preferred request/user prompt targets remain explicit");
+assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000/.test(core), "the schema-inclusive preferred request/user prompt targets remain explicit");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
