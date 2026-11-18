@@ -2606,7 +2606,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
-          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error");
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error" || record.action === "provider_contract_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
