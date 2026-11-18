@@ -295,13 +295,13 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
-    expect(repair).toContain("Omit provider, locale and market");
-    expect(repair).toContain("nested purpose is optional");
-    expect(repair).not.toContain('"provider":null');
-    expect(repair).not.toContain('"locale":null');
-    expect(repair).not.toContain('"market":null');
-    expect(repair).toContain("Omit unused optional fields rather than sending null placeholders");
-    expect(repair).toContain("never null these fields");
+    expect(repair).toContain("Include provider, locale, market and purpose; use null for unused optional values.");
+    expect(repair).toContain("Every searches item must include query, provider, registry, locale, market, purpose");
+    expect(repair).toContain("Use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("do not omit keys");
+    expect(repair).toContain("every findings item must include all schema fields");
+    expect(repair).toContain("Return all 20 required top-level fields");
+    expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
   it("explains the configured browser provider when browser_fetch action arguments are invalid", () => {
@@ -334,8 +334,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
-    expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
-    expect(submitted).toContain("Omit irrelevant optional fields.");
+    expect(submitted).toContain("Use null for unused scalar fields and [] for unused arrays");
+    expect(submitted).toContain("Include every top-level key.");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
@@ -723,7 +723,7 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
