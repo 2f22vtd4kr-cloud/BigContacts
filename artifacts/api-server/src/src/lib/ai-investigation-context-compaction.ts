@@ -445,7 +445,7 @@ async function requestSummary(
       return null;
     }
 
-    // Recent-observation compaction also stays on the dedicated 20B lane.
+    // Turn-scoped historical-memory compaction uses the dedicated 20B lane.
     // It must never consume the shared 120B Boss/control model budget. No
     // retry or model fallback: an empty/invalid response uses projection.
     const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
