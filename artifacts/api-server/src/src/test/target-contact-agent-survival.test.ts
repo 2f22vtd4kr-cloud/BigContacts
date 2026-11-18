@@ -602,7 +602,7 @@ describe("offline Investigator-to-card survival path", () => {
     // review lead, but it is not returned as a terminally accepted model finding.
     expect(investigatorResult.modelFindings).toHaveLength(0);
     expect(investigatorResult.partialFindings).toHaveLength(1);
-    expect(investigatorResult.partialFindings[0]).toMatchObject({
+    expect(investigatorResult.partialFindings?.[0]).toMatchObject({
       personName: input.finding.personName,
       role: input.finding.role,
       vectorType: input.finding.vectorType,
