@@ -81,6 +81,21 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
+  it("replays the audit's 8194/8752/6336-character segments across turns with zero compaction calls", async () => {
+    const segmentSizes = [8_194, 8_752, 6_336];
+    for (let turn = 1; turn <= 5; turn += 1) {
+      for (const [index, size] of segmentSizes.entries()) {
+        const source = ("segment-" + index + "-").padEnd(size, "x");
+        expect(source.length).toBe(size);
+        await expect(summarizeInvestigatorContextWithAiCompactor({
+          rawContext: source, maxChars: 900, jobId: "job-audit-size-replay", turn,
+          compactionKind: "historical_memory",
+        })).resolves.toBeNull();
+      }
+    }
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
+  });
+
   it("never sends the authoritative objective or Boss scope to the historical-memory compactor", async () => {
     const source = [
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:",
