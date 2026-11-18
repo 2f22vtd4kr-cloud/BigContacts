@@ -81,7 +81,7 @@ const providerSuffix = providerSuffixStart >= 0 && providerSuffixEnd > providerS
   ? coreInvestigatorPromptSource.slice(providerSuffixStart, providerSuffixEnd)
   : "";
 const coreProviderDeclaration = /const configuredSearchProviders = getConfiguredSearchProviders\(\)/.test(coreInvestigatorPromptSource)
-  && /const providerGuidance = "PROVIDERS: web_search=" \+ \(configuredSearchProviders\.join\("\\|"\) \|\| "unavailable"\)/.test(coreInvestigatorPromptSource)
+  && /const providerGuidance = "PROVIDERS: web_search=" \+ \(configuredSearchProviders\.join\("\|"\) \|\| "unavailable"\)/.test(coreInvestigatorPromptSource)
   && providerSuffix.includes("providerGuidance");
 const exposesMappedProvider = (capability, provider) =>
   new RegExp('id:\\s*"search\\.' + capability + '"[^\\n]*decisionGuidance:\\s*"provider=' + provider + ';').test(capabilityRegistry);
