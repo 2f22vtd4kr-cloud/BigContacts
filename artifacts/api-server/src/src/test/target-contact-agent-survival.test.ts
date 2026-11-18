@@ -113,7 +113,7 @@ const testState = vi.hoisted(() => {
     execute,
     transaction: async (callback: (tx: any) => Promise<any>) => callback(tx),
   };
-  return { db, entitiesTable, researchCasesTable, researchCaseEventsTable, contactEvidenceTable, entity, caseRow, events, quote, sourceUrl, insertedContacts, get cardUpdate() { return cardUpdate; } };
+  return { db, entitiesTable, researchCasesTable, researchCaseEventsTable, contactEvidenceTable, entity, caseRow, events, quote, sourceUrl, insertedContacts, resetCardUpdate: () => { cardUpdate = null; }, get cardUpdate() { return cardUpdate; } };
 });
 
 const offlineNetwork = vi.hoisted(() => ({
@@ -209,6 +209,7 @@ import { runAgenticWebResearch } from "../lib/agentic-web-research";
 import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
+import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
@@ -218,6 +219,8 @@ describe("offline Investigator-to-card survival path", () => {
   beforeEach(() => {
     testState.entity.email = null;
     testState.insertedContacts.length = 0;
+    testState.resetCardUpdate();
+    testState.caseRow.caseFile = JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-1" });
     testState.events.splice(0, testState.events.length,
       {
         id: 11, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
@@ -313,12 +316,16 @@ describe("offline Investigator-to-card survival path", () => {
     expect(JSON.parse(String(promotionPayload))).toMatchObject({
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
+      sourceUrls: [testState.sourceUrl],
+      observedSourceUrls: [testState.sourceUrl],
       jobId: "job-1",
     });
   });
 
-  it("runs three real Investigator turns offline through evidence persistence, card promotion and the terminal evidence gate", async () => {
+  it("runs three real 20B Investigator turns offline through evidence persistence, card promotion and the terminal evidence gate", async () => {
     testState.entity.email = null;
+    testState.resetCardUpdate();
+    testState.caseRow.caseFile = JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-20b" });
     testState.entity.name = "Jane Example";
     testState.entity.type = "PersonCandidate";
     testState.insertedContacts.length = 0;
@@ -379,7 +386,9 @@ describe("offline Investigator-to-card survival path", () => {
 
     vi.stubEnv("DATABASE_URL", "");
     vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "true");
     vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
     vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
     vi.stubEnv("APEX_GROQ_TPM_BUDGET", "50000");
     vi.stubEnv("SERPER_API_KEY", "offline-only-not-a-real-key");
@@ -389,13 +398,14 @@ describe("offline Investigator-to-card survival path", () => {
       targetName: "Jane Example",
       companyName: "Example Engineering GmbH",
       objective: "Find source-backed public contact leads. Choose relevance and attribution from the fetched evidence.",
-      investigatorLlm: "groq-investigator-1",
+      investigatorLlm: "groq-investigator-20b",
       mode: "discovery",
       maxIterations: 3,
       hardTimeoutMs: 30_000,
     });
 
     expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
     expect(result.stopReason).toBe("MODEL_DECIDED_DONE");
     expect(result.researchOutcome).toBe("evidence_backed");
     expect(result.iterations).toBe(3);
@@ -463,12 +473,13 @@ describe("offline Investigator-to-card survival path", () => {
       targetName: "Jane Example",
       companyName: "Example Engineering GmbH",
       targetType: "person",
-      investigatorLlm: "groq-investigator-1",
+      investigatorLlm: "groq-investigator-20b",
       contextDocument: "Canonical target case state and prior evidence.",
       oversightMode: "internal",
     });
 
     expect(targetResult.status).toBe("completed");
+    expect(targetResult.model).toBe("openai/gpt-oss-20b");
     expect(targetResult.stopReason).toBe("MODEL_DECIDED_DONE");
     expect(targetResult.researchOutcome).toBe("evidence_backed");
     expect(targetResult.findings).toBe(1);
@@ -483,6 +494,7 @@ describe("offline Investigator-to-card survival path", () => {
       personName: "Jane Example",
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
+      sourceUrls: [testState.sourceUrl],
       investigatorSelectedForCard: true,
     });
     expect(testState.entity.email).toBe("jane@acmeengineering.com");
@@ -514,4 +526,242 @@ describe("offline Investigator-to-card survival path", () => {
     expect(isCanonicalTargetEpisodeComplete(terminalInput)).toBe(true);
     expect(isCanonicalTargetEpisodeComplete({ ...terminalInput, evidenceGraphCount: 0 })).toBe(false);
   });
+
+
+  async function runFindingThroughRealTargetContactHandling(input: {
+    finding: Record<string, any>;
+    sourceUrl: string;
+    observation: string;
+    runId: string;
+  }) {
+    testState.entity.email = null;
+    testState.entity.name = "Jane Example";
+    testState.entity.type = "PersonCandidate";
+    testState.insertedContacts.length = 0;
+    testState.resetCardUpdate();
+    testState.caseRow.caseFile = JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-20b" });
+    testState.quote = input.observation;
+    testState.sourceUrl = input.sourceUrl;
+
+    offlineNetwork.requests = [];
+    offlineNetwork.modelRequests = [];
+    offlineNetwork.actions = [
+      {
+        action: "web_search",
+        query: "Jane Example Acme Engineering Managing Director professional email leadership",
+        provider: "serper",
+        thought: "Find a public leadership source that may identify this person and contact route.",
+        hypothesis: "A public leadership page may identify Jane Example and an attributable professional contact.",
+        purpose: "Locate a page whose contents can be fetched and assessed directly.",
+        expectedInformationGain: 0.7,
+        findings: [],
+      },
+      {
+        action: "visit",
+        url: input.sourceUrl,
+        thought: "Fetch the page before making an attribution decision.",
+        hypothesis: "The page may bind Jane Example's role and professional email in one observation.",
+        purpose: "Verify the exact source passage and contact value.",
+        expectedInformationGain: 0.8,
+        findings: [],
+      },
+      {
+        action: "done",
+        query: null,
+        thought: "Return the model-selected finding and interpretation from the fetched source.",
+        hypothesis: "The fetched source supports or fails to support the proposed person-specific contact.",
+        purpose: "Return the model-supplied finding for evidence verification.",
+        expectedInformationGain: 0.9,
+        findings: [input.finding],
+      },
+    ];
+
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "true");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_TPM_BUDGET", "50000");
+    vi.stubEnv("SERPER_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
+
+    const investigatorResult = await runInvestigatorCore({
+      targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
+      objective: "Find source-backed public contact leads. Choose relevance and attribution from the fetched evidence.",
+      investigatorLlm: "groq-investigator-20b",
+      mode: "discovery",
+      maxIterations: 3,
+      hardTimeoutMs: 30_000,
+    });
+    expect(investigatorResult.status).toBe("completed");
+    expect(investigatorResult.model).toBe("openai/gpt-oss-20b");
+    // The three negative fixtures are deliberately rejected by the real terminal
+    // evidence gate. The model's proposed finding remains visible as a partial
+    // review lead, but it is not returned as a terminally accepted model finding.
+    expect(investigatorResult.modelFindings).toHaveLength(0);
+    expect(investigatorResult.partialFindings).toHaveLength(1);
+    expect(investigatorResult.partialFindings?.[0]).toMatchObject({
+      personName: input.finding.personName,
+      role: input.finding.role,
+      vectorType: input.finding.vectorType,
+    });
+    expect(investigatorResult.trajectoryRecords.some((record: any) =>
+      record.action === "done" && record.execution === "blocked",
+    )).toBe(true);
+    const fetchedRecord = investigatorResult.trajectoryRecords.find((record: any) => record.action === "visit");
+    if (!fetchedRecord) throw new Error("Expected the offline Investigator to persist its fetched-page observation.");
+
+    testState.events.splice(0, testState.events.length,
+      {
+        id: 51, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
+        correlationKey: input.runId + ":claim:1",
+        payload: JSON.stringify({
+          runId: input.runId,
+          jobId: "job-1",
+          claim: { vectorType: input.finding.vectorType, value: input.finding.value, personName: input.finding.personName },
+          observationEventIds: [52],
+        }),
+      },
+      {
+        id: 52, caseId: 1, eventType: "observation", actorRole: "head_investigator", status: "success",
+        correlationKey: input.runId + ":observation:1",
+        payload: JSON.stringify({
+          runId: input.runId,
+          jobId: "job-1",
+          action: fetchedRecord.action,
+          observation: fetchedRecord.observation,
+          observedUrls: fetchedRecord.observedUrls,
+        }),
+      },
+    );
+    // The core has already made the three real offline turns. This adapter handoff
+    // does not mock target contact handling, source verification or card promotion.
+    vi.mocked(runAgenticWebResearch).mockResolvedValue({
+      ...investigatorResult,
+      executionId: input.runId,
+    } as any);
+    const targetResult = await runTargetContactAgent({
+      entityId: 2,
+      caseId: 1,
+      jobId: "job-1",
+      targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
+      targetType: "person",
+      investigatorLlm: "groq-investigator-20b",
+      contextDocument: "Canonical target case state and prior evidence.",
+      oversightMode: "internal",
+    });
+    return { targetResult, investigatorResult };
+  }
+
+  it("does not persist or promote a finding whose model-supplied quote is fabricated", async () => {
+    const sourceUrl = "https://acmeengineering.com/team/jane-example";
+    const actualText = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+    const finding = {
+      vectorType: "email",
+      value: "jane@acmeengineering.com",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "Model claims the fetched page directly attributes this email.",
+      contactAttribution: "person_specific",
+      exactQuote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com (direct line).",
+      identityAssessment: "same_person",
+      identityRationale: "The model asserts that the person and address refer to the same person.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The model asserts that the source supports the contact hypothesis.",
+      promotionDecision: "promote",
+    };
+    const result = await runFindingThroughRealTargetContactHandling({
+      finding, sourceUrl, observation: actualText, runId: "offline-fabricated-quote",
+    });
+    expect(result.investigatorResult.partialFindings).toHaveLength(1);
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    expect(supportsCandidateContactOnSameObservation(actualText, contact!, finding.value, finding.vectorType)).toBe(false);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: actualText, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
+    expect(testState.insertedContacts).toHaveLength(0);
+    expect(testState.entity.email).toBeNull();
+    expect(testState.cardUpdate).toBeNull();
+  });
+
+  it("does not promote an aggregator-only exact quote to a person card", async () => {
+    const sourceUrl = "https://www.zoominfo.com/p/jane-example/123456789";
+    const quote = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
+    const finding = {
+      vectorType: "email",
+      value: "jane@acmeengineering.com",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "The only fetched source is a people/contact aggregator.",
+      contactAttribution: "person_specific",
+      exactQuote: quote,
+      identityAssessment: "same_person",
+      identityRationale: "The model asserts that the aggregator associates this person and value.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The model asserts that the source supports the contact hypothesis.",
+      promotionDecision: "promote",
+    };
+    const result = await runFindingThroughRealTargetContactHandling({
+      finding, sourceUrl, observation: quote, runId: "offline-aggregator-only",
+    });
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    // The quote itself is exact and binds the person/value, but an aggregator
+    // cannot be the sole independent source for trusted person-contact support.
+    expect(supportsCandidateContactOnSameObservation(quote, contact!, finding.value, finding.vectorType)).toBe(true);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: quote, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
+    expect(testState.insertedContacts).toHaveLength(0);
+    expect(testState.entity.email).toBeNull();
+    expect(testState.cardUpdate).toBeNull();
+  });
+
+  it("does not persist or promote a shared inbox mislabeled person-specific without a supporting quote", async () => {
+    const sourceUrl = "https://acmeengineering.com/team/jane-example";
+    const actualText = "Jane Example — Managing Director. General enquiries: info@acmeengineering.com.";
+    const finding = {
+      vectorType: "email",
+      value: "info@acmeengineering.com",
+      personName: "Jane Example",
+      role: "Managing Director",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "The source shows a shared general-inquiries address, not a person-specific route.",
+      contactAttribution: "person_specific",
+      exactQuote: "Jane Example — Managing Director can be reached directly at info@acmeengineering.com.",
+      identityAssessment: "same_person",
+      identityRationale: "The model incorrectly labels the shared inbox as belonging to the named person.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The model incorrectly asserts that the source supports person-specific contact.",
+      promotionDecision: "promote",
+    };
+    const result = await runFindingThroughRealTargetContactHandling({
+      finding, sourceUrl, observation: actualText, runId: "offline-shared-inbox-mislabel",
+    });
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    expect(supportsCandidateContactOnSameObservation(actualText, contact!, finding.value, finding.vectorType)).toBe(false);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: actualText, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
+    expect(testState.insertedContacts).toHaveLength(0);
+    expect(testState.entity.email).toBeNull();
+    expect(testState.cardUpdate).toBeNull();
+  });
+
 });

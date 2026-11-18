@@ -25,6 +25,7 @@ describe("Groq Boss discovery prompt grounding", () => {
       motivation: "Identify source-backed ownership, assets, and approach paths.",
     }, ["groq-investigator-1"]);
     expect(prompt).toContain("select an available Investigator execution capability");
+    expect(prompt).toContain("prefer groq-investigator-20b for routine discovery");
     expect(prompt).toContain("canonical mixed-source discovery phase");
     expect(prompt).toContain("Do not compare sectors, geographies, or strategies.");
     expect(prompt).toContain("Do not add geographic scope or a target preference.");
