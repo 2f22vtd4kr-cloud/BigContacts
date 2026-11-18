@@ -28,7 +28,7 @@ describe("Investigator target and source grounding guardrails", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied.");
+    expect(prompt).toContain("OPEN DISCOVERY (guidance, not a gate): Avoid generic wealth/investor glossary queries.");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
     expect(modelPrompt).toContain("Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("The full objective is represented in Boss-generated memory");
