@@ -4718,7 +4718,7 @@ export function buildDiscoveryScopeAdvisory(
 // Preserve useful model-selected review leads without treating them as verified claims.
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; durableUrlInventory?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[]; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number; onPromptMeasurement?: (measurement: { originalPromptChars: number; finalPromptChars: number }) => void }): string {
   const assignment = input.mode === "discovery"
-    ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
+    ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people. COLD START: do not echo broad investor/wealth labels or assume private equity is the mission; form a concrete hypothesis across objective-fit target classes, sectors and open jurisdictions, and assess whether a callable registry could yield an anchor before choosing web, registry or both."
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
