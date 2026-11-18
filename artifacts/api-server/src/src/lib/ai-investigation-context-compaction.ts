@@ -776,7 +776,9 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
   // Cache failures as misses too: an unchanged segment is never retried on a later turn.
   // Keep the cache bounded for both successful summaries and repeated provider failures.
-  aiCompactionCache.set(cacheKey, summary);
+  // The cache stores the validated summary as the same JSON envelope consumed by parseSummary.
+  // Storing the plain text here would make every cache hit look like a parse failure.
+  aiCompactionCache.set(cacheKey, summary ? JSON.stringify({ summary }) : null);
   while (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
     const oldest = aiCompactionCache.keys().next().value;
     if (!oldest) break;
