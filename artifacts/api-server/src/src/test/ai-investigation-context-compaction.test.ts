@@ -133,8 +133,8 @@ describe("AI investigation context compaction", () => {
 
   it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
-    expect(source.length).toBeGreaterThanOrEqual(12_000);
-    expect(source.length).toBeLessThanOrEqual(14_000);
+    expect(source.length).toBeGreaterThanOrEqual(9_000);
+    expect(source.length).toBeLessThanOrEqual(11_000);
     const alternate = source.replace("HISTORICAL MEMORY", "HISTORICAL MEMORIES");
     const summary = "Historical observations and unresolved questions are preserved; raw events remain durable.";
     rightHandMocks.runGroqRightHandFreeJson
