@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
 
 describe("canonical Atlas nested provider failure classification", () => {
+  it("classifies an explicit Investigator HTTP 400 contract rejection separately from research", () => {
+    expect(classifyInvestigatorProviderError("provider_contract_error")).toEqual({
+      domain: "provider_contract",
+      kind: "invalid_contract",
+    });
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_provider_contract_error"),
+    })).toEqual({ domain: "provider_contract", kind: "invalid_contract" });
+  });
+
   it("preserves a nested local Groq cooldown as a provider-capacity failure", () => {
     const quota = Object.assign(new Error("token-window cooldown"), {
       name: "ProviderQuotaError",
