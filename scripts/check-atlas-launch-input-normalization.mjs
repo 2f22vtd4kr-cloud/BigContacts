@@ -2,6 +2,8 @@ import fs from "node:fs";
 
 const middleware = fs.readFileSync("artifacts/api-server/src/src/middlewares/normalize-atlas-launch-body.ts", "utf8");
 const canonicalLauncher = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts", "utf8");
+const canonicalDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const launchButton = fs.readFileSync("artifacts/apex-finder/src/components/launch-atlas-button.tsx", "utf8");
 const router = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "utf8");
 const legacyAtlas = fs.readFileSync("artifacts/api-server/src/src/routes/atlas.ts", "utf8");
 const requiredFields = ["discoveryFirst", "includeLandRegistry", "skipIngestion", "hotLeadsOnly", "runResearch", "skipFaa"];
@@ -48,6 +50,11 @@ if (!canonicalLauncher.includes('body.discoveryObjective !== undefined && typeof
     !canonicalLauncher.includes("discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS") ||
     !canonicalLauncher.includes("...(discoveryObjective ? { discoveryObjective } : {})")) {
   console.error("ATLAS INPUT NORMALIZATION FAIL: separate bounded model-owned objective/context inputs are not validated and forwarded");
+  failed = true;
+}
+if (!canonicalDiscovery.includes("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600") ||
+    !launchButton.includes("maxLength={1_600}")) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: the operator objective must be capped at 1,600 characters in both the API contract and launch UI");
   failed = true;
 }
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
