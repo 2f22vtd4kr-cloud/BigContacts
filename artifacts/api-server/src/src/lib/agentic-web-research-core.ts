@@ -4703,10 +4703,8 @@ export function buildDiscoveryScopeAdvisory(
             ? String((entry as Record<string, unknown>).query ?? "")
             : "") : [])
       : [];
-  if (queries.length) {
-    const unsupported = findUnsupportedDiscoverySectorTerms(queries, objective, priorRecords);
-    if (unsupported.length) notes.push("possible sector narrowing: " + unsupported.join(", "));
-  }
+  // Sector and target-class selection are semantic research decisions owned
+  // by the Investigator. Do not inject deterministic sector-narrowing warnings.
   const geography = discoveryUnscopedGeographyReason(objective, action, args);
   if (geography) notes.push(geography.replace(/No outbound request was made\.?/i, ""));
   const pivot = discoveryPivotAlignmentReason(objective, action, args, priorRecords);
