@@ -2016,6 +2016,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     );
     if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
     if (discovery.stopReason === "USAGE_LEDGER_UNAVAILABLE") throw new Error("investigator_usage_ledger_unavailable");
+    if (discovery.stopReason === "PROVIDER_CONTRACT_ERROR") throw new Error("investigator_provider_contract_error");
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -2605,7 +2606,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
-          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error");
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error" || record.action === "provider_contract_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
@@ -2638,7 +2639,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight failed" : "Canonical Investigator continuation failed",
             underlyingError,
           );
-          const failureLabel = episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "Canonical Investigator daily token budget exhausted; no further provider request was attempted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "Canonical Investigator stopped because the durable daily usage ledger was unavailable; provider egress was blocked" : "Canonical Investigator continuation stopped before a usable new research pass";
+          const failureLabel = episodeFailure.code === "investigator_provider_contract_error" ? "Canonical Investigator provider contract rejected the request; run stopped before Boss adjudication or research" : episodeFailure.code === "investigator_oversight_unavailable" ? "Canonical Right-hand oversight unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "Canonical Investigator daily token budget exhausted; no further provider request was attempted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "Canonical Investigator stopped because the durable daily usage ledger was unavailable; provider egress was blocked" : "Canonical Investigator continuation stopped before a usable new research pass";
           const failureMessage = `${failureLabel}; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
@@ -2666,7 +2667,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
             await tx.update(researchCasesTable).set({
               status: "review",
-              currentAction: episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed",
+              currentAction: episodeFailure.code === "investigator_provider_contract_error" ? "investigator-provider-contract-error" : episodeFailure.code === "investigator_oversight_unavailable" ? "canonical-right-hand-oversight-unavailable" : episodeFailure.code === "investigator_daily_token_budget_exhausted" ? "daily-token-budget-exhausted" : episodeFailure.code === "investigator_usage_ledger_unavailable" ? "daily-usage-ledger-unavailable" : "canonical-investigator-episode-failed",
               lastDecisionAt: new Date(),
               updatedAt: new Date(),
             }).where(and(
@@ -2680,9 +2681,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               actorRole: episodeFailure.code === "investigator_oversight_unavailable" ? "right_hand" : "head_investigator",
               eventType: "observation",
               status: "error",
-              summary: episodeFailure.code === "investigator_oversight_unavailable"
-                ? "Canonical Right-hand oversight unavailable; case parked for review."
-                : episodeFailure.code === "investigator_daily_token_budget_exhausted"
+              summary: episodeFailure.code === "investigator_provider_contract_error"
+                ? "Investigator provider rejected the request contract (HTTP 400); no research result was generated and Boss was not asked to adjudicate it. Case parked for review."
+                : episodeFailure.code === "investigator_oversight_unavailable"
+                  ? "Canonical Right-hand oversight unavailable; case parked for review."
+                  : episodeFailure.code === "investigator_daily_token_budget_exhausted"
                   ? "Configured daily Investigator token budget exhausted; case preserved for resume after budget reset."
                   : episodeFailure.code === "investigator_usage_ledger_unavailable"
                     ? "Durable daily usage ledger unavailable; no provider request was sent and the case was preserved."
@@ -2694,6 +2697,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 failureCode: episodeFailure.code,
                 budgetExhausted: episodeFailure.code === "investigator_daily_token_budget_exhausted",
                 usageLedgerUnavailable: episodeFailure.code === "investigator_usage_ledger_unavailable",
+                providerContractError: episodeFailure.code === "investigator_provider_contract_error",
                 resumableAfterBudgetReset: episodeFailure.code === "investigator_daily_token_budget_exhausted",
                 reportedStatus: nextDiscovery.status,
                 stopReason: nextDiscovery.stopReason ?? null,
