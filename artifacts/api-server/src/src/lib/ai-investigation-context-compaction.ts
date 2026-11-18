@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { GROQ_RIGHT_HAND_MAX_PROMPT_CHARS, runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { logger } from "./logger";
 import { buildDeterministicContextProjection } from "./investigation-context-compaction";
@@ -11,6 +12,10 @@ export type AiInvestigationContextCompactionInput = {
   trustedSourceContext?: string;
   /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
   allowRecoveryModel?: boolean;
+  /** Investigator turn owning this bounded context transformation. */
+  turn?: number;
+  /** Observation text is projected deterministically; only historical memory may use AI compaction. */
+  compactionKind?: "observation" | "historical_memory";
 };
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
@@ -465,69 +470,21 @@ async function requestSummary(
   try {
     const maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
     const prompt = buildSummaryPrompt(source, maxChars);
-    if (prompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars); return null; }
-
-    // Memory compaction is a non-decision transformation. Use the separate
-    // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
-    // Boss strategic-control quota or Right-hand 120B advisory capacity.
-    // Compaction must not sit through TPM reset waits or spend a retry on a
-    // throttled 20B model. One attempt yields a structured diagnostic; the
-    // bounded same-role 120B recovery below is the only fallback attempt.
-    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
-    let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
-    if (!validation.issues.length) return validation.summary;
-    logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
-
-    // Do not spend another 20B request repairing a request that failed because
-    // that model's short token window is exhausted. Recover once on the
-    // already-configured Right-hand 120B model, retaining the same task/role.
-    if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
-      if (input.allowRecoveryModel === false) return null;
-      const fallbackPrompt = buildSummaryPrompt(
-        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-        maxChars,
-        "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
-      );
-      if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-      validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-      if (!validation.issues.length) return validation.summary;
-      logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    if (prompt.length > maximumPromptChars) {
+      logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars);
       return null;
     }
-    if (!retryableSummaryResponse(primary)) return null;
 
-    const repairPrompt = buildSummaryPrompt(
-      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-      maxChars,
-      validation.issues.join("; "),
-    );
-    if (repairPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "repair", source.length, repairPrompt.length, maximumPromptChars); return null; }
-    const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b", 1);
-    validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
+    // Compaction is a single, non-decision transformation on the separate
+    // Right-hand lane. No repair loop or 120B fallback: an empty/invalid
+    // response is a cache miss and the caller uses the deterministic projection.
+    const primary = await requestRightHandSummary(prompt, {
+      ...input,
+      allowRecoveryModel: false,
+    }, "openai/gpt-oss-20b", 1);
+    const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
-    logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
-    // A non-empty but invalid primary summary can still be followed by a
-    // model-scoped TPM throttle on the 20B repair request. The repair throttle
-    // must receive the same bounded, same-role 120B recovery as a primary
-    // throttle; otherwise compaction fails despite a healthy recovery model.
-    const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
-    if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
-
-    if (input.allowRecoveryModel === false) return null;
-    const fallbackReason = repairWasModelThrottled
-      ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
-      : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
-    const fallbackPrompt = buildSummaryPrompt(
-      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-      maxChars,
-      fallbackReason,
-    );
-    if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-    validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-    if (!validation.issues.length) return validation.summary;
-    logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
     return null;
   } catch (error) {
     logger.warn({
@@ -546,21 +503,43 @@ async function requestSummary(
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
+const AI_COMPACTION_MIN_SOURCE_CHARS = 14_000;
+const AI_COMPACTION_MAX_SOURCE_CHARS = 16_000;
+const AI_COMPACTION_CACHE_LIMIT = 256;
+const aiCompactionCache = new Map<string, string>();
+const aiCompactionAttemptsByTurn = new Set<string>();
+
+function compactionOwnerKey(input: AiInvestigationContextCompactionInput): string {
+  return input.jobId?.trim() || (input.caseId != null ? "case:" + input.caseId : "unscoped");
+}
+
+/**
+ * AI compaction is reserved for genuinely long historical memory. Ordinary
+ * turn context and latest observations use the lossless durable state plus a
+ * deterministic projection; objective/scope are supplied verbatim elsewhere.
+ * At most one model request is allowed per job/turn, with exact-content reuse.
+ */
 export async function summarizeInvestigatorContextWithAiCompactor(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return "";
-  // Only inspect the explicitly authoritative objective section. Public-page
-  // observations are untrusted data and may quote this marker without corrupting
-  // the actual case objective; those observations must remain eligible for AI compaction.
+  if (input.compactionKind === "observation") return null;
+
   const objectiveSection = source.match(
-    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
+    /(?:^|\\n\\n)CURRENT CASE OBJECTIVE\\s*\\/\\s*APPROVED BOSS SCOPE(?:\\s*\\(authoritative\\))?:\\s*([\\s\\S]*?)(?=\\n\\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\\/RIGHT-HAND CONTEXT|OBSERVATION\\b)|$)/i,
   );
   if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
+  // The objective is authoritative and is supplied verbatim to the Investigator.
+  // Do not spend model tokens summarizing it as historical memory.
+  const historicalSource = objectiveSection
+    ? source.replace(objectiveSection[0], "\\n").trim()
+    : source;
+
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
-  if (source.length <= maxChars) return source;
+  if (historicalSource.length <= maxChars || historicalSource.length < AI_COMPACTION_MIN_SOURCE_CHARS) return null;
+  if (historicalSource.length > AI_COMPACTION_MAX_SOURCE_CHARS) return null;
 
   let maximumPromptChars: number;
   try {
@@ -568,87 +547,33 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   } catch {
     return null;
   }
-
-  // Reject only pathological inputs by size; never silently discard their middle
-  // or tail. Ordinary multi-chunk contexts are reduced hierarchically by the AI memory compactor.
-  const MAX_SOURCE_CHARS = 2_000_000;
-  if (source.length > MAX_SOURCE_CHARS) return null;
-  // Keep the prompt envelope efficient while bounding model calls for pathological
-  // case histories. A 57k audit context becomes four sequential chunks, not a burst.
-  const MAX_COMPACTION_SOURCE_CHUNKS = 8;
-  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
-  const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
-  // Never derive fetch authority from the combined prompt: it begins with the
-  // user/Boss objective, which is untrusted and may quote runtime-looking headings.
-  // The continuation route supplies the separately persisted case document.
-  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
-  if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
-    logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
+  const prompt = buildSummaryPrompt(historicalSource, maxChars);
+  if (prompt.length > maximumPromptChars) {
+    logPromptBudgetFailure(input, "primary", historicalSource.length, prompt.length, maximumPromptChars);
     return null;
   }
-  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input, trustedFetchUrls);
 
-  // A 1,200-character floor rejected otherwise usable 1,393-character partial
-  // memories in the live run. Give intermediate model summaries bounded headroom;
-  // the final merged memory remains subject to the caller's unchanged maxChars.
-  const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
-  const partialSummaries: string[] = [];
-  const successfulFetchUrls = new Set<string>();
-  // Keep independent memory segments sequential to avoid compaction bursts.
-  // The same-role 20B model handles compaction; Boss 120B retains capacity for strategic
-  // control decisions; the Investigator still owns all research actions.
-  for (const chunk of sourceChunks) {
-    const chunkSuccessfulFetchUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
-    for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
-    const summary = await requestSummary(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
-    if (!summary) return null;
-    partialSummaries.push(summary);
+  const owner = compactionOwnerKey(input);
+  const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
+  const contentHash = createHash("sha256").update(historicalSource).digest("hex");
+  const cacheKey = owner + ":" + contentHash + ":" + maxChars;
+  const cached = aiCompactionCache.get(cacheKey);
+  if (cached) return cached;
+
+  const turnKey = owner + ":turn:" + turn;
+  if (aiCompactionAttemptsByTurn.has(turnKey)) return null;
+  aiCompactionAttemptsByTurn.add(turnKey);
+
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
+  const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
+  if (!summary) return null;
+
+  aiCompactionCache.set(cacheKey, summary);
+  if (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
+    const oldest = aiCompactionCache.keys().next().value;
+    if (oldest) aiCompactionCache.delete(oldest);
   }
-
-  const promptInputBudget = Math.max(2_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
-  const combine = (summaries: string[]) => summaries
-    .map((summary, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + summary)
-    .join("\n\n");
-
-  let summaries = partialSummaries;
-  for (let depth = 0; depth < 8; depth += 1) {
-    const combined = combine(summaries);
-    if (combined.length <= promptInputBudget) {
-      // Do not return a mechanical concatenation as though it were a summary.
-      return requestSummary(combined, combined, maxChars, input, successfulFetchUrls);
-    }
-
-    const batches: string[][] = [];
-    let pending: string[] = [];
-    for (const summary of summaries) {
-      const candidate = combine([...pending, summary]);
-      if (pending.length && candidate.length > promptInputBudget) {
-        batches.push(pending);
-        pending = [summary];
-      } else {
-        pending.push(summary);
-      }
-    }
-    if (pending.length) batches.push(pending);
-    if (batches.length >= summaries.length) return null;
-
-    const nextTarget = Math.min(
-      maxChars,
-      Math.max(MIN_SUMMARY_CHARS, Math.floor((maxChars * 1.5) / batches.length)),
-    );
-    const reduced: string[] = [];
-    for (let offset = 0; offset < batches.length; offset += 2) {
-      const currentBatch = batches.slice(offset, offset + 2);
-      for (const batch of currentBatch) {
-        const batchSource = combine(batch);
-        const summary = await requestSummary(batchSource, batchSource, nextTarget, input, successfulFetchUrls);
-        if (!summary) return null;
-        reduced.push(summary);
-      }
-    }
-    summaries = reduced;
-  }
-  return null;
+  return summary;
 }
 
 
@@ -679,6 +604,7 @@ export async function compactInvestigationContextWithFallback(
   const semantic = await summarizeInvestigatorContextWithAiCompactor({
     ...input,
     maxChars,
+    compactionKind: kind,
     allowRecoveryModel: false,
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
