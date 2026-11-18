@@ -127,6 +127,11 @@ describe("AI investigation context compaction", () => {
     expect(cached).toBe(summary);
     expect(capped).toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    const cachedWithDifferentLimit = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 1_200, jobId: "job-turn-cache", turn: 5,
+    });
+    expect(cachedWithDifferentLimit).toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
 
     const nextTurn = await summarizeInvestigatorContextWithAiCompactor({
       rawContext: alternate, maxChars: 900, jobId: "job-turn-cache", turn: 5,
