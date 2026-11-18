@@ -9,11 +9,12 @@ vi.mock("../lib/groq-right-hand-reasoning", () => ({
   runGroqRightHandFreeJson: rightHandMocks.runGroqRightHandFreeJson,
 }));
 
-import { compactInvestigationContextWithFallback, compactRecentObservationWithFallback, extractAiContextUrls, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
+import { compactInvestigationContextWithFallback, compactRecentObservationWithFallback, extractAiContextUrls, resetAiInvestigationContextCompactionStateForTests, summarizeInvestigatorContextWithAiCompactor } from "../lib/ai-investigation-context-compaction";
 
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    rightHandMocks.runGroqRightHandFreeJson.mockReset();
+    resetAiInvestigationContextCompactionStateForTests();
   });
 
   it("uses a URL-safe deterministic observation projection without any model call", async () => {
