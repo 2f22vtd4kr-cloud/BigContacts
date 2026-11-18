@@ -33,6 +33,12 @@ The two daily budgets are model-scoped, not one shared bucket. The durable `agen
 
 Do not set an invented `GROQ_BOSS_MODEL` or `GROQ_RIGHT_HAND_MODEL`; those are not runtime overrides in the current code.
 
+## Context compaction and model budgets
+
+- Ordinary context below 14,000 characters and all latest-observation compaction use deterministic, URL-safe projections; the full observations and evidence remain durable. The 6,300–8,800-character segments in the 18 November audit therefore require **zero AI compaction calls**.
+- Only genuinely long historical memory between 14,000 and 16,000 characters may use one AI compaction request per Investigator turn. Identical job content is cached by SHA-256; a second distinct compaction request in the same turn falls back to deterministic projection. Empty or invalid responses do not trigger repair/retry loops.
+- Production compaction uses the Right-hand GPT-OSS 120B model bucket, not the Investigator GPT-OSS 20B bucket. The 120B daily model budget is shared by the Boss/Right-hand roles; there is no separate cheap compaction model bucket configured. No new provider or model was added.
+
 ## Open-ended discovery objective and source mix
 
 Keep the default evidence-led objective unless the human has a genuine case-specific constraint to add. It is intentionally open across sectors, countries, people, organizations and assets. Do not narrow it to one sector or country merely to make the first run easier to measure.
@@ -80,7 +86,7 @@ The immutable `control_decision` event records the Boss action; `observation` ev
 
 ## Outstanding scripted judgments (not changed in this PR)
 
-- **Generic-inbox and placeholder lists in `ai-extractor.ts`: CONVERT.** Keep syntax validation and any explicitly non-authoritative warning, but do not let local-part heuristics decide person-specific meaning or veto a valid model-attributed finding. The model owns attribution; runtime verifies the cited quote and contact syntax.
-- **Hand-set evidence weights in `research-intelligence-engine.ts`: CONVERT.** Preserve observable provenance facts (source URL/class, independence, observed span and chronology), but treat hand-set weights as advisory context for model review, not deterministic relevance, admission, falsification or promotion authority.
+- **Generic-inbox and placeholder lists in `ai-extractor.ts`: legacy-path follow-up, not a canonical-launch gate.** The canonical Atlas Investigator does not use this extractor for target-contact promotion; its card path uses model attribution plus same-observation quote verification. Do not treat the legacy local-part heuristic as person-specific meaning or as authority to promote a contact.
+- **Hand-set evidence weights in `research-intelligence-engine.ts`: advisory only.** Observable provenance facts remain available; the Investigator system contract now explicitly states that deterministic weights, rankings, hypothesis statuses and suggested falsification/stopping assessments cannot decide relevance, admission, falsification requirements, attribution, promotion or stopping.
 
 No dead-code cleanup is included. These judgments are recorded for a later, separately reviewed change.
