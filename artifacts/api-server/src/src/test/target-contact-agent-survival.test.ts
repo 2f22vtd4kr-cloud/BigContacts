@@ -209,6 +209,7 @@ import { runAgenticWebResearch } from "../lib/agentic-web-research";
 import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
+import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
@@ -593,14 +594,21 @@ describe("offline Investigator-to-card survival path", () => {
     });
     expect(investigatorResult.status).toBe("completed");
     expect(investigatorResult.model).toBe("openai/gpt-oss-20b");
-    expect(investigatorResult.modelFindings).toHaveLength(1);
-    expect(investigatorResult.modelFindings[0]).toMatchObject({
+    // The three negative fixtures are deliberately rejected by the real terminal
+    // evidence gate. The model's proposed finding remains visible as a partial
+    // review lead, but it is not returned as a terminally accepted model finding.
+    expect(investigatorResult.modelFindings).toHaveLength(0);
+    expect(investigatorResult.partialFindings).toHaveLength(1);
+    expect(investigatorResult.partialFindings[0]).toMatchObject({
       personName: input.finding.personName,
       role: input.finding.role,
       contactAttribution: input.finding.contactAttribution,
       exactQuote: input.finding.exactQuote,
       hypothesisRelation: input.finding.hypothesisRelation,
     });
+    expect(investigatorResult.trajectoryRecords.some((record: any) =>
+      record.action === "done" && record.execution === "blocked",
+    )).toBe(true);
     const fetchedRecord = investigatorResult.trajectoryRecords.find((record: any) => record.action === "visit");
     if (!fetchedRecord) throw new Error("Expected the offline Investigator to persist its fetched-page observation.");
 
@@ -633,7 +641,7 @@ describe("offline Investigator-to-card survival path", () => {
       ...investigatorResult,
       executionId: input.runId,
     } as any);
-    return runTargetContactAgent({
+    const targetResult = await runTargetContactAgent({
       entityId: 2,
       caseId: 1,
       jobId: "job-1",
@@ -644,6 +652,7 @@ describe("offline Investigator-to-card survival path", () => {
       contextDocument: "Canonical target case state and prior evidence.",
       oversightMode: "internal",
     });
+    return { targetResult, investigatorResult };
   }
 
   it("does not persist or promote a finding whose model-supplied quote is fabricated", async () => {
@@ -668,8 +677,15 @@ describe("offline Investigator-to-card survival path", () => {
     const result = await runFindingThroughRealTargetContactHandling({
       finding, sourceUrl, observation: actualText, runId: "offline-fabricated-quote",
     });
-    expect(result.status).toBe("completed");
-    expect(result.findings).toBe(0);
+    expect(result.investigatorResult.partialFindings).toHaveLength(1);
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    expect(supportsCandidateContactOnSameObservation(actualText, contact!, finding.value, finding.vectorType)).toBe(false);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: actualText, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
     expect(testState.insertedContacts).toHaveLength(0);
     expect(testState.entity.email).toBeNull();
     expect(testState.cardUpdate).toBeNull();
@@ -697,8 +713,16 @@ describe("offline Investigator-to-card survival path", () => {
     const result = await runFindingThroughRealTargetContactHandling({
       finding, sourceUrl, observation: quote, runId: "offline-aggregator-only",
     });
-    expect(result.status).toBe("completed");
-    expect(result.findings).toBe(0);
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    // The quote itself is exact and binds the person/value, but an aggregator
+    // cannot be the sole independent source for trusted person-contact support.
+    expect(supportsCandidateContactOnSameObservation(quote, contact!, finding.value, finding.vectorType)).toBe(true);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: quote, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
     expect(testState.insertedContacts).toHaveLength(0);
     expect(testState.entity.email).toBeNull();
     expect(testState.cardUpdate).toBeNull();
@@ -726,8 +750,14 @@ describe("offline Investigator-to-card survival path", () => {
     const result = await runFindingThroughRealTargetContactHandling({
       finding, sourceUrl, observation: actualText, runId: "offline-shared-inbox-mislabel",
     });
-    expect(result.status).toBe("completed");
-    expect(result.findings).toBe(0);
+    const [contact] = findingsToContacts([finding as any], "Jane Example");
+    expect(contact).toBeDefined();
+    expect(supportsCandidateContactOnSameObservation(actualText, contact!, finding.value, finding.vectorType)).toBe(false);
+    expect(supportsContactClaimAcrossObservations(
+      [{ observationText: actualText, sourceUrls: [sourceUrl] }], contact!, finding.value, finding.vectorType,
+    )).toBe(false);
+    expect(result.targetResult.status).toBe("completed");
+    expect(result.targetResult.findings).toBe(0);
     expect(testState.insertedContacts).toHaveLength(0);
     expect(testState.entity.email).toBeNull();
     expect(testState.cardUpdate).toBeNull();
