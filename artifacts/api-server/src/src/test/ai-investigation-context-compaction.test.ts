@@ -75,7 +75,7 @@ describe("AI investigation context compaction", () => {
   it("keeps fallback compaction on the bounded path when a caller omits its turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Observed source facts and provenance remain durable. ".repeat(180);
     expect(source.length).toBeGreaterThan(8_000);
-    expect(source.length).toBeLessThan(14_000);
+    expect(source.length).toBeLessThan(12_000);
     const result = await compactInvestigationContextWithFallback({
       rawContext: source, maxChars: 900, jobId: "job-missing-turn-fallback",
     }, "historical_memory");
@@ -85,7 +85,7 @@ describe("AI investigation context compaction", () => {
 
   it("skips AI compaction for ordinary historical context below the raised threshold", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Observed source facts, uncertainty and provenance remain durable. ".repeat(150);
-    expect(source.length).toBeLessThan(14_000);
+    expect(source.length).toBeLessThan(12_000);
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, maxChars: 900, jobId: "job-small-context", turn: 1,
     })).resolves.toBeNull();
