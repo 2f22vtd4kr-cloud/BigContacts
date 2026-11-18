@@ -1414,7 +1414,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, dates, contradictions and provenance; model memory is not evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
   });
 });
