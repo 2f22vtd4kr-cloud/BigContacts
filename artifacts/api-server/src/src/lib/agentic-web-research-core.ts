@@ -4849,7 +4849,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     providerGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY MODE: no person or entity target is implied; the Investigator is researching the case objective and may discover candidate people."
+      ? "OPEN DISCOVERY: no target class, sector, or jurisdiction is preselected. Derive objective-fit hypotheses from the human objective and observed evidence; there is no fixed rotation, example anchoring, or predetermined source mix."
       : "",
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
