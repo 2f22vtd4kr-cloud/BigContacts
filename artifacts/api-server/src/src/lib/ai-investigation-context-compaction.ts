@@ -10,8 +10,6 @@ export type AiInvestigationContextCompactionInput = {
   caseId?: number | null;
   /** Runtime-persisted case document used only to authorize fetched-page provenance. */
   trustedSourceContext?: string;
-  /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
-  allowRecoveryModel?: boolean;
   /** Investigator turn owning this bounded context transformation. */
   turn?: number;
   /** Observation text is projected deterministically; only historical memory may use AI compaction. */
@@ -450,10 +448,7 @@ async function requestSummary(
     // Recent-observation compaction also stays on the dedicated 20B lane.
     // It must never consume the shared 120B Boss/control model budget. No
     // retry or model fallback: an empty/invalid response uses projection.
-    const primary = await requestRightHandSummary(prompt, {
-      ...input,
-      allowRecoveryModel: false,
-    }, "openai/gpt-oss-20b", 1);
+    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
     const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
@@ -706,7 +701,6 @@ export async function compactInvestigationContextWithFallback(
     turn: Number.isFinite(input.turn) ? input.turn : 0,
     maxChars,
     compactionKind: kind,
-    allowRecoveryModel: false,
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
