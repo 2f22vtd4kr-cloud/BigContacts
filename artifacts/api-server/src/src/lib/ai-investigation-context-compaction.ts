@@ -10,7 +10,7 @@ export type AiInvestigationContextCompactionInput = {
   caseId?: number | null;
   /** Runtime-persisted case document used only to authorize fetched-page provenance. */
   trustedSourceContext?: string;
-  /** Recent-observation compaction must not consume the Right-hand 120B advisory recovery lane. */
+  /** Legacy compatibility flag; compaction never falls back to the 120B Boss/control model. */
   allowRecoveryModel?: boolean;
   /** Investigator turn owning this bounded context transformation. */
   turn?: number;
@@ -677,12 +677,12 @@ export type InvestigationContextCompactionResult = {
 export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * A non-authoritative context transformation may try one bounded 120B semantic
- * compaction request for genuinely long historical memory. This shares the
- * Boss/Right-hand daily model budget but never consumes the Investigator 20B bucket.
- * If the semantic attempt is unavailable, preserve a bounded, URL-safe deterministic
- * projection instead; the complete source remains durable and omissions are
- * explicitly unknown. This does not replace or simulate any oversight decision.
+ * A non-authoritative context transformation may try one bounded 20B semantic
+ * compaction request for genuinely long historical memory. It never consumes the
+ * shared 120B Boss/control budget. If the semantic attempt is unavailable, preserve
+ * a bounded, URL-safe deterministic projection instead; the complete source remains
+ * durable and omissions are explicitly unknown. This does not replace or simulate
+ * any oversight decision.
  */
 export async function compactInvestigationContextWithFallback(
   input: AiInvestigationContextCompactionInput,
