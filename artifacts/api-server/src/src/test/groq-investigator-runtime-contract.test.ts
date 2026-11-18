@@ -11,7 +11,7 @@ function assertGroqStrictSchemaNode(node: unknown): void {
       assertGroqStrictSchemaNode(child);
     }
   }
-  if (schema.type === "array" && schema.items) assertGroqStrictSchemaNode(schema.items);
+  if ((schema.type === "array" || (Array.isArray(schema.type) && schema.type.includes("array"))) && schema.items) assertGroqStrictSchemaNode(schema.items);
 }
 
 
@@ -669,9 +669,9 @@ describe("Groq Investigator runtime contract", () => {
       const findingItem = (properties.findings?.items ?? {}) as Record<string, unknown>;
       expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
       expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
-      expect((searchItem.properties as Record<string, { type?: unknown }>).provider.type).toEqual(["string", "null"]);
-      expect((findingItem.properties as Record<string, { type?: unknown }>).note.type).toEqual(["string", "null"]);
-      expect((properties.provider as { type?: unknown }).type).toEqual(["string", "null"]);
+      expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
+      expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      expect((properties.provider as { type?: unknown })?.type).toEqual(["string", "null"]);
     }
   });
 
@@ -729,21 +729,18 @@ describe("Groq Investigator runtime contract", () => {
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
   });
 
-  it("keeps the 20B capability opt-in until provider structured output is verified", () => {
+  it("exposes the economical 20B capability by default when its credential is configured", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(optedIn)).toContain("groq-investigator-20b");
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(disabled)).toEqual(["groq-investigator-1"]);
   });
 
-  it("keeps model-scoped 20B fallback opt-in when it shares the first 120B credential", () => {
+  it("keeps model-scoped 20B capability first and independently selectable from its shared 120B credential", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual([]);
-    const optedIn = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
-    expect(getAvailableDistinctInvestigatorCapabilities(optedIn, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
@@ -799,7 +796,7 @@ describe("Groq Investigator runtime contract", () => {
 
   it("routes by the Boss-selected capability without silently rotating models", () => {
     expect(selectGroqInvestigatorModel({ capability: "groq-investigator-20b" })).toBe("openai/gpt-oss-20b");
-    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-20b");
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");
     expect(selectGroqInvestigatorModel({
       capability: "groq-investigator-1", configuredModel: "custom/explicit-model",
     })).toBe("custom/explicit-model");
