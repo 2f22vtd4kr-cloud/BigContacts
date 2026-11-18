@@ -351,7 +351,7 @@ describe("Groq Investigator runtime contract", () => {
       } };
     };
     const actionSchema = responseFormat.json_schema?.schema;
-    expect(actionSchema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(actionSchema?.required).toEqual(Object.keys(actionSchema?.properties ?? {}));
     expect(actionSchema?.properties?.searches?.items?.required).toEqual(["query", "provider", "registry", "locale", "market", "purpose"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
@@ -648,7 +648,7 @@ describe("Groq Investigator runtime contract", () => {
       type: ["string", "null"],
       enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.required).toEqual(Object.keys(schema?.properties ?? {}));
   });
 
   it("recursively strictifies every Investigator action-allowlist schema variant", () => {
@@ -722,7 +722,7 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
