@@ -277,6 +277,7 @@ describe("AI investigation context compaction", () => {
 
   it("retries original-source compaction after the provider exhausts the first generation budget", async () => {
     const source = "CANONICAL CASE MEMORY\n" + "Observed source facts and unresolved questions. ".repeat(45);
+    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "mock-boss-model",
