@@ -8,6 +8,7 @@
 export type AtlasFailureDomain =
   | "model_oversight"
   | "model_provider"
+  | "provider_contract"
   | "model_action"
   | "tool_execution"
   | "external_page_fetch"
@@ -174,6 +175,7 @@ export function classifyAtlasScopeGuardObservation(observation: string): { domai
 
 export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const code = value.trim().toLowerCase();
+  if (code === "provider_contract_error") return { domain: "provider_contract", kind: "invalid_contract" };
   if (code === "upstream_token_quota_exhausted") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
