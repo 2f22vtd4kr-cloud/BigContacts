@@ -656,14 +656,13 @@ describe("AI investigation context compaction", () => {
     expect(extractAiContextUrls(sourceUrl + String.raw`\r\nNext field: additional context`)).toEqual([sourceUrl]);
   });
 
-  it("fails closed to deterministic projection when both 20B memory summaries fail validation", async () => {
+  it("does not borrow the 120B Boss budget when both 20B memory summaries fail validation", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
-      ;
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
