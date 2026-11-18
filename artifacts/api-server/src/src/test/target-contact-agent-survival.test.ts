@@ -523,6 +523,7 @@ describe("offline Investigator-to-card survival path", () => {
     expect(isCanonicalTargetEpisodeComplete({ ...terminalInput, evidenceGraphCount: 0 })).toBe(false);
   });
 
+
   async function runFindingThroughRealTargetContactHandling(input: {
     finding: Record<string, any>;
     sourceUrl: string;
@@ -530,20 +531,79 @@ describe("offline Investigator-to-card survival path", () => {
     runId: string;
   }) {
     testState.entity.email = null;
+    testState.entity.name = "Jane Example";
+    testState.entity.type = "PersonCandidate";
     testState.insertedContacts.length = 0;
     testState.resetCardUpdate();
-    testState.caseRow.caseFile = JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-1" });
-    const record = {
-      turn: 1,
-      model: "openai/gpt-oss-120b",
-      action: "visit",
-      args: { url: input.sourceUrl },
-      execution: "success",
-      observation: input.observation,
-      observedUrls: [input.sourceUrl],
-      findings: [],
-      providerFallback: [],
-    };
+    testState.caseRow.caseFile = JSON.stringify({ atlasJobId: "job-1", investigatorLlm: "groq-investigator-20b" });
+    testState.quote = input.observation;
+    testState.sourceUrl = input.sourceUrl;
+
+    offlineNetwork.requests = [];
+    offlineNetwork.modelRequests = [];
+    offlineNetwork.actions = [
+      {
+        action: "web_search",
+        query: "Jane Example Acme Engineering Managing Director professional email leadership",
+        provider: "serper",
+        thought: "Find a public leadership source that may identify this person and contact route.",
+        hypothesis: "A public leadership page may identify Jane Example and an attributable professional contact.",
+        purpose: "Locate a page whose contents can be fetched and assessed directly.",
+        expectedInformationGain: 0.7,
+        findings: [],
+      },
+      {
+        action: "visit",
+        url: input.sourceUrl,
+        thought: "Fetch the page before making an attribution decision.",
+        hypothesis: "The page may bind Jane Example's role and professional email in one observation.",
+        purpose: "Verify the exact source passage and contact value.",
+        expectedInformationGain: 0.8,
+        findings: [],
+      },
+      {
+        action: "done",
+        query: null,
+        thought: "Return the model-selected finding and interpretation from the fetched source.",
+        hypothesis: "The fetched source supports or fails to support the proposed person-specific contact.",
+        purpose: "Return the model-supplied finding for evidence verification.",
+        expectedInformationGain: 0.9,
+        findings: [input.finding],
+      },
+    ];
+
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "true");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_20B", "0");
+    vi.stubEnv("APEX_GROQ_DAILY_TOKEN_BUDGET_120B", "0");
+    vi.stubEnv("APEX_GROQ_TPM_BUDGET", "50000");
+    vi.stubEnv("SERPER_API_KEY", "offline-only-not-a-real-key");
+    vi.stubEnv("APEX_CAPTURE_MODEL_PROMPTS", "false");
+
+    const investigatorResult = await runInvestigatorCore({
+      targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
+      objective: "Find source-backed public contact leads. Choose relevance and attribution from the fetched evidence.",
+      investigatorLlm: "groq-investigator-20b",
+      mode: "discovery",
+      maxIterations: 3,
+      hardTimeoutMs: 30_000,
+    });
+    expect(investigatorResult.status).toBe("completed");
+    expect(investigatorResult.model).toBe("openai/gpt-oss-20b");
+    expect(investigatorResult.modelFindings).toHaveLength(1);
+    expect(investigatorResult.modelFindings[0]).toMatchObject({
+      personName: input.finding.personName,
+      role: input.finding.role,
+      contactAttribution: input.finding.contactAttribution,
+      exactQuote: input.finding.exactQuote,
+      hypothesisRelation: input.finding.hypothesisRelation,
+    });
+    const fetchedRecord = investigatorResult.trajectoryRecords.find((record: any) => record.action === "visit");
+    if (!fetchedRecord) throw new Error("Expected the offline Investigator to persist its fetched-page observation.");
+
     testState.events.splice(0, testState.events.length,
       {
         id: 51, caseId: 1, eventType: "claim", actorRole: "head_investigator", status: "success",
@@ -561,33 +621,26 @@ describe("offline Investigator-to-card survival path", () => {
         payload: JSON.stringify({
           runId: input.runId,
           jobId: "job-1",
-          action: "visit",
-          observation: input.observation,
-          observedUrls: [input.sourceUrl],
+          action: fetchedRecord.action,
+          observation: fetchedRecord.observation,
+          observedUrls: fetchedRecord.observedUrls,
         }),
       },
     );
+    // The core has already made the three real offline turns. This adapter handoff
+    // does not mock target contact handling, source verification or card promotion.
     vi.mocked(runAgenticWebResearch).mockResolvedValue({
-      status: "completed",
-      model: "openai/gpt-oss-120b",
-      iterations: 1,
-      searches: 0,
-      visits: 1,
-      trajectory: ["turn1 visit success"],
-      trajectoryRecords: [record],
-      groundingTrajectoryRecords: [record],
-      modelFindings: [input.finding],
-      findings: [input.finding],
+      ...investigatorResult,
       executionId: input.runId,
-      stopReason: "MODEL_DECIDED_DONE",
     } as any);
     return runTargetContactAgent({
       entityId: 2,
       caseId: 1,
       jobId: "job-1",
       targetName: "Jane Example",
+      companyName: "Example Engineering GmbH",
       targetType: "person",
-      investigatorLlm: "groq-investigator-1",
+      investigatorLlm: "groq-investigator-20b",
       contextDocument: "Canonical target case state and prior evidence.",
       oversightMode: "internal",
     });
