@@ -4695,14 +4695,6 @@ export function buildDiscoveryScopeAdvisory(
   priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
   const notes: string[] = [];
-  const queries = action === "web_search" || action === "registry_search"
-    ? [String(args.query ?? "")]
-    : action === "parallel_web_search" || action === "parallel_registry_search"
-      ? (Array.isArray(args.searches) ? args.searches.map((entry) =>
-          entry && typeof entry === "object" && !Array.isArray(entry)
-            ? String((entry as Record<string, unknown>).query ?? "")
-            : "") : [])
-      : [];
   // Sector and target-class selection are semantic research decisions owned
   // by the Investigator. Do not inject deterministic sector-narrowing warnings.
   const geography = discoveryUnscopedGeographyReason(objective, action, args);
