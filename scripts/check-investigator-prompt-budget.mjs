@@ -42,8 +42,8 @@ assert(
   /MODEL-OWNED RELEVANCE: Investigator decides relevance/.test(orientation)
     && /HYPOTHESES: Form falsifiable public-evidence hypotheses/.test(orientation)
     && /AUTONOMY: No fixed source\/provider\/registry order or mix/.test(orientation)
-    && /OPEN DISCOVERY: Form concrete, falsifiable hypotheses; do not turn generic objective nouns into repeated broad queries/.test(orientation)
-    && /Treat public-web search and enabled registries as neutral complementary routes/.test(orientation)
+    && /OPEN DISCOVERY: Turn open objectives into concrete, falsifiable hypotheses—not generic repeated queries/.test(orientation)
+    && /Treat web and enabled registries as neutral complementary routes/.test(orientation)
     && /CLAIMS: .*wealth needs sourced ownership, equity or investment/.test(orientation),
   "institutional system contract must preserve objective-led, model-owned discovery, autonomous hypothesis diversity and complementary source choice",
 );
