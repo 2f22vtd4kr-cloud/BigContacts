@@ -755,13 +755,14 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
-  const trustedFetchHash = createHash("sha256").update([...trustedFetchUrls].sort().join("\n")).digest("hex");
-  // The same text can have different retrieval authority as the case evolves.
-  // Cache only within the same job, compaction kind and exact fetched-URL authority set.
-  const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash + ":" + trustedFetchHash;
+  // Per-job content cache: unchanged text is never summarized twice. A cached
+  // summary is revalidated against the current fetched-source authority before reuse.
+  const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash;
   if (aiCompactionCache.has(cacheKey)) {
     const cached = aiCompactionCache.get(cacheKey);
-    return cached && cached.length <= maxChars ? cached : null;
+    if (!cached || cached.length > maxChars) return null;
+    const cachedValidation = validateSummary(cached, historicalSource, maxChars, trustedFetchUrls);
+    return cachedValidation.issues.length ? null : cachedValidation.summary;
   }
 
   const turnKey = owner + ":turn:" + turn;
