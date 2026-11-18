@@ -339,86 +339,10 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
  * do not use this path for daily token caps, request quotas, auth failures, or
  * arbitrary provider errors.
  */
-function recoverableCompactionModelThrottle(error: string | null): boolean {
-  const diagnostic = error ?? "";
-  const shortWindowText = /tokens per minute|\bTPM\b|model.{0,40}rate.?limit/i.test(diagnostic);
-  const dailyText = /tokens per day|\bTPD\b|daily token quota/i.test(diagnostic);
-  if (dailyText) return false;
-
-  // Right-hand deliberately redacts provider prose. Its bounded attempt
-  // diagnostic retains only safe quota metadata, so classify from that
-  // structured record rather than depending on the redacted "TPM" message.
-  // Errors can contain several JSON records separated by " | ".
-  const records: Array<Record<string, unknown>> = [];
-  for (const segment of diagnostic.split(/\s+\|\s+/u)) {
-    const jsonStart = segment.indexOf("{");
-    if (jsonStart < 0) continue;
-    try {
-      const parsed = JSON.parse(segment.slice(jsonStart)) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        records.push(parsed as Record<string, unknown>);
-      }
-    } catch {
-      // Keep parsing other bounded attempt records; malformed diagnostics fail closed.
-    }
-  }
-
-  const isShortReset = (value: unknown): boolean => {
-    if (typeof value !== "string" || !value.trim()) return false;
-    const raw = value.trim();
-    const numericSeconds = Number(raw);
-    if (Number.isFinite(numericSeconds) && numericSeconds >= 0) {
-      return numericSeconds * 1_000 <= 60 * 60 * 1_000;
-    }
-    const match = raw.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
-    if (!match) return false;
-    const milliseconds = (Number(match[1] ?? 0) * 3_600
-      + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000;
-    return milliseconds > 0 && milliseconds <= 60 * 60 * 1_000;
-  };
-
-  const hasStructuredModelTokenThrottle = records.some((record) => {
-    if (record.rateLimitKind !== "tokens" || record.httpStatus !== 429 || record.dailyTokenQuota === true) return false;
-    const body = record.body && typeof record.body === "object" && !Array.isArray(record.body)
-      ? record.body as Record<string, unknown>
-      : {};
-    const quotaSignals = Array.isArray(body.quotaSignals) ? body.quotaSignals : [];
-    const explicitDailySignal = quotaSignals.some((signal) =>
-      typeof signal === "string" && /tokens?[_\s-]*per[_\s-]*day|\bTPD\b|daily/i.test(signal));
-    if (explicitDailySignal) return false;
-
-    // Some Groq 429 responses omit reset/remaining headers. When telemetry still
-    // identifies a token/model-scoped 429 and carries no daily-quota signal,
-    // recover once on the same Right-hand credential with the 120B model rather
-    // than misreporting an Investigator outage. This is model fallback, never
-    // credential rotation; explicit daily caps remain non-recoverable here.
-    return true;
-  });
-
-  const hasLocalTokenWindowThrottle = records.some((record) => {
-    const retryAfterMs = record.retryAfterMs;
-    return record.httpStatus === null
-      && record.rateLimitKind === "tokens"
-      && record.failureClass === "rate_limited"
-      && (record.providerCode === "budget_exhausted" || record.providerCode === "cooldown")
-      && typeof retryAfterMs === "number"
-      && Number.isFinite(retryAfterMs)
-      && retryAfterMs >= 0
-      && retryAfterMs <= 60 * 60 * 1_000;
-  });
-  const classifiedModelThrottle = /"rateLimitKind"\s*:\s*"(?:tokens|model)"/i.test(diagnostic);
-  // Older safe diagnostics may carry only the classifier field plus an
-  // explicit short-window message. Structured reset metadata is preferred.
-  const oversizedModelThrottle = /HTTP 413/i.test(diagnostic)
-    && /rate_limit_exceeded/i.test(diagnostic)
-    && shortWindowText;
-  return (hasStructuredModelTokenThrottle || hasLocalTokenWindowThrottle || ((classifiedModelThrottle || oversizedModelThrottle) && shortWindowText))
-    && !dailyText;
-}
 async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
-  preferredModel: "openai/gpt-oss-20b" | "openai/gpt-oss-120b",
+  preferredModel: "openai/gpt-oss-20b",
   maxAttempts: number = 2,
 ): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
   return runGroqRightHandFreeJson(
@@ -472,34 +396,15 @@ async function requestSummaryLegacy(
     const prompt = buildSummaryPrompt(source, maxChars);
     if (prompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars); return null; }
 
-    // Memory compaction is a non-decision transformation. Use the separate
-    // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
-    // Boss strategic-control quota or Right-hand 120B advisory capacity.
-    // Compaction must not sit through TPM reset waits or spend a retry on a
-    // throttled 20B model. One attempt yields a structured diagnostic; the
-    // bounded same-role 120B recovery below is the only fallback attempt.
+    // All semantic compaction uses the dedicated Right-hand GPT-OSS 20B lane.
+    // Never spend the shared 120B Boss/control budget on memory formatting.
+    // If 20B is throttled or returns an invalid summary, fail closed to the
+    // caller's deterministic projection; the complete source remains durable.
     const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
 
-    // Do not spend another 20B request repairing a request that failed because
-    // that model's short token window is exhausted. Recover once on the
-    // already-configured Right-hand 120B model, retaining the same task/role.
-    if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
-      if (input.allowRecoveryModel === false) return null;
-      const fallbackPrompt = buildSummaryPrompt(
-        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-        maxChars,
-        "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
-      );
-      if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-      validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-      if (!validation.issues.length) return validation.summary;
-      logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
-      return null;
-    }
     if (!retryableSummaryResponse(primary)) return null;
 
     const repairPrompt = buildSummaryPrompt(
@@ -512,27 +417,8 @@ async function requestSummaryLegacy(
     validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
-    // A non-empty but invalid primary summary can still be followed by a
-    // model-scoped TPM throttle on the 20B repair request. The repair throttle
-    // must receive the same bounded, same-role 120B recovery as a primary
-    // throttle; otherwise compaction fails despite a healthy recovery model.
-    const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
-    if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
-
-    if (input.allowRecoveryModel === false) return null;
-    const fallbackReason = repairWasModelThrottled
-      ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
-      : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
-    const fallbackPrompt = buildSummaryPrompt(
-      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
-      maxChars,
-      fallbackReason,
-    );
-    if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
-    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
-    validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
-    if (!validation.issues.length) return validation.summary;
-    logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    // The repair attempt also stays on 20B. A second invalid/throttled
+    // summary is a compaction miss; the caller uses deterministic projection.
     return null;
   } catch (error) {
     logger.warn({
@@ -561,14 +447,13 @@ async function requestSummary(
       return null;
     }
 
-    // Compaction is a single, non-decision transformation on the Right-hand
-    // 120B model bucket, separate from the Investigator 20B bucket. The 120B
-    // daily budget is shared with Boss/Right-hand control work. No retry or
-    // fallback: an empty/invalid response is a cache miss and uses projection.
+    // Recent-observation compaction also stays on the dedicated 20B lane.
+    // It must never consume the shared 120B Boss/control model budget. No
+    // retry or model fallback: an empty/invalid response uses projection.
     const primary = await requestRightHandSummary(prompt, {
       ...input,
       allowRecoveryModel: false,
-    }, "openai/gpt-oss-120b", 1);
+    }, "openai/gpt-oss-20b", 1);
     const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
@@ -586,7 +471,7 @@ async function requestSummary(
 }
 /**
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
- * semantic reduction uses the separate Right-hand credential lane on the 120B model; it never consumes the Investigator 20B bucket. A
+ * semantic reduction uses the separate Right-hand credential lane on the 20B model; it never consumes the shared 120B Boss/control bucket. A
  * resource cap protects the provider from pathological input sizes but never
  * substitutes an excerpt for the source.
  */
