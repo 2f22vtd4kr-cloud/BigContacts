@@ -1142,17 +1142,20 @@ export function isSearchProviderDisabled(
 }
 
 /** Select a configured, non-disabled provider only when the model omits this infrastructure detail. */
-export function selectConfiguredSearchProvider(
-  states: ReadonlyMap<string, SearchProviderFailureState>,
-): "serper" | "tavily" | "exa" | null {
+export function getConfiguredSearchProviders(): Array<"serper" | "tavily" | "exa"> {
   const configured: Array<{ provider: "serper" | "tavily" | "exa"; keys: Array<string | undefined> }> = [
     { provider: "serper", keys: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY] },
     { provider: "tavily", keys: [process.env.TAVILY_API_KEY, ...Array.from({ length: 8 }, (_, i) => process.env[`TAVILY_API_KEY_${i + 1}`])] },
     { provider: "exa", keys: [process.env.EXA_API_KEY, process.env.EXA_1, process.env.EXA_2, ...Array.from({ length: 8 }, (_, i) => process.env[`EXA_API_KEY_${i + 1}`])] },
   ];
-  return configured.find(({ provider, keys }) =>
-    keys.some((key) => Boolean(key?.trim())) && !isSearchProviderDisabled(states, provider),
-  )?.provider ?? null;
+  return configured.filter(({ keys }) => keys.some((key) => Boolean(key?.trim()))).map(({ provider }) => provider);
+}
+
+/** Select a configured, non-disabled provider only when the model omits this infrastructure detail. */
+export function selectConfiguredSearchProvider(
+  states: ReadonlyMap<string, SearchProviderFailureState>,
+): "serper" | "tavily" | "exa" | null {
+  return getConfiguredSearchProviders().find((provider) => !isSearchProviderDisabled(states, provider)) ?? null;
 }
 
 export function renderSearchProviderAvailabilityNotice(
@@ -4830,7 +4833,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
-  const providerGuidance = "PROVIDERS: web_search=serper|tavily|exa (provider optional for a single web_search; if omitted, runtime selects a configured healthy provider); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
+  const configuredHealthySearchProviders = getConfiguredSearchProviders().filter((provider) => !isSearchProviderDisabled(searchProviderFailures, provider));\n  const providerGuidance = "PROVIDERS: web_search=" + (configuredHealthySearchProviders.join("|") || "unavailable") + " (single web_search may omit provider; runtime selects a configured healthy provider); browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use market only when mission or same-case evidence supports country-specific search; locale is language only.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY QUALITY (guidance, not a route or admission rule): Do not turn generic labels such as high-net-worth individuals or potential investors into broad glossary searches. Form a concrete, falsifiable hypothesis about a real person, organization, asset, ownership/control relationship, activity or public route. Let the hypothesis, target type, sector and geography emerge and vary with the objective and evidence; do not assume a preferred country, sector or asset class. Native registries and public-web search are neutral capabilities: choose either or both when useful, without a forced mixture, fixed order or registry sweep. Search snippets and registry hits remain leads." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
     ? "SEARCH ACTIVITY (telemetry only; no fixed search cap): " + discoverySearchActionsUsed + " outbound searches observed; not a quota or progress/completion signal. Investigator chooses searches, fetches, pivots and stopping by expected information gain."
