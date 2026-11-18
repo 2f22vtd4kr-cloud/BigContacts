@@ -95,7 +95,7 @@ describe("objective-led institutional orientation", () => {
     expect(core).toContain("HNWI/wealth/success labels are not evidence");
     expect(core).toContain("No fixed source/provider/registry order or mix.");
     expect(core).toContain("AUTONOMY: No fixed source/provider/registry order or mix.");
-    expect(core).toContain("Turn open objectives into falsifiable hypotheses, not generic queries.");
+    expect(core).toContain("Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(core).toContain("no fixed rotation or example anchoring");
     expect(core).toContain("Treat web and enabled registries as neutral complementary routes");
   });
