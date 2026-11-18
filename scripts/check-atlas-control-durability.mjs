@@ -74,7 +74,15 @@ checks.push(["target and discovery turns preserve full continuation context unti
 const coreInvestigator = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 checks.push(["core Investigator emits sanitized trajectory records through one awaited callback boundary",/onTrajectoryRecord\?:/.test(coreInvestigator)&&/async function emitSanitizedTrajectoryRecord\(record: AgenticTrajectoryRecord\): Promise<void>\s*\{\s*const previousStage = runtimeStage;\s*runtimeStage = "trajectory_persistence";\s*try \{\s*await input\.onTrajectoryRecord\?\.\(sanitizeObservableValue\(record\)\);\s*runtimeStage = previousStage;\s*\} catch \(error\) \{[\s\S]*?throw error;\s*\}\s*\}/.test(coreInvestigator)&&/await emitSanitizedTrajectoryRecord\(records\[records.length - 1\]!\)/.test(coreInvestigator)&&/await emitSanitizedTrajectoryRecord\(record\)/.test(coreInvestigator)&&(coreInvestigator.match(/await emitSanitizedTrajectoryRecord\(/g)||[]).length >= 15]);
 const capabilityRegistry = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-capability-registry.ts", "utf8");
-const coreProviderDeclaration = /PROVIDERS: web_search=serper\|tavily\|exa/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8"));
+const coreInvestigatorPromptSource = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
+const providerSuffixStart = coreInvestigatorPromptSource.indexOf("const providerBoundedPrompt = [");
+const providerSuffixEnd = coreInvestigatorPromptSource.indexOf("const reportPromptMeasurement", providerSuffixStart);
+const providerSuffix = providerSuffixStart >= 0 && providerSuffixEnd > providerSuffixStart
+  ? coreInvestigatorPromptSource.slice(providerSuffixStart, providerSuffixEnd)
+  : "";
+const coreProviderDeclaration = /const configuredSearchProviders = getConfiguredSearchProviders\(\)/.test(coreInvestigatorPromptSource)
+  && /const providerGuidance = "PROVIDERS: web_search=" \+ \(configuredSearchProviders\.join\("\\|"\) \|\| "unavailable"\)/.test(coreInvestigatorPromptSource)
+  && providerSuffix.includes("providerGuidance");
 const exposesMappedProvider = (capability, provider) =>
   new RegExp('id:\\s*"search\\.' + capability + '"[^\\n]*decisionGuidance:\\s*"provider=' + provider + ';').test(capabilityRegistry);
 checks.push(["Investigator prompt exposes only concrete, capability-bound provider values", coreProviderDeclaration && exposesMappedProvider("serper", "serper") && exposesMappedProvider("tavily", "tavily") && exposesMappedProvider("exa", "exa")]);
