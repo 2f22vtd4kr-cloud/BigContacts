@@ -267,7 +267,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("human objective and explicit constraints govern");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, dates, contradictions and provenance; model memory is not evidence.");
+    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
