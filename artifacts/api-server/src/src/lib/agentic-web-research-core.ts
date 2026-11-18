@@ -4892,7 +4892,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use only configured/attested providers; omit provider to let runtime select a healthy default.";
-  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates. Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence. No fixed target itinerary or source sequence.";
+  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates. Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate. Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence. No fixed target itinerary, action sequence or tool sequence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order." : "";
   const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
@@ -5335,7 +5335,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
   let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
   for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
-  const marker = "[INVESTIGATOR PROMPT COMPACTION: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
+  const marker = "[AUXILIARY CONTEXT BOUND: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
   let boundedPinnedContext = [...pinnedContext];
   let requiredTail = [...boundedPinnedContext, mandatorySuffix].filter(Boolean).join("\n\n");
   let prefixBudget = userPromptBudget - requiredTail.length - marker.length - 2;
