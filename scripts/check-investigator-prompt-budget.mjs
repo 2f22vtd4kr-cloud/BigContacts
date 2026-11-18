@@ -39,13 +39,13 @@ assert(
   "dynamic discovery prompt must retain observational search activity and review-only handoff state without restricting model-selected searches",
 );
 assert(
-  /DISCOVERY TARGETABILITY \/ REALISM:/.test(orientation)
-    && /human objective and explicit constraints govern/.test(orientation)
-    && /require direct relevance to the active objective/.test(orientation)
-    && /do not force a mixed-source batch or a registry-first order/.test(orientation)
-    && /The Investigator decides relevance and chooses whether to search, fetch, use a registry, pivot or stop by expected information gain/.test(orientation)
-    && /ranking mentions are contextual leads, not sufficient proof by themselves/.test(orientation),
-  "institutional system contract must preserve objective-led, model-owned discovery without duplicating it in each user prompt",
+  /MODEL-OWNED RELEVANCE: Investigator decides relevance/.test(orientation)
+    && /HYPOTHESES: Form falsifiable public-evidence hypotheses/.test(orientation)
+    && /AUTONOMY: No fixed source\/provider\/registry order or mix/.test(orientation)
+    && /OPEN DISCOVERY: Form concrete, falsifiable hypotheses; do not turn generic objective nouns into repeated broad queries/.test(orientation)
+    && /Treat public-web search and enabled registries as neutral complementary routes/.test(orientation)
+    && /CLAIMS: .*wealth needs sourced ownership, equity or investment/.test(orientation),
+  "institutional system contract must preserve objective-led, model-owned discovery, autonomous hypothesis diversity and complementary source choice",
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
