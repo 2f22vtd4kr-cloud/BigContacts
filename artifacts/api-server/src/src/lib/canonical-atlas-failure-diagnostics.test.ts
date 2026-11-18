@@ -54,6 +54,13 @@ describe("canonical Atlas nested provider failure classification", () => {
     })).toEqual({ domain: "model_provider", kind: "provider_rate_limited" });
   });
 
+  it("classifies an Investigator HTTP 400 contract rejection as infrastructure", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_provider_contract_error"),
+    })).toEqual({ domain: "provider_contract", kind: "invalid_contract" });
+  });
+
   it("bounds and cycle-protects nested cause traversal", () => {
     const first = new Error("first");
     const second = new Error("second");
