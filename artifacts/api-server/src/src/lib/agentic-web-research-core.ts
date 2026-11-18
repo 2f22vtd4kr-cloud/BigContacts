@@ -4905,7 +4905,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     modelOwnedScopeGuidance,
     authoritativeCaseObjective,
     activeBossScopeSection,
-    modelOwnedScopeGuidance,
     availableActionsGuidance,
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
@@ -5316,11 +5315,18 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPrompt);
   const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
   const pinnedContext = [
+    assignment,
+    targetModeGuidance,
+    modelOwnedScopeGuidance,
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
+    compactWorkerCapabilityGuidance,
+    conditionalSpecialistCapabilityGuidance,
     compactRegistryGuidance,
+    providerGuidance,
     searchActivityGuidance,
+    openDiscoveryGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
     latestRecordTail,
