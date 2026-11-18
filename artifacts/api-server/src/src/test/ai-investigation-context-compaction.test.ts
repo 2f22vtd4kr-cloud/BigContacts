@@ -154,6 +154,9 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 1,
     })).resolves.toBeNull();
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 2,
+    })).resolves.toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
