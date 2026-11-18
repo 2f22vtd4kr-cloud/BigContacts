@@ -3044,7 +3044,11 @@ Choose each next action yourself from the available capabilities and observed ev
     const schema = responseFormat.json_schema?.schema;
     expect(responseFormat.type).toBe("json_schema");
     expect(schema?.additionalProperties).toBe(false);
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
+    expect(schema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
     expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls"]);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
@@ -3687,7 +3691,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.profile).toBeDefined();
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
