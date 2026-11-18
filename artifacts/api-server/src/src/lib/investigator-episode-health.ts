@@ -38,7 +38,7 @@ export function hasExecutedInvestigatorResearchAction(
 ): boolean {
   return records.some((record) => {
     const action = record.action ?? "";
-    if (!action || ["done", "parse_failure", "investigator_provider_error"].includes(action)) return false;
+    if (!action || ["done", "parse_failure", "investigator_provider_error", "provider_contract_error"].includes(action)) return false;
     if (record.execution === "selected" || record.execution === "blocked") return false;
     return typeof record.execution === "string" && record.execution.length > 0;
   });
