@@ -5361,7 +5361,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // If the non-lossy objective, scope, action, registry, latest evidence
   // and output contract exceed the preferred size, discard the optional prefix
   // rather than dropping or clipping any pinned context or the strict schema.
-  if (prefixBudget < 0) return reportPromptMeasurement(requiredTail);
+  if (prefixBudget < 0) return reportPromptMeasurement([marker, requiredTail].filter(Boolean).join("\n\n"));
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
