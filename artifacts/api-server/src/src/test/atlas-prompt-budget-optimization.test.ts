@@ -101,7 +101,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
       prompt: "OVERSIZED DYNAMIC STATE ".repeat(2_000)
-        + "\n\nOUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays.",
+        + "\n\nOUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
       cognitiveTask: "identity_resolution",
     });
     const messages = body.messages as Array<{ role: string; content: string }>;
