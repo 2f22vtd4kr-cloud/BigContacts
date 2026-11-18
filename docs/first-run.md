@@ -11,15 +11,17 @@ Set these in the API server environment before launching:
 | `APEX_GROQ_TPM_BUDGET` | `7000` | Local per-minute reservation ceiling only. Groq rate-limit response headers are observed and used to reconcile the provider's actual remaining-token window; this is not a claim that the provider grants 7,000 TPM. |
 | `APEX_GROQ_DAILY_TOKEN_BUDGET_120B` | `180000` | Daily ceiling for GPT-OSS 120B. |
 | `APEX_GROQ_DAILY_TOKEN_BUDGET_20B` | `180000` | Separate daily ceiling for GPT-OSS 20B. |
+| `APEX_ENABLE_GROQ_INVESTIGATOR_20B` | `true` | Enable the explicit 20B Investigator capability for Boss selection. |
+| `GROQ_AGENTIC_MODEL` | `openai/gpt-oss-20b` | Recommended first-run override: route standard Investigator capabilities to 20B as well. |
 
 The two daily budgets are model-scoped, not one shared bucket. The durable `agentic_llm_daily_usage` ledger is keyed by UTC date, provider and canonical model.
 
 ### Investigator routing
 
-- Set `APEX_ENABLE_GROQ_INVESTIGATOR_20B=true` to make the explicit `groq-investigator-20b` capability available to Boss.
-- The opening Boss prompt already prefers `groq-investigator-20b` for routine discovery/action selection. Boss still makes the capability choice; the runtime does not silently rotate models.
-- The explicit `groq-investigator-20b` capability is pinned to `openai/gpt-oss-20b`.
-- Standard `groq-investigator-N` capabilities use `GROQ_AGENTIC_MODEL`, then `GROQ_MODEL`, then `GROQ_CHAT_MODEL`, then the default `openai/gpt-oss-120b`. To explicitly route standard Investigator capabilities to 20B, set `GROQ_AGENTIC_MODEL=openai/gpt-oss-20b`. This is an operator model override; it does not change the capability ID stored in the case.
+- For the recommended first run, set both `APEX_ENABLE_GROQ_INVESTIGATOR_20B=true` and `GROQ_AGENTIC_MODEL=openai/gpt-oss-20b`.
+- The first setting makes the explicit `groq-investigator-20b` capability available to Boss; the opening Boss prompt prefers that capability for routine discovery/action selection. Boss still makes the capability choice.
+- The explicit `groq-investigator-20b` capability is pinned to `openai/gpt-oss-20b`. The second setting also routes standard `groq-investigator-N` capabilities to 20B if Boss chooses one of those IDs; it does not change the capability ID stored in the case.
+- Without `GROQ_AGENTIC_MODEL`, standard capabilities use `GROQ_MODEL`, then `GROQ_CHAT_MODEL`, then the default `openai/gpt-oss-120b`.
 
 ### Boss, Right-hand and final review
 
