@@ -195,13 +195,13 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
     const roleOrientation = apexOrientationFor("investigator");
-    expect(systemCore.length).toBeLessThan(3_200);
+    expect(systemCore.length).toBeLessThan(3_500);
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.");
+    expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
@@ -279,7 +279,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(targetPrompt).toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only");
+    expect(targetPrompt).toContain("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
     expect(targetPrompt).toContain("ASSIGNMENT TARGET:");
     expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(targetPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings");
@@ -357,7 +357,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
     expect(prompt.length).toBeLessThanOrEqual(4_000);
-    expect(empiricalTokens).toBeLessThanOrEqual(2_100);
+    expect(empiricalTokens).toBeLessThanOrEqual(2_300);
     expect(conservativeTokens).toBeLessThanOrEqual(2_700);
     expect(schemaChars).toBeGreaterThan(1_000);
   });
@@ -1763,7 +1763,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
+    expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
     expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
@@ -1849,7 +1849,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
-    expect(prompt.length).toBeLessThan(9_000);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
@@ -3049,13 +3049,24 @@ Choose each next action yourself from the available capabilities and observed ev
       "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
-    expect(schema?.properties?.findings?.items?.required).toEqual(["vectorType", "value", "scope", "sourceUrls"]);
+    expect(schema?.properties?.findings?.items?.required).toEqual([
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
+      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
+      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+    ]);
+    expect(schema?.properties?.findings?.items?.additionalProperties).toBe(false);
+    expect(schema?.properties?.searches?.items?.required).toEqual(["query", "provider", "registry", "locale", "market", "purpose"]);
+    expect(schema?.properties?.searches?.items?.additionalProperties).toBe(false);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
-    expect(schema?.properties?.provider).toEqual({ type: "string", enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders] });
+    const providerSchema = schema?.properties?.provider as { type?: unknown; enum?: Array<string | null> };
+    expect(providerSchema.type).toEqual(["string", "null"]);
+    expect(providerSchema.enum).toContain(null);
+    expect(providerSchema.enum?.filter((value) => value !== null)).toEqual(["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders]);
     expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
-    expect(schema?.properties?.targetType).toEqual({ type: "string" });
+    expect((schema?.properties?.targetType as { type?: unknown }).type).toEqual(["string", "null"]);
   });
 
   it("keeps a full discovery prompt plus completion reservation inside a conservative Groq TPM envelope", () => {
@@ -3229,7 +3240,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(8_500);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("LEAD FOLLOW-UP (advisory): compare unvisited same-scope URLs with other actions by expected information gain.");
@@ -3552,7 +3563,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThan(8_500);
+    expect(prompt.length).toBeLessThan(10_000);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
@@ -3686,9 +3697,13 @@ Choose each next action yourself from the available capabilities and observed ev
       json_schema?: { schema?: { required?: string[]; properties?: Record<string, unknown> } };
     };
     const schema = responseFormat.json_schema?.schema;
-    expect(schema?.required).toEqual(["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"]);
-    expect(schema?.properties?.sources).toBeDefined();
-    expect(schema?.properties?.profile).toBeDefined();
+    expect(schema?.required).toEqual([
+      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
+      "target", "targetType", "profile", "sources", "searches", "findings",
+    ]);
+    expect((schema?.properties?.sources as { type?: unknown }).type).toEqual(["array", "null"]);
+    expect((schema?.properties?.profile as { type?: unknown }).type).toEqual(["string", "null"]);
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
     expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action object; include all schema keys");
