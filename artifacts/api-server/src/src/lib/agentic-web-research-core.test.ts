@@ -452,7 +452,7 @@ describe("trajectory-local web-search provider failure state", () => {
 
     vi.stubEnv("SERPER_API_KEY", "configured-serper-test-key");
     vi.stubEnv("TAVILY_API_KEY", "configured-tavily-test-key");
-    const states = new Map([["serper", { failures: 1, lastFailureClass: "unauthorized", disabled: true }]]);
+    const states = new Map([["serper", { failures: 1, lastFailureClass: "unauthorized" as const, disabled: true }]]);
     expect(selectConfiguredSearchProvider(states)).toBe("tavily");
     vi.unstubAllEnvs();
   });
