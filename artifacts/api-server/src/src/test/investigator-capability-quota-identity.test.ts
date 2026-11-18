@@ -17,11 +17,13 @@ describe("Investigator credential quota identity", () => {
 
   it("keeps configured slots visible while counting duplicate credentials as one quota pool", () => {
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-2",
       "groq-investigator-3",
     ]);
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-3",
     ]);
@@ -30,6 +32,7 @@ describe("Investigator credential quota identity", () => {
   it("excludes every alias of an exhausted credential during recovery", () => {
     const excluded: InvestigatorCapability[] = ["groq-investigator-2"];
     expect(getAvailableDistinctInvestigatorCapabilities(env, excluded)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-3",
     ]);
   });
@@ -47,6 +50,7 @@ describe("Investigator credential quota identity", () => {
       GROQ_INVESTIGATOR_API_KEY_1: "  shared-test-credential  ",
     } as NodeJS.ProcessEnv;
     expect(getAvailableDistinctInvestigatorCapabilities(whitespaceEnv)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1",
       "groq-investigator-3",
     ]);
@@ -64,21 +68,22 @@ describe("Investigator credential quota identity", () => {
       GROQ_INVESTIGATOR_API_KEY_7: "credential-7",
     } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(expanded)).toEqual([
+      "groq-investigator-20b",
       "groq-investigator-1", "groq-investigator-2",
       "groq-investigator-3", "groq-investigator-4", "groq-investigator-5",
       "groq-investigator-6", "groq-investigator-7", "groq-investigator-8",
     ]);
   });
 
-  it("keeps the unverified 20B endpoint out of default model selection", () => {
-    expect(getAvailableInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).not.toContain("groq-investigator-20b");
-    const enabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(enabled)).toContain("groq-investigator-20b");
-    expect(getAvailableDistinctInvestigatorCapabilities(enabled)).toContain("groq-investigator-20b");
+  it("exposes the 20B endpoint by default and permits explicit disablement", () => {
+    expect(getAvailableInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
+    const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(disabled)).not.toContain("groq-investigator-20b");
+    expect(getAvailableDistinctInvestigatorCapabilities(disabled)).not.toContain("groq-investigator-20b");
   });
 
-  it("permits the explicit 20B model fallback only after opt-in and for model-scoped quota recovery", () => {
+  it("permits 20B model-scoped quota recovery by default and supports explicit disablement", () => {
     const singleCredential = {
       GROQ_INVESTIGATOR_API_KEY: "one-credential",
       GROQ_INVESTIGATOR_API_KEY_1: "",
@@ -92,20 +97,20 @@ describe("Investigator credential quota identity", () => {
       singleCredential,
       "groq-investigator-1",
       ["groq-investigator-1"],
-    )).toBeNull();
-    const optedIn = { ...singleCredential, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    )).toBe("groq-investigator-20b");
+    const disabled = { ...singleCredential, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
     expect(getModelScopedInvestigatorQuotaFallback(
-      optedIn,
+      disabled,
       "groq-investigator-1",
       ["groq-investigator-1"],
-    )).toBe("groq-investigator-20b");
+    )).toBeNull();
     expect(getModelScopedInvestigatorQuotaFallback(
-      optedIn,
+      singleCredential,
       "groq-investigator-20b",
       ["groq-investigator-20b"],
     )).toBe("groq-investigator-1");
     expect(getModelScopedInvestigatorQuotaFallback(
-      optedIn,
+      singleCredential,
       "groq-investigator-1",
       ["groq-investigator-1", "groq-investigator-20b"],
     )).toBeNull();
