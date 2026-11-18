@@ -175,7 +175,7 @@ describe("AI investigation context compaction", () => {
     const fetchedContext = "BOUNDED TRAJECTORY PROJECTION:\\n" + JSON.stringify([
       { action: "visit", execution: "success", observedUrls: [sourceUrl] },
     ]);
-    const summary = "The filing supports a director appointment. Source: " + sourceUrl;
+    const summary = "The filing states Jane Example's appointment. Source: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
