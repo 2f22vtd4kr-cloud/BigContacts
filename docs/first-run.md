@@ -27,7 +27,8 @@ The two daily budgets are model-scoped, not one shared bucket. The durable `agen
 
 - Groq Boss defaults to `openai/gpt-oss-120b`, with `openai/gpt-oss-20b` as its code-defined fallback.
 - Groq Right-hand defaults to `openai/gpt-oss-120b`, with `openai/gpt-oss-20b` as its code-defined fallback.
-- Final target review calls Groq Boss first and Groq Right-hand as its fallback. The `resolveGeminiBossModel` name is a compatibility alias; this path is Groq, not Gemini.
+- Per-act target control review calls Groq Right-hand first for advisory, then Groq Boss for the continue/redirect/stop decision. Both default to `openai/gpt-oss-120b`, with `openai/gpt-oss-20b` as their code-defined fallback. The Boss is the final control decision-maker; there is no separate final-review model ID.
+- The `resolveGeminiBossModel` name is a compatibility alias; this path is Groq, not Gemini.
 - There is currently **no environment variable that overrides the Boss or Right-hand model IDs**. Their environment variables configure credentials, not model routing: `GROQ_BOSS_API_KEY` (plus `GROQ_BOSS_API_KEY_1` through `_10`) and `GROQ_RIGHT_HAND_API_KEY` (plus `GROQ_RIGHT_HAND_API_KEY_1` through `_5`). Investigator credentials are `GROQ_INVESTIGATOR_API_KEY` (plus `GROQ_INVESTIGATOR_API_KEY_1` through `_7`).
 
 Do not set an invented `GROQ_BOSS_MODEL` or `GROQ_RIGHT_HAND_MODEL`; those are not runtime overrides in the current code.
