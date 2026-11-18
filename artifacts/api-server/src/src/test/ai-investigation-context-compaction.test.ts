@@ -132,7 +132,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
-    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(170);
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
     expect(source.length).toBeGreaterThanOrEqual(12_000);
     expect(source.length).toBeLessThanOrEqual(14_000);
     const alternate = source.replace("HISTORICAL MEMORY", "HISTORICAL MEMORIES");
@@ -192,7 +192,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
-    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(170);
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-120b", raw: null, error: "empty response", attempts: [],
     });
