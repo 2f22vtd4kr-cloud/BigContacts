@@ -94,6 +94,63 @@ describe("AI investigation context compaction", () => {
     });
   });
 
+  it("skips AI compaction for ordinary historical context below the raised threshold", async () => {
+    const source = "HISTORICAL MEMORY\\n" + "Observed source facts, uncertainty and provenance remain durable. ".repeat(150);
+    expect(source.length).toBeLessThan(14_000);
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-small-context", turn: 1,
+    })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
+  });
+
+  it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
+    expect(source.length).toBeGreaterThanOrEqual(14_000);
+    expect(source.length).toBeLessThanOrEqual(16_000);
+    const alternate = source.replace("HISTORICAL MEMORY", "HISTORICAL MEMORIES");
+    const summary = "Historical observations and unresolved questions are preserved; raw events remain durable.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
+
+    const first = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-turn-cache", turn: 4,
+    });
+    const cached = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-turn-cache", turn: 4,
+    });
+    const capped = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: alternate, maxChars: 900, jobId: "job-turn-cache", turn: 4,
+    });
+    expect(first).toBe(summary);
+    expect(cached).toBe(summary);
+    expect(capped).toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+
+    const nextTurn = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: alternate, maxChars: 900, jobId: "job-turn-cache", turn: 5,
+    });
+    expect(nextTurn).toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
+      preferredModel: "openai/gpt-oss-20b", allowModelFallback: false, maxAttempts: 1,
+    });
+  });
+
+  it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
+    const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b", raw: null, error: "empty response", attempts: [],
+    });
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 1,
+    })).resolves.toBeNull();
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 1,
+    })).resolves.toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses to compact case memory containing an explicit objective middle-omission marker", async () => {
     const source = [
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:",
