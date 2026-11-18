@@ -277,7 +277,6 @@ describe("AI investigation context compaction", () => {
 
   it("retries original-source compaction after the provider exhausts the first generation budget", async () => {
     const source = "CANONICAL CASE MEMORY\n" + "Observed source facts and unresolved questions. ".repeat(45);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "mock-boss-model",
@@ -673,8 +672,8 @@ describe("AI investigation context compaction", () => {
   it("keeps turn-scoped AI compaction on 20B and uses deterministic projection on provider throttle", async () => {
     const source = [
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: the exact objective remains authoritative.",
-      "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "preserve source-linked state and uncertainty. ".repeat(170),
-      "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "older observations remain available in durable events. ".repeat(20),
+      "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "preserve source-linked state and uncertainty. ".repeat(180),
+      "NEWLY AGED DURABLE TRAJECTORY RECORDS: " + "older observations remain available in durable events. ".repeat(25),
     ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
@@ -740,7 +739,6 @@ describe("AI investigation context compaction", () => {
 
   it("does not borrow the 120B Boss budget after a model-scoped 20B TPM 429", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
@@ -756,7 +754,6 @@ describe("AI investigation context compaction", () => {
 
   it("does not borrow the 120B Boss budget after a local 20B TPM cooldown", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
@@ -772,7 +769,6 @@ describe("AI investigation context compaction", () => {
 
   it("does not borrow the 120B Boss budget after a token-classified 20B 429", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
@@ -788,7 +784,6 @@ describe("AI investigation context compaction", () => {
 
   it("does not borrow the 120B Boss budget after a Groq HTTP 413 model TPM throttle", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
@@ -812,7 +807,6 @@ describe("AI investigation context compaction", () => {
   it("does not borrow the 120B Boss budget when original-source 20B repair is throttled", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
     const oversizedSummary = "PRIOR_SUMMARY_ONLY_SENTINEL " + "This intermediate summary is too long to satisfy the bounded summary contract. ".repeat(20);
-    const correctedSummary = "The source memory remains available for model-led research.";
 
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
@@ -837,7 +831,6 @@ describe("AI investigation context compaction", () => {
 
   it("does not borrow the 120B Boss budget for redacted structured 20B token-window metadata", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY\\n" + "Observed source facts and unresolved questions. ".repeat(80);
-    const summary = "The source memory remains available for model-led research.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({
         model: "openai/gpt-oss-20b",
