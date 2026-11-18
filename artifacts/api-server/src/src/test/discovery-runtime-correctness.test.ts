@@ -30,7 +30,7 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
-    expect(orientationSource).toContain("INTELLIGENCE SCORE AUTHORITY");
+    expect(researchCoreSource).toContain("Deterministic intelligence weights, rankings and stopping hints are advisory only");
   });
 
   it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
@@ -64,7 +64,7 @@ describe("discovery runtime architecture", () => {
     expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
     expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientationSource).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
-    expect(orientationSource).toContain("Actively consider whether a native registry/asset-register query can complement public-web discovery");
+    expect(researchCoreSource).toContain("Actively consider complementary registry/asset-register research alongside public-web search");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
     expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
