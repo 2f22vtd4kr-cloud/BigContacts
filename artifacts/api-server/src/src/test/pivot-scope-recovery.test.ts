@@ -149,7 +149,7 @@ describe("cross-pivot scope recovery context", () => {
     expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
   });
 
-  it("reports semantic scope mismatches as advisory and preserves the Investigator-selected query", () => {
+  it("does not inject deterministic sector warnings into an open opening direction", () => {
     const query = "family-owned engineering firms in Austria ownership filings";
     const args = { query, provider: "serper" };
     const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", args, []);
