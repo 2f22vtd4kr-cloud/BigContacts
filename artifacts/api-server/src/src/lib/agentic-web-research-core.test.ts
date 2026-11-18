@@ -203,7 +203,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
-    expect(systemCore).toContain("OPEN DISCOVERY: Form concrete, falsifiable hypotheses");
+    expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
     expect(systemCore).toContain("No fixed source/provider/registry order or mix.");
