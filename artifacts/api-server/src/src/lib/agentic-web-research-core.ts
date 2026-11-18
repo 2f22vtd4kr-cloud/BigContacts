@@ -1158,6 +1158,13 @@ export function selectConfiguredSearchProvider(
   return getConfiguredSearchProviders().find((provider) => !isSearchProviderDisabled(states, provider)) ?? null;
 }
 
+/** RDAP is the free, standards-based technical default; WHOISJSON remains an explicit model option. */
+export function resolveDomainLookupProvider(
+  requested?: "rdap" | "whoisjson",
+): "rdap" | "whoisjson" {
+  return requested ?? "rdap";
+}
+
 export function renderSearchProviderAvailabilityNotice(
   states: ReadonlyMap<string, SearchProviderFailureState>,
 ): string {
@@ -6013,7 +6020,7 @@ if (action.action === "web_search") {
 }
 let effectiveDomainLookupProvider: "rdap" | "whoisjson" | null = null;
 if (action.action === "domain_lookup") {
-  effectiveDomainLookupProvider = action.provider ?? "rdap";
+  effectiveDomainLookupProvider = resolveDomainLookupProvider(action.provider);
   selectedArgs.provider = effectiveDomainLookupProvider;
 }
 const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; // Semantic relevance and scope are decided by the Investigator and Boss, not
