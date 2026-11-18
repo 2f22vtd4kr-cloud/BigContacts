@@ -154,8 +154,8 @@ describe("cross-pivot scope recovery context", () => {
     const args = { query, provider: "serper" };
     const advisory = buildDiscoveryScopeAdvisory(approvedOpeningObjective, "web_search", args, []);
     expect(advisory).toBeNull();
-    // The advisory function is diagnostic only: it returns context and never
-    // rewrites the model-selected arguments.
+    // Open sector choice is not a deterministic scope warning; preserve the
+    // model-selected query unchanged.
     expect(args.query).toBe(query);
   });
 
