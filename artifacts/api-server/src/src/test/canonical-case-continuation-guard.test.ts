@@ -85,7 +85,7 @@ describe("canonicalCaseContinuationGuard", () => {
   });
   it("rebuilds continuation control context from the row-locked durable case", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
-    expect(source).toContain("initialContext=`ACTIVE DISCOVERY OBJECTIVE:");
+    expect(source).toContain("initialContext=`CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):");
     expect(source).toContain("trustedCaseContextDocument=contextOf(lockedFile)");
     expect(source).toContain("${trustedCaseContextDocument}`");
     expect(source).toContain("restorePersistedDiscoveryObjective({");
