@@ -4339,7 +4339,7 @@ describe("combined-main emergency discovery contract", () => {
       "AVAILABLE ACTIONS: web_search | visit | registry_search | done.",
       "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
       "OUTPUT CONTRACT: Return exactly one root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "DISCOVERY LEAD HANDOFF: preserve exact observed names and source URLs.",
       "RESEARCH TERMINAL GATE: stop only when the evidence contract permits.",
       "OPTIONAL HISTORICAL DETAIL: " + "older context that may be compacted ".repeat(700),
@@ -4441,7 +4441,7 @@ describe("small emergency observation budgets", () => {
       "CASE OBJECTIVE: preserve this human objective sentinel.",
       "AVAILABLE ACTIONS: web_search | visit | done.",
       "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "POLICY (paraphrased): the Investigator owns source choice, target relevance, pivots and stopping; search snippets are leads until fetched.",
     ].join("\n\n");
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
@@ -4459,7 +4459,7 @@ describe("small emergency observation budgets", () => {
       "CASE OBJECTIVE: investigate the supplied target class and geography.",
       "AVAILABLE ACTIONS: web_search | visit | done.",
       "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose.",
-      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
       "DECISION OWNERSHIP: the Investigator chooses the hypothesis, evidence route, tools, follow-up and stopping point. Treat snippets as provisional leads and distinguish failed retrieval from a no-hit.",
     ].join("\n\n");
 
