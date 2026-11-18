@@ -403,7 +403,7 @@ export function buildDiscoveryLeadUtilizationState(
   };
 }
 
-export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
+export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
@@ -2078,7 +2078,7 @@ export function selectGroqInvestigatorModel(input: {
 }): string {
   if (input.capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "openai/gpt-oss-20b";
   const configured = input.configuredModel?.trim();
-  return configured || input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
+  return configured || "openai/gpt-oss-20b" || input.highReasoningModel?.trim() || GROQ_DEFAULT_MODEL || "openai/gpt-oss-120b";
 }
 
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
@@ -2648,7 +2648,9 @@ async function callGroqJson(
               return "";
             }
           })();
-          lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
+          lastProviderError = response.status === 400
+            ? "provider_contract_error"
+            : providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
           const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
           // Some provider 400 envelopes include partial usage even when they
           // reject structured output. Preserve only parsed numeric counters;
@@ -2695,6 +2697,12 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
+          // A provider HTTP 400 is a request/schema contract failure, not a
+          // model response. Fail this Investigator episode immediately; never
+          // retry it as JSON-object generation or pass it to Boss as research.
+          if (response.status === 400) {
+            return { model, raw: "", error: "provider_contract_error" };
+          }
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode,
@@ -3052,6 +3060,58 @@ const AGENTIC_ACTION_SCHEMA = {
   },
 } as const;
 
+type GroqJsonSchemaNode = Record<string, unknown>;
+
+/**
+ * Groq strict JSON-schema mode requires every object property at every depth
+ * to be required. Preserve the model's optional semantics by making fields
+ * that were optional in the source schema explicitly nullable. Arrays remain
+ * arrays when required; optional arrays become array|null. The local action
+ * parser and allowlist remain the authoritative semantic validator.
+ */
+function nullableGroqSchemaNode(schema: GroqJsonSchemaNode): GroqJsonSchemaNode {
+  const next: GroqJsonSchemaNode = { ...schema };
+  const type = next.type;
+  if (typeof type === "string") next.type = type === "null" ? ["null"] : [type, "null"];
+  else if (Array.isArray(type) && !type.includes("null")) next.type = [...type, "null"];
+  const enumValues = next.enum;
+  if (Array.isArray(enumValues) && !enumValues.includes(null)) next.enum = [...enumValues, null];
+  return next;
+}
+
+function strictifyGroqJsonSchemaNode(schema: GroqJsonSchemaNode, requiredByParent = true): GroqJsonSchemaNode {
+  let next: GroqJsonSchemaNode = { ...schema };
+  const properties = next.properties;
+  if (next.type === "object" || (properties && typeof properties === "object" && !Array.isArray(properties))) {
+    const sourceProperties = (properties ?? {}) as Record<string, unknown>;
+    const sourceRequired = new Set(Array.isArray(next.required) ? next.required.filter((value): value is string => typeof value === "string") : []);
+    const strictProperties: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(sourceProperties)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        strictProperties[key] = value;
+        continue;
+      }
+      const wasRequired = sourceRequired.has(key);
+      const strictChild = strictifyGroqJsonSchemaNode(value as GroqJsonSchemaNode, wasRequired);
+      strictProperties[key] = wasRequired ? strictChild : nullableGroqSchemaNode(strictChild);
+    }
+    next = {
+      ...next,
+      properties: strictProperties,
+      required: Object.keys(sourceProperties),
+      additionalProperties: false,
+    };
+  }
+  if (next.type === "array" && next.items && typeof next.items === "object" && !Array.isArray(next.items)) {
+    next.items = strictifyGroqJsonSchemaNode(next.items as GroqJsonSchemaNode, true);
+  }
+  return requiredByParent ? next : nullableGroqSchemaNode(next);
+}
+
+export function strictifyGroqJsonSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  return strictifyGroqJsonSchemaNode(schema, true);
+}
+
 export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
   // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
   // with json_validate_failed, including after the JSON-object compatibility retry.
@@ -3086,7 +3146,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     },
   };
   return strictSupported
-    ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema } }
+    ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: strictifyGroqJsonSchema(schema as unknown as Record<string, unknown>) } }
     : { type: "json_object" };
 }
 
@@ -5974,7 +6034,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
       }
-      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const stopReason = dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const dailyBudgetExhausted = llm.providerError === "daily_token_budget_exhausted" || llm.providerError === "local_provider_budget_exhausted"; const usageLedgerUnavailable = llm.providerError === "daily_usage_ledger_unavailable"; const providerContractError = llm.providerError === "provider_contract_error"; const stopReason = providerContractError ? "PROVIDER_CONTRACT_ERROR" : dailyBudgetExhausted ? "DAILY_TOKEN_BUDGET_EXHAUSTED" : usageLedgerUnavailable ? "USAGE_LEDGER_UNAVAILABLE" : "LLM_UNAVAILABLE"; const status = providerContractError ? "error" : dailyBudgetExhausted ? "budget_exhausted" : "unavailable"; const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: providerContractError ? "provider_contract_error" : "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: providerContractError ? "PROVIDER_CONTRACT_ERROR: Groq rejected the Investigator request contract (HTTP 400); no model action or research request was generated. The run is stopped before Boss adjudication." : dailyBudgetExhausted ? "Configured daily LLM token budget exhausted before provider egress; case must be preserved for resume." : usageLedgerUnavailable ? "Durable daily LLM usage ledger unavailable; provider egress was blocked." : `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], stopReason, failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: ${providerContractError ? "provider_contract_error" : "investigator_provider_error"} execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: providerContractError ? "error" : dailyBudgetExhausted ? "budget_exhausted" : "error", summary: lastObservation }); return resultBase(status, i + 1, stopReason, lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
