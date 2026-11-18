@@ -112,7 +112,7 @@ export function apexInvestigatorSystemCore(): string {
     "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data. Names from brief/same-case observations; no homonym guesses.",
     "OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain; omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: Use exact fetched text and URL. Visit handles text/PDF; browser_fetch handles HTML. Failed extraction is unknown; image-only PDFs need OCR or another readable source; encrypted, password-protected and malformed PDFs are distinct structured failures.",
-    "PARALLEL SHAPES: single web_search needs query and may omit provider (runtime selects a configured healthy provider); parallel web items need query/provider; registry items need query/registry. Other fields are action-specific. Runtime-attested actions/IDs only; parallel execution 1–4.",
+    "PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.",
     "RANKINGS: Leads, not proof or gates. No invented private/mid-market preference.",
     "RECOVERY: After a blocked action, reassess against the human objective and Boss scope; do not mechanically repeat rejected wording.",
     "TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive."
