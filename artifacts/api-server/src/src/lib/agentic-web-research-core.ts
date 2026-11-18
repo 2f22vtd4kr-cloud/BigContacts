@@ -4596,7 +4596,7 @@ export function discoveryUnscopedGeographyReason(
       "i",
     ).test(objective);
     if (!humanSpecifiedOnly && !explicitExclusion) continue;
-    return "explicit_geographic_restriction: the human objective restricts the proposed jurisdiction " + geography + "; no outbound request was made.";
+    return "unapproved_geography_guard: explicit human geographic restriction for jurisdiction " + geography + "; treat this as a scope advisory and do not repeat the excluded search.";
   }
   return null;
 }
