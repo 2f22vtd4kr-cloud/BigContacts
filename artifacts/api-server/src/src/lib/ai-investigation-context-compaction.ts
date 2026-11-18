@@ -460,6 +460,92 @@ function logPromptBudgetFailure(
   }, "AI memory compaction prompt exceeded the bounded Right-hand request budget; source was not truncated or sent");
 }
 
+async function requestSummaryLegacy(
+  source: string,
+  allowedSource: string,
+  maxChars: number,
+  input: AiInvestigationContextCompactionInput,
+  successfulFetchUrls: ReadonlySet<string> = sourceSuccessfulFetchUrls(allowedSource),
+): Promise<string | null> {
+  try {
+    const maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
+    const prompt = buildSummaryPrompt(source, maxChars);
+    if (prompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "primary", source.length, prompt.length, maximumPromptChars); return null; }
+
+    // Memory compaction is a non-decision transformation. Use the separate
+    // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
+    // Boss strategic-control quota or Right-hand 120B advisory capacity.
+    // Compaction must not sit through TPM reset waits or spend a retry on a
+    // throttled 20B model. One attempt yields a structured diagnostic; the
+    // bounded same-role 120B recovery below is the only fallback attempt.
+    const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
+    let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
+
+    // Do not spend another 20B request repairing a request that failed because
+    // that model's short token window is exhausted. Recover once on the
+    // already-configured Right-hand 120B model, retaining the same task/role.
+    if (!primary.raw && recoverableCompactionModelThrottle(primary.error)) {
+      if (input.allowRecoveryModel === false) return null;
+      const fallbackPrompt = buildSummaryPrompt(
+        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
+        maxChars,
+        "the preferred 20B model hit a model-scoped short-window token limit; produce the same bounded, source-faithful summary on the configured Right-hand recovery model",
+      );
+      if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
+      const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
+      validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
+      if (!validation.issues.length) return validation.summary;
+      logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+      return null;
+    }
+    if (!retryableSummaryResponse(primary)) return null;
+
+    const repairPrompt = buildSummaryPrompt(
+      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
+      maxChars,
+      validation.issues.join("; "),
+    );
+    if (repairPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "repair", source.length, repairPrompt.length, maximumPromptChars); return null; }
+    const repair = await requestRightHandSummary(repairPrompt, input, "openai/gpt-oss-20b", 1);
+    validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
+    // A non-empty but invalid primary summary can still be followed by a
+    // model-scoped TPM throttle on the 20B repair request. The repair throttle
+    // must receive the same bounded, same-role 120B recovery as a primary
+    // throttle; otherwise compaction fails despite a healthy recovery model.
+    const repairWasModelThrottled = recoverableCompactionModelThrottle(repair.error);
+    if (!retryableSummaryResponse(repair) && !repairWasModelThrottled) return null;
+
+    if (input.allowRecoveryModel === false) return null;
+    const fallbackReason = repairWasModelThrottled
+      ? "the original-source 20B repair request hit a model-scoped short-window token limit; perform the same bounded, source-faithful summary on the configured Right-hand recovery model"
+      : "the primary and repair summaries both failed validation (" + validation.issues.join("; ") + "). Re-read the complete original source and produce a materially shorter, source-faithful JSON summary";
+    const fallbackPrompt = buildSummaryPrompt(
+      "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + source,
+      maxChars,
+      fallbackReason,
+    );
+    if (fallbackPrompt.length > maximumPromptChars) { logPromptBudgetFailure(input, "fallback", source.length, fallbackPrompt.length, maximumPromptChars); return null; }
+    const fallback = await requestRightHandSummary(fallbackPrompt, input, "openai/gpt-oss-120b", 1);
+    validation = validateSummary(fallback.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "fallback", fallback.model, maxChars, validation);
+    return null;
+  } catch (error) {
+    logger.warn({
+      role: "apex_memory_compaction",
+      phase: "request_failed",
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      errorName: error instanceof Error ? error.name : "unknown",
+    }, "AI memory compaction request failed");
+    return null;
+  }
+}
+
 async function requestSummary(
   source: string,
   allowedSource: string,
@@ -519,9 +605,119 @@ function compactionOwnerKey(input: AiInvestigationContextCompactionInput): strin
  * deterministic projection; objective/scope are supplied verbatim elsewhere.
  * At most one model request is allowed per job/turn, with exact-content reuse.
  */
+async function summarizeInvestigatorContextWithAiCompactorLegacy(
+  input: AiInvestigationContextCompactionInput,
+): Promise<string | null> {
+  const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
+  if (!source) return "";
+  // Only inspect the explicitly authoritative objective section. Public-page
+  // observations are untrusted data and may quote this marker without corrupting
+  // the actual case objective; those observations must remain eligible for AI compaction.
+  const objectiveSection = source.match(
+    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
+  );
+  if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
+  const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
+  const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
+  if (source.length <= maxChars) return source;
+
+  let maximumPromptChars: number;
+  try {
+    maximumPromptChars = GROQ_RIGHT_HAND_MAX_PROMPT_CHARS;
+  } catch {
+    return null;
+  }
+
+  // Reject only pathological inputs by size; never silently discard their middle
+  // or tail. Ordinary multi-chunk contexts are reduced hierarchically by the AI memory compactor.
+  const MAX_SOURCE_CHARS = 2_000_000;
+  if (source.length > MAX_SOURCE_CHARS) return null;
+  // Keep the prompt envelope efficient while bounding model calls for pathological
+  // case histories. A 57k audit context becomes four sequential chunks, not a burst.
+  const MAX_COMPACTION_SOURCE_CHUNKS = 8;
+  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
+  const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
+  // Never derive fetch authority from the combined prompt: it begins with the
+  // user/Boss objective, which is untrusted and may quote runtime-looking headings.
+  // The continuation route supplies the separately persisted case document.
+  const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
+  if (!sourceChunks.length || sourceChunks.length > MAX_COMPACTION_SOURCE_CHUNKS) {
+    logger.warn({ jobId: input.jobId ?? null, caseId: input.caseId ?? null, sourceChars: source.length, chunkCount: sourceChunks.length, maxChunks: MAX_COMPACTION_SOURCE_CHUNKS }, "[AI compaction] Source exceeds the bounded compaction chunk budget; refusing a compaction request burst.");
+    return null;
+  }
+  if (sourceChunks.length === 1) return requestSummaryLegacy(source, source, maxChars, input, trustedFetchUrls);
+
+  // A 1,200-character floor rejected otherwise usable 1,393-character partial
+  // memories in the live run. Give intermediate model summaries bounded headroom;
+  // the final merged memory remains subject to the caller's unchanged maxChars.
+  const partialTarget = Math.min(1_600, Math.max(1_500, Math.floor((maxChars * 1.5) / sourceChunks.length)));
+  const partialSummaries: string[] = [];
+  const successfulFetchUrls = new Set<string>();
+  // Keep independent memory segments sequential to avoid compaction bursts.
+  // The same-role 20B model handles compaction; Boss 120B retains capacity for strategic
+  // control decisions; the Investigator still owns all research actions.
+  for (const chunk of sourceChunks) {
+    const chunkSuccessfulFetchUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
+    for (const url of chunkSuccessfulFetchUrls) successfulFetchUrls.add(url);
+    const summary = await requestSummaryLegacy(chunk, chunk, partialTarget, input, chunkSuccessfulFetchUrls);
+    if (!summary) return null;
+    partialSummaries.push(summary);
+  }
+
+  const promptInputBudget = Math.max(2_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
+  const combine = (summaries: string[]) => summaries
+    .map((summary, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + summary)
+    .join("\n\n");
+
+  let summaries = partialSummaries;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const combined = combine(summaries);
+    if (combined.length <= promptInputBudget) {
+      // Do not return a mechanical concatenation as though it were a summary.
+      return requestSummaryLegacy(combined, combined, maxChars, input, successfulFetchUrls);
+    }
+
+    const batches: string[][] = [];
+    let pending: string[] = [];
+    for (const summary of summaries) {
+      const candidate = combine([...pending, summary]);
+      if (pending.length && candidate.length > promptInputBudget) {
+        batches.push(pending);
+        pending = [summary];
+      } else {
+        pending.push(summary);
+      }
+    }
+    if (pending.length) batches.push(pending);
+    if (batches.length >= summaries.length) return null;
+
+    const nextTarget = Math.min(
+      maxChars,
+      Math.max(MIN_SUMMARY_CHARS, Math.floor((maxChars * 1.5) / batches.length)),
+    );
+    const reduced: string[] = [];
+    for (let offset = 0; offset < batches.length; offset += 2) {
+      const currentBatch = batches.slice(offset, offset + 2);
+      for (const batch of currentBatch) {
+        const batchSource = combine(batch);
+        const summary = await requestSummaryLegacy(batchSource, batchSource, nextTarget, input, successfulFetchUrls);
+        if (!summary) return null;
+        reduced.push(summary);
+      }
+    }
+    summaries = reduced;
+  }
+  return null;
+}
+
 export async function summarizeInvestigatorContextWithAiCompactor(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
+  // Compatibility for older non-turn-scoped callers. Every production Investigator
+  // call site supplies turn; that path below is capped to one model request/turn.
+  if (input.turn == null && input.compactionKind !== "observation") {
+    return summarizeInvestigatorContextWithAiCompactorLegacy(input);
+  }
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return "";
   if (input.compactionKind === "observation") return null;
