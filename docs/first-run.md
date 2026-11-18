@@ -33,6 +33,16 @@ The two daily budgets are model-scoped, not one shared bucket. The durable `agen
 
 Do not set an invented `GROQ_BOSS_MODEL` or `GROQ_RIGHT_HAND_MODEL`; those are not runtime overrides in the current code.
 
+## Open-ended discovery objective and source mix
+
+Keep the default evidence-led objective unless the human has a genuine case-specific constraint to add. It is intentionally open across sectors, countries, people, organizations and assets. Do not narrow it to one sector or country merely to make the first run easier to measure.
+
+`targetCount: 1` is an operator spending ceiling for the number of target investigations, not a discovery filter or a one-sector/one-country instruction. The Investigator should form a concrete, falsifiable hypothesis from the objective and evidence, then choose whether public-web search, one or more enabled registries, or both offer the best information gain. The available registry catalog is randomized at runtime; the model chooses which adapters and queries are relevant. There is no mandatory mixed-source first pass, fixed order, registry sweep, or preferred geography.
+
+Avoid turning generic labels such as “potential investors” or “high-net-worth individuals” into broad glossary searches. The model should develop a concrete hypothesis about a person, organization, asset, ownership/control relationship, activity or public route. Different runs may legitimately investigate entirely different domains and jurisdictions. Search results and registry hits remain leads until fetched and interpreted.
+
+The operator objective has its own 1,600-character limit. Historical discovery context retains its separate 1,200-character limit; do not conflate the two.
+
 ## Launch: one target, at most three Boss control turns
 
 1. Set `APEX_ATLAS_MAX_CONTROL_TURNS=3` in the API server environment. This existing ceiling limits post-discovery Boss control turns; it is not a cap on total Investigator actions or provider calls.
