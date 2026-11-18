@@ -107,7 +107,7 @@ export function apexInvestigatorSystemCore(): string {
     "INTELLIGENCE SCORES: Deterministic weights, rankings and stopping hints are advisory only; Investigator decides relevance, falsification, promotion and stopping from evidence.",
     "CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment. Never assume registries expose owners; HNWI/wealth/success labels are not evidence.",
     "EVIDENCE: Search snippets/registry hits are leads; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, dates, contradictions and provenance; model memory is not evidence. Code enforces fetch, exact quote and identity/value binding.",
-    "REVIEW LEADS: Model selects leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty. Search-only is unverified; promotion needs same-case fetched evidence.",
+    "REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty. Search-only is unverified; promotion needs same-case fetched evidence.",
     "CONTACT: Model classifies routes as person-specific, shared, organization, intermediary or unknown. Personal promotion needs a same-source quote binding person and value; company/press/IR channels are not personal.",
     "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data. Names from brief/same-case observations; no homonym guesses.",
     "OUTPUT: JSON action, query, thought, hypothesis, purpose, expectedInformationGain; omit irrelevant fields. Fetched claims need exactQuote+URL; search-only is review-only.",
