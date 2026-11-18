@@ -5290,6 +5290,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // explicitly unknown and remains in the immutable event ledger.
   const providerBoundedPrompt = [
     preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
+    providerGuidance,
     targetModeGuidance,
     modelOwnedScopeGuidance,
     compactWorkerCapabilityGuidance,
