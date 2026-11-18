@@ -2016,6 +2016,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     );
     if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
     if (discovery.stopReason === "USAGE_LEDGER_UNAVAILABLE") throw new Error("investigator_usage_ledger_unavailable");
+    if (discovery.stopReason === "PROVIDER_CONTRACT_ERROR") throw new Error("investigator_provider_contract_error");
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -2605,7 +2606,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
-          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error");
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error" || record.action === "investigator_provider_error" || record.action === "provider_contract_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
