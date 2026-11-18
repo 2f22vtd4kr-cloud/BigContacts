@@ -316,6 +316,8 @@ describe("offline Investigator-to-card survival path", () => {
     expect(JSON.parse(String(promotionPayload))).toMatchObject({
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
+      sourceUrls: [testState.sourceUrl],
+      observedSourceUrls: [testState.sourceUrl],
       jobId: "job-1",
     });
   });
@@ -492,6 +494,7 @@ describe("offline Investigator-to-card survival path", () => {
       personName: "Jane Example",
       contactAttribution: "person_specific",
       exactQuote: testState.quote,
+      sourceUrls: [testState.sourceUrl],
       investigatorSelectedForCard: true,
     });
     expect(testState.entity.email).toBe("jane@acmeengineering.com");
