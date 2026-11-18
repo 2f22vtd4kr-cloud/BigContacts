@@ -19,6 +19,7 @@ const bureauPassFailureSource = fs.readFileSync(path.join(libDir, "bureau-agenti
 const launchDefaultsSource = fs.readFileSync(path.join(libDir, "atlas-launch-defaults.ts"), "utf8");
 const launchRouteSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const launchUiSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/lib/launch-atlas.ts"), "utf8");
+const launchButtonSource = fs.readFileSync(path.join(repoRoot, "artifacts/apex-finder/src/components/launch-atlas-button.tsx"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -653,6 +654,11 @@ describe("discovery runtime architecture", () => {
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600");
+    expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
+    expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS");
+    expect(launchButtonSource).toContain("maxLength={1_600}");
     expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
   });
 
