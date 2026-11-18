@@ -35,7 +35,7 @@ describe("Groq Investigator runtime contract", () => {
     const prompt = [
       "CASE OBJECTIVE: Discover evidence-backed operating-company decision makers.",
       "LATEST TRAJECTORY RECORD — TURN 3: " + "fetched source context ".repeat(500) + latestQuote,
-      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain.",
+      "OUTPUT CONTRACT: Return exactly one root JSON object; ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
     ].join("\\n\\n");
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
@@ -331,7 +331,7 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
     expect(submitted).toContain("Non-done hypothesis/purpose are non-empty");
     expect(submitted).toContain("expectedInformationGain is finite in [0,1]");
     expect(submitted).toContain("Only done may null query/thought/hypothesis/purpose/expectedInformationGain");
@@ -782,7 +782,7 @@ describe("Groq Investigator runtime contract", () => {
       "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
       "The latest fetched observation contains an exact ownership claim and must be checked against its source.",
       "LATEST SOURCE OBSERVATION: The filing names an owner. Exact URL: https://registry.example.test/company/123 and quote: \"Jane Doe owns 60% of Example Engineering GmbH.\"",
-      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
+      "OUTPUT CONTRACT: Return exactly one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain is a number in [0,1]."
     ].join("\n\n");
     const compacted = boundInvestigatorProviderPrompt(prompt, 2_700, "discovery");
     expect(compacted).toBe(prompt);
@@ -791,7 +791,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
-    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
 
   });
 
