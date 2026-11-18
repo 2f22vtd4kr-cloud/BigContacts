@@ -4852,7 +4852,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? openDiscoveryGuidance
       : "",
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: Investigator retains only selected worthwhile person/organization/asset leads as provisional review cards; preserve scope=person/organization/asset, exact URLs and uncertainty. Snippets/registry hits are leads, not evidence. Promotion needs attributable same-case fetched evidence; no automatic target selection."
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
