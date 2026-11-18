@@ -1810,29 +1810,29 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 /** Give the model a minimal, action-specific correction without selecting its next research action. */
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
-  const rationaleContract = "Include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Nested searches/findings objects must include all schema keys, using null for unused optional values. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain must be finite in [0,1]. Action-specific required values remain mandatory.";
+  const rationaleContract = "Include all schema keys; use null for unused scalar fields and [] for unused arrays. Nested searches/findings objects must include all schema keys, using null for unused optional nested values. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain finite [0,1]. Action-specific required values remain mandatory.";
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Include provider, locale, market and purpose keys; use null for unused optional values. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Include provider, locale, market and purpose keys; use null for unused optional values. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=parallel_web_search/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=visit/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=(?:visit|browser_fetch).*invalid=url/.test(failure)) {
     return "The previous model response contained a malformed URL (" + failure + "); no outbound request ran. Copy the complete URL from an exact same-case observed lead or fetched source. Use exactly one scheme prefix (https:// or http://); do not prepend a second scheme to a URL that already has one, do not concatenate or repair a malformed URL by guessing, and do not shorten or reconstruct its path. If the observed URL is not a valid complete HTTP(S) URL, choose another permitted action or another exact observed URL. The next research action remains your decision. " + rationaleContract + " Return every required top-level field and exactly one JSON object.";
   }
   if (/action=browser_fetch/.test(failure)) {
     const configuredBrowserProviders = getAvailableBrowserFetchProviders().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
-  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return the six required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Do not claim that a tool ran.`;
+  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Do not claim that a tool ran.`;
 }
 
 const MODEL_SELECTABLE_AGENT_ACTIONS = [
@@ -2203,14 +2203,19 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const requiredSchemaFields = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"];
+  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
+  const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
+  const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
   const schemaSection = fieldsAt >= 0 ? outputSection.slice(fieldsAt, fieldsAt + 2_500) : "";
   const completeSchemaPresent = requiredSchemaFields.every((field) => schemaSection.includes(field))
-    && /include all schema keys/i.test(schemaSection)
-    && /null for unused optional/i.test(schemaSection);
+    && requiredSearchFields.every((field) => schemaSection.includes(field))
+    && requiredFindingFields.every((field) => schemaSection.includes(field))
+    && /searches\[\] required keys/i.test(schemaSection)
+    && /findings\[\] required keys/i.test(schemaSection)
+    && /null for unused/i.test(schemaSection);
   if (!completeSchemaPresent) {
     throw new Error("Cannot send an Investigator request without its complete root and nested action schema.");
   }
@@ -5172,16 +5177,21 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Nested searches/findings objects include all schema keys; use null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
-  const requiredFieldNames = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"] as const;
+  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"] as const;
+  const requiredSearchFieldNames = ["query", "provider", "registry", "locale", "market", "purpose"] as const;
+  const requiredFindingFieldNames = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
     while (markerIndex >= 0) {
       const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
       if (requiredFieldNames.every((field) => fieldSection.includes(field))
-        && /include all schema keys/i.test(fieldSection)
-        && /null for unused optional/i.test(fieldSection)) return true;
+        && requiredSearchFieldNames.every((field) => fieldSection.includes(field))
+        && requiredFindingFieldNames.every((field) => fieldSection.includes(field))
+        && /searches\[\] required keys/i.test(fieldSection)
+        && /findings\[\] required keys/i.test(fieldSection)
+        && /null for unused/i.test(fieldSection)) return true;
       markerIndex = value.indexOf(marker, markerIndex + marker.length);
     }
     return false;
