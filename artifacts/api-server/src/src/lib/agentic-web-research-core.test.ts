@@ -439,6 +439,24 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
 }
 
 describe("trajectory-local web-search provider failure state", () => {
+  it("accepts domain_lookup without an infrastructure provider and leaves RDAP defaulting to runtime", () => {
+    const raw = JSON.stringify({
+      action: "domain_lookup",
+      domain: "northstarventures.io",
+      hypothesis: "Registration metadata may help corroborate the organization's public domain.",
+      purpose: "Inspect public domain registration metadata.",
+      expectedInformationGain: 0.3,
+    });
+    expect(describeAgentActionParseFailure(raw, ["domain_lookup"])).toBe("");
+    expect(parseAgentAction(raw, ["domain_lookup"])).toMatchObject({
+      action: "domain_lookup",
+      domain: "northstarventures.io",
+    });
+    const parsed = parseAgentAction(raw, ["domain_lookup"]);
+    if (parsed?.action !== "domain_lookup") throw new Error("Domain lookup response did not parse");
+    expect(parsed.provider).toBeUndefined();
+  });
+
   it("executes the four audit web_search responses without provider through the configured runtime default", async () => {
     const auditQueries = [
       "private equity investor emerging market investor lesser known",
