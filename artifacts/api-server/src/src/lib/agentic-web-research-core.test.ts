@@ -2767,7 +2767,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
-    expect(modelPrompt).toContain("Model classifies routes as person-specific, shared, organization, intermediary or unknown.");
+    expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("general company/press/IR channels do not qualify as individual access");
     expect(modelPrompt).not.toContain("do not select or surface them solely for wealth or prominence");
