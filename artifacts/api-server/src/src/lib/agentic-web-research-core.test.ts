@@ -1614,7 +1614,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=serper\|tavily\|exa/i);
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/Search\/registry snippets are leads; failed\/unfetched are unknown/i);
+    expect(modelPrompt).toMatch(/Search snippets\/registry hits remain leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
