@@ -135,9 +135,9 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     const discoveryObjective = typeof body.discoveryObjective === "string"
       ? body.discoveryObjective.trim()
       : "";
-    if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
+    if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS) {
       res.status(400).json({
-        error: `discoveryObjective must not exceed ${MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS} characters.`,
+        error: `discoveryObjective must not exceed ${MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS} characters.`,
         code: "DISCOVERY_OBJECTIVE_TOO_LONG",
       });
       return;
