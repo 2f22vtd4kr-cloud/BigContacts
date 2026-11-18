@@ -265,7 +265,7 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
   }
 
   it("carries a model-selected, fetched person-specific contact through quote verification, evidence persistence and canonical card promotion", async () => {
-    const sourceUrl = `https://profiles.integration-apex.example.com/team/${runToken}`;
+    const sourceUrl = `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`;
     const exactQuote = "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.";
     const finding = {
       vectorType: "email", value: "jane@acmeengineering.com", personName: "Jane Example",
@@ -323,7 +323,7 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
     {
       name: "fabricated exact quote",
       suffix: "fabricated",
-      sourceUrl: `https://profiles.integration-apex.example.com/team/${runToken}`,
+      sourceUrl: `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`,
       pageText: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com.",
       quote: "Jane Example — Managing Director can be reached directly at jane@acmeengineering.com (direct line).",
     },
@@ -337,7 +337,7 @@ describe.skipIf(!databaseEnabled)("offline Investigator-to-contact-card survival
     {
       name: "shared inbox mislabeled person-specific without supporting quote",
       suffix: "shared-inbox",
-      sourceUrl: `https://profiles.integration-apex.example.com/team/${runToken}`,
+      sourceUrl: `https://www.sec.gov/Archives/edgar/data/0000000000/offline-${runToken}.htm`,
       pageText: "Jane Example — Managing Director. General enquiries: info@acmeengineering.com.",
       quote: "Jane Example — Managing Director can be reached directly at info@acmeengineering.com.",
     },
