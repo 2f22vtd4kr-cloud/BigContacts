@@ -5839,6 +5839,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
+            turn: priorTurnOffset + i + 1,
           });
           compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
