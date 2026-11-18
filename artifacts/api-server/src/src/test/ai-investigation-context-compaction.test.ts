@@ -659,7 +659,6 @@ describe("AI investigation context compaction", () => {
   it("does not borrow the 120B Boss budget when both 20B memory summaries fail validation", async () => {
     const source = "COMPLETE ORIGINAL CASE MEMORY " + "Keep the source-stage distinction and unresolved ownership details. ".repeat(80);
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
-    const valid = "The case contains unverified leadership search leads only; no fetched source or claim-grade evidence is established.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null });
