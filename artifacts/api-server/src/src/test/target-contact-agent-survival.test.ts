@@ -209,8 +209,19 @@ import { runAgenticWebResearch } from "../lib/agentic-web-research";
 import { isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 import { runAgenticWebResearch as runInvestigatorCore } from "../lib/agentic-web-research-core";
 import { findingsToContacts, runTargetContactAgent, sourceBackedFindings } from "../lib/target-contact-agent";
-import * as strictContactPersistence from "../lib/bureau-contact-persist-strict";
 import { supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+const quoteVerifierMutation = vi.hoisted(() => ({ disabled: false }));
+vi.mock("../lib/bureau-contact-persist-strict", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/bureau-contact-persist-strict")>();
+  return {
+    ...actual,
+    supportsCandidateContactOnSameObservation: (...args: any[]) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsCandidateContactOnSameObservation(...args),
+    supportsContactClaimAcrossObservations: (...args: any[]) =>
+      quoteVerifierMutation.disabled ? true : actual.supportsContactClaimAcrossObservations(...args),
+  };
+});
+
 
 describe("offline Investigator-to-card survival path", () => {
   afterEach(() => {
@@ -713,8 +724,7 @@ describe("offline Investigator-to-card survival path", () => {
       hypothesisRationale: "The model asserts that the source supports the contact hypothesis.",
       promotionDecision: "promote",
     };
-    const sameObservationVerifier = vi.spyOn(strictContactPersistence, "supportsCandidateContactOnSameObservation").mockReturnValue(true);
-    const crossObservationVerifier = vi.spyOn(strictContactPersistence, "supportsContactClaimAcrossObservations").mockReturnValue(true);
+    quoteVerifierMutation.disabled = true;
     try {
       const result = await runFindingThroughRealTargetContactHandling({
         finding, sourceUrl, observation: actualText, runId: "offline-fabricated-quote-mutant",
@@ -727,8 +737,7 @@ describe("offline Investigator-to-card survival path", () => {
       expect(testState.entity.email).toBe("jane@acmeengineering.com");
       expect(testState.cardUpdate.email).toBe("jane@acmeengineering.com");
     } finally {
-      sameObservationVerifier.mockRestore();
-      crossObservationVerifier.mockRestore();
+      quoteVerifierMutation.disabled = false;
     }
   });
 
