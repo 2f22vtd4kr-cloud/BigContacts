@@ -72,6 +72,17 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
+  it("keeps fallback compaction on the bounded path when a caller omits its turn", async () => {
+    const source = "HISTORICAL MEMORY\\n" + "Observed source facts and provenance remain durable. ".repeat(180);
+    expect(source.length).toBeGreaterThan(8_000);
+    expect(source.length).toBeLessThan(14_000);
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source, maxChars: 900, jobId: "job-missing-turn-fallback",
+    }, "historical_memory");
+    expect(result?.method).toBe("deterministic_projection");
+    expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
+  });
+
   it("skips AI compaction for ordinary historical context below the raised threshold", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Observed source facts, uncertainty and provenance remain durable. ".repeat(150);
     expect(source.length).toBeLessThan(14_000);
@@ -158,10 +169,31 @@ describe("AI investigation context compaction", () => {
     });
   });
 
+  it("does not reuse a cached summary when fetched-source authority changes", async () => {
+    const sourceUrl = "https://registry.example.test/filings/123";
+    const source = "HISTORICAL MEMORY\\nSOURCE_URL: " + sourceUrl + "\\n" + "Source-bound observation and unresolved questions remain durable. ".repeat(205);
+    const fetchedContext = "BOUNDED TRAJECTORY PROJECTION:\\n" + JSON.stringify([
+      { action: "visit", execution: "success", observedUrls: [sourceUrl] },
+    ]);
+    const summary = "The filing supports a director appointment. Source: " + sourceUrl;
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-120b", raw: JSON.stringify({ summary }), error: null, attempts: [] });
+    const trusted = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, trustedSourceContext: fetchedContext, maxChars: 900, jobId: "job-authority-cache", turn: 1,
+    });
+    const untrusted = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 900, jobId: "job-authority-cache", turn: 2,
+    });
+    expect(trusted).toBe(summary);
+    expect(untrusted).toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+  });
+
   it("treats an empty AI compaction response as a miss without retrying in the same turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(205);
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-20b", raw: null, error: "empty response", attempts: [],
+      model: "openai/gpt-oss-120b", raw: null, error: "empty response", attempts: [],
     });
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source, maxChars: 900, jobId: "job-empty-compaction", turn: 1,
