@@ -5878,7 +5878,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           if (compacted?.method === "deterministic_projection") {
             emit("deterministic_observation_compaction_fallback", {
               status: "partial",
-              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+              summary: "Recent observations are not semantically summarized; a URL-safe non-semantic projection was supplied. Full source remains durable; omitted content is unknown.",
             });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
@@ -5916,7 +5916,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           if (compacted?.method === "deterministic_projection") {
             emit("deterministic_observation_compaction_fallback", {
               status: "partial",
-              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+              summary: "Recent observations are not semantically summarized; a URL-safe non-semantic projection was supplied. Full source remains durable; omitted content is unknown.",
             });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
