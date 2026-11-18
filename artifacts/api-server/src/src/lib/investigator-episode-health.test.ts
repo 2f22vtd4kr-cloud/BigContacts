@@ -46,6 +46,24 @@ describe("canonical Investigator continuation health", () => {
     expect(hasExecutedInvestigatorResearchAction(records)).toBe(false);
   });
 
+  it("does not hand a legacy HTTP 400 invalid-provider-request record to Boss as a research decision", () => {
+    const records = [{
+      action: "investigator_provider_error",
+      execution: "error",
+      stopReason: "LLM_UNAVAILABLE",
+      failureDomain: "model_provider",
+      failureKind: "invalid_provider_request",
+    }];
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "unavailable",
+      iterations: 1,
+      stopReason: "LLM_UNAVAILABLE",
+      trajectoryRecords: records,
+    })).toEqual({ code: "investigator_episode_error" });
+    expect(hasRecoverableInvestigatorDecisionFailure(records)).toBe(false);
+    expect(hasExecutedInvestigatorResearchAction(records)).toBe(false);
+  });
+
   it("hands a durably classified terminal PARSE_FAILURE to model-owned Boss control", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "error",
