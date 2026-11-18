@@ -4,7 +4,7 @@ import { db, researchCasesTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
-import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
+import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveCanonicalAtlasTargetCount } from "../../lib/atlas-launch-defaults";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
