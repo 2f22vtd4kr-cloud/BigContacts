@@ -5170,16 +5170,21 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, thought, hypothesis, purpose, expectedInformationGain. Include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Nested searches/findings objects include all schema keys; use null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
-  const requiredFieldNames = ["action", "query", "thought", "hypothesis", "purpose", "expectedInformationGain"] as const;
+  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"] as const;
+  const requiredSearchFieldNames = ["query", "provider", "registry", "locale", "market", "purpose"] as const;
+  const requiredFindingFieldNames = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
     while (markerIndex >= 0) {
       const fieldSection = value.slice(markerIndex, markerIndex + 2_000);
       if (requiredFieldNames.every((field) => fieldSection.includes(field))
-        && /include all schema keys/i.test(fieldSection)
-        && /null for unused optional/i.test(fieldSection)) return true;
+        && requiredSearchFieldNames.every((field) => fieldSection.includes(field))
+        && requiredFindingFieldNames.every((field) => fieldSection.includes(field))
+        && /searches\[\] required keys/i.test(fieldSection)
+        && /findings\[\] required keys/i.test(fieldSection)
+        && /null for unused/i.test(fieldSection)) return true;
       markerIndex = value.indexOf(marker, markerIndex + marker.length);
     }
     return false;
