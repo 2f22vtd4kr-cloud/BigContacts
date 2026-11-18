@@ -5321,6 +5321,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     terminalContractGuidance,
     blockedScopeRecoveryMarker,
+    // Keep model-owned autonomy and runtime capability guidance visible after
+    // auxiliary-context compaction. These are not research itineraries or gates.
+    providerGuidance,
+    modelOwnedScopeGuidance,
+    openDiscoveryGuidance,
+    searchActivityGuidance,
+    input.mode === "discovery"
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      : "",
     latestRecordTail,
     aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
