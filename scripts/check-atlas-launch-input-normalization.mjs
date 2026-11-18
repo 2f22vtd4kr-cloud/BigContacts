@@ -44,9 +44,10 @@ if (!canonicalLauncher.includes("parseCanonicalSingleTargetId(body)") ||
   failed = true;
 }
 if (!canonicalLauncher.includes('body.discoveryObjective !== undefined && typeof body.discoveryObjective !== "string"') ||
-    !canonicalLauncher.includes("discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS") ||
+    !canonicalLauncher.includes("discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS") ||
+    !canonicalLauncher.includes("discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS") ||
     !canonicalLauncher.includes("...(discoveryObjective ? { discoveryObjective } : {})")) {
-  console.error("ATLAS INPUT NORMALIZATION FAIL: bounded model-owned discovery objective is not validated and forwarded");
+  console.error("ATLAS INPUT NORMALIZATION FAIL: separate bounded model-owned objective/context inputs are not validated and forwarded");
   failed = true;
 }
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
