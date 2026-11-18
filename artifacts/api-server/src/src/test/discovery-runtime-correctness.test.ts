@@ -63,6 +63,7 @@ describe("discovery runtime architecture", () => {
     expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
     expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientationSource).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
+    expect(orientationSource).toContain("Actively consider whether a native registry/asset-register query can complement public-web discovery");
     expect(orientationSource).toContain("Preserve explicit human geographic constraints");
     expect(orientationSource).toContain("do not force a mixed-source first pass or prescribe a preferred source order");
   });
