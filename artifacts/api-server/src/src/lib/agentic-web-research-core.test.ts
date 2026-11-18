@@ -1764,7 +1764,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*thought/i);
-    expect(prompt).toContain("OPEN DISCOVERY: no target class, sector, or jurisdiction is preselected.");
+    expect(prompt).toContain("OPEN DISCOVERY: target class, sector and jurisdiction are evidence-led; no fixed rotation or source mix.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
@@ -2442,7 +2442,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("OPEN DISCOVERY: no target class, sector, or jurisdiction is preselected.");
+    expect(prompt).toContain("OPEN DISCOVERY: target class, sector and jurisdiction are evidence-led; no fixed rotation or source mix.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
   });
