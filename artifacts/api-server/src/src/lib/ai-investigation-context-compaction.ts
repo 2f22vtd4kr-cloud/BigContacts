@@ -342,7 +342,7 @@ function retryableSummaryResponse(result: { raw: string | null; error: string | 
 async function requestRightHandSummary(
   prompt: string,
   input: AiInvestigationContextCompactionInput,
-  preferredModel: "openai/gpt-oss-20b" | "openai/gpt-oss-120b",
+  preferredModel: "openai/gpt-oss-20b",
   maxAttempts: number = 2,
 ): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
   return runGroqRightHandFreeJson(
