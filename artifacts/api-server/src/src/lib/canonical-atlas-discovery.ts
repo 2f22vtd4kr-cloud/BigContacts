@@ -52,7 +52,8 @@ export type CanonicalAtlasOptions = {
   discoveryExclusions?: string[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
-export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;\nexport const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;
+export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
+export const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;
 
 /** Compact control-plane prose without changing the validated underlying decision. */
 function compactControlText(value: unknown, maxChars: number): string {
@@ -1218,7 +1219,10 @@ async function materializePartialOrganizationLeadCards(input: {
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
-  let discoveryObjective = opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;\n  if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS) {\n    throw new Error(`Canonical Atlas discovery objective exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS} characters.`);\n  }
+  let discoveryObjective = opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
+  if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS) {
+    throw new Error(`Canonical Atlas discovery objective exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS} characters.`);
+  }
   const discoveryContext = opts.discoveryContext?.trim() ?? "";
   if (discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
     throw new Error(`Canonical Atlas discovery context exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS} characters.`);
