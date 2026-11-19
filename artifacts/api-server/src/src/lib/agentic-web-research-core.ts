@@ -6477,7 +6477,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = [
           promptLastObservation,
           "RETAINED FETCHED PAGE CONTINUATION (optional, model-directed): " + JSON.stringify(retainedPageContinuations)
-            + ". If more text from one of these sources would help, repeat its recorded action with the exact URL. The runtime will read the next section from the durable fetched-page artifact; it will not make another network request. Continue researching or stop if another action is better.",
+            + ". If more text from one of these sources would help, repeat its recorded action with the exact URL. The runtime will read the next section from the retained fetched-page artifact; it will not make another network request. Continue researching or stop if another action is better.",
         ].filter(Boolean).join("\n\n");
       }
       if (livenessAdvisory && !promptLastObservation.includes(livenessAdvisory)) {
