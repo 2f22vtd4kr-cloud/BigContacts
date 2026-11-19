@@ -326,7 +326,7 @@ export function buildDiscoveryLeadUtilizationState(
         ? rawSearches.flatMap((search) => {
             if (!search || typeof search !== "object" || Array.isArray(search)) return [];
             const provider = (search as Record<string, unknown>).provider;
-            return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : [];
+            return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : ["runtime-default"];
           })
         : [];
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
@@ -405,7 +405,7 @@ export function buildDiscoveryLeadUtilizationState(
 
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
-type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
+type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider?: "serper" | "tavily" | "exa" | null; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
@@ -530,7 +530,7 @@ export function researchActionResource(action: string, args: Record<string, unkn
         const entry = item as Record<string, unknown>;
         return JSON.stringify([
           query(entry.query),
-          cleanText(entry.provider, 30).toLowerCase(),
+          cleanText(entry.provider, 30).toLowerCase() || "runtime-default",
           query(entry.locale),
           query(entry.market),
         ]);
@@ -1158,6 +1158,28 @@ export function selectConfiguredSearchProvider(
   return getConfiguredSearchProviders().find((provider) => !isSearchProviderDisabled(states, provider)) ?? null;
 }
 
+export type ParallelWebSearchRequest = {
+  query: string;
+  provider?: "serper" | "tavily" | "exa" | null;
+  locale?: string;
+  market?: string;
+  purpose?: string;
+};
+
+/** Resolve model-omitted providers using the same healthy default as web_search. */
+export function resolveParallelWebSearchProviders(
+  searches: readonly ParallelWebSearchRequest[],
+  runtimeDefaultProvider: "serper" | "tavily" | "exa" | null,
+): Array<ParallelWebSearchRequest & { provider: "serper" | "tavily" | "exa" }> | null {
+  const resolved: Array<ParallelWebSearchRequest & { provider: "serper" | "tavily" | "exa" }> = [];
+  for (const search of searches) {
+    const provider = search.provider ?? runtimeDefaultProvider;
+    if (!provider) return null;
+    resolved.push({ ...search, provider });
+  }
+  return resolved;
+}
+
 /** RDAP is the free, standards-based technical default; WHOISJSON remains an explicit model option. */
 export function resolveDomainLookupProvider(
   requested?: "rdap" | "whoisjson",
@@ -1725,7 +1747,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (value.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) return `invalid_action_arguments action=parallel_web_search searches_max=${MAX_PARALLEL_SEARCHES_PER_BATCH}`;
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
     const valid = value.searches as Array<Record<string, unknown>>;
-    if (valid.some((item) => !cleanText(item.query, 300) || !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20)))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
+    if (valid.some((item) => !cleanText(item.query, 300) || (item.provider !== undefined && item.provider !== null && !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20))))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
     if (valid.some((item) => item.registry !== undefined && item.registry !== null)) return "invalid_action_arguments action=parallel_web_search invalid=registry";
   } else if (action === "parallel_registry_search") {
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_registry_search missing=searches";
@@ -1810,29 +1832,29 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 /** Give the model a minimal, action-specific correction without selecting its next research action. */
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
-  const rationaleContract = "Include all schema keys; use null for unused scalar fields and [] for unused arrays. Nested searches/findings objects must include all schema keys, using null for unused optional nested values. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain finite [0,1]. Action-specific required values remain mandatory.";
+  const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain finite [0,1]. Action-specific required values remain mandatory.";
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Include provider, locale, market and purpose keys; use null for unused optional values. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Optional purpose hints may be omitted when unused. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
   }
   if (/action=parallel_web_search/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query"; "provider" may be serper, tavily, exa, null or omitted (null/omitted uses the configured healthy runtime default). Optional locale, market and purpose hints may be omitted when unused; registry does not belong in a web-search item. Otherwise choose another permitted action. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
   }
   if (/action=registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
   }
   if (/action=visit/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no page fetch ran. For visit, \`url\` must be a complete safe HTTP(S) URL copied verbatim from an actual same-case search, registry, or page observation. A hypothesis, placeholder, inferred target name, or empty field is not a URL. If no source URL has been observed, do not choose visit; choose any permitted discovery action that can proceed without a target or URL. Do not invent a target or URL; the next action remains entirely your decision. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
   }
   if (/action=(?:visit|browser_fetch).*invalid=url/.test(failure)) {
-    return "The previous model response contained a malformed URL (" + failure + "); no outbound request ran. Copy the complete URL from an exact same-case observed lead or fetched source. Use exactly one scheme prefix (https:// or http://); do not prepend a second scheme to a URL that already has one, do not concatenate or repair a malformed URL by guessing, and do not shorten or reconstruct its path. If the observed URL is not a valid complete HTTP(S) URL, choose another permitted action or another exact observed URL. The next research action remains your decision. " + rationaleContract + " Return every required top-level field and exactly one JSON object.";
+    return "The previous model response contained a malformed URL (" + failure + "); no outbound request ran. Copy the complete URL from an exact same-case observed lead or fetched source. Use exactly one scheme prefix (https:// or http://); do not prepend a second scheme to a URL that already has one, do not concatenate or repair a malformed URL by guessing, and do not shorten or reconstruct its path. If the observed URL is not a valid complete HTTP(S) URL, choose another permitted action or another exact observed URL. The next research action remains your decision. " + rationaleContract + " Follow the active model output contract and return exactly one JSON object.";
   }
   if (/action=browser_fetch/.test(failure)) {
     const configuredBrowserProviders = getAvailableBrowserFetchProviders().join(", ") || "none";
-    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
   }
-  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Do not claim that a tool ran.`;
+  return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Follow the active model output contract. Do not claim that a tool ran.`;
 }
 
 const MODEL_SELECTABLE_AGENT_ACTIONS = [
@@ -1964,14 +1986,15 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || ((item as Record<string, unknown>).registry !== undefined && (item as Record<string, unknown>).registry !== null))) return null;
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
+      const requestedProvider = cleanText(entry.provider, 20).toLowerCase();
       return {
         query: cleanText(entry.query, 300),
-        provider: cleanText(entry.provider, 20) as "serper" | "tavily" | "exa",
+        ...(requestedProvider && ["serper", "tavily", "exa"].includes(requestedProvider) ? { provider: requestedProvider as "serper" | "tavily" | "exa" } : {}),
         locale: typeof entry.locale === "string" && entry.locale.trim().length <= 16 ? cleanText(entry.locale, 16) || undefined : undefined,
         market: typeof entry.market === "string" && entry.market.trim().length <= 16 ? cleanText(entry.market, 16) || undefined : undefined,
         purpose: cleanText(entry.purpose, 500) || undefined,
       };
-    }) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>;
+    }) as Array<{ query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>;
     return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta };
   } if (action === "parallel_registry_search" && Array.isArray(value.searches)) {
     const searches: Array<{ query: string; registry: RegistryId | null; purpose?: string }> = value.searches.map((item) => {
@@ -2116,6 +2139,52 @@ export type GroqInvestigatorOutputRecoveryDecision =
   | { action: "retry_json_object" }
   | { action: "fail" };
 
+export function classifyGroqInvestigatorHttp400(input: {
+  status: number;
+  providerCode: string | null;
+  providerErrorType?: string | null;
+  providerParam?: string | null;
+  providerMessage?: string | null;
+}): "output_validation_recoverable" | "provider_contract_error" | null {
+  if (input.status !== 400) return null;
+  const schemaRejection = input.providerParam === "response_format"
+    || /(?:response[_ -]?format|json[_ -]?schema|schema (?:validation|mismatch|rejection)|missing (?:required )?(?:root )?(?:key|field)s?|required (?:root )?(?:key|field)s?|additional propert|invalid enum|expected schema|expected type|does not match .*schema)/i.test(input.providerMessage ?? "");
+  if (schemaRejection) return "provider_contract_error";
+  // Groq uses this code for generated-output validation/truncation. It is the
+  // only 400 eligible for the bounded output recovery policy.
+  if (input.providerCode === "json_validate_failed") return "output_validation_recoverable";
+  // invalid_request_error and every other 400 are request/provider contract
+  // failures, not a model-output correction opportunity.
+  if (input.providerErrorType === "invalid_request_error") return "provider_contract_error";
+  return "provider_contract_error";
+}
+
+/** The exact HTTP-error decision used by the Groq transport and its transport-boundary tests. */
+export function decideGroqInvestigatorHttpError(input: {
+  status: number;
+  providerCode: string | null;
+  providerErrorType?: string | null;
+  providerParam?: string | null;
+  providerMessage: string;
+  responseFormat: "json_schema" | "json_object";
+  completionBudgetRetryUsed: boolean;
+  currentMaxCompletionTokens: number;
+  failureDetailsAvailable?: boolean;
+  rateLimitRemainingTokens?: number | null;
+  promptTokenEstimate?: number;
+  completionTokensUsed?: number | null;
+  strictPreflight?: boolean;
+}): { classification: "output_validation_recoverable" | "provider_contract_error" | null; recovery: GroqInvestigatorOutputRecoveryDecision } {
+  const classification = classifyGroqInvestigatorHttp400(input);
+  if (classification === "provider_contract_error" || (input.strictPreflight && input.status === 400)) {
+    return { classification: "provider_contract_error", recovery: { action: "fail" } };
+  }
+  return {
+    classification,
+    recovery: chooseGroqInvestigatorOutputRecovery(input),
+  };
+}
+
 /** Retry only output-format/completion failures; never alter strategy or capability. */
 export function chooseGroqInvestigatorOutputRecovery(input: {
   status: number; providerCode: string | null; providerMessage: string;
@@ -2201,8 +2270,16 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * Prompt-size targets are advisory: source-backed observations and the schema
  * are never cut by a final character-count reducer.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
+  if (model && structuredActionResponseFormat(model).type !== "json_schema") {
+    const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
+    const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
+    if (!contract || !/action-specific required fields/i.test(contract)) {
+      throw new Error("Cannot send a non-strict Investigator request without its reduced action-specific output contract.");
+    }
+    return normalized;
+  }
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
   const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
   const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
@@ -2224,12 +2301,32 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
 
 const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
 
+/** Models without provider-enforced strict schema use a reduced action-specific contract and local validation. */
+export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[]): string {
+  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable. parallel_web_search searches[] items require query; provider may be null or omitted to use the configured healthy runtime default. findings[] should include only observed fields (vectorType, value, scope, sourceUrls, note, plus any supported attribution/evidence details); do not fabricate null-filled placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+}
+
+export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
+  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return prompt;
+  const standaloneOutputAt = Math.max(
+    prompt.lastIndexOf("\nOUTPUT CONTRACT:"),
+    prompt.startsWith("OUTPUT CONTRACT:") ? 0 : -1,
+  );
+  const outputAt = standaloneOutputAt < 0 ? -1 : standaloneOutputAt + (standaloneOutputAt > 0 ? 1 : 0);
+  if (outputAt < 0) {
+    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist);
+  }
+  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist);
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
-  const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
+  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist);
+  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
@@ -2394,7 +2491,7 @@ function groqHardRequestQuota(response: Response, body: string): boolean {
   return remainingRequests === 0;
 }
 
-async function callGroqJson(
+export async function callGroqJson(
   prompt: string,
   signal: AbortSignal,
   cognitiveTask: ResearchCognitiveTask = "identity_resolution",
@@ -2407,6 +2504,7 @@ async function callGroqJson(
   iteration?: number,
   originalPromptChars: number = prompt.length,
   promptMode: "discovery" | "target" = "discovery",
+  strictPreflight = false,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -2478,7 +2576,8 @@ async function callGroqJson(
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
-        const providerBoundedPrompt = boundInvestigatorProviderPrompt(workingPrompt, maxUserPromptChars, promptMode);
+        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist);
+        const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model);
         const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
         const promptReductionChars = Math.max(0, originalPromptChars - userPromptChars);
@@ -2612,6 +2711,7 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
+          if (strictPreflight) return { model, raw: "", error: "investigator_preflight_http_429" };
           if (tokenDailyQuota) {
             // Retrying the same key after a retry-after hint cannot replenish a
             // daily token budget. Canonical Atlas may request one durable,
@@ -2702,32 +2802,47 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
-          // HTTP 400 means the provider rejected the request contract. Do not
-          // retry it in another output mode or expose it as a research observation.
-          if (response.status === 400) return { model, raw: "", error: "provider_contract_error" };
-          const recovery = chooseGroqInvestigatorOutputRecovery({
+          // Use the same pure decision function exercised by transport-boundary
+          // tests so provider-contract failures cannot drift from recovery policy.
+          const providerParam = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { param?: unknown } };
+              return typeof parsed.error?.param === "string" ? parsed.error.param : null;
+            } catch { return null; }
+          })();
+          const failureDetailsAvailable = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { failed_generation?: unknown } };
+              return parsed.error?.failed_generation !== undefined && parsed.error?.failed_generation !== null;
+            } catch { return false; }
+          })();
+          const completionTokensUsed = (() => {
+            try {
+              const parsed = JSON.parse(body) as { usage?: { completion_tokens?: unknown } };
+              const value = parsed.usage?.completion_tokens;
+              return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+            } catch { return null; }
+          })();
+          const httpErrorDecision = decideGroqInvestigatorHttpError({
             status: response.status,
             providerCode,
+            providerErrorType,
+            providerParam,
             providerMessage,
             responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
-            failureDetailsAvailable: (() => {
-              try {
-                const parsed = JSON.parse(body) as { error?: { failed_generation?: unknown } };
-                return parsed.error?.failed_generation !== undefined && parsed.error?.failed_generation !== null;
-              } catch { return false; }
-            })(),
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+            failureDetailsAvailable,
             rateLimitRemainingTokens: rateLimits.remainingTokens,
             promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
-            completionTokensUsed: (() => {
-              try {
-                const parsed = JSON.parse(body) as { usage?: { completion_tokens?: unknown } };
-                const value = parsed.usage?.completion_tokens;
-                return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-              } catch { return null; }
-            })(),
+            completionTokensUsed,
+            strictPreflight,
           });
+          if (httpErrorDecision.classification === "provider_contract_error") {
+            return { model, raw: "", error: "provider_contract_error" };
+          }
+          if (strictPreflight) return { model, raw: "", error: `investigator_preflight_http_${response.status}` };
+          const recovery = httpErrorDecision.recovery;
           if (recovery.action === "increase_completion_budget") {
             // Truncation is an output-capacity failure, not a key or quota failure.
             // Retry only this selected model/capability with a bounded completion budget.
@@ -2762,15 +2877,10 @@ async function callGroqJson(
           }
           if (response.status === 401 || response.status === 403) break;
 
-          const modelSpecific400 = response.status === 400 && (
-            providerCode === "model_not_found" ||
-            providerCode === "model_not_supported" ||
-            providerCode === "model_deprecated" ||
-            providerCode === "invalid_model"
-          );
-          if (response.status === 400 && !modelSpecific400) {
-            return { model, raw: "", error: lastProviderError };
-          }
+          // The only 400 allowed past the early contract gate is
+          // json_validate_failed. If its bounded completion/JSON-object
+          // recovery is exhausted, stop as a provider contract failure.
+          if (response.status === 400) return { model, raw: "", error: "provider_contract_error" };
           break;
         }
 
@@ -2824,6 +2934,7 @@ async function callGroqJson(
           rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
         });
         if (finishReason === "length") {
+          if (strictPreflight) return { model, raw: "", error: "investigator_preflight_output_truncated" };
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode: null,
@@ -2844,7 +2955,12 @@ async function callGroqJson(
           lastProviderError = "completion_output_truncated";
           return { model, raw: "", error: lastProviderError };
         }
-        if (raw) return { model, raw };
+        if (raw) {
+          // A launch preflight must prove the configured response_format itself
+          // works; a successful JSON-object compatibility retry is not enough.
+          if (strictPreflight && jsonObjectFallbackUsed) return { model, raw: "", error: "provider_contract_error" };
+          return { model, raw };
+        }
         lastProviderError = "empty_response";
         break;
       } catch (error: any) {
@@ -2979,6 +3095,59 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
+
+/**
+ * Probe each distinct model represented by the configured Investigator
+ * capabilities before a canonical job is created. Send one minimal request per
+ * distinct model using that model's actual response_format. No research tool executes.
+ */
+export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{ ok: boolean; checked: Array<{ capability: InvestigatorCapability; model: string }>; failedCapability?: InvestigatorCapability; error?: string }> {
+  const capabilities = getAvailableInvestigatorCapabilities();
+  if (!capabilities.length) return { ok: false, checked: [], error: "No configured Groq Investigator capability is available." };
+  const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
+  const probedModels = new Set<string>();
+  let failedCapability: InvestigatorCapability | undefined;
+  let failureReason: string | undefined;
+  const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
+  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const prompt = [
+    "PRE-LAUNCH PROVIDER CONTRACT PROBE. This is not a research job. Do not call tools, browse, or claim external observations.",
+    "Return exactly one valid JSON action object for web_search with query=\"Apex Atlas prelaunch contract probe\", provider=\"serper\", thought=\"Verify configured Investigator output contract only.\", hypothesis=\"The model can emit the configured action object.\", purpose=\"Pre-launch response-format compatibility probe.\", expectedInformationGain=0.",
+    strictContract,
+  ].join("\n\n");
+  for (const capability of capabilities) {
+    const routedModel = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
+    if (probedModels.has(routedModel)) continue;
+    probedModels.add(routedModel);
+    if (signal?.aborted) return { ok: false, checked, failedCapability: capability, error: "Pre-launch Investigator contract probe was cancelled." };
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    try {
+      const result = await withProviderRole("investigator", () => callGroqJson(
+        prompt, controller.signal, "identity_resolution", capability, undefined,
+        null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
+      ));
+      if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
+        failedCapability ??= capability;
+        failureReason ??= result?.error ?? "provider_contract_error";
+        continue;
+      }
+      checked.push({ capability, model: result.model });
+    } catch (error) {
+      failedCapability ??= capability;
+      failureReason ??= error instanceof Error ? error.message : "provider_contract_error";
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+  return failedCapability
+    ? { ok: false, checked, failedCapability, error: failureReason ?? "provider_contract_error" }
+    : { ok: true, checked };
+}
+
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars, promptMode));
 }
@@ -6093,9 +6262,29 @@ const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: 
 // Keep this field only for technical provider-availability diagnostics below.
 let scopeFilterSummary: string | null = null;
 if (action.action === "parallel_web_search") {
-  const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
+  // An omitted/null provider follows the same configured healthy runtime default
+  // as a single web_search. Resolve once, persist the effective provider, and
+  // retain the Investigator-selected query without inventing a new search.
+  const resolvedParallelSearches = resolveParallelWebSearchProviders(
+    action.searches,
+    selectConfiguredSearchProvider(searchProviderFailures),
+  );
+  if (!resolvedParallelSearches) {
+    record.execution = "blocked";
+    record.failureDomain = "tool_execution";
+    record.failureKind = "request_failure";
+    record.observation = "NO_CONFIGURED_SEARCH_PROVIDER: no configured healthy search provider is available; no parallel outbound request was made.";
+    lastObservation = record.observation;
+    await emitSanitizedTrajectoryRecord(record);
+    emit("parallel_web_search", { provider: "multi", status: "blocked", summary: record.observation });
+    continue;
+  }
+  action.searches = resolvedParallelSearches;
+  selectedArgs.searches = resolvedParallelSearches;
+  record.args = selectedArgs;
+  const providerRejectedSearches = resolvedParallelSearches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
-    const proposedSearches = [...action.searches];
+    const proposedSearches = [...resolvedParallelSearches];
     const allowedSearches = proposedSearches.filter((search) => !isSearchProviderDisabled(searchProviderFailures, search.provider));
     selectedArgs.proposedSearches = proposedSearches;
     selectedArgs.searchProviderRejectedSearches = providerRejectedSearches.map((search) => ({ query: search.query, provider: search.provider }));
@@ -6113,7 +6302,7 @@ if (action.action === "parallel_web_search") {
       emit("parallel_web_search", { provider: "multi", status: "blocked", summary: "All proposed search providers are disabled for this trajectory; no request was sent." });
       continue;
     }
-    scopeFilterSummary = [scopeFilterSummary, "SEARCH PROVIDER FILTER: removed " + providerRejectedSearches.length + " query/provider pair(s) for providers disabled after repeated non-retryable failures. The remaining model-selected query/provider pairs may execute; no substitute query or provider is generated by the runtime."].filter(Boolean).join("\\n");
+    scopeFilterSummary = [scopeFilterSummary, "SEARCH PROVIDER FILTER: removed " + providerRejectedSearches.length + " query/provider pair(s) for providers disabled after repeated non-retryable failures. The remaining model-selected query/provider pairs may execute; no substitute query or provider is generated by the runtime."].filter(Boolean).join("\n");
   }
 }
 if (scopeFilterSummary) {
@@ -6169,7 +6358,7 @@ const repeatActionReason = redundantResearchActionReason(action.action, selected
       findings = mergeFindings(findings, action.findings); record.execution = "success"; record.findings = action.findings; syncIntelligence(); record.stopReason = "MODEL_DECIDED_DONE"; pushHistory(`step${i + 1}: done execution=success modelFindings=${action.findings.length}`); await emitSanitizedTrajectoryRecord(record); emit("done", { status: "success", summary: "Investigator requested a terminal stop; the evidence outcome is reported separately and is not itself target verification." });
       // "completed" means the model chose to stop. Only the separate outcome
       // and canonical evidence-graph gate can establish a substantiated result.
-      return { ...resultBase("completed", i + 1, "MODEL_DECIDED_DONE"), researchOutcome: epistemicGate.outcome ?? (intelligenceState.evidenceCount > 0 ? "evidence_backed" : "inconclusive"), modelFindings: sanitizeObservableValue(action.findings) }; } if (action.action === "parallel_web_search") { const queryQualityWarnings: string[] = []; if (action.searches.length < 1 || action.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) { record.execution = "blocked"; record.observation = `Parallel web-search batch must contain 1-${MAX_PARALLEL_SEARCHES_PER_BATCH} valid query.`; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } if (input.mode === "discovery") { const batchQueries = [...searchQueriesUsed]; const parallelRequestKeys = new Set<string>(); let validationFailure: string | null = null; for (const [searchIndex, search] of action.searches.entries()) { const parallelRequestKey = JSON.stringify([normalizeDiscoverySearchQuery(search.query), search.provider, normalizeDiscoverySearchQuery(search.locale ?? ""), normalizeDiscoverySearchQuery(search.market ?? "")]); if (parallelRequestKeys.has(parallelRequestKey)) { validationFailure = "Parallel search batch contains an identical query/provider/locale/market request more than once; no search in this batch was executed."; break; } parallelRequestKeys.add(parallelRequestKey); const repeatReason = repeatedDiscoverySearchReason(search, previousResearchRecords); if (repeatReason) { validationFailure = repeatReason; break; } const validation = validateDiscoverySearchQuery(search.query, batchQueries); if (!validation.allowed) { validationFailure = validation.reason; break; } if (validation.warning) queryQualityWarnings.push("Search " + (searchIndex + 1) + ": " + validation.warning); batchQueries.push(search.query); } if (validationFailure) { record.execution = "blocked"; record.observation = validationFailure; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(...action.searches.map((search) => search.query)); } searches += action.searches.length; try { const results = await Promise.all(action.searches.map((search) => toolWebSearch(search.query, search.provider as "serper" | "tavily" | "exa", search.locale ?? undefined, search.market ?? undefined, runController.signal))); for (const result of results) observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.args = { ...record.args, searchOutcomes: results.map((result, index) => ({ query: action.searches[index]?.query ?? "", provider: result.provider, status: result.status, failureClass: result.failureClass ?? null, urls: result.urls })) }; const successful = results.filter((result) => result.status !== "error"); record.execution = successful.length > 0 ? "success" : "error"; if (successful.length === 0) { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } assignSearchResultLeads(record, successful.flatMap((result) => result.urls)); record.observation = (scopeFilterSummary ? scopeFilterSummary + "\n\n" : "") + results.map((result, index) => {
+      return { ...resultBase("completed", i + 1, "MODEL_DECIDED_DONE"), researchOutcome: epistemicGate.outcome ?? (intelligenceState.evidenceCount > 0 ? "evidence_backed" : "inconclusive"), modelFindings: sanitizeObservableValue(action.findings) }; } if (action.action === "parallel_web_search") { const queryQualityWarnings: string[] = []; if (action.searches.length < 1 || action.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) { record.execution = "blocked"; record.observation = `Parallel web-search batch must contain 1-${MAX_PARALLEL_SEARCHES_PER_BATCH} valid query.`; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } if (input.mode === "discovery") { const batchQueries = [...searchQueriesUsed]; const parallelRequestKeys = new Set<string>(); let validationFailure: string | null = null; for (const [searchIndex, search] of action.searches.entries()) { const parallelRequestKey = JSON.stringify([normalizeDiscoverySearchQuery(search.query), search.provider, normalizeDiscoverySearchQuery(search.locale ?? ""), normalizeDiscoverySearchQuery(search.market ?? "")]); if (parallelRequestKeys.has(parallelRequestKey)) { validationFailure = "Parallel search batch contains an identical query/provider/locale/market request more than once; no search in this batch was executed."; break; } parallelRequestKeys.add(parallelRequestKey); const repeatReason = repeatedDiscoverySearchReason({ ...search, provider: search.provider ?? "" }, previousResearchRecords); if (repeatReason) { validationFailure = repeatReason; break; } const validation = validateDiscoverySearchQuery(search.query, batchQueries); if (!validation.allowed) { validationFailure = validation.reason; break; } if (validation.warning) queryQualityWarnings.push("Search " + (searchIndex + 1) + ": " + validation.warning); batchQueries.push(search.query); } if (validationFailure) { record.execution = "blocked"; record.observation = validationFailure; lastObservation = record.observation; pushHistory(`step${i + 1}: parallel_web_search execution=blocked reason=${record.observation}`); await emitSanitizedTrajectoryRecord(record); continue; } searchQueriesUsed.push(...action.searches.map((search) => search.query)); } searches += action.searches.length; try { const results = await Promise.all(action.searches.map((search) => toolWebSearch(search.query, search.provider as "serper" | "tavily" | "exa", search.locale ?? undefined, search.market ?? undefined, runController.signal))); for (const result of results) observeSearchProviderOutcome(result.provider, result.status, result.failureClass); record.args = { ...record.args, searchOutcomes: results.map((result, index) => ({ query: action.searches[index]?.query ?? "", provider: result.provider, status: result.status, failureClass: result.failureClass ?? null, urls: result.urls })) }; const successful = results.filter((result) => result.status !== "error"); record.execution = successful.length > 0 ? "success" : "error"; if (successful.length === 0) { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; } assignSearchResultLeads(record, successful.flatMap((result) => result.urls)); record.observation = (scopeFilterSummary ? scopeFilterSummary + "\n\n" : "") + results.map((result, index) => {
   const communityUrls = result.urls.filter((url) => isCommunityObservationSourceUrl(url));
   const resultText = communityUrls.length ? result.text + "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : result.text;
   return "PARALLEL_SEARCH " + (index + 1) + " provider=" + result.provider + "\n" + result.urls.join("\n") + "\n" + resultText;
@@ -6196,7 +6385,7 @@ if (page.status !== "success") {
 if (communityObservationSource && page.status === "success") {
   const communityText = sanitizeCommunityObservationText(page.observation);
   const communityMetadata = extractCommunityObservationMetadata(communityText);
-  record.observation = communityText + "\\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE;
+  record.observation = communityText + "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE;
   record.args = {
     ...record.args,
     sourceAttribution: buildDiscoverySourceAttribution({
@@ -6225,7 +6414,7 @@ const communityText = communityObservationSource ? sanitizeCommunityObservationT
 lastObservation = result.html
   ? `BROWSER_FETCH provider=${result.provider} requested_url=${sanitizeUrlForEvidence(action.url)}
 ${observedBrowserUrl ? `VERIFIED_FINAL_URL: ${observedBrowserUrl}` : "SOURCE_URL_UNVERIFIED: provider did not attest final navigation URL; use this content as a lead, not claim-grade source evidence."}
-${communityText}${communityObservationSource ? "\\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : ""}`
+${communityText}${communityObservationSource ? "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : ""}`
   : `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${result.provider}`;
 record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "error";
 if (!result.html) { record.failureDomain = "external_page_fetch"; record.failureKind = "request_failure"; }

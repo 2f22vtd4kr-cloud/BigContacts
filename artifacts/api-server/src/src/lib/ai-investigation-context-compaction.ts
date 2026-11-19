@@ -393,7 +393,7 @@ async function requestSummaryLegacy(
     // Memory compaction is a non-decision transformation. Use the separate
     // Right-hand credential lane with GPT-OSS 20B so compaction cannot consume
     // Boss strategic-control quota or Right-hand 120B advisory capacity.
-    // Compaction stays on the dedicated 20B lane; provider throttle or invalid
+    // Compaction stays on the dedicated Right-hand 20B lane; provider throttle or invalid
     // output returns to the caller's deterministic projection.
     const primary = await requestRightHandSummary(prompt, input, "openai/gpt-oss-20b", 1);
     let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);

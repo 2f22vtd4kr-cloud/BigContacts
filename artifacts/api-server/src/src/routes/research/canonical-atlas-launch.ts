@@ -5,6 +5,7 @@ import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, get
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
+import { probeGroqInvestigatorCapabilities } from "../../lib/agentic-web-research-core";
 import { resolveCanonicalAtlasTargetCount } from "../../lib/atlas-launch-defaults";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
@@ -179,6 +180,22 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       res.status(503).json({ error: "Atlas launch lock could not be safely released; refusing a new launch." });
       return;
     }
+  }
+
+  // Fail before creating a job or acquiring its lease if any configured
+  // Investigator model rejects its real response_format. This is a provider
+  // contract check only; the probe never executes a research action.
+  const investigatorProbe = await probeGroqInvestigatorCapabilities();
+  if (!investigatorProbe.ok) {
+    res.status(503).json({
+      error: "Apex launch blocked: a configured Groq Investigator model failed its pre-launch response-format probe.",
+      code: "INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED",
+      failedCapability: investigatorProbe.failedCapability ?? null,
+      checkedCapabilities: investigatorProbe.checked,
+      detail: investigatorProbe.error ?? "provider_contract_error",
+      remediation: "Fix the configured model's Groq response_format compatibility before starting an Apex job. No research job was created.",
+    });
+    return;
   }
 
   const targetCount = resolveCanonicalAtlasTargetCount(body.targetCount);

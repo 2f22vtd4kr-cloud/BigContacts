@@ -492,7 +492,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       responseFormats.push(body.response_format);
       if (calls === 1) {
-        return new Response(JSON.stringify({ error: { code: "json_validate_failed" } }), {
+        return new Response(JSON.stringify({ error: { code: "invalid_request_error", type: "invalid_request_error", param: "response_format", message: "The response_format schema is not accepted." } }), {
           status: 400,
           headers: { "content-type": "application/json" },
         });

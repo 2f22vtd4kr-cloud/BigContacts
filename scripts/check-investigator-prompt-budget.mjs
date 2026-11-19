@@ -37,7 +37,9 @@ assert(appendsCompleteLatestEvidenceEnvelope, "live Investigator prompt composit
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/const allPromptRecords = sanitizeObservableValue\(\[\.\.\.priorTrajectoryRecords, \.\.\.records\]\.slice\(-MAX_TRAJECTORY_RECORDS\)\)/.test(core) && /const promptTrajectoryRecords = allPromptRecords\.map\(/.test(core) && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection");
 assert(core.includes("const latestRecordTail = [") && core.includes("buildLatestRecordTail()"), "latest durable evidence envelope is assembled from the trajectory record");
-assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorProviderPrompt\(prompt, maxUserPromptChars, inferredMode\)/.test(core), "provider request-body boundary must use the best-effort, stage-aware prompt optimizer");
+assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorProviderPrompt\(modelSpecificPrompt, maxUserPromptChars, inferredMode, model\)/.test(core), "provider request-body boundary must use the best-effort, stage-aware prompt optimizer and model-specific contract");
+assert(/buildInvestigatorOutputContractForModel[\s\S]*?ACTION-SPECIFIC OUTPUT CONTRACT[\s\S]*?unused keys may be omitted/.test(core) && /structuredActionResponseFormat\(model, actionAllowlist\)\.type === "json_schema"/.test(core) && /if \(model && structuredActionResponseFormat\(model\)\.type !== "json_schema"\)/.test(core), "only provider-enforced strict-schema models may receive the complete 20-key contract; every non-strict model must receive the reduced action-specific contract");
+assert(/export function buildActionParseFailureObservation[\s\S]*?Follow the active model output contract/.test(core) && !/export function buildActionParseFailureObservation[\s\S]*?20 required top-level fields|export function buildActionParseFailureObservation[\s\S]*?all schema keys/.test(core), "parse-recovery guidance must not reintroduce the 20-key strict contract for GPT-OSS 20B");
 assert(/function boundInvestigatorProviderPrompt[\s\S]*?if \(!completeSchemaPresent\)[\s\S]*?throw new Error\([\s\S]*?\)[\s\S]*?return normalized;/.test(core), "provider boundary validates the complete action schema but never compacts to an internal character target");
 assert(!/tightenInvestigatorPrompt\(\s*workingPrompt/.test(core) && /upstream_request_size_rejected/.test(core), "HTTP 413 must not trigger deterministic deletion of arbitrary prompt content");
 const stepStart = core.indexOf("export function buildStepPrompt");
@@ -70,6 +72,12 @@ assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTI
 assert(/const totalPromptChars = systemPromptChars \+ userPromptChars/.test(core) && /const totalRequestChars = totalPromptChars \+ responseFormatChars/.test(core) && /waitForKnownGroqTokenWindow\(\s*quotaAccount,\s*model,\s*promptMeasurement\.totalRequestChars,/s.test(core), "known token-window estimation must include the actual transmitted system/user messages and structured response schema");
 assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core) && /const boundedPrefix = compactPromptSectionPreservingUrlTokens\(/.test(core) && /const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt\.length\)/.test(core), "provider-bound prompt softly compacts auxiliary context while preserving mandatory evidence and the shared provider-size estimate");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
+assert(/export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT/.test(orientation) && /role === "investigator" \|\| role === "dig_agent"[\s\S]*?APEX_COMPANY_REALISM_GUIDANCE_COMPACT/.test(orientation), "compact company-realism guidance must remain included in the Investigator and dig-agent system orientation");
+assert(orientation.includes("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message.") && !orientation.includes("OUTPUT: JSON action object; include all schema keys"), "the shared Investigator system prompt must defer strict all-fields formatting to model-specific user contracts so 20B does not inherit it");
+const investigatorCoreStart = orientation.indexOf("export function apexInvestigatorSystemCore");
+const investigatorCoreEnd = orientation.indexOf("export function apexOrientationCompact", investigatorCoreStart);
+const investigatorCore = investigatorCoreStart >= 0 && investigatorCoreEnd > investigatorCoreStart ? orientation.slice(investigatorCoreStart, investigatorCoreEnd) : "";
+assert(investigatorCore.includes("APEX_COMPANY_REALISM_GUIDANCE_COMPACT"), "compact company-realism guidance must be part of the active ReAct Investigator system prompt, not only an unused orientation helper");
 assert(/const composedPrompt = \[[\s\S]*?authoritativeCaseObjective[\s\S]*?activeBossScopeSection/.test(core), "the complete objective and current Boss scope remain separate in the full Investigator prompt");
 assert(/genericDiscoveryCompanyLabel/.test(core) && /Generic case labels including Case Co are metadata/.test(core), "generic case labels must not become discovery entity anchors");
 assert(/const DEFAULT_MAX_CHARS = 4_200/.test(compaction), "context compaction default must remain reduced");
@@ -86,8 +94,14 @@ if (!promptCoreMatch) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to ext
 const promptSections = [...promptCoreMatch[1].matchAll(/^\s*("(?:\\.|[^"\\])*")\s*,?\s*$/gm)]
   .map((match) => JSON.parse(match[1]));
 if (!promptSections.length) throw new Error("INVESTIGATOR PROMPT BUDGET: system prompt sections were not measurable");
+const companyGuidanceMatch = orientation.match(/export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = ("(?:\\.|[^"\\])*");/);
+if (!companyGuidanceMatch || !promptCoreMatch[1].includes("APEX_COMPANY_REALISM_GUIDANCE_COMPACT")) {
+  throw new Error("INVESTIGATOR PROMPT BUDGET: active system prompt must include the compact company-realism guidance");
+}
+const companyGuidance = JSON.parse(companyGuidanceMatch[1]);
 const systemPromptChars = promptSections.reduce((total, section) => total + section.length, 0)
   + Math.max(0, promptSections.length - 1)
+  + companyGuidance.length + 1
   + "\nReturn one JSON action object only.".length;
 const constant = (name) => {
   const match = core.match(new RegExp("const " + name + " = ([0-9_]+)"));
@@ -121,7 +135,7 @@ const legacyObservedCompletionTokens = 509;
 const legacyCompletionCap = 512;
 console.log("INVESTIGATOR PROMPT MEASUREMENT (offline; no live provider call)");
 console.log("  Tokenizer: not available in this offline check; estimate = ceil(characters / 3.4).");
-console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + promptSections.length + " sections).");
+console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + (promptSections.length + 1) + " sections).");
 console.log("  User/context allowance: " + userPromptBudgetChars + " characters / " + Math.ceil(userPromptBudgetChars / 3.4) + " estimated tokens.");
 console.log("  GPT-OSS 20B response schema overhead: 0 characters (provider response_format omitted; local parser remains authoritative).");
 console.log("  Estimated GPT-OSS 20B input per routine Investigator turn: " + estimatedPromptTokens + " tokens.");

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, decideGroqInvestigatorHttpError, resolveParallelWebSearchProviders, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -136,6 +136,190 @@ describe("Groq Investigator runtime contract", () => {
     });
     expect(describeAgentActionParseFailure(wrongActionShape)).toBe("invalid_action_arguments action=parallel_web_search invalid=registry");
     expect(parseAgentAction(wrongActionShape)).toBeNull();
+  });
+
+  it("resolves parsed null/omitted parallel providers to the same healthy runtime default used by single search", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [
+        { query: "company founder public profile", provider: null },
+        { query: "company leadership team" },
+        { query: "company annual report", provider: "exa" },
+      ],
+      hypothesis: "Public sources may identify relevant decision-makers.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed?.action).toBe("parallel_web_search");
+    if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+    const dispatched = resolveParallelWebSearchProviders(parsed.searches, "serper");
+    expect(dispatched).toEqual([
+      { query: "company founder public profile", provider: "serper" },
+      { query: "company leadership team", provider: "serper" },
+      { query: "company annual report", provider: "exa" },
+    ]);
+    expect(resolveParallelWebSearchProviders(parsed.searches, null)).toBeNull();
+  });
+
+  it("accepts the complete strict-schema all-null envelope at the local parser boundary", () => {
+    const allNullEnvelope = {
+      action: "web_search",
+      query: "company founder public profile",
+      provider: null,
+      url: null,
+      email: null,
+      username: null,
+      domain: null,
+      registry: null,
+      thought: "Verify a public source.",
+      hypothesis: "A public profile may identify a relevant founder.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+      locale: null,
+      market: null,
+      target: null,
+      targetType: null,
+      profile: null,
+      sources: null,
+      searches: null,
+      findings: null,
+    };
+    const parsed = parseAgentAction(JSON.stringify(allNullEnvelope));
+    expect(parsed?.action).toBe("web_search");
+    expect(parsed && "query" in parsed ? parsed.query : undefined).toBe("company founder public profile");
+  });
+
+  it("accepts null or omitted providers in parallel web searches for runtime-default resolution", () => {
+    for (const search of [
+      { query: "company founder public profile", provider: null },
+      { query: "company founder public profile" },
+    ]) {
+      const parsed = parseAgentAction(JSON.stringify({
+        action: "parallel_web_search",
+        searches: [search],
+        hypothesis: "A public search may identify a relevant operating-company lead.",
+        purpose: "Find source-backed candidate leads.",
+        expectedInformationGain: 0.4,
+      }));
+      expect(parsed?.action).toBe("parallel_web_search");
+      if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+      expect(parsed.searches[0]?.provider).toBeUndefined();
+    }
+    const invalid = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "company founder", provider: "unknown-provider" }],
+      hypothesis: "A public search may identify a relevant lead.",
+      purpose: "Validate provider rejection.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(invalid).toBeNull();
+  });
+
+  it("uses a reduced action-specific contract for 20B and retains the full 20-key contract for strict models", () => {
+    const twentyB = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
+    const oneTwentyB = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
+    const llama = buildGroqInvestigatorRequestBody({
+      model: "llama-3.3-70b-versatile",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
+    const twentyBUser = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    const oneTwentyBUser = (oneTwentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(twentyBUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    const twentyBSystem = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "system")?.content ?? "";
+    expect(twentyBSystem).toContain("follow the model-specific output contract");
+    expect(twentyBSystem).not.toContain("include all schema keys");
+    expect(twentyBUser).toContain("unused keys may be omitted");
+    expect(twentyBUser).toContain("provider may be null or omitted");
+    expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBUser).toContain("Include every key");
+    const llamaUser = (llama.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(llamaUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    expect(llamaUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect((llama.response_format as { type?: string } | undefined)?.type).toBe("json_object");
+    expect(twentyB.response_format).toBeUndefined();
+    expect((oneTwentyB.response_format as { type?: string } | undefined)?.type).toBe("json_schema");
+    expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+    expect(buildInvestigatorOutputContractForModel("qwen/qwen3.8-27b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+    expect(buildInvestigatorOutputContractForModel("llama-3.3-70b-versatile", "OUTPUT CONTRACT: strict")).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    const correction = buildActionParseFailureObservation("invalid_action_arguments action=parallel_web_search invalid=searches");
+    expect(correction).not.toContain("20 required top-level fields");
+    expect(correction).not.toContain("all schema keys");
+    expect(correction).toContain("Follow the active model output contract.");
+  });
+
+  it("routes transport HTTP 400 output-validation envelopes into bounded recovery and rejects schema/request errors", () => {
+    const recoverable = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerErrorType: "invalid_request_error",
+      providerMessage: "Generated output failed JSON validation.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+      rateLimitRemainingTokens: 20_000,
+      promptTokenEstimate: 2_000,
+    });
+    expect(recoverable.classification).toBe("output_validation_recoverable");
+    expect(recoverable.recovery.action).toBe("increase_completion_budget");
+
+    const schemaRejected = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "invalid_request_error",
+      providerErrorType: "invalid_request_error",
+      providerParam: "response_format",
+      providerMessage: "Invalid response format.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    });
+    expect(schemaRejected.classification).toBe("provider_contract_error");
+    expect(schemaRejected.recovery.action).toBe("fail");
+
+    const schemaTextRejected = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "JSON schema mismatch: required root field missing",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    });
+    expect(schemaTextRejected.classification).toBe("provider_contract_error");
+    expect(schemaTextRejected.recovery.action).toBe("fail");
+    expect(decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "14 required keys are missing from the response object.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    }).classification).toBe("provider_contract_error");
+
+    const launchProbe = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "Generated output failed validation.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+      strictPreflight: true,
+    });
+    expect(launchProbe.classification).toBe("provider_contract_error");
+    expect(launchProbe.recovery.action).toBe("fail");
+
+    expect(classifyGroqInvestigatorHttp400({
+      status: 400, providerCode: "bad_request", providerErrorType: "invalid_request_error",
+    })).toBe("provider_contract_error");
+    expect(classifyGroqInvestigatorHttp400({ status: 401, providerCode: "invalid_api_key" })).toBeNull();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
@@ -299,12 +483,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
-    expect(repair).toContain("Include provider, locale, market and purpose keys; use null for unused optional values.");
-    expect(repair).toContain("Nested searches/findings objects must include all schema keys");
-    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
-    expect(repair).toContain("Include all schema keys");
-    expect(repair).toContain("using null for unused optional nested values");
-    expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
+    expect(repair).toContain("Optional purpose hints may be omitted when unused.");
+    expect(repair).toContain("Follow the active model output contract.");
+    expect(repair).not.toContain("all schema keys");
+    expect(repair).not.toContain("20 required top-level fields");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
@@ -313,7 +495,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("browser_fetch");
     expect(repair).toContain("currently configured values");
     expect(repair).toContain("choose another action");
-    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("Follow the active model output contract.");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
@@ -327,7 +509,7 @@ describe("Groq Investigator runtime contract", () => {
       mode: "discovery",
     });
     const body = buildGroqInvestigatorRequestBody({
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
       prompt,
       cognitiveTask: "discovery",
     });
@@ -350,7 +532,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
-    expect(submitted).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.");
+    expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
@@ -863,6 +1045,8 @@ describe("Groq Investigator runtime contract", () => {
     const promptEnvelopeChars = Math.max(0, twentyB.userPromptChars - prompt.length);
     const originalRequestUserPromptChars = promptCompaction.originalPromptChars + promptEnvelopeChars;
     const promptReductionChars = Math.max(0, originalRequestUserPromptChars - twentyB.userPromptChars);
+    const promptCompactionReductionChars = Math.max(0, promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    const modelSpecificContractReductionChars = Math.max(0, promptCompaction.finalPromptChars - twentyB.userPromptChars);
     const estimatedMessagePromptTokensBefore = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars) / 3.4);
     const estimatedMessagePromptTokensAfter = Math.ceil((twentyB.systemPromptChars + twentyB.userPromptChars) / 3.4);
     const estimatedRequestTokensBefore20B = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars + twentyB.responseFormatChars) / 3.4);
@@ -881,6 +1065,8 @@ describe("Groq Investigator runtime contract", () => {
         originalRequestUserPromptChars,
         finalRequestUserPromptChars: twentyB.userPromptChars,
         promptReductionChars,
+        promptCompactionReductionChars,
+        modelSpecificContractReductionChars,
         estimatedMessagePromptTokensBefore,
         estimatedMessagePromptTokensAfter,
         twentyBEstimatedRequestTokensBefore: estimatedRequestTokensBefore20B,
@@ -892,7 +1078,9 @@ describe("Groq Investigator runtime contract", () => {
       representativeFirstTurn120B: { ...oneTwentyB, estimatedRequestTokens: oneTwentyB.estimatedInputTokens },
       largestRemainingPromptSections,
     }));
-    expect(promptReductionChars).toBe(promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    expect(promptCompactionReductionChars).toBe(promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    expect(modelSpecificContractReductionChars).toBeGreaterThan(0);
+    expect(promptReductionChars).toBe(promptCompactionReductionChars + modelSpecificContractReductionChars + promptEnvelopeChars);
     expect(estimatedMessagePromptTokensBefore).toBeGreaterThan(estimatedMessagePromptTokensAfter);
     expect(twentyB.systemPromptChars).toBeGreaterThan(0);
     expect(twentyB.userPromptChars).toBeGreaterThan(0);
