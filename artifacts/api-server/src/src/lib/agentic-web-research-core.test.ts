@@ -156,7 +156,7 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     ].join("\n");
     // toolVisit stores the sanitized text projection; its whitespace-normalized
     // bytes are the cursor/hash contract restored after a process restart.
-    const retainedPageText = pageText.replace(/\\s+/g, " ").trim();
+    const retainedPageText = pageText.replace(/\s+/g, " ").trim();
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
       status: 200,
