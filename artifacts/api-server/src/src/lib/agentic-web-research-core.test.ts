@@ -102,7 +102,7 @@ describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
     expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
-    expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
+    expect(agenticCoreSource).toContain("nonsemantic_observation_projection");
     expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
