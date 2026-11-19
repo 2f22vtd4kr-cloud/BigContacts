@@ -1984,7 +1984,9 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
   const meta = {
     hypothesis: cleanText(value.hypothesis, 500) || "Rationale not supplied by model; action retained for execution review.",
     purpose: cleanText(value.purpose, 500) || "Rationale not supplied by model; execute the otherwise valid requested action.",
-    expectedInformationGain: parsedInformationGain === null ? 0.5 : Math.max(0, Math.min(1, parsedInformationGain)),
+    expectedInformationGain: parsedInformationGain === null || parsedInformationGain < 0 || parsedInformationGain > 1
+      ? 0.5
+      : parsedInformationGain,
     rationaleIncomplete,
     partialFindings: parsePartialFindings(value.findings),
   }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
@@ -3125,7 +3127,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   let failedCapability: InvestigatorCapability | undefined;
   let failureReason: string | undefined;
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
-  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use a concise hypothesis/purpose and 0.5. Local parser enforces action-specific values and evidence rules.";
+  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use a concise hypothesis/purpose and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. Local parser enforces action-specific values and evidence rules.";
   const productionPrompt = buildStepPrompt({
     targetName: "",
     objective: "Identify one publicly documented example organization.",
