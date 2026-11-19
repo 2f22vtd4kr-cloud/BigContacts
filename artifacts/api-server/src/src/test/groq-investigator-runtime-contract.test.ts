@@ -226,6 +226,11 @@ describe("Groq Investigator runtime contract", () => {
       prompt: completeInvestigatorProviderPrompt,
       cognitiveTask: "discovery",
     });
+    const llama = buildGroqInvestigatorRequestBody({
+      model: "llama-3.3-70b-versatile",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
     const twentyBUser = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     const oneTwentyBUser = (oneTwentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(twentyBUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
@@ -237,9 +242,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("Include every key");
+    const llamaUser = (llama.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(llamaUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    expect(llamaUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect((llama.response_format as { type?: string } | undefined)?.type).toBe("json_object");
     expect(twentyB.response_format).toBeUndefined();
     expect((oneTwentyB.response_format as { type?: string } | undefined)?.type).toBe("json_schema");
     expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+    expect(buildInvestigatorOutputContractForModel("qwen/qwen3.8-27b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+    expect(buildInvestigatorOutputContractForModel("llama-3.3-70b-versatile", "OUTPUT CONTRACT: strict")).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     const correction = buildActionParseFailureObservation("invalid_action_arguments action=parallel_web_search invalid=searches");
     expect(correction).not.toContain("20 required top-level fields");
     expect(correction).not.toContain("all schema keys");
