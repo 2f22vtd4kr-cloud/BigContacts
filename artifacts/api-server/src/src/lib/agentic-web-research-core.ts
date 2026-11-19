@@ -1567,7 +1567,7 @@ type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retai
  * bounded independently of prompt size; reading a retained page never performs
  * another outbound request.
  */
-async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore, artifactTurn = 0): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string }> {
+async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore, artifactTurn = 0): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string; fromRetainedArtifact?: boolean }> {
   const displayUrl = sanitizeUrlForEvidence(url);
   const pageKey = normalizedActionResourceUrl(url) ?? url;
   const retainedPage = pageStore?.pages.get(pageKey);
@@ -1583,6 +1583,7 @@ async function toolVisit(url: string, signal?: AbortSignal, pageStore?: Retained
       pageReadOffset: start,
       pageReadNextOffset: end,
       pageHasMore: hasMore,
+      fromRetainedArtifact: true,
     };
   }
   try {
@@ -6706,9 +6707,9 @@ ${result.urls.join("\n")}
 
 ${searchText}${queryQualityWarning ? "\n\nINVESTIGATOR QUERY GUIDANCE (advisory, not a plan): " + queryQualityWarning : ""}`;
 assignSearchResultLeads(record, record.execution === "success" ? result.urls : []); lastObservation = record.observation ?? ""; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; record.observation = safeAgenticError(error, runController.signal.aborted); lastObservation = record.observation ?? ""; } pushHistory(`step${i + 1}: web_search execution=${record.execution} provider=${effectiveWebSearchProvider} query=${action.query}`); await emitSanitizedTrajectoryRecord(record); emit("web_search", { query: action.query, provider: effectiveWebSearchProvider!, status: record.execution, summary: `${record.leadUrls?.length ?? 0} search-result lead URLs surfaced` }); continue; } if (action.action === "visit") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: visit ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("visit", { url: sanitizeUrlForEvidence(action.url), provider: "page-fetch", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } } const canonical = normalizedUrl(action.url) || action.url;
-visits += 1;
 runtimeStage = "external_page_fetch";
 const page = await toolVisit(canonical, runController.signal, retainedFetchedPages, record.turn);
+if (!page.fromRetainedArtifact) visits += 1;
 const communityObservationSource = isCommunityObservationSourceUrl(page.observedUrl ?? canonical);
 record.args = {
   ...record.args,
