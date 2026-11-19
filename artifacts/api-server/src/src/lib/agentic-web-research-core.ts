@@ -2310,7 +2310,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const normalized = typeof prompt === "string" ? prompt : "";
   const availableActionsMatch = normalized.match(/^AVAILABLE ACTIONS:\\s*(.+)$/m);
   const actionAllowlist = availableActionsMatch
-    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim()).filter(Boolean)
+    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\\.$/, "")).filter(Boolean)
     : getModelSelectableAgentActions();
   if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
