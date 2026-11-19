@@ -346,12 +346,23 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
                 sql`${researchCaseEventsTable.payload}::jsonb ->> 'jobId' = ${atlasJobId}`,
               ))
           : [{ count: 0 }];
-        const [cardCount] = await db.select({ count: sql<number>`count(*)::int`.as("count") })
+        const cardMetadataRows = await db.select({ metadata: entitiesTable.metadata })
           .from(entitiesTable)
-          .where(sql`${entitiesTable.metadata}::jsonb ->> 'atlasJobId' = ${atlasJobId}`);
-        const [evidenceCount] = await db.select({ count: sql<number>`count(*)::int`.as("count") })
+          .where(sql`${entitiesTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
+        const evidenceMetadataRows = await db.select({ metadata: researchEvidenceTable.metadata })
           .from(researchEvidenceTable)
-          .where(sql`${researchEvidenceTable.metadata}::jsonb ->> 'atlasJobId' = ${atlasJobId}`);
+          .where(sql`${researchEvidenceTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
+        const metadataBelongsToJob = (value: unknown): boolean => {
+          if (typeof value !== "string") return false;
+          try {
+            const parsed = JSON.parse(value) as Record<string, unknown>;
+            return parsed.atlasJobId === atlasJobId;
+          } catch {
+            return false;
+          }
+        };
+        const persistedCardCountReadBack = cardMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const persistedEvidenceCountReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
         const terminalAudit = {
           jobId: atlasJobId,
           terminalJobStatus: terminalJob?.status ?? "unknown",
@@ -359,8 +370,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           reconciliationAuthorityVerified,
           organizationReconciliation,
           personReconciliation,
-          persistedCardCountReadBack: Number(cardCount?.count ?? 0),
-          persistedEvidenceCountReadBack: Number(evidenceCount?.count ?? 0),
+          persistedCardCountReadBack,
+          persistedEvidenceCountReadBack,
           durableTraceEventCountReadBack: Number(traceCount?.count ?? 0),
           lockReleaseCallReturned: releaseCallReturned,
           lockReleasedReadBack: lockReleased,
