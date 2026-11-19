@@ -131,6 +131,32 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("uses bounded hierarchical AI summaries for historical memory well beyond the former 11k window", async () => {
+    const source = Array.from({ length: 600 }, (_, index) =>
+      `RECORD ${index}: source-backed observation remains durable; unresolved questions stay open.`,
+    ).join("\\n\\n");
+    expect(source.length).toBeGreaterThan(11_000);
+    expect(source.length).toBeLessThanOrEqual(80_000);
+    const summary = "Source-backed observations remain durable and unresolved questions stay open.";
+    rightHandMocks.runGroqRightHandFreeJson.mockImplementation(async () => ({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    }));
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source, maxChars: 1_200, jobId: "job-hierarchical-memory", turn: 9,
+    })).resolves.toBe(summary);
+
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.length).toBeGreaterThan(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.length).toBeLessThanOrEqual(12);
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) =>
+      call[5]?.preferredModel === "openai/gpt-oss-20b" && call[5]?.allowModelFallback === false,
+    )).toBe(true);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls.at(-1)?.[0] ?? "")).toContain("MEMORY SEGMENT 1:");
+  });
+
   it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
     expect(source.length).toBeGreaterThanOrEqual(9_000);
