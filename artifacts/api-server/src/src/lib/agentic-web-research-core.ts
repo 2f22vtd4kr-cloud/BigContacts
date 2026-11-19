@@ -3262,7 +3262,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
     capabilities: InvestigatorCapability[];
     passedSamples: number;
     failedSamples: number;
-    samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }>;
+    samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }>;
   }>;
   failedCapability?: InvestigatorCapability;
   error?: string;
@@ -3302,7 +3302,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
     ].join("\n\n");
     let passedSamples = 0;
     let failureReason = "";
-    const samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }> = [];
+    const samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }> = [];
     // Three samples are diagnostic, not an all-three-or-nothing launch gate.
     // A lane needs at least two independently generated valid actions to be
     // considered repeatably compatible; one success out of three is not healthy.
@@ -3317,6 +3317,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
       let samplePassed = false;
       let classification = "provider_failure";
       let diagnostic = "provider_unavailable";
+      let rawOutputClass = "no_raw_output";
       try {
         const result = await withProviderRole("investigator", () => callGroqJson(
           prompt, controller.signal, "identity_resolution", modelCapabilities[0], undefined,
@@ -3327,11 +3328,13 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
           samplePassed = true;
           classification = "passed";
           diagnostic = "valid_action";
+          rawOutputClass = "valid_action_object";
         } else {
           const parseDiagnostic = result?.raw
             ? describeAgentActionParseFailure(result.raw, ["web_search"])
             : "";
           const providerDiagnostic = result?.error ?? "provider_contract_error";
+          rawOutputClass = result?.raw ? (parseDiagnostic || "invalid_raw_output") : "missing_raw_output";
           classification = result?.error
             ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic)
               ? "provider_transport_failure"
@@ -3348,6 +3351,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
           ? "provider_transport_failure"
           : "provider_failure";
         diagnostic = classification + ":" + digestDiagnosticText(message);
+        rawOutputClass = "provider_no_raw_output";
         failureReason ||= classification;
       } finally {
         clearTimeout(timer);
@@ -3356,6 +3360,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
           sample: sample + 1,
           passed: samplePassed,
           classification,
+          rawOutputClass,
           latencyMs: Date.now() - sampleStartedAt,
           diagnostic,
         });
