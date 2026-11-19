@@ -37,6 +37,12 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("RESEARCH LIVENESS (advisory only");
   });
 
+  it("verifies exact named quotations across continuation sections of the same fetched source URL", () => {
+    expect(canonicalAtlasLaunchSource).toContain("(verifiedSourceObservations.get(normalizeEvidenceUrl(url)) ?? []).join");
+    expect(canonicalAtlasLaunchSource).toContain("normalizedObservation.includes(normalizedQuote) && normalizedObservation.includes(normalizedName)");
+    expect(canonicalAtlasLaunchSource).not.toContain(".some((observation) => {");
+  });
+
   it("records reconciliation results, database read-back counts, durable trace count, and lock-release verification", () => {
     expect(canonicalAtlasLaunchSource).toContain("organizationReconciliation");
     expect(canonicalAtlasLaunchSource).toContain("personReconciliation");
