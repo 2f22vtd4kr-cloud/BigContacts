@@ -54,6 +54,7 @@ export type CanonicalAtlasOptions = {
   discoveryGeography?: string;
   discoveryExclusions?: string[];
   excludedInvestigatorLlm?: InvestigatorCapability[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }[] }[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
@@ -1301,6 +1302,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       ],
       startingLane: "model-selected discovery",
       excludedInvestigatorLlm: opts.excludedInvestigatorLlm,
+      investigatorLaneHealth: opts.investigatorLaneHealth,
     });
     await assertAtlasJobActive(atlasJobId);
 
@@ -1381,7 +1383,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
-    let consecutiveActionParseFailureEpisodes = 0;
+    const parseFailureEpisodesByInvestigator = new Map<InvestigatorCapability, number>();
     // This counter is initialized before opening-episode recovery can invoke the
     // shared reassignment helper.
     let consecutiveInvestigatorTokenCapacityFailures = 0;
@@ -1428,6 +1430,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         ],
         startingLane: "Boss-directed Investigator capability reassignment after explicit hard request-quota exhaustion",
         excludedInvestigatorLlm: bossExcludedCapabilities,
+        investigatorLaneHealth: opts.investigatorLaneHealth,
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
@@ -1735,14 +1738,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         && candidate.searches === 0 && candidate.visits === 0
         && (candidate.trajectoryRecords ?? []).some((record) => record.action === "parse_failure" && record.stopReason === "PARSE_FAILURE");
       let zeroResearchParseFailure = isZeroResearchParseFailure(result);
-      consecutiveActionParseFailureEpisodes = zeroResearchParseFailure
-        ? consecutiveActionParseFailureEpisodes + 1
+      let parseFailureCountForLane = zeroResearchParseFailure
+        ? (parseFailureEpisodesByInvestigator.get(selectedInvestigator) ?? 0) + 1
         : 0;
+      parseFailureEpisodesByInvestigator.set(selectedInvestigator, parseFailureCountForLane);
       while (isInvestigatorHardQuotaExhausted(result)
         || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)
-        || (zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2)) {
+        || (zeroResearchParseFailure && parseFailureCountForLane >= 2)) {
         const dailyTokenQuotaFailure = isInvestigatorTokenDailyQuotaUnavailableEpisode(result);
-        const actionParseFailure = zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2;
+        const actionParseFailure = zeroResearchParseFailure && parseFailureCountForLane >= 2;
         // Preserve the original hard-request-quota budget calculation; the
         // separate TPD path is bounded to one act and the global budget left.
         const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
@@ -1769,8 +1773,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
-        zeroResearchParseFailure = isZeroResearchParseFailure(result);
-        if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;
+        zeroResearchParseFailure = isZeroResearchParseFailure(recovered);
+        parseFailureCountForLane = zeroResearchParseFailure
+          ? (parseFailureEpisodesByInvestigator.get(selectedInvestigator) ?? 0) + 1
+          : 0;
+        parseFailureEpisodesByInvestigator.set(selectedInvestigator, parseFailureCountForLane);
         if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
       }
       return result;
@@ -2545,7 +2552,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
-        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities() });
+        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities(), investigatorLaneHealth: opts.investigatorLaneHealth });
         if (targetResult.budgetExhausted) throw new Error("investigator_daily_token_budget_exhausted");
         if (targetResult.usageLedgerUnavailable) throw new Error("investigator_usage_ledger_unavailable");
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
