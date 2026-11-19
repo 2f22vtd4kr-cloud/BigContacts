@@ -5,6 +5,7 @@ const root = process.cwd();
 const core = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
 const ssrf = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/ssrf-safe-fetch.ts"), "utf8");
 const browser = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/browser-fetch-core.ts"), "utf8");
+const transportTest = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/test/groq-investigator-transport.test.ts"), "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(/from "\.\/ssrf-safe-fetch"/.test(core), "ReAct core does not import the canonical SSRF-safe transport.");
@@ -15,6 +16,7 @@ assert(/gatedSafeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search
 assert(/gatedSafeOutboundFetch\(url/.test(core), "Investigator page visits do not use the gated SSRF-safe transport.");
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
 assert(/classifyGroqInvestigatorHttp400/.test(core) && /providerCode === "json_validate_failed"/.test(core), "Groq HTTP 400 handling must distinguish recoverable generated-output validation from provider contract rejection.");
+assert(/callGroqJson\(/.test(transportTest) && /json_validate_failed/.test(transportTest) && /param: "response_format"/.test(transportTest) && /toHaveBeenCalledTimes\(2\)/.test(transportTest) && /toHaveBeenCalledTimes\(1\)/.test(transportTest), "Groq HTTP 400 recovery and schema rejection must be exercised through the real Investigator transport.");
 const transportErrorDecisionAt = core.indexOf("const httpErrorDecision = decideGroqInvestigatorHttpError");
 const transportRecoveryAt = core.indexOf("const recovery = httpErrorDecision.recovery", transportErrorDecisionAt);
 const recoveryDecisionHelperAt = core.indexOf("export function decideGroqInvestigatorHttpError");
