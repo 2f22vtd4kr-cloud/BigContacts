@@ -6329,7 +6329,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           turn: priorTurnOffset + i + 1,
         }, "historical_memory");
         if (!compactedMemory?.text) {
-          const message = "Historical research context could not be safely projected into the bounded Investigator prompt; the full case history remains durable.";
+          const message = "Historical research context could not be preserved verbatim or summarized by AI within the bounded Investigator prompt; the full case history remains durable.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
