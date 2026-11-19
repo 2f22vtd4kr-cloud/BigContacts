@@ -6173,16 +6173,20 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   for (const priorRecord of [...completePriorTrajectoryRecords].reverse()) {
     const artifact = priorRecord.pageArtifact;
     const sourceUrl = typeof artifact?.sourceUrl === "string" ? artifact.sourceUrl : "";
+    const requestedUrl = typeof priorRecord.args?.url === "string" ? priorRecord.args.url : sourceUrl;
     const text = typeof artifact?.text === "string" ? artifact.text : "";
-    const key = sourceUrl ? normalizedActionResourceUrl(sourceUrl) : null;
-    if (key && text && !retainedFetchedPages.pages.has(key)
+    const keys = [...new Set([sourceUrl, requestedUrl]
+      .map((url) => normalizedActionResourceUrl(url))
+      .filter((key): key is string => Boolean(key)))];
+    if (keys.length && text && !keys.some((key) => retainedFetchedPages.pages.has(key))
       && retainedFetchedPages.retainedChars + text.length <= retainedFetchedPages.maxChars) {
-      retainedFetchedPages.pages.set(key, {
+      const retainedArtifact = {
         text,
         nextOffset: Math.min(text.length, MAX_OBS),
         sourceUrl,
         artifactTurn: priorRecord.turn,
-      });
+      };
+      for (const key of keys) retainedFetchedPages.pages.set(key, retainedArtifact);
       retainedFetchedPages.retainedChars += text.length;
     }
   }
