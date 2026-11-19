@@ -459,7 +459,7 @@ export type GroqBossDiscoveryInput = {
   startingLane?: string;
   /** Investigator capabilities unavailable for this Boss decision (for example, preflight-incompatible or quota-exhausted lanes). */
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
-  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }[] }[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }[] }[];
 };
 
 const openingCapabilitySelectionOrientation = [
