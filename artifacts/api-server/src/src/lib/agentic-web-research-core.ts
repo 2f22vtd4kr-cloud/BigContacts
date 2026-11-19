@@ -2978,6 +2978,7 @@ export async function callGroqJson(
         lastProviderError = "empty_response";
         break;
       } catch (error: any) {
+        if (!providerRequestSent && providerGateStartedAt > 0) providerWaitMs = Math.max(0, Date.now() - providerGateStartedAt);
         // Every reserved allowance must be reconciled even when cancellation or
         // mandatory prompt-audit capture fails before the normal response path.
         // providerRequestSent distinguishes a local preflight failure from a
@@ -3085,7 +3086,6 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
       try {
         boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, promptMode);
       } catch (error) {
-        if (!providerRequestSent && providerGateStartedAt > 0) providerWaitMs = Math.max(0, Date.now() - providerGateStartedAt);
         const reason = error instanceof Error ? error.message : "investigator_prompt_budget_exceeded";
         setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
         return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
