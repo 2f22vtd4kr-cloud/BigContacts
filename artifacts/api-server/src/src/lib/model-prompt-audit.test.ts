@@ -62,8 +62,8 @@ describe("model prompt audit", () => {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
       expect(config).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-      expect(config).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
-      expect(config).not.toContain('APEX_MODEL_AUDIT_FILE = "private-audits/');
+      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");
@@ -82,11 +82,8 @@ describe("model prompt audit", () => {
     expect(runtimeProofWorkflow).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true"');
     expect(runtimeProofWorkflow).not.toContain("            audits/APEX_ATLAS_MODEL_AUDIT_*.md");
     expect(workspaceConfig + artifactConfig).not.toContain("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02_MODEL_TRACE.md");
-    expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
-    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
-    expect(productionConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
+    expect(productionConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
+    expect(productionConfig).toContain('APEX_MODEL_AUDIT_FILE = "private-audits/apex-atlas-run-{jobId}.md"');
     expect(productionConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
     expect(productionConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
     expect(productionConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"');
@@ -179,6 +176,38 @@ describe("model prompt audit", () => {
       responseBody: "{}",
     }, environment, write)).toBe(false);
     expect(writes).toHaveLength(0);
+  });
+
+  it("allows explicit production capture only to private job-scoped files with contact values redacted", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const writes: Array<{ path: string; contents: string }> = [];
+    const env = {
+      NODE_ENV: "production",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "private-audits/apex-atlas-run-{jobId}.md",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "false",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "false",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA: "false",
+    };
+    expect(isModelPromptAuditCaptureEnabled(env)).toBe(true);
+    const requestId = emitModelPromptAudit(input, env, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+    expect(requestId).toBeTruthy();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "private-audits/apex-atlas-run-job-1.md"));
+    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
+
+    expect(emitModelPromptAudit(input, {
+      ...env,
+      APEX_MODEL_AUDIT_FILE: "audits/visible-production-trace.md",
+    }, () => undefined, apiPackageCwd)).toBeNull();
+    expect(emitModelPromptAudit(input, {
+      ...env,
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+    }, () => undefined, apiPackageCwd)).toBeNull();
   });
 
   it("is disabled unless explicitly enabled in development or test", () => {
