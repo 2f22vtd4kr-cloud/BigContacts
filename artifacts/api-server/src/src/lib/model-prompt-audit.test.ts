@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled, summarizeModelAuditTrace } from "./model-prompt-audit";
 
 const input = {
   provider: "groq",
@@ -176,6 +176,30 @@ describe("model prompt audit", () => {
       responseBody: "{}",
     }, environment, write)).toBe(false);
     expect(writes).toHaveLength(0);
+  });
+
+  it("requires every job-scoped model request to have a matching visible response record", () => {
+    expect(summarizeModelAuditTrace([
+      "### Model request request-1",
+      "### Model response request-1",
+      "### Model request request-2",
+      "### Model response request-2",
+    ].join("\n"))).toEqual({
+      requestCount: 2,
+      responseCount: 2,
+      pairedRequestCount: 2,
+      complete: true,
+    });
+    expect(summarizeModelAuditTrace([
+      "### Model request request-1",
+      "### Model response request-1",
+      "### Model request request-2",
+    ].join("\n"))).toEqual({
+      requestCount: 2,
+      responseCount: 1,
+      pairedRequestCount: 1,
+      complete: false,
+    });
   });
 
   it("allows explicit production capture only to private job-scoped files with contact values redacted", () => {
