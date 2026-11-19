@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
@@ -147,6 +147,22 @@ function shouldIncludeContactDataForAuditFile(
     && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true"
     && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA === "true"
     && normalizedRelativePath.startsWith("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_");
+}
+
+export function resolveModelAuditAttachmentForJob(jobId: string): { relativePath: string; bytes: number } | null {
+  const configuredPath = process.env.APEX_MODEL_AUDIT_FILE?.trim();
+  if (!configuredPath) return null;
+  const jobPath = resolveModelAuditFilePathForJob(configuredPath, jobId);
+  const auditPath = resolveSafeModelAuditFilePath(
+    jobPath,
+    process.cwd(),
+    process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
+  );
+  if (!auditPath || !existsSync(auditPath)) return null;
+  return {
+    relativePath: relative(workspaceRootFrom(process.cwd()), auditPath).replace(/\\\\/g, "/"),
+    bytes: statSync(auditPath).size,
+  };
 }
 
 function resolveSafeModelAuditFilePath(
