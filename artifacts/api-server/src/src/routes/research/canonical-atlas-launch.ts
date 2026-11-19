@@ -474,7 +474,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         for (const researchCase of terminalCases) {
           const [latestEvent] = await db.select({ iteration: sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration") })
             .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, researchCase.id));
-          const correlationKey = atlasJobId + ":terminal-reconciliation";
+          const correlationKey = atlasJobId + ":terminal-reconciliation:" + (terminalChecksPassed ? "verified" : "incomplete");
           const [inserted] = await db.insert(researchCaseEventsTable).values({
             caseId: researchCase.id, iteration: Number(latestEvent?.iteration ?? researchCase.iteration ?? 0) + 1,
             actorRole: "system", eventType: "status", status: "recorded",
@@ -487,6 +487,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             if (!existing?.id || typeof existing.payload !== "string") throw new Error("Terminal audit replay could not be read back.");
             const existingAudit = JSON.parse(existing.payload) as Record<string, unknown>;
             if (existingAudit.jobId !== atlasJobId || existingAudit.terminalChecksPassed !== terminalAudit.terminalChecksPassed
+              || existingAudit.terminalJobStatus !== terminalAudit.terminalJobStatus
+              || existingAudit.pipelineOutcome !== terminalAudit.pipelineOutcome
               || existingAudit.lockReleasedReadBack !== terminalAudit.lockReleasedReadBack) throw new Error("Terminal audit replay did not match the current durable verification state.");
           }
           const [readBack] = await db.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
