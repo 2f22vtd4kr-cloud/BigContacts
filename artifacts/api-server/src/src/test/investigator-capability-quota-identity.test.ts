@@ -3,7 +3,9 @@ import {
   getAvailableDistinctInvestigatorCapabilities,
   getAvailableInvestigatorCapabilities,
   getInvestigatorCredentialAliases,
+  getInvestigatorCapabilityRuntimeHealthSnapshot,
   getModelScopedInvestigatorQuotaFallback,
+  recordInvestigatorCapabilityRuntimeOutcome,
   type InvestigatorCapability,
 } from "../lib/investigator-capability-registry";
 
@@ -88,6 +90,25 @@ describe("Investigator credential quota identity", () => {
       "groq-investigator-3", "groq-investigator-4", "groq-investigator-5",
       "groq-investigator-6", "groq-investigator-7", "groq-investigator-8",
     ]);
+  });
+
+  it("degrades a lane after consecutive runtime contract failures, recovers on a valid action, and never auto-rotates", () => {
+    const capability: InvestigatorCapability = "groq-investigator-2";
+    expect(recordInvestigatorCapabilityRuntimeOutcome(capability, {
+      success: false, failureClass: "action_parse_failure",
+    }).status).toBe("healthy");
+    const degraded = recordInvestigatorCapabilityRuntimeOutcome(capability, {
+      success: false, failureClass: "action_parse_failure",
+    });
+    expect(degraded.status).toBe("degraded");
+    expect(degraded.parseFailures).toBe(2);
+    expect(getInvestigatorCapabilityRuntimeHealthSnapshot(env).find((lane) => lane.capability === capability)?.status).toBe("degraded");
+    expect(getAvailableDistinctInvestigatorCapabilities(env)).toContain(capability);
+
+    const recovered = recordInvestigatorCapabilityRuntimeOutcome(capability, { success: true });
+    expect(recovered.status).toBe("healthy");
+    expect(recovered.consecutiveFailures).toBe(0);
+    expect(getInvestigatorCapabilityRuntimeHealthSnapshot(env).find((lane) => lane.capability === capability)?.status).toBe("healthy");
   });
 
   it("exposes the 20B endpoint by default and permits explicit disablement", () => {
