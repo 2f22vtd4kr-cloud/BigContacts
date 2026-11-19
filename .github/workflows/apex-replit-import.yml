@@ -17,14 +17,12 @@ jobs:
         with:
           fetch-depth: 1
       - name: Package source with immutable revision manifest
-        env:
-          SOURCE_REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
           staging="$RUNNER_TEMP/apex-replit-import"
           mkdir -p "$staging"
-          git archive "$SOURCE_REVISION" | tar -x -C "$staging"
-          printf '%s\n' "$SOURCE_REVISION" > "$staging/APEX_SOURCE_REVISION"
+          git archive "$GITHUB_SHA" | tar -x -C "$staging"
+          printf '%s\n' "$GITHUB_SHA" > "$staging/APEX_SOURCE_REVISION"
           (cd "$staging" && zip -qr "$GITHUB_WORKSPACE/apex-replit-import.zip" .)
       - name: Publish Replit import artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

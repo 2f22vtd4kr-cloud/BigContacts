@@ -26,7 +26,7 @@ function assertGroqStrictSchemaNode(node: unknown): void {
 
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: JSON object only.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, offset, length, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
   "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
@@ -44,7 +44,7 @@ describe("Groq Investigator runtime contract", () => {
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, offset, length, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
   });
 
   it("keeps the preferred user prompt within the 10,000-character schema-inclusive request target", () => {
@@ -215,7 +215,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(invalid).toBeNull();
   });
 
-  it("uses a reduced action-specific contract for 20B and retains the full 20-key contract for strict models", () => {
+  it("uses a reduced action-specific contract for 20B and retains the full 22-key contract for strict models", () => {
     const twentyB = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
       prompt: completeInvestigatorProviderPrompt,
@@ -239,6 +239,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyBSystem).not.toContain("include all schema keys");
     expect(twentyBUser).toContain("unused keys may be omitted");
     expect(twentyBUser).toContain("provider may be null or omitted");
+    expect(twentyBUser).toContain("read_page uses the exact URL of an already-fetched same-case page");
     expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("Include every key");
@@ -545,7 +546,7 @@ describe("Groq Investigator runtime contract", () => {
     };
     const actionSchema = responseFormat.json_schema?.schema;
     expect(actionSchema?.required).toEqual([
-      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "action", "query", "provider", "url", "offset", "length", "email", "username", "domain", "registry",
       "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
@@ -841,7 +842,7 @@ describe("Groq Investigator runtime contract", () => {
     const actionSchema = schema?.properties?.action as { enum?: string[] } | undefined;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = [
-      "web_search", "parallel_web_search", "parallel_registry_search", "visit",
+      "web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page",
       ...(availableBrowserProviders.length ? ["browser_fetch"] : []),
       "registry_search", "domain_lookup", "done",
     ];
@@ -900,8 +901,8 @@ describe("Groq Investigator runtime contract", () => {
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
     const variants = [
       ["web_search"], ["parallel_web_search"], ["parallel_registry_search"],
-      ["visit"], ["browser_fetch"], ["registry_search"], ["domain_lookup"], ["done"],
-      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+      ["visit"], ["read_page"], ["browser_fetch"], ["registry_search"], ["domain_lookup"], ["done"],
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page", "browser_fetch", "registry_search", "domain_lookup", "done"],
     ];
     for (const actions of variants) {
       const format = structuredActionResponseFormat("openai/gpt-oss-120b", actions) as {
@@ -1047,7 +1048,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain("DACH region");
     expect(compacted).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | registry_search | done.");
     expect(compacted).toContain("https://registry.example.test/company/123");
-    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(compacted).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, offset, length, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
 
   });
 

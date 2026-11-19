@@ -26,7 +26,7 @@ vi.mock("./ssrf-safe-fetch", async (importOriginal) => {
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: JSON object only.",
-  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, offset, length, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
   "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
@@ -895,7 +895,7 @@ describe("page visit response classification", () => {
 
 describe("model-selectable Investigator capabilities", () => {
   it("keeps runtime parsing and prompt/schema exposure limited to executable model capabilities", () => {
-    for (const action of ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]) {
+    for (const action of ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page", "browser_fetch", "registry_search", "domain_lookup", "done"]) {
       expect(isModelSelectableAgentAction(action)).toBe(true);
     }
     for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
@@ -1660,7 +1660,7 @@ describe("Investigator prompt architecture", () => {
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
-    const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
+    const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
     const actionLine = prompt.split("\n").find((line) => line.includes("AVAILABLE ACTIONS:")) ?? "";
     const advertisedActions = actionLine.split("AVAILABLE ACTIONS: ")[1]?.split(" (This is this turn's allowlist;")[0]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
     expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
@@ -2835,7 +2835,7 @@ Choose each next action yourself from the available capabilities and observed ev
   });
   it("keeps every runtime-attested tool model-selectable during discovery and target research", () => {
     const actions = [
-      "web_search", "parallel_web_search", "parallel_registry_search", "visit",
+      "web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page",
       "browser_fetch", "registry_search", "done", "domain_lookup", "harvest_domain",
       "footprint_email", "footprint_username_maigret", "footprint_username_sherlock",
       "footprint_spiderfoot",
@@ -3105,7 +3105,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(responseFormat.type).toBe("json_schema");
     expect(schema?.additionalProperties).toBe(false);
     expect(schema?.required).toEqual([
-      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "action", "query", "provider", "url", "offset", "length", "email", "username", "domain", "registry",
       "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
@@ -3125,7 +3125,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(providerSchema.type).toEqual(["string", "null"]);
     expect(providerSchema.enum).toContain(null);
     expect(providerSchema.enum?.filter((value) => value !== null)).toEqual(["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders]);
-    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
+    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", "read_page", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
     expect((schema?.properties?.targetType as { type?: unknown }).type).toEqual(["string", "null"]);
   });
 
@@ -3758,7 +3758,7 @@ Choose each next action yourself from the available capabilities and observed ev
     };
     const schema = responseFormat.json_schema?.schema;
     expect(schema?.required).toEqual([
-      "action", "query", "provider", "url", "email", "username", "domain", "registry",
+      "action", "query", "provider", "url", "offset", "length", "email", "username", "domain", "registry",
       "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market",
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
@@ -4956,7 +4956,8 @@ describe("canonical Investigator parse-failure recovery", () => {
   it("recomputes the zero-research parse-failure predicate after a recovery episode", () => {
     expect(canonicalAtlasDiscoverySource).toContain("const isZeroResearchParseFailure = (candidate: typeof result): boolean =>");
     expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(result);");
-    expect(canonicalAtlasDiscoverySource).toContain("if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;");
+    expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(recovered);");
+    expect(canonicalAtlasDiscoverySource).toContain("parseFailureEpisodesByInvestigator.set(selectedInvestigator, parseFailureCountForLane);");
   });
 
   it("persists incomplete model rationale as telemetry without blocking action execution", () => {

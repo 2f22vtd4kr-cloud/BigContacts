@@ -86,7 +86,7 @@ describe("discovery runtime architecture", () => {
     expect(reviewCall).toContain('cognitiveTask: "consequential_discovery_decision_review"');
   });
 
-  it("defers discovery Right-hand review until the Investigator and Boss reach a consequential decision", () => {
+  it("reviews consequential decisions and periodically challenges discovery stagnation", () => {
     const openingBoss = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
     const firstInvestigatorEpisode = canonicalDiscoverySource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
     const rightHandCall = canonicalDiscoverySource.indexOf("const review = await runGroqRightHandFreeJson(");
@@ -94,7 +94,9 @@ describe("discovery runtime architecture", () => {
     expect(firstInvestigatorEpisode).toBeGreaterThan(openingBoss);
     expect(rightHandCall).toBeGreaterThan(firstInvestigatorEpisode);
     expect(canonicalDiscoverySource).toContain("const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0");
-    expect(canonicalDiscoverySource).toContain("(investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)");
+    expect(canonicalDiscoverySource).toContain("(investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision || stagnationReviewDue)");
+    expect(canonicalDiscoverySource).toContain("STAGNATION OVERSIGHT");
+    expect(canonicalDiscoverySource).toContain("researchTurnsSinceLastStagnationReview >= 6");
     expect(canonicalDiscoverySource).toContain("rightHandReconsiderationUsed");
     const rightHandSource = canonicalDiscoverySource.slice(rightHandCall, rightHandCall + 2600);
     expect(rightHandSource).toContain("consequential_discovery_decision_review");

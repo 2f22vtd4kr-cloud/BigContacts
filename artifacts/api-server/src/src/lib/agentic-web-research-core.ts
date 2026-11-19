@@ -2360,7 +2360,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   }
   const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
   const supportsFindings = actionAllowlist.includes("done");
-  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
+  const requiredSchemaFields = ["action", "query", "provider", "url", "offset", "length", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
   const requiredFindingFields = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
@@ -2388,6 +2388,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
   const shapes = [
     allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
+    allowed.has("read_page") ? "read_page uses the exact URL of an already-fetched same-case page and a zero-based offset plus length up to 12000; it makes no network request." : "",
     allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
   return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
@@ -5242,7 +5243,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     authoritativeCaseObjective,
     activeBossScopeSection,
     availableActionsGuidance,
-    availableActions.includes("read_page") ? "READ_PAGE: non-network inspection of a successfully fetched same-case page. Use its exact observed URL with offset (0-based) and optional length (maximum 12000) to read additional stored text. The observation states how many characters were omitted at fetch time. This does not trigger the network repeat guard." : "",
+    availableActions.includes("read_page") ? "READ_PAGE: read more text from an already-fetched page; no network request. Use exact URL, 0-based offset and length (max 12000); fetch notes report omitted characters." : "",
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
