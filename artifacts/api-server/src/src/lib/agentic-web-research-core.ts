@@ -2308,7 +2308,8 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const availableActionsMatch = normalized.match(/AVAILABLE ACTIONS:\s*([^\r\n]+)/);
+  const availableActionsMatches = [...normalized.matchAll(/^[ \t]*(?:[-*]\s*)?AVAILABLE ACTIONS:\s*([^\r\n]+)/gm)];
+  const availableActionsMatch = availableActionsMatches.at(-1);
   const actionAllowlist = availableActionsMatch
     ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
     : getModelSelectableAgentActions();
