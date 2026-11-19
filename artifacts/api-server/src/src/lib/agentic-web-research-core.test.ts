@@ -2982,6 +2982,7 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("const body = sanitizeObservableValue(stripHtml(raw))");
       expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeUrlsInText(stripHtml(result.html)) : \"\";");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
+      expect(agenticCoreSource).toContain("for (const record of completePromptRecords)");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
       expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
       expect(bureauAgenticPassSource).toContain("Buffer.byteLength(artifactPayload, \"utf8\") > 128 * 1024");
