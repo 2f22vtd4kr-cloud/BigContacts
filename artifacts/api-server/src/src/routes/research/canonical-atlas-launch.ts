@@ -432,7 +432,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           && (terminalJob.status === "done" || terminalJob.status === "failed"));
         const pipelineOutcomeVerified = terminalJob?.status === "done" && terminalJob.outcome === "complete";
         const reconciliationVerified = !isDiscoveryRun || (reconciliationAuthorityVerified && organizationReconciliation.status === "succeeded" && personReconciliation.status === "succeeded");
-        const persistedCountsVerified = !isDiscoveryRun || (persistedCardCountReadBack >= expectedNewCardCount && persistedEvidenceCountReadBack >= expectedNewEvidenceRowCount);
+        const persistedCountsVerified = !isDiscoveryRun || (persistedCardCountByJobReadBack === expectedNewCardCount && persistedEvidenceCountByJobReadBack === expectedNewEvidenceRowCount && persistedCardCountReadBack >= expectedNewCardCount && persistedEvidenceCountReadBack >= expectedNewEvidenceRowCount);
         const sourceEvidenceVerified = !isDiscoveryRun || (sourceBackedNamedFindingCountReadBack > 0 && persistedCardCountReadBack > 0 && persistedEvidenceCountReadBack > 0);
         const traceAttachmentVerified = Boolean(modelAuditAttachment && modelAuditAttachment.bytes > 0 && modelAuditAttachment.complete && modelAuditAttachment.requestCount > 0);
         const durableTraceVerified = Number(traceCount?.count ?? 0) > 0;
