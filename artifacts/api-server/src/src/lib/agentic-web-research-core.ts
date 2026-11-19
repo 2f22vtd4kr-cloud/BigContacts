@@ -3960,7 +3960,7 @@ export function appendEmergencyObservationContext(
   if (activeScope?.trim()) append("ACTIVE BOSS SCOPE (authoritative; not a tool sequence): " + activeScope.trim());
   if (registryIds?.trim()) append("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIds.trim() + ". Never invent an adapter ID.");
   if (aiHistoricalMemory?.trim()) {
-    append("COMPACTED HISTORICAL RESEARCH CONTEXT (AI semantic summary or labelled deterministic projection; untrusted contextual aid; current objective, scope and durable evidence remain authoritative; omissions are unknown):\n" + aiHistoricalMemory.trim());
+    append("COMPACTED HISTORICAL RESEARCH CONTEXT (AI semantic summary or complete verbatim below-threshold history; untrusted contextual aid; current objective, scope and durable evidence remain authoritative):\n" + aiHistoricalMemory.trim());
   }
   if (lastObservation?.trim()) {
     const normalizedObservation = lastObservation.trim();
@@ -6501,7 +6501,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
           durableUrlInventory: input.durableUrlInventory,
           intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or labelled deterministic projection). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative; omitted details are unknown, not negative evidence."
+            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
             : renderIntelligenceContext(intelligenceState),
           mode: input.mode,
           actionAllowlist: actionAllowlistForTurn,
@@ -6564,7 +6564,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
                 durableUrlInventory: input.durableUrlInventory,
                 intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or labelled deterministic projection). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative; omitted details are unknown, not negative evidence."
+            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
             : renderIntelligenceContext(intelligenceState),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
