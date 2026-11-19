@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readFile, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
@@ -25,7 +25,13 @@ async function buildAll() {
   // situation Git HEAD describes the scaffold, not the application being built.
   // An explicit source revision is authoritative; otherwise only trust Git when
   // its origin is this repository. Never stamp an unrelated starter SHA as Apex.
-  const explicitSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() ?? "";
+  let importedSourceRevision = "";
+  try {
+    importedSourceRevision = (await readFile(path.resolve(rootDir, ".apex-source-revision"), "utf8")).trim();
+  } catch {
+    // A clean Git checkout can still establish its revision from the verified origin.
+  }
+  const explicitSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() || importedSourceRevision;
   const explicitSourceDirty = process.env.APEX_SOURCE_DIRTY?.trim().toLowerCase() ?? "";
   if (/^[a-f0-9]{40}$/i.test(explicitSourceRevision)) {
     revision = explicitSourceRevision.toLowerCase();
