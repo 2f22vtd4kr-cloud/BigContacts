@@ -23,7 +23,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: { id: {}, status: {}, caseFile: {}, currentAction: {}, updatedAt: {} },
 }));
 
-import { fenceStaleCanonicalJob, isCanonicalJobOwner } from "../lib/canonical-job-lock";
+import { fenceStaleCanonicalJob, isCanonicalJobOwner, releaseCanonicalJob } from "../lib/canonical-job-lock";
 
 const canonicalRedis = { get: vi.fn(), eval: vi.fn() };
 
@@ -33,6 +33,29 @@ describe("canonical lease owner read retry", () => {
     canonicalRedis.get.mockReset();
     canonicalRedis.eval.mockReset();
     mocks.getAllPermanentClients.mockReturnValue([canonicalRedis]);
+  });
+
+
+  it("releases only the lease still owned by this job and invalidates the active-job cache", async () => {
+    canonicalRedis.eval.mockResolvedValueOnce(1);
+    await expect(releaseCanonicalJob("atlas-run", "job-17")).resolves.toBe(true);
+    expect(canonicalRedis.eval).toHaveBeenCalledWith(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+      1,
+      "apex:activejob:atlas-run",
+      "job-17",
+    );
+    expect(mocks.invalidateActiveJobCache).toHaveBeenCalledWith("atlas-run");
+
+    canonicalRedis.eval.mockResolvedValueOnce(0);
+    await expect(releaseCanonicalJob("atlas-run", "job-18")).resolves.toBe(false);
+    expect(canonicalRedis.eval).toHaveBeenLastCalledWith(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+      1,
+      "apex:activejob:atlas-run",
+      "job-18",
+    );
+    expect(mocks.invalidateActiveJobCache).toHaveBeenCalledTimes(2);
   });
 
   it("terminalizes an interrupted prior job only while the caller owns the current lease", async () => {
