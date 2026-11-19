@@ -472,7 +472,11 @@ async function requestSummary(
  * substitutes an excerpt for the source.
  */
 const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
-const AI_COMPACTION_MAX_SOURCE_CHARS = 11_000;
+// Production historical-memory compaction supports segmented, model-written
+// summaries up to a bounded 80k source. It no longer has an 11k upper window.
+const AI_COMPACTION_MAX_SOURCE_CHARS = 80_000;
+const AI_COMPACTION_MAX_SOURCE_CHUNKS = 8;
+const AI_COMPACTION_MAX_REQUESTS_PER_TURN = 12;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
@@ -596,8 +600,8 @@ async function summarizeInvestigatorContextWithAiCompactorLegacy(
 export async function summarizeInvestigatorContextWithAiCompactor(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
-  // Compatibility for older non-turn-scoped callers. Every production Investigator
-  // call site supplies turn; that path below is capped to one model request/turn.
+  // Compatibility for older non-turn-scoped callers. Production callers pass
+  // their actual Investigator turn and use the bounded path below.
   if (input.turn == null && input.compactionKind !== "observation") {
     return summarizeInvestigatorContextWithAiCompactorLegacy(input);
   }
@@ -606,13 +610,13 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   if (input.compactionKind === "observation") return null;
 
   const objectiveSection = source.match(
-    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
+    /(?:^|\\n\\n)CURRENT CASE OBJECTIVE\\s*\\/\\s*APPROVED BOSS SCOPE(?:\\s*\\(authoritative\\))?:\\s*([\\s\\S]*?)(?=\\n\\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\\/RIGHT-HAND CONTEXT|OBSERVATION\\b)|$)/i,
   );
   if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
   // The objective is authoritative and is supplied verbatim to the Investigator.
   // Do not spend model tokens summarizing it as historical memory.
   const historicalSource = objectiveSection
-    ? source.replace(objectiveSection[0], "\n").trim()
+    ? source.replace(objectiveSection[0], "\\n").trim()
     : source;
 
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
@@ -626,18 +630,11 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   } catch {
     return null;
   }
-  const prompt = buildSummaryPrompt(historicalSource, maxChars);
-  if (prompt.length > maximumPromptChars) {
-    logPromptBudgetFailure(input, "primary", historicalSource.length, prompt.length, maximumPromptChars);
-    return null;
-  }
 
   const owner = compactionOwnerKey(input);
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
-  // Per-job content cache: unchanged text is never summarized twice. A cached
-  // summary is revalidated against the current fetched-source authority before reuse.
   const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash;
   if (aiCompactionCache.has(cacheKey)) {
     const cached = aiCompactionCache.get(cacheKey);
@@ -654,11 +651,92 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     if (oldest) aiCompactionAttemptsByTurn.delete(oldest);
   }
 
-  const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
-  // Cache failures as misses too: an unchanged segment is never retried on a later turn.
-  // Keep the cache bounded for both successful summaries and repeated provider failures.
-  // The cache stores the validated summary as the same JSON envelope consumed by parseSummary.
-  // Storing the plain text here would make every cache hit look like a parse failure.
+  // Lossless source segmentation -> model-written segment memories -> AI
+  // consolidation. All requests stay on the dedicated Right-hand 20B lane,
+  // execute sequentially, and share one strict per-turn request budget.
+  let requestsUsed = 0;
+  const summarizeBounded = async (
+    segmentSource: string,
+    targetChars: number,
+    allowedUrls: ReadonlySet<string>,
+  ): Promise<string | null> => {
+    if (requestsUsed >= AI_COMPACTION_MAX_REQUESTS_PER_TURN) return null;
+    requestsUsed += 1;
+    return requestSummary(segmentSource, segmentSource, targetChars, input, allowedUrls);
+  };
+
+  const promptInputBudget = Math.max(2_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
+  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
+  const sourceChunks = splitAiContextIntoChunks(historicalSource, chunkLimit);
+  let summary: string | null = null;
+
+  if (!sourceChunks.length || sourceChunks.length > AI_COMPACTION_MAX_SOURCE_CHUNKS) {
+    logger.warn({
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      sourceChars: historicalSource.length,
+      chunkCount: sourceChunks.length,
+      maxChunks: AI_COMPACTION_MAX_SOURCE_CHUNKS,
+    }, "[AI compaction] Historical memory exceeds the bounded source-segmentation budget; full source remains durable.");
+  } else if (sourceChunks.length === 1) {
+    summary = await summarizeBounded(historicalSource, maxChars, trustedFetchUrls);
+  } else {
+    const partialTarget = Math.min(1_600, Math.max(500, Math.floor((promptInputBudget * 0.6) / sourceChunks.length)));
+    const partialSummaries: string[] = [];
+    const successfulFetchUrls = new Set<string>();
+    for (const chunk of sourceChunks) {
+      const chunkUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
+      for (const url of chunkUrls) successfulFetchUrls.add(url);
+      const partial = await summarizeBounded(chunk, partialTarget, chunkUrls);
+      if (!partial) break;
+      partialSummaries.push(partial);
+    }
+
+    if (partialSummaries.length === sourceChunks.length) {
+      const combine = (segments: string[]) => segments
+        .map((segment, index) => "MEMORY SEGMENT " + (index + 1) + ":\\n" + segment)
+        .join("\\n\\n");
+      let segments = partialSummaries;
+      for (let depth = 0; depth < 4; depth += 1) {
+        const combined = combine(segments);
+        if (combined.length <= promptInputBudget) {
+          summary = await summarizeBounded(combined, maxChars, successfulFetchUrls);
+          break;
+        }
+
+        const batches: string[][] = [];
+        let pending: string[] = [];
+        for (const segment of segments) {
+          const candidate = combine([...pending, segment]);
+          if (pending.length && candidate.length > promptInputBudget) {
+            batches.push(pending);
+            pending = [segment];
+          } else {
+            pending.push(segment);
+          }
+        }
+        if (pending.length) batches.push(pending);
+        if (batches.length >= segments.length
+          || requestsUsed + batches.length + 1 > AI_COMPACTION_MAX_REQUESTS_PER_TURN) break;
+
+        const nextTarget = Math.min(maxChars, Math.max(500, Math.floor((promptInputBudget * 0.6) / batches.length)));
+        const reduced: string[] = [];
+        for (const batch of batches) {
+          const reducedSummary = await summarizeBounded(combine(batch), nextTarget, successfulFetchUrls);
+          if (!reducedSummary) {
+            reduced.length = 0;
+            break;
+          }
+          reduced.push(reducedSummary);
+        }
+        if (!reduced.length) break;
+        segments = reduced;
+      }
+    }
+  }
+
+  // Cache failures as misses too: unchanged content is never retried on a later
+  // turn. The cache stores the validated summary envelope consumed by parseSummary.
   aiCompactionCache.set(cacheKey, summary ? JSON.stringify({ summary }) : null);
   while (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
     const oldest = aiCompactionCache.keys().next().value;
