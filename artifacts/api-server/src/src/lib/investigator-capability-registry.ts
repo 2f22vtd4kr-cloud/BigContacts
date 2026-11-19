@@ -28,7 +28,7 @@ export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
 
 export type InvestigatorCapabilityRuntimeHealth = {
   capability: InvestigatorCapability;
-  status: "healthy" | "degraded";
+  status: "unobserved" | "healthy" | "degraded";
   successfulActions: number;
   failedActions: number;
   parseFailures: number;
@@ -41,6 +41,11 @@ export type InvestigatorCapabilityRuntimeHealth = {
 
 type MutableInvestigatorCapabilityRuntimeHealth = Omit<InvestigatorCapabilityRuntimeHealth, "capability" | "status">;
 const investigatorRuntimeHealth = new Map<InvestigatorCapability, MutableInvestigatorCapabilityRuntimeHealth>();
+
+function investigatorRuntimeHealthStatus(current: MutableInvestigatorCapabilityRuntimeHealth): InvestigatorCapabilityRuntimeHealth["status"] {
+  if (current.successfulActions + current.failedActions === 0) return "unobserved";
+  return current.consecutiveFailures >= 2 ? "degraded" : "healthy";
+}
 
 function emptyInvestigatorRuntimeHealth(): MutableInvestigatorCapabilityRuntimeHealth {
   return {
@@ -74,7 +79,7 @@ export function recordInvestigatorCapabilityRuntimeOutcome(
     else current.providerFailures += 1;
   }
   investigatorRuntimeHealth.set(capability, current);
-  return { capability, status: current.consecutiveFailures >= 2 ? "degraded" : "healthy", ...current };
+  return { capability, status: investigatorRuntimeHealthStatus(current), ...current };
 }
 
 /** Runtime health is advisory telemetry for Boss/Right-hand, never an automatic lane rotation. */
