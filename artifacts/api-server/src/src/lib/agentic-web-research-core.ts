@@ -6719,10 +6719,11 @@ if (communityObservationSource && page.status === "success") {
 }
 if (page.observedUrl) record.observedUrls = [page.observedUrl];
 if (page.pageText && page.observedUrl && page.pageSha256 && page.pageRetrievedAt) {
+  const durablePageText = sanitizeUrlsInText(page.pageText);
   record.pageArtifact = {
     sourceUrl: page.observedUrl,
-    text: page.pageText,
-    sha256: page.pageSha256,
+    text: durablePageText,
+    sha256: createHash("sha256").update(durablePageText).digest("hex"),
     retrievedAt: page.pageRetrievedAt,
   };
 }
@@ -6776,8 +6777,8 @@ record.observedUrls = result.html && observedBrowserUrl ? [observedBrowserUrl] :
 if (browserPageRetained && observedBrowserUrl && browserPageKey) {
   record.pageArtifact = {
     sourceUrl: observedBrowserUrl,
-    text: rawBrowserText,
-    sha256: createHash("sha256").update(rawBrowserText).digest("hex"),
+    text: sanitizeUrlsInText(rawBrowserText),
+    sha256: createHash("sha256").update(sanitizeUrlsInText(rawBrowserText)).digest("hex"),
     retrievedAt: new Date().toISOString(),
   };
 }
