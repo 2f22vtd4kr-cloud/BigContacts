@@ -234,6 +234,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(oneTwentyBUser).toContain("Include every key");
+    expect(twentyB.response_format).toBeUndefined();
+    expect((oneTwentyB.response_format as { type?: string } | undefined)?.type).toBe("json_schema");
     expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
   });
 
