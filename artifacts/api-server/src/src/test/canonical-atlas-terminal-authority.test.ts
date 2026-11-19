@@ -9,7 +9,9 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 describe("canonical Atlas terminal authority", () => {
   it("persists an authoritative terminal snapshot for successful and failed jobs", () => {
     expect(canonicalAtlasDiscoverySource).toContain("phaseSummary.terminal = JSON.stringify(terminalSnapshot)");
-    expect(canonicalAtlasDiscoverySource).toContain("result: JSON.stringify({ terminal: terminalSnapshot");
+    expect(canonicalAtlasDiscoverySource).toContain("const terminalJobResult = {");
+    expect(canonicalAtlasDiscoverySource).toContain("terminal: terminalSnapshot");
+    expect(canonicalAtlasDiscoverySource).toContain("result: JSON.stringify(terminalJobResult)");
     expect(canonicalAtlasDiscoverySource).toContain("phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot)");
     expect(canonicalAtlasDiscoverySource).toContain("result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary })");
     expect(canonicalAtlasDiscoverySource).toContain("materializedCardCount: materialized");
