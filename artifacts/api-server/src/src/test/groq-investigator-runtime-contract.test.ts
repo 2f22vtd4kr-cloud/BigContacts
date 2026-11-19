@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, resolveParallelWebSearchProviders, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -138,6 +138,57 @@ describe("Groq Investigator runtime contract", () => {
     expect(parseAgentAction(wrongActionShape)).toBeNull();
   });
 
+  it("resolves parsed null/omitted parallel providers to the same healthy runtime default used by single search", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [
+        { query: "company founder public profile", provider: null },
+        { query: "company leadership team" },
+        { query: "company annual report", provider: "exa" },
+      ],
+      hypothesis: "Public sources may identify relevant decision-makers.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(parsed?.action).toBe("parallel_web_search");
+    if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+    const dispatched = resolveParallelWebSearchProviders(parsed.searches, "serper");
+    expect(dispatched).toEqual([
+      { query: "company founder public profile", provider: "serper" },
+      { query: "company leadership team", provider: "serper" },
+      { query: "company annual report", provider: "exa" },
+    ]);
+    expect(resolveParallelWebSearchProviders(parsed.searches, null)).toBeNull();
+  });
+
+  it("accepts the complete strict-schema all-null envelope at the local parser boundary", () => {
+    const allNullEnvelope = {
+      action: "web_search",
+      query: "company founder public profile",
+      provider: null,
+      url: null,
+      email: null,
+      username: null,
+      domain: null,
+      registry: null,
+      thought: "Verify a public source.",
+      hypothesis: "A public profile may identify a relevant founder.",
+      purpose: "Find source-backed candidate leads.",
+      expectedInformationGain: 0.4,
+      locale: null,
+      market: null,
+      target: null,
+      targetType: null,
+      profile: null,
+      sources: null,
+      searches: null,
+      findings: null,
+    };
+    const parsed = parseAgentAction(JSON.stringify(allNullEnvelope));
+    expect(parsed?.action).toBe("web_search");
+    expect(parsed && "query" in parsed ? parsed.query : undefined).toBe("company founder public profile");
+  });
+
   it("accepts null or omitted providers in parallel web searches for runtime-default resolution", () => {
     for (const search of [
       { query: "company founder public profile", provider: null },
@@ -192,6 +243,9 @@ describe("Groq Investigator runtime contract", () => {
     })).toBe("output_validation_recoverable");
     expect(classifyGroqInvestigatorHttp400({
       status: 400, providerCode: "invalid_request_error", providerErrorType: "invalid_request_error", providerParam: "response_format",
+    })).toBe("provider_contract_error");
+    expect(classifyGroqInvestigatorHttp400({
+      status: 400, providerCode: "json_validate_failed", providerMessage: "JSON schema mismatch: required root field missing",
     })).toBe("provider_contract_error");
     expect(classifyGroqInvestigatorHttp400({
       status: 400, providerCode: "bad_request", providerErrorType: "invalid_request_error",
