@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -136,6 +136,67 @@ describe("Groq Investigator runtime contract", () => {
     });
     expect(describeAgentActionParseFailure(wrongActionShape)).toBe("invalid_action_arguments action=parallel_web_search invalid=registry");
     expect(parseAgentAction(wrongActionShape)).toBeNull();
+  });
+
+  it("accepts null or omitted providers in parallel web searches for runtime-default resolution", () => {
+    for (const search of [
+      { query: "company founder public profile", provider: null },
+      { query: "company founder public profile" },
+    ]) {
+      const parsed = parseAgentAction(JSON.stringify({
+        action: "parallel_web_search",
+        searches: [search],
+        hypothesis: "A public search may identify a relevant operating-company lead.",
+        purpose: "Find source-backed candidate leads.",
+        expectedInformationGain: 0.4,
+      }));
+      expect(parsed?.action).toBe("parallel_web_search");
+      if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+      expect(parsed.searches[0]?.provider).toBeUndefined();
+    }
+    const invalid = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "company founder", provider: "unknown-provider" }],
+      hypothesis: "A public search may identify a relevant lead.",
+      purpose: "Validate provider rejection.",
+      expectedInformationGain: 0.4,
+    }));
+    expect(invalid).toBeNull();
+  });
+
+  it("uses a reduced action-specific contract for 20B and retains the full 20-key contract for strict models", () => {
+    const twentyB = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
+    const oneTwentyB = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt: completeInvestigatorProviderPrompt,
+      cognitiveTask: "discovery",
+    });
+    const twentyBUser = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    const oneTwentyBUser = (oneTwentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(twentyBUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    expect(twentyBUser).toContain("unused keys may be omitted");
+    expect(twentyBUser).toContain("provider may be null or omitted");
+    expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBUser).toContain("Include every key");
+    expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+  });
+
+  it("recovers only Groq json_validate_failed 400s and fails fast on request/schema 400s", () => {
+    expect(classifyGroqInvestigatorHttp400({
+      status: 400, providerCode: "json_validate_failed", providerErrorType: "invalid_request_error",
+    })).toBe("output_validation_recoverable");
+    expect(classifyGroqInvestigatorHttp400({
+      status: 400, providerCode: "invalid_request_error", providerErrorType: "invalid_request_error", providerParam: "response_format",
+    })).toBe("provider_contract_error");
+    expect(classifyGroqInvestigatorHttp400({
+      status: 400, providerCode: "bad_request", providerErrorType: "invalid_request_error",
+    })).toBe("provider_contract_error");
+    expect(classifyGroqInvestigatorHttp400({ status: 401, providerCode: "invalid_api_key" })).toBeNull();
   });
 
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
@@ -327,7 +388,7 @@ describe("Groq Investigator runtime contract", () => {
       mode: "discovery",
     });
     const body = buildGroqInvestigatorRequestBody({
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
       prompt,
       cognitiveTask: "discovery",
     });
@@ -350,7 +411,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
-    expect(submitted).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default); parallel web items need query/provider; registry items need query/registry.");
+    expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
       json_schema?: { schema?: {
