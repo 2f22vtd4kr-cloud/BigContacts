@@ -474,7 +474,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         for (const researchCase of terminalCases) {
           const [latestEvent] = await db.select({ iteration: sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration") })
             .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, researchCase.id));
-          const correlationKey = atlasJobId + ":terminal-reconciliation:" + (terminalChecksPassed ? "verified" : "incomplete");
+          const correlationKey: string = atlasJobId + ":terminal-reconciliation:" + (terminalChecksPassed ? "verified" : "incomplete");
           const [inserted] = await db.insert(researchCaseEventsTable).values({
             caseId: researchCase.id, iteration: Number(latestEvent?.iteration ?? researchCase.iteration ?? 0) + 1,
             actorRole: "system", eventType: "status", status: "recorded",
@@ -491,8 +491,9 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
               || existingAudit.pipelineOutcome !== terminalAudit.pipelineOutcome
               || existingAudit.lockReleasedReadBack !== terminalAudit.lockReleasedReadBack) throw new Error("Terminal audit replay did not match the current durable verification state.");
           }
-          const [readBack] = await db.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
+          const readBackRows = await db.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
             .from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, researchCase.id), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+          const readBack: { id: number; payload: string | null } | undefined = readBackRows[0];
           if (!readBack?.id || typeof readBack.payload !== "string" || (JSON.parse(readBack.payload) as Record<string, unknown>).jobId !== atlasJobId) throw new Error("Terminal audit event did not pass durable read-back verification.");
         }
         logger.info({ jobId: atlasJobId, terminalAudit }, "Canonical Atlas terminal reconciliation audit persisted and read back.");
