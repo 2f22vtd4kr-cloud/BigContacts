@@ -175,8 +175,8 @@ describe("Atlas control-plane contract regression", () => {
       geography: "No geography supplied; do not invent or broaden one.",
     }, []);
     expect(discoveryPrompt).toContain(genericObjective);
-    expect(discoveryPrompt).toContain("The Investigator will begin the canonical mixed-source discovery phase under the exact human objective");
-    expect(discoveryPrompt).toContain("randomized, runtime-callable registry/asset-register catalog");
+    expect(discoveryPrompt).toContain("After this capability assignment, the Investigator owns research execution.");
+    expect(discoveryPrompt).toContain("No source family, registry, provider, query, geography, target class, or research sequence is required in advance.");
     expect(discoveryPrompt).toContain("Do not compare sectors, geographies, or strategies.");
     expect(discoveryPrompt).toContain("Do not add geographic scope or a target preference.");
     expect(discoveryPrompt).not.toContain("target-first discovery");
@@ -787,8 +787,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
     expect(bureauPassSource).toContain("priorTrajectoryRecords,investigatorLlm:input.investigatorLlm");
     expect(bureauPassSource).toContain("const replayedTrajectoryRecords=mode===\"discovery\"?await loadDurableTrajectoryRecords(durableCaseId):[];");
-    expect(bureauPassSource).toContain("for(const record of replayedTrajectoryRecords)mergedPriorRecords.set(record.turn,record)");
-    expect(bureauPassSource).toContain("for(const record of input.priorTrajectoryRecords??[])mergedPriorRecords.set(record.turn,record)");
+    expect(bureauPassSource).toContain("const trajectoryRecordKey=(record:AgenticTrajectoryRecord)=>(record.runId??\"legacy\")+\":\"+record.turn;");
+    expect(bureauPassSource).toContain("for(const record of replayedTrajectoryRecords)mergedPriorRecords.set(trajectoryRecordKey(record),record)");
+    expect(bureauPassSource).toContain("for(const record of input.priorTrajectoryRecords??[]){const key=trajectoryRecordKey(record)");
     expect(agenticResearchSource.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\]/g) ?? []).toHaveLength(2);
         expect(agenticResearchSource.match(/const normalizedRecord = \{/g) ?? []).toHaveLength(2);
     expect(agenticResearchSource).toContain("failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain");
