@@ -20,12 +20,31 @@ async function buildAll() {
   let dirty = false;
   let dirtyState = "unknown";
   const builtAt = new Date().toISOString();
-  try {
-    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
-    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
-    dirtyState = dirty ? "dirty" : "clean";
-  } catch {
-    // Missing Git metadata is explicitly represented as unknown in the job record.
+  // An imported Replit workspace can preserve the starter project's .git
+  // directory while replacing its tracked source with BigContacts. In that
+  // situation Git HEAD describes the scaffold, not the application being built.
+  // An explicit source revision is authoritative; otherwise only trust Git when
+  // its origin is this repository. Never stamp an unrelated starter SHA as Apex.
+  const explicitSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() ?? "";
+  const explicitSourceDirty = process.env.APEX_SOURCE_DIRTY?.trim().toLowerCase() ?? "";
+  if (/^[a-f0-9]{40}$/i.test(explicitSourceRevision)) {
+    revision = explicitSourceRevision.toLowerCase();
+    if (explicitSourceDirty === "clean" || explicitSourceDirty === "dirty") {
+      dirtyState = explicitSourceDirty;
+      dirty = explicitSourceDirty === "dirty";
+    }
+  } else {
+    try {
+      const origin = execFileSync("git", ["remote", "get-url", "origin"], { cwd: rootDir, encoding: "utf8" }).trim();
+      const canonicalOrigin = /(?:github\\.com[:/]2f22vtd4kr-cloud\\/BigContacts)(?:\\.git)?$/i.test(origin);
+      if (canonicalOrigin) {
+        revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+        dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
+        dirtyState = dirty ? "dirty" : "clean";
+      }
+    } catch {
+      // Missing or unrelated Git metadata is explicitly unknown, never guessed.
+    }
   }
 
   await esbuild({
