@@ -28,6 +28,26 @@ describe("durable Investigator intelligence replay", () => {
     expect(state.atomicEvidence).toHaveLength(24);
   });
 
+  it("preserves exact run/turn identity and ignores duplicate projections for page-artifact attachment", () => {
+    const records = investigatorRecordsFromEvents([
+      {
+        id: 10, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ runId: "target-case-run", turn: 5, action: "visit", execution: "success", observedUrls: ["https://example.test/team"], findings: [] }),
+      },
+      {
+        id: 11, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ runId: "target-case-run", turn: 5, action: "visit", execution: "success", observedUrls: ["https://example.test/team"], findings: [] }),
+      },
+      {
+        id: 12, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ runId: "target-case-run", turn: 6, action: "visit", execution: "success", observedUrls: ["https://example.test/contact"], findings: [] }),
+      },
+    ]);
+    expect(records.map((record) => record.turn)).toEqual([5, 6]);
+    expect(records.map((record) => record.runId)).toEqual(["target-case-run", "target-case-run"]);
+    expect(records.map((record) => record.durableEventId)).toEqual([10, 12]);
+  });
+
   it("replays pivot scope identity and unvisited lead URLs from durable events", () => {
     const scopeKey = "explore mid-market fitness franchise owners in texas";
     const leadUrl = "https://registry.example.test/company/fitnation";
