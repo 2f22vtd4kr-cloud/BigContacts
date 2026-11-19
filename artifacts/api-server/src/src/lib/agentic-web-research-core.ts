@@ -6311,7 +6311,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (compactedMemory.method === "deterministic_projection") {
           emit("deterministic_historical_memory_projection", {
             status: "partial",
-            summary: "AI semantic memory compaction was unavailable; a URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
+            summary: "No validated AI semantic summary was available within the bounded historical-memory compaction policy; a URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
           });
         }
         aiCompactedHistoricalContext = compactedMemory.text;
@@ -6386,9 +6386,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
           }
           if (compacted?.method === "deterministic_projection") {
-            emit("deterministic_observation_compaction_fallback", {
+            emit("nonsemantic_observation_projection", {
               status: "partial",
-              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+              summary: "Observation compaction is intentionally non-semantic; a URL-safe bounded projection was supplied. Full source remains durable; omitted content is unknown.",
             });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
@@ -6424,9 +6424,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
           }
           if (compacted?.method === "deterministic_projection") {
-            emit("deterministic_observation_compaction_fallback", {
+            emit("nonsemantic_observation_projection", {
               status: "partial",
-              summary: "AI semantic compaction was unavailable; a URL-safe non-semantic observation projection was supplied. Full source remains durable; omitted content is unknown.",
+              summary: "Observation compaction is intentionally non-semantic; a URL-safe bounded projection was supplied. Full source remains durable; omitted content is unknown.",
             });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
@@ -6517,7 +6517,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (shorterMemory.method === "deterministic_projection") {
           emit("deterministic_historical_memory_projection", {
             status: "partial",
-            summary: "AI semantic memory compaction was unavailable; a shorter URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
+            summary: "No validated AI semantic summary was available within the bounded historical-memory compaction policy; a shorter URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
           });
           // Shortening an AI summary deterministically can omit facts from that
           // summary too, so do not advance the semantic-through marker.
