@@ -216,7 +216,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
+    expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
@@ -3737,7 +3737,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect((schema?.properties?.profile as { type?: unknown }).type).toEqual(["string", "null"]);
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: JSON action object; include all schema keys");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
