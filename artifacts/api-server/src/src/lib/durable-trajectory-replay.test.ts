@@ -49,6 +49,7 @@ describe("immutable Investigator trajectory replay", () => {
 
     expect(records.map((record) => record.turn)).toEqual([1, 2]);
     expect(records[0]).toMatchObject({
+      runId: "run-a",
       action: "web_search",
       execution: "success",
       args: { query: "Example Registry" },
@@ -65,6 +66,16 @@ describe("immutable Investigator trajectory replay", () => {
       durableEventId: 12,
     });
     expect(records[1].observation).toContain("no source conclusion");
+  });
+
+  it("keeps equal turn numbers from different durable runs distinct", () => {
+    const records = replayInvestigatorTrajectoryEvents([
+      { id: 20, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", execution: "success", observedUrls: ["https://a.example/"], findings: [] }) },
+      { id: 21, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-b", turn: 1, action: "visit", execution: "partial", observedUrls: [], findings: [] }) },
+    ]);
+    expect(records).toHaveLength(2);
+    expect(records.map((record) => record.runId)).toEqual(["run-a", "run-b"]);
+    expect(records.map((record) => record.execution)).toEqual(["success", "partial"]);
   });
 
   it("ignores malformed payloads and duplicate run/turn event projections without inventing findings", () => {
