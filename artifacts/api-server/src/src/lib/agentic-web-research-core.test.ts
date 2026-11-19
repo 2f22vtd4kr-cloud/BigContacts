@@ -32,6 +32,8 @@ const completeInvestigatorProviderPrompt = [
   "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 const agenticWrapperSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
+const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+const intelligenceReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/research-intelligence-replay.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/durable-trajectory-replay.ts"), "utf8");
@@ -43,6 +45,10 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
     expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
     expect(agenticWrapperSource).toContain("await input.onTrajectoryRecord?.(normalizedRecord)");
+    expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
+    expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
+    expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
+    expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
   });
 });
 
