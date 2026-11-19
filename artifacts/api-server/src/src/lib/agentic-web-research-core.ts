@@ -3115,9 +3115,19 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   let failureReason: string | undefined;
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
   const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use a concise hypothesis/purpose and 0.5. Local parser enforces action-specific values and evidence rules.";
+  const productionPrompt = buildStepPrompt({
+    targetName: "",
+    objective: "Identify one publicly documented example organization.",
+    history: [],
+    trajectoryRecords: [],
+    lastObservation: "Provider compatibility probe only. No research action has executed and no external observation may be claimed.",
+    findings: [],
+    mode: "discovery",
+    actionAllowlist: ["web_search"],
+  });
   const prompt = [
-    "PRE-LAUNCH PROVIDER CONTRACT PROBE. This is not a research job. Do not call tools, browse, or claim external observations.",
-    "Using the production Investigator action contract, choose one useful public-web search action for this trivial objective: identify a publicly documented example organization. Compose the query and rationale yourself. Return one JSON action only; do not copy a supplied action or field values.",
+    productionPrompt,
+    "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
     strictContract,
   ].join("\\n\\n");
   for (const capability of capabilities) {
