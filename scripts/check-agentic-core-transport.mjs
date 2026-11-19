@@ -14,6 +14,9 @@ assert(/gatedSafeOutboundFetch\("https:\/\/api\.tavily\.com/.test(core), "Tavily
 assert(/gatedSafeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search calls do not use the gated SSRF-safe transport.");
 assert(/gatedSafeOutboundFetch\(url/.test(core), "Investigator page visits do not use the gated SSRF-safe transport.");
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
+assert(/classifyGroqInvestigatorHttp400/.test(core) && /providerCode === "json_validate_failed"/.test(core), "Groq HTTP 400 handling must distinguish recoverable generated-output validation from provider contract rejection.");
+assert(/http400Class === "provider_contract_error"/.test(core) && !/if \(response\.status === 400\) return \{ model, raw: "", error: "provider_contract_error" \}/.test(core), "blanket HTTP 400 early return must not bypass json_validate_failed recovery.");
+assert(/strictPreflight && response\.status === 400/.test(core) && /probeGroqInvestigatorCapabilities/.test(core), "launch preflight must fail on a single 400 before a research job can start.");
 assert(/redirect: "manual"/.test(ssrf), "Canonical SSRF transport does not force manual redirect semantics.");
 assert(/MAX_RESPONSE_BYTES/.test(ssrf) && /res\.destroy/.test(ssrf), "Canonical SSRF transport is missing its streaming response ceiling.");
 assert(/MAX_REQUEST_BYTES/.test(ssrf) && /readRequestBodyCapped/.test(ssrf), "Canonical SSRF transport is missing a bounded request-body ceiling.");
