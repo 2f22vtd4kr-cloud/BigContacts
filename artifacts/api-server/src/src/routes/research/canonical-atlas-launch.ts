@@ -223,7 +223,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
         // Preflight is job work, not synchronous HTTP launch work. The API can
         // return 202 with a durable job ID before any provider probe begins.
-        const investigatorProbe = await probeGroqInvestigatorCapabilities();
+        const investigatorProbe = await probeGroqInvestigatorCapabilities(undefined, atlasJobId);
         const preflightReport = {
           buildProvenance,
           status: investigatorProbe.ok ? "passed" : "failed",
