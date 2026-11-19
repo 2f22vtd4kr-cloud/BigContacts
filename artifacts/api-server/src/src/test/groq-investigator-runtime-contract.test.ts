@@ -1029,6 +1029,8 @@ describe("Groq Investigator runtime contract", () => {
     const promptEnvelopeChars = Math.max(0, twentyB.userPromptChars - prompt.length);
     const originalRequestUserPromptChars = promptCompaction.originalPromptChars + promptEnvelopeChars;
     const promptReductionChars = Math.max(0, originalRequestUserPromptChars - twentyB.userPromptChars);
+    const promptCompactionReductionChars = Math.max(0, promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    const modelSpecificContractReductionChars = Math.max(0, promptCompaction.finalPromptChars - twentyB.userPromptChars);
     const estimatedMessagePromptTokensBefore = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars) / 3.4);
     const estimatedMessagePromptTokensAfter = Math.ceil((twentyB.systemPromptChars + twentyB.userPromptChars) / 3.4);
     const estimatedRequestTokensBefore20B = Math.ceil((twentyB.systemPromptChars + originalRequestUserPromptChars + twentyB.responseFormatChars) / 3.4);
@@ -1047,6 +1049,8 @@ describe("Groq Investigator runtime contract", () => {
         originalRequestUserPromptChars,
         finalRequestUserPromptChars: twentyB.userPromptChars,
         promptReductionChars,
+        promptCompactionReductionChars,
+        modelSpecificContractReductionChars,
         estimatedMessagePromptTokensBefore,
         estimatedMessagePromptTokensAfter,
         twentyBEstimatedRequestTokensBefore: estimatedRequestTokensBefore20B,
@@ -1058,7 +1062,9 @@ describe("Groq Investigator runtime contract", () => {
       representativeFirstTurn120B: { ...oneTwentyB, estimatedRequestTokens: oneTwentyB.estimatedInputTokens },
       largestRemainingPromptSections,
     }));
-    expect(promptReductionChars).toBe(promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    expect(promptCompactionReductionChars).toBe(promptCompaction.originalPromptChars - promptCompaction.finalPromptChars);
+    expect(modelSpecificContractReductionChars).toBeGreaterThan(0);
+    expect(promptReductionChars).toBe(promptCompactionReductionChars + modelSpecificContractReductionChars + promptEnvelopeChars);
     expect(estimatedMessagePromptTokensBefore).toBeGreaterThan(estimatedMessagePromptTokensAfter);
     expect(twentyB.systemPromptChars).toBeGreaterThan(0);
     expect(twentyB.userPromptChars).toBeGreaterThan(0);
