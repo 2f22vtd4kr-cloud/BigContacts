@@ -6168,7 +6168,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   };
   // Restore retained page artifacts and the newest read cursor when a durable
   // case resumes in a new process. The page body is excluded from model prompts.
-  for (const priorRecord of input.priorTrajectoryRecords ?? []) {
+  // Prefer the newest retained artifact per URL, but replay every read cursor
+  // in chronological order so continuation resumes at the last observed offset.
+  for (const priorRecord of [...completePriorTrajectoryRecords].reverse()) {
     const artifact = priorRecord.pageArtifact;
     const sourceUrl = typeof artifact?.sourceUrl === "string" ? artifact.sourceUrl : "";
     const text = typeof artifact?.text === "string" ? artifact.text : "";
@@ -6182,6 +6184,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       });
       retainedFetchedPages.retainedChars += text.length;
     }
+  }
+  for (const priorRecord of completePriorTrajectoryRecords) {
     const readKey = typeof priorRecord.args?.url === "string"
       ? normalizedActionResourceUrl(priorRecord.args.url)
       : null;
