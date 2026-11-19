@@ -8,6 +8,7 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 const canonicalAtlasLaunchSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const targetActOversightSource = readFileSync(resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
+const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("canonical Atlas terminal authority", () => {
   it("persists an authoritative terminal snapshot for successful and failed jobs", () => {
@@ -29,8 +30,10 @@ describe("canonical Atlas terminal authority", () => {
 
   it("surfaces target-mode runtime Investigator lane health to independent Right-hand and Boss", () => {
     expect(targetActOversightSource).toContain("getInvestigatorCapabilityRuntimeHealthSnapshot()");
+    expect(targetActOversightSource).toContain("preflight:input.investigatorLaneHealth??[],runtime:getInvestigatorCapabilityRuntimeHealthSnapshot()");
     expect(targetActOversightSource).toContain("INVESTIGATOR LANE RUNTIME HEALTH (diagnostic only; Boss retains capability selection; never auto-switch lanes)");
     expect(targetActOversightSource).toContain("investigatorLaneHealth});");
+    expect(targetRunnerSource).toContain("investigatorLaneHealth: options.investigatorLaneHealth");
   });
 
   it("gives Boss and Right-hand the durable prior trajectory without embedding full page artifacts", () => {
