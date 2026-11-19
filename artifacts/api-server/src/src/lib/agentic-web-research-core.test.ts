@@ -154,7 +154,8 @@ describe("recent observation compaction recovery", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
     expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
     expect(agenticCoreSource).toContain("nonsemantic_observation_projection");
-    expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
+    expect(agenticCoreSource).not.toContain("deterministic_historical_memory_projection");
+    expect(agenticCoreSource).toContain("Unchanged memory below the AI-compaction threshold remains complete");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
     expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
