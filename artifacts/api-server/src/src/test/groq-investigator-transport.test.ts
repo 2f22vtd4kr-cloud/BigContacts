@@ -183,15 +183,19 @@ describe("Groq Investigator HTTP transport recovery", () => {
     transportMocks.responses.push(
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
     );
 
     const result = await probeGroqInvestigatorCapabilities();
 
     expect(result.ok).toBe(true);
     expect(result.checked.map((entry) => entry.model)).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
     const twentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
-    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
+    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[3]?.[1]?.body as string);
     expect(twentyBRequest.response_format).toBeUndefined();
     expect(twentyBRequest.messages[1].content).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     expect(oneTwentyBRequest.response_format.type).toBe("json_schema");
