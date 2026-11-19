@@ -3173,9 +3173,9 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
 }
 
 /**
- * Probe each distinct configured Investigator model lane after the canonical
- * job is accepted. Each lane receives three independent production-contract
- * samples with per-sample deadlines; no research tool executes.
+ * Probe each distinct configured Investigator model/credential lane after
+ * the canonical job is accepted. Each lane receives three independent
+ * production-contract samples with per-sample deadlines; no research tool executes.
  */
 export function groupInvestigatorCapabilitiesByModelAndCredential(
   capabilities: readonly InvestigatorCapability[],
