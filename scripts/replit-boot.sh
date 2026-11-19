@@ -22,7 +22,16 @@ if [[ -z "${REDIS_URL:-}" && -n "${REDIS_URL_1:-}" ]]; then
   export REDIS_URL="${REDIS_URL_1}"
 fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
+SOURCE_REVISION="${APEX_SOURCE_REVISION:-$(cat APEX_SOURCE_REVISION 2>/dev/null || cat .apex-source-revision 2>/dev/null || true)}"
+if [[ ! "${SOURCE_REVISION}" =~ ^[a-fA-F0-9]{40}$ ]]; then
+  ORIGIN_URL="$(git remote get-url origin 2>/dev/null || true)"
+  if [[ "${ORIGIN_URL}" =~ github\.com[:/]2f22vtd4kr-cloud/BigContacts(\.git)?$ ]]; then
+    SOURCE_REVISION="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+  else
+    SOURCE_REVISION="unknown"
+  fi
+fi
+echo "[replit-boot] sourceRevision=${SOURCE_REVISION} gitHead=$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 # Fail before building/starting when an active provider secret is missing. The
 # preflight checks presence only and never prints secret values.
 node scripts/replit-preflight.mjs
