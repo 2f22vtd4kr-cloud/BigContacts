@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, isCanonicalJobOwner, releaseCanonicalJob } from "../../lib/canonical-job-lock";
@@ -342,7 +342,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           ? await db.select({ count: sql<number>`count(*)::int`.as("count") })
               .from(researchCaseEventsTable)
               .where(and(
-                eq(researchCaseEventsTable.caseId, terminalCases[0]!.id),
+                inArray(researchCaseEventsTable.caseId, terminalCases.map((researchCase) => researchCase.id)),
                 sql`${researchCaseEventsTable.payload}::jsonb ->> 'jobId' = ${atlasJobId}`,
               ))
           : [{ count: 0 }];
