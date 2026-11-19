@@ -3185,7 +3185,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
   for (const [model, modelCapabilities] of byModel) {
-    if (signal?.aborted) return { ok: false, checked, excludedCapabilities, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+    if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
     const productionPrompt = buildStepPrompt({
       targetName: "",
       objective: "Identify one publicly documented example organization.",
