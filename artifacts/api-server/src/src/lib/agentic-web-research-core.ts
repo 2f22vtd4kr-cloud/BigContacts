@@ -6162,8 +6162,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
   }
   const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.(sanitizeObservableValue({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null })); } catch {} }; const completePriorTrajectoryRecords = [...(input.priorTrajectoryRecords ?? [])]; const priorTrajectoryRecords = completePriorTrajectoryRecords.slice(-MAX_TRAJECTORY_RECORDS); let aiCompactedHistoricalContext = input.aiCompactedHistoricalContext?.trim() ?? ""; let aiCompactedHistoricalThroughTurn = Number.isFinite(input.aiCompactedHistoricalThroughTurn) ? Math.max(0, Math.floor(input.aiCompactedHistoricalThroughTurn!)) : 0; const aiCompactedObservationBySource = new Map<string, string>();
-  // Full fetched HTML text is retained only for this run. 64 MB bounds aggregate
-  // memory while allowing multiple ordinary pages to remain readable.
+  // Complete fetched page text is retained in bounded run-scoped memory and
+  // durable size-limited event chunks. 64 MB bounds aggregate in-memory pages.
   const retainedFetchedPages: RetainedFetchedPageStore = {
     pages: new Map<string, RetainedFetchedPage>(),
     retainedChars: 0,
