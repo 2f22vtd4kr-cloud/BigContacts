@@ -6,6 +6,7 @@ import { deriveLatestEvidenceBackedTerminal, isCanonicalTargetEpisodeComplete } 
 
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const canonicalAtlasLaunchSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 
 describe("canonical Atlas terminal authority", () => {
   it("persists an authoritative terminal snapshot for successful and failed jobs", () => {
@@ -23,6 +24,11 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("getInvestigatorCapabilityRuntimeHealthSnapshot()");
     expect(canonicalAtlasDiscoverySource).toContain("investigatorLaneHealth,");
     expect(canonicalAtlasDiscoverySource).toContain("INVESTIGATOR LANE HEALTH (runtime parse/provider diagnostics; advisory only; Boss retains capability selection)");
+  });
+
+  it("gives Boss and Right-hand the durable prior trajectory without embedding full page artifacts", () => {
+    expect(bureauAgenticPassSource).toContain("trajectoryRecords:[...priorTrajectoryRecords,...agentic.trajectoryRecords]");
+    expect(bureauAgenticPassSource).toContain("const{pageArtifact:_pageArtifact,...promptRecord}=record");
   });
 
   it("makes discovery stagnation telemetry visible to Boss and independent Right-hand review", () => {
