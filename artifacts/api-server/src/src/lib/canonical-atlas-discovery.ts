@@ -3021,7 +3021,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       llmTelemetry: { ...llmTelemetryAtTerminal, accountingScope: "process_local_job_id" },
       providerWaitMs: null,
       providerWaitMeasurement: "not_instrumented",
-      activeJobLockReleased: null,
+      activeJobLockReleased: null as boolean | null,
     };
     // A durable terminal snapshot makes completed/failed runs auditable without
     // inferring final state from an intermediate progress checkpoint.
