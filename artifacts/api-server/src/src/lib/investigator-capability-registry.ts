@@ -61,14 +61,22 @@ function isTwentyBInvestigatorEnabled(env: NodeJS.ProcessEnv): boolean {
   return env.APEX_ENABLE_GROQ_INVESTIGATOR_20B?.trim().toLowerCase() !== "false";
 }
 
-export function getAvailableInvestigatorCapabilities(
+export function getConfiguredInvestigatorCapabilities(
   env: NodeJS.ProcessEnv = process.env,
 ): InvestigatorCapability[] {
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
     if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY && !isTwentyBInvestigatorEnabled(env)) return false;
     const keyName = investigatorCapabilityKeyName(capability);
-    return Boolean(keyName && env[keyName]?.trim() && (env !== process.env || !investigatorCapabilityHealthExclusions.has(capability)));
+    return Boolean(keyName && env[keyName]?.trim());
   });
+}
+
+export function getAvailableInvestigatorCapabilities(
+  env: NodeJS.ProcessEnv = process.env,
+): InvestigatorCapability[] {
+  return getConfiguredInvestigatorCapabilities(env).filter(
+    (capability) => env !== process.env || !investigatorCapabilityHealthExclusions.has(capability),
+  );
 }
 
 /**
