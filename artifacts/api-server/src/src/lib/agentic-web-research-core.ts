@@ -2148,7 +2148,7 @@ export function classifyGroqInvestigatorHttp400(input: {
 }): "output_validation_recoverable" | "provider_contract_error" | null {
   if (input.status !== 400) return null;
   const schemaRejection = input.providerParam === "response_format"
-    || /(?:response[_ -]?format|json[_ -]?schema|schema (?:validation|mismatch|rejection)|required (?:root )?field|additional propert|invalid enum|expected schema)/i.test(input.providerMessage ?? "");
+    || /(?:response[_ -]?format|json[_ -]?schema|schema (?:validation|mismatch|rejection)|missing (?:required )?(?:root )?(?:key|field)s?|required (?:root )?(?:key|field)s?|additional propert|invalid enum|expected schema|expected type|does not match .*schema)/i.test(input.providerMessage ?? "");
   if (schemaRejection) return "provider_contract_error";
   // Groq uses this code for generated-output validation/truncation. It is the
   // only 400 eligible for the bounded output recovery policy.
