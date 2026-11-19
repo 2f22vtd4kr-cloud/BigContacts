@@ -907,7 +907,7 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
 
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
     expect(prompt).toContain("SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.");
-    expect(prompt).toMatch(/ONLY if the exact action appears in (?:ACTION ALLOWLIST and )?AVAILABLE ACTIONS this turn/);
+    expect(prompt).toMatch(/AVAILABLE ACTIONS \(this turn\x27s allowlist; use only listed actions\):/);
     expect(prompt).not.toContain("intentionally not available capabilities");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
