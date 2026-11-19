@@ -6755,9 +6755,16 @@ if (page.pageText && page.observedUrl && page.pageSha256 && page.pageRetrievedAt
   };
 }
 lastObservation = record.observation;
-pushHistory(`step${i + 1}: visit ${canonical} execution=${record.execution}${page.observedUrl ? ` observed=${page.observedUrl}` : ""}`);
+pushHistory(`step${i + 1}: ${page.fromRetainedArtifact ? "retained_page_read" : "visit"} ${canonical} execution=${record.execution}${page.observedUrl ? ` observed=${page.observedUrl}` : ""}`);
 await emitSanitizedTrajectoryRecord(record);
-emit("visit", { url: canonical, provider: "page-fetch", status: record.execution, summary: communityObservationSource ? "Community observation text retained as a low-confidence lead with attribution metadata." : page.status });
+emit("visit", {
+  url: canonical,
+  provider: page.fromRetainedArtifact ? "retained-page-artifact" : "page-fetch",
+  status: record.execution,
+  summary: page.fromRetainedArtifact
+    ? "Read the next section of the already fetched page without network access."
+    : communityObservationSource ? "Community observation text retained as a low-confidence lead with attribution metadata." : page.status,
+});
 continue;
 }
 if (action.action === "browser_fetch") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: browser_fetch ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: sanitizeUrlForEvidence(action.url), provider: "browser", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } }
