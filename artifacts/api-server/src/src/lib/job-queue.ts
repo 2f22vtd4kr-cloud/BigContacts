@@ -111,6 +111,31 @@ export async function clearJobCancellationRequest(jobId:string):Promise<boolean>
 }
 export async function clearJobFields(jobId:string,fields:string[]):Promise<void>{if(!fields.length)return;await safeRedis(async rc=>{await rc.hdel(jk(jobId),...fields);await rc.expire(jk(jobId),JOB_TTL);},undefined);}
 export async function appendJobLog(jobId:string,line:string,opts?:{dedupeKey?:string}):Promise<void>{if(opts?.dedupeKey){const ok=await safeRedis(async rc=>{const set=await rc.set(`apex:joblog:dedupe:${jobId}:${opts.dedupeKey}`,"1","EX",86400,"NX");return set==="OK"||set===true;},true);if(!ok)return;}const memCheck=memoryLogs.get(jobId)??[];if(memCheck[0]&&memCheck[0].includes(line.slice(0,120)))return;const ts=`${new Date().toISOString()} ${line}`;const mem=memoryLogs.get(jobId)??[];mem.unshift(ts);memoryLogs.set(jobId,mem.slice(0,LOG_CAP));trimMemoryJobs();await safeRedis(async rc=>{await rc.lpush(lk(jobId),ts);await rc.ltrim(lk(jobId),0,LOG_CAP-1);await rc.expire(lk(jobId),JOB_TTL);},undefined);void import("./bureau-live-log").then(m=>m.mirrorJobLogLine(jobId,line)).catch(()=>undefined);}
+
+/** Append terminal audit fields without reopening or changing the terminal job state. */
+export async function updateTerminalJobAudit(
+  jobId: string,
+  expectedStatus: JobStatus,
+  patch: Pick<JobState, "result" | "message" | "outcome">,
+): Promise<boolean> {
+  if (!["done", "failed", "cancelled"].includes(expectedStatus)) return false;
+  const previous = memoryJobs.get(jobId);
+  if (memoryOnlyJobs.has(jobId)) {
+    if (!previous || previous.status !== expectedStatus) return false;
+    memoryJobs.set(jobId, { ...previous, ...patch });
+    return true;
+  }
+  const flat: Record<string, string> = {};
+  for (const [key, value] of Object.entries(patch)) if (value !== undefined) flat[key] = String(value);
+  const result = await safeRedis(async (rc) => Number(await rc.eval(
+    "local k=KEYS[1]; local current=redis.call('hget',k,'status'); if current~=ARGV[1] then return 0 end; if current~='done' and current~='failed' and current~='cancelled' then return 0 end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
+    1, jk(jobId), expectedStatus, ...Object.entries(flat).flat(),
+  )), null as number | null);
+  if (result !== 1) return false;
+  if (previous) memoryJobs.set(jobId, { ...previous, ...patch });
+  return true;
+}
+
 function parsePersistedJobState(jobId:string,raw:Record<string,string>):JobState{
   return{jobId:raw.jobId??jobId,type:raw.type??"unknown",status:(raw.status??"queued")as JobStatus,buildRevision:raw.buildRevision??undefined,buildDirty:raw.buildDirty==="clean"||raw.buildDirty==="dirty"||raw.buildDirty==="unknown"?raw.buildDirty:undefined,buildTimestamp:raw.buildTimestamp??undefined,cancelRequested:raw.cancelRequested==="1",progress:Number(raw.progress??0),inserted:Number(raw.inserted??0),skipped:Number(raw.skipped??0),errors:Number(raw.errors??0),total:Number(raw.total??0),startedAt:raw.startedAt??"",finishedAt:raw.finishedAt,message:raw.message??"",atlasPhase:raw.atlasPhase!==undefined?Number(raw.atlasPhase):undefined,atlasPhaseTotal:raw.atlasPhaseTotal!==undefined?Number(raw.atlasPhaseTotal):undefined,entityProgress:raw.entityProgress!==undefined?Number(raw.entityProgress):undefined,entityTotal:raw.entityTotal!==undefined?Number(raw.entityTotal):undefined,entityNames:raw.entityNames,atlasTelemetry:raw.atlasTelemetry,outcome:raw.outcome==="incomplete"||raw.outcome==="complete"?raw.outcome:undefined,resumable:raw.resumable,targetIds:raw.targetIds,targetIndex:raw.targetIndex!==undefined?Number(raw.targetIndex):undefined,targetTotal:raw.targetTotal!==undefined?Number(raw.targetTotal):undefined,currentTargetId:raw.currentTargetId!==undefined?Number(raw.currentTargetId):undefined,currentPhase:raw.currentPhase,completedTargetIds:raw.completedTargetIds,failedTargetIds:raw.failedTargetIds,retryCounts:raw.retryCounts,result:raw.result};
 }
