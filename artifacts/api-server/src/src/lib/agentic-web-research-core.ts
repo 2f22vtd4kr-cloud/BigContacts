@@ -2755,7 +2755,7 @@ async function callGroqJson(
               } catch { return null; }
             })(),
           });
-          if (http400Class === "provider_contract_error") {
+          if (http400Class === "provider_contract_error" || (strictPreflight && response.status === 400)) {
             return { model, raw: "", error: "provider_contract_error" };
           }
           const recovery = chooseGroqInvestigatorOutputRecovery({
