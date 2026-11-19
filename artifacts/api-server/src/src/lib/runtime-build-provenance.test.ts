@@ -8,6 +8,7 @@ describe("runtime build provenance", () => {
     const buildSource = readFileSync(resolve(process.cwd(), "build.mjs"), "utf8");
     const bootSource = readFileSync(resolve(process.cwd(), "../../scripts/replit-boot.sh"), "utf8");
     expect(buildSource).toContain("APEX_SOURCE_REVISION");
+    expect(buildSource).toContain('["APEX_SOURCE_REVISION", true]');
     expect(buildSource).toContain(".apex-source-revision");
     expect(buildSource).toContain('"remote", "get-url", "origin"');
     expect(buildSource).toContain("Never stamp an unrelated starter SHA as Apex");
