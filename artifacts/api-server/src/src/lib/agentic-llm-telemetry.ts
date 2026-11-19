@@ -37,6 +37,7 @@ type Attempt = {
   totalTokens?: number;
   cachedPromptTokens?: number;
   latencyMs?: number;
+  providerWaitMs?: number;
   retryIndex: number;
   reason?: string;
   providerErrorCode?: string | null;
@@ -71,6 +72,7 @@ type JobTelemetry = {
   completionTokens: number;
   totalTokens: number;
   latencyMs: number;
+  providerWaitMs: number;
 };
 const jobTelemetry = new Map<string, JobTelemetry>();
 const MAX_JOB_TELEMETRY_ENTRIES = 256;
@@ -439,7 +441,7 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
         const oldest = jobTelemetry.keys().next().value;
         if (oldest) jobTelemetry.delete(oldest);
       }
-      scoped = { attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: 0 };
+      scoped = { attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: 0, providerWaitMs: 0 };
       jobTelemetry.set(event.jobId, scoped);
     }
     scoped.attempts += 1;
@@ -450,6 +452,7 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     scoped.completionTokens += event.completionTokens ?? 0;
     scoped.totalTokens += event.totalTokens ?? ((event.promptTokens ?? 0) + (event.completionTokens ?? 0));
     scoped.latencyMs += event.latencyMs ?? 0;
+    scoped.providerWaitMs += event.providerWaitMs ?? 0;
   }
 
   console.log(JSON.stringify({
@@ -483,6 +486,7 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     reasoningTokens: event.reasoningTokens ?? null,
     totalTokens: event.totalTokens ?? null,
     latencyMs: event.latencyMs ?? null,
+    providerWaitMs: event.providerWaitMs ?? null,
     retryIndex: event.retryIndex,
     reason: safeTelemetryReason(event.reason),
     providerErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
@@ -512,7 +516,7 @@ export function getAgenticLlmTelemetryForJob(jobId: string) {
   const metrics = jobTelemetry.get(jobId);
   return metrics ? { ...metrics } : {
     attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0,
-    completionTokens: 0, totalTokens: 0, latencyMs: 0,
+    completionTokens: 0, totalTokens: 0, latencyMs: 0, providerWaitMs: 0,
   };
 }
 
