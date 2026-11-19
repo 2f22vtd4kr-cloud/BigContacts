@@ -19,6 +19,12 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("investigatorActionsRemaining:");
     expect(canonicalAtlasDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
+  it("surfaces runtime parse/provider failures as advisory lane health without automatic reassignment", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("getInvestigatorCapabilityRuntimeHealthSnapshot()");
+    expect(canonicalAtlasDiscoverySource).toContain("investigatorLaneHealth,");
+    expect(canonicalAtlasDiscoverySource).toContain("INVESTIGATOR LANE HEALTH (runtime parse/provider diagnostics; advisory only; Boss retains capability selection)");
+  });
+
   it("makes discovery stagnation telemetry visible to Boss and independent Right-hand review", () => {
     expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? [])");
     expect(canonicalAtlasDiscoverySource).toContain("researchLivenessAdvisory,");
