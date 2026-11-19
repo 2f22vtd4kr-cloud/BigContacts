@@ -318,7 +318,7 @@ if (rawPriorActMemory.length > 4_000 || priorActs.some((record) => typeof record
   }
   trajectory = [{
     compactedRecentActMemory: summarizedPriorActs.text,
-    sourceStatus: "AI semantic summary or labelled deterministic projection; full acts remain durable in the case ledger; omissions unknown",
+    sourceStatus: summarizedPriorActs.method === "ai_semantic" ? "AI semantic summary; complete source acts remain durable in the case ledger." : "Complete recent acts retained verbatim; no historical-memory excerpt was substituted.",
   }];
 } else {
   trajectory = priorActs.map((record) => compactOversightAct(record));
