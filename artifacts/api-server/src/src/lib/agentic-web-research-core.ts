@@ -5437,16 +5437,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
+  const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
+  const supportsFindings = availableActions.includes("done");
+  const topLevelFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const actionShapeGuidance = [
-    availableActions.includes("web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; do not encode a single web_search as searches[]." : "",
+    availableActions.includes("web_search") ? (availableActions.includes("parallel_web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; parallel_web_search uses searches[] items." : "For web_search, put one query in the root query field and an optional provider in the root provider field.") : "",
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
-    availableActions.includes("done") ? "For done, put only source-backed findings in findings[]." : "",
+    supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
-  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. " + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
-  const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"] as const;
-  const requiredSearchFieldNames = ["query", "provider", "registry", "locale", "market", "purpose"] as const;
-  const requiredFindingFieldNames = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const;
+  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
+    + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
+    + (supportsSearchArrays ? " searches[] required keys: query, provider, registry, locale, market, purpose." : "")
+    + (supportsFindings ? " findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values." : "")
+    + " Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. "
+    + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
+  const requiredFieldNames = topLevelFields;
+  const requiredSearchFieldNames = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] as const : [] as const;
+  const requiredFindingFieldNames = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const : [] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
@@ -5455,8 +5463,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (requiredFieldNames.every((field) => fieldSection.includes(field))
         && requiredSearchFieldNames.every((field) => fieldSection.includes(field))
         && requiredFindingFieldNames.every((field) => fieldSection.includes(field))
-        && /searches\[\] required keys/i.test(fieldSection)
-        && /findings\[\] required keys/i.test(fieldSection)
+        && (!supportsSearchArrays || /searches\[\] required keys/i.test(fieldSection))
+        && (!supportsFindings || /findings\[\] required keys/i.test(fieldSection))
         && /null for unused/i.test(fieldSection)) return true;
       markerIndex = value.indexOf(marker, markerIndex + marker.length);
     }
