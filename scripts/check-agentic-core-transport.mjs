@@ -15,8 +15,8 @@ assert(/gatedSafeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search
 assert(/gatedSafeOutboundFetch\(url/.test(core), "Investigator page visits do not use the gated SSRF-safe transport.");
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
 assert(/classifyGroqInvestigatorHttp400/.test(core) && /providerCode === "json_validate_failed"/.test(core), "Groq HTTP 400 handling must distinguish recoverable generated-output validation from provider contract rejection.");
-const transportErrorDecisionAt = core.indexOf("const errorDecision = decideGroqInvestigatorHttpError");
-const transportRecoveryAt = core.indexOf("const recovery = errorDecision.recovery", transportErrorDecisionAt);
+const transportErrorDecisionAt = core.indexOf("const httpErrorDecision = decideGroqInvestigatorHttpError");
+const transportRecoveryAt = core.indexOf("const recovery = httpErrorDecision.recovery", transportErrorDecisionAt);
 const recoveryDecisionHelperAt = core.indexOf("export function decideGroqInvestigatorHttpError");
 const chooserAt = core.indexOf("recovery: chooseGroqInvestigatorOutputRecovery(input)", recoveryDecisionHelperAt);
 const exhausted400At = core.lastIndexOf('if (response.status === 400) return { model, raw: "", error: "provider_contract_error" }');
