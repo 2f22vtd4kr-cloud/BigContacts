@@ -213,7 +213,7 @@ describe("model prompt audit", () => {
       section("response", "orphan-response") + section("request", "request-1")
       + section("response", "request-1"),
     ).complete).toBe(false);
-    const incomplete = "### Model request request-1\n\n" + fenceForTest + "json\n{\"event\":\"atlas_model_request\",";
+    const incomplete = "### Model request request-1\n\n"  + String.fromCharCode(96).repeat(3) + "json\n{\"event\":\"atlas_model_request\",";
     expect(summarizeModelAuditTrace(incomplete).complete).toBe(false);
   });
 
