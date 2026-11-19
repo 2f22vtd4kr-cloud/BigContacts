@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
-import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
+import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob, updateTerminalJobAudit } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -430,9 +430,22 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         const reasons = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
         let terminalChecksPassed = Object.values(checks).every(Boolean);
         if (!terminalStatusVerified) {
-          await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message: "Canonical Atlas did not persist a verifiable terminal job state before reconciliation.", finishedAt: new Date().toISOString() });
-        } else if (!terminalChecksPassed && terminalJob?.status === "done" && terminalJob.outcome === "complete") {
-          await updateJob(atlasJobId, { outcome: "incomplete", message: "Canonical Atlas ended, but terminal verification is incomplete: " + reasons.join(", ") + ". The job is not launch-ready." });
+          const message = "Canonical Atlas did not persist a verifiable terminal job state before reconciliation.";
+          if (terminalJob && ["done", "failed", "cancelled"].includes(terminalJob.status)) {
+            const updated = await updateTerminalJobAudit(atlasJobId, terminalJob.status, {
+              outcome: "incomplete", message, finishedAt: terminalJob.finishedAt ?? new Date().toISOString(),
+            });
+            if (!updated) throw new Error("Terminal job state could not be safely annotated with the missing final timestamp.");
+          } else {
+            await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+          }
+        } else if (!terminalChecksPassed && terminalJob && ["done", "failed", "cancelled"].includes(terminalJob.status)
+          && terminalJob.outcome === "complete") {
+          const updated = await updateTerminalJobAudit(atlasJobId, terminalJob.status, {
+            outcome: "incomplete",
+            message: "Canonical Atlas ended, but terminal verification is incomplete: " + reasons.join(", ") + ". The job is not launch-ready.",
+          });
+          if (!updated) throw new Error("Terminal job outcome could not be safely downgraded after failed read-back verification.");
         }
         terminalJob = await getJobStrict(atlasJobId);
         const finalChecks = {
@@ -476,7 +489,18 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         logger.info({ jobId: atlasJobId, terminalAudit }, "Canonical Atlas terminal reconciliation audit persisted and read back.");
       } catch (error) {
         logger.error({ jobId: atlasJobId, errorDigest: describeThrownProviderError(error).messageDigest ?? "unknown" }, "Canonical Atlas terminal reconciliation audit could not be persisted and verified.");
-        await updateJob(atlasJobId, { outcome: "incomplete", message: "Canonical Atlas terminal audit persistence/read-back failed; the job is not launch-ready." }).catch(() => undefined);
+        const currentJob = await getJobStrict(atlasJobId).catch(() => null);
+        if (currentJob && ["done", "failed", "cancelled"].includes(currentJob.status)) {
+          await updateTerminalJobAudit(atlasJobId, currentJob.status, {
+            outcome: "incomplete", message: "Canonical Atlas terminal audit persistence/read-back failed; the job is not launch-ready.",
+          }).catch(() => false);
+        } else {
+          await updateJob(atlasJobId, {
+            status: "failed", outcome: "incomplete",
+            message: "Canonical Atlas terminal audit persistence/read-back failed; the job is not launch-ready.",
+            finishedAt: new Date().toISOString(),
+          }).catch(() => undefined);
+        }
       }
     }
   })();
