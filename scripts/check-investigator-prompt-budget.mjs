@@ -90,8 +90,14 @@ if (!promptCoreMatch) throw new Error("INVESTIGATOR PROMPT BUDGET: unable to ext
 const promptSections = [...promptCoreMatch[1].matchAll(/^\s*("(?:\\.|[^"\\])*")\s*,?\s*$/gm)]
   .map((match) => JSON.parse(match[1]));
 if (!promptSections.length) throw new Error("INVESTIGATOR PROMPT BUDGET: system prompt sections were not measurable");
+const companyGuidanceMatch = orientation.match(/export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT = ("(?:\\.|[^"\\])*");/);
+if (!companyGuidanceMatch || !promptCoreMatch[1].includes("APEX_COMPANY_REALISM_GUIDANCE_COMPACT")) {
+  throw new Error("INVESTIGATOR PROMPT BUDGET: active system prompt must include the compact company-realism guidance");
+}
+const companyGuidance = JSON.parse(companyGuidanceMatch[1]);
 const systemPromptChars = promptSections.reduce((total, section) => total + section.length, 0)
   + Math.max(0, promptSections.length - 1)
+  + companyGuidance.length + 1
   + "\nReturn one JSON action object only.".length;
 const constant = (name) => {
   const match = core.match(new RegExp("const " + name + " = ([0-9_]+)"));
