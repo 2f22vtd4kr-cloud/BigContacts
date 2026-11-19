@@ -2903,6 +2903,7 @@ async function callGroqJson(
           rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
         });
         if (finishReason === "length") {
+          if (strictPreflight) return { model, raw: "", error: "investigator_preflight_output_truncated" };
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode: null,
