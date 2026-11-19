@@ -221,15 +221,15 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           jobId: atlasJobId,
           checkedCapabilities: investigatorProbe.checked,
           excludedCapabilities: investigatorProbe.excludedCapabilities,
+          sampleSummary: investigatorProbe.sampleSummary,
           allCapabilitiesFailed: !investigatorProbe.ok,
         }, "Apex Investigator preflight completed.");
         if (!investigatorProbe.ok) {
           throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
         }
+        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
         await updateJob(atlasJobId!, {
-          message: investigatorProbe.excludedCapabilities.length
-            ? `Investigator preflight passed; excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.`
-            : "Investigator preflight passed; all configured capabilities are available.",
+          message: `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`,
         });
         if (singleTargetId) {
           await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
