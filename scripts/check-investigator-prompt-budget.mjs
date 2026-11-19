@@ -59,7 +59,7 @@ assert(
     && /AUTONOMY: No fixed source\/provider\/registry order or mix/.test(orientation)
     && /OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries/.test(orientation)
     && /Treat web and enabled registries as neutral complementary routes/.test(orientation)
-    && /CLAIMS: .*wealth requires sourced ownership\/equity\/investment/.test(orientation),
+    && /CLAIMS: .*wealth needs sourced ownership, equity or investment/.test(orientation),
   "institutional system contract must preserve objective-led, model-owned discovery, autonomous hypothesis diversity and complementary source choice",
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
