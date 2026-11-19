@@ -6438,7 +6438,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // Compaction may shorten the page excerpt, but it must never hide the
       // availability of the retained source artifact or its exact read cursor.
       const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>();
-      for (const record of promptTrajectoryRecords) {
+      for (const record of completePromptRecords) {
         if ((record.action !== "visit" && record.action !== "browser_fetch")
           || record.execution !== "success"
           || record.args?.pageReadSource !== "retained_fetch_artifact") continue;
