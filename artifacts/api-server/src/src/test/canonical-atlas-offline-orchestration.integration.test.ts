@@ -1,19 +1,36 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import { existsSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import express from "express";
 import { desc, eq } from "drizzle-orm";
 import { resetGroqRateLimitSnapshotsForTests } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
+import { emitModelPromptAudit, emitModelPromptAuditResponse } from "../lib/model-prompt-audit";
 
 const mocks = vi.hoisted(() => ({
   jobStatus: "running" as string,
+  jobState: {} as Record<string, unknown>,
+  jobId: "" as string,
+  activeJobId: null as string | null,
   jobUpdates: [] as Array<Record<string, unknown>>,
   scenario: "model-stops" as "model-stops" | "operator-cap",
   targetCalls: [] as number[],
   controlCalls: 0,
   generateGroqBossText: vi.fn(),
   getJobStrict: vi.fn(),
+  getActiveJobStrict: vi.fn(),
+  createJob: vi.fn(),
   updateJob: vi.fn(),
+  updateTerminalJobAudit: vi.fn(),
   clearActiveJobIfOwned: vi.fn(),
+  claimCanonicalJob: vi.fn(),
+  releaseCanonicalJob: vi.fn(),
+  fenceStaleCanonicalJob: vi.fn(),
+  enablePermanentRedis: vi.fn(),
+  probeGroqInvestigatorCapabilities: vi.fn(),
   runGroqBossDiscovery: vi.fn(),
   runGroqRightHandFreeJson: vi.fn(),
   safeOutboundFetch: vi.fn(),
@@ -27,17 +44,34 @@ vi.mock("../lib/job-queue", async () => {
   return {
     ...actual,
     getJobStrict: mocks.getJobStrict,
+    getActiveJobStrict: mocks.getActiveJobStrict,
+    createJob: mocks.createJob,
     updateJob: mocks.updateJob,
+    updateTerminalJobAudit: mocks.updateTerminalJobAudit,
     clearActiveJobIfOwned: mocks.clearActiveJobIfOwned,
   };
 });
 vi.mock("../lib/canonical-job-lock", async () => {
   const actual = await vi.importActual<typeof import("../lib/canonical-job-lock")>("../lib/canonical-job-lock");
-  return { ...actual, isCanonicalJobOwner: vi.fn(async () => true) };
+  return {
+    ...actual,
+    isCanonicalJobOwner: vi.fn(async () => true),
+    claimCanonicalJob: mocks.claimCanonicalJob,
+    releaseCanonicalJob: mocks.releaseCanonicalJob,
+    fenceStaleCanonicalJob: mocks.fenceStaleCanonicalJob,
+  };
 });
 vi.mock("../lib/redis", async () => {
   const actual = await vi.importActual<typeof import("../lib/redis")>("../lib/redis");
-  return { ...actual, delCachePattern: vi.fn(async () => undefined) };
+  return {
+    ...actual,
+    delCachePattern: vi.fn(async () => undefined),
+    enablePermanentRedis: mocks.enablePermanentRedis,
+  };
+});
+vi.mock("../lib/agentic-web-research-core", async () => {
+  const actual = await vi.importActual<typeof import("../lib/agentic-web-research-core")>("../lib/agentic-web-research-core");
+  return { ...actual, probeGroqInvestigatorCapabilities: mocks.probeGroqInvestigatorCapabilities };
 });
 vi.mock("../lib/case-bureau", async () => {
   const actual = await vi.importActual<typeof import("../lib/case-bureau")>("../lib/case-bureau");
@@ -114,6 +148,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
   beforeEach(() => {
     mocks.jobStatus = "running";
+    mocks.jobState = { status: "running" };
+    mocks.jobId = `offline-route-${runToken}`;
+    mocks.activeJobId = null;
     mocks.jobUpdates.length = 0;
     mocks.targetCalls.length = 0;
     mocks.controlCalls = 0;
@@ -125,14 +162,45 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
     mocks.getJobStrict.mockImplementation(async (jobId: string) => ({
       id: jobId,
+      jobId,
+      type: "atlas-run",
       status: mocks.jobStatus,
       errors: 0,
-      result: null,
+      result: mocks.jobState.result ?? null,
+      outcome: mocks.jobState.outcome,
+      finishedAt: mocks.jobState.finishedAt,
+      cancelRequested: false,
     }));
+    mocks.getActiveJobStrict.mockImplementation(async () => mocks.activeJobId);
+    mocks.createJob.mockImplementation(async () => mocks.jobId);
     mocks.updateJob.mockImplementation(async (_jobId: string, patch: Record<string, unknown>) => {
       mocks.jobUpdates.push(patch);
+      mocks.jobState = { ...mocks.jobState, ...patch };
       if (typeof patch.status === "string") mocks.jobStatus = patch.status;
       return true;
+    });
+    mocks.updateTerminalJobAudit.mockImplementation(async (_jobId: string, status: string, patch: Record<string, unknown>) => {
+      if (mocks.jobStatus !== status) return false;
+      mocks.jobState = { ...mocks.jobState, ...patch };
+      return true;
+    });
+    mocks.claimCanonicalJob.mockImplementation(async (_type: string, jobId: string) => {
+      mocks.activeJobId = jobId;
+      return true;
+    });
+    mocks.releaseCanonicalJob.mockImplementation(async (_type: string, jobId: string) => {
+      if (mocks.activeJobId !== jobId) return false;
+      mocks.activeJobId = null;
+      return true;
+    });
+    mocks.fenceStaleCanonicalJob.mockResolvedValue("missing");
+    mocks.enablePermanentRedis.mockResolvedValue(undefined);
+    mocks.probeGroqInvestigatorCapabilities.mockResolvedValue({
+      ok: true,
+      checked: [],
+      excludedCapabilities: [],
+      sampleSummary: [],
+      error: null,
     });
     mocks.clearActiveJobIfOwned.mockResolvedValue(true);
 
@@ -482,4 +550,166 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     });
     expect(mocks.jobStatus).toBe("failed");
   });
+
+  it("runs the actual Atlas launch finalizer through PostgreSQL reconciliation, model-trace read-back, terminal audit, and lock release", async () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const jobId = `offline-launch-finalizer-${runToken}`;
+    mocks.jobId = jobId;
+    mocks.scenario = "model-stops";
+
+    const auditKeys = [
+      "NODE_ENV",
+      "APEX_CAPTURE_MODEL_PROMPTS",
+      "APEX_CAPTURE_MODEL_PROMPTS_IN_TEST",
+      "APEX_MODEL_AUDIT_FILE",
+      "APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA",
+      "APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE",
+      "APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA",
+    ];
+    const priorAuditEnvironment = new Map(auditKeys.map((key) => [key, process.env[key]]));
+    const auditPath = resolve(workspaceRoot, `private-audits/apex-atlas-run-${jobId}.md`);
+    let server: ReturnType<typeof createServer> | null = null;
+
+    try {
+      process.env.NODE_ENV = "test";
+      process.env.APEX_CAPTURE_MODEL_PROMPTS = "true";
+      process.env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "true";
+      process.env.APEX_MODEL_AUDIT_FILE = "private-audits/apex-atlas-run-{jobId}.md";
+      process.env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false";
+      process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false";
+      process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false";
+
+      const requestId = emitModelPromptAudit({
+        provider: "groq",
+        role: "groq_boss",
+        model: "mock-groq-boss",
+        jobId,
+        requestBody: {
+          model: "mock-groq-boss",
+          messages: [
+            { role: "system", content: "Mock Boss system contract for launch-finalizer integration." },
+            { role: "user", content: "Review the retained-page discovery evidence and terminal state." },
+          ],
+        },
+      });
+      expect(requestId).toBeTruthy();
+      expect(emitModelPromptAuditResponse({
+        requestId,
+        provider: "groq",
+        role: "groq_boss",
+        model: "mock-groq-boss",
+        httpStatus: 200,
+        responseBody: JSON.stringify({
+          id: `mock-response-${runToken}`,
+          model: "mock-groq-boss",
+          choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify({ action: "continue_discovery" }) } }],
+        }),
+        latencyMs: 1,
+      })).toBe(true);
+
+      const { default: launchRouter } = await import("../routes/research/canonical-atlas-launch");
+      const app = express();
+      app.use(express.json());
+      app.use(launchRouter);
+      server = createServer(app);
+      await new Promise<void>((resolveListen, rejectListen) => {
+        server!.once("error", rejectListen);
+        server!.listen(0, "127.0.0.1", resolveListen);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Could not resolve the ephemeral Atlas test server port.");
+
+      const response = await fetch(`http://127.0.0.1:${address.port}/ingest/atlas-run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          targetCount: 1,
+          researchDepth: "standard",
+          targetTimeoutMs: 60_000,
+          discoveryObjective: "Verify current named leadership with exact quotations from the fetched public source.",
+        }),
+      });
+      const launchBody = await response.json() as Record<string, unknown>;
+      expect(response.status).toBe(202);
+      expect(launchBody.jobId).toBe(jobId);
+
+      let terminalAudit: Record<string, any> | null = null;
+      const verifiedCorrelation = `${jobId}:terminal-reconciliation:verified`;
+      const incompleteCorrelation = `${jobId}:terminal-reconciliation:incomplete`;
+      for (let attempt = 0; attempt < 240; attempt += 1) {
+        const rows = await db.select({
+          id: tables.researchCaseEventsTable.id,
+          payload: tables.researchCaseEventsTable.payload,
+          correlationKey: tables.researchCaseEventsTable.correlationKey,
+        }).from(tables.researchCaseEventsTable)
+          .where(eq(tables.researchCaseEventsTable.correlationKey, verifiedCorrelation));
+        const failedRows = rows.length ? [] : await db.select({
+          id: tables.researchCaseEventsTable.id,
+          payload: tables.researchCaseEventsTable.payload,
+          correlationKey: tables.researchCaseEventsTable.correlationKey,
+        }).from(tables.researchCaseEventsTable)
+          .where(eq(tables.researchCaseEventsTable.correlationKey, incompleteCorrelation));
+        const auditRows = rows.length ? rows : failedRows;
+        if (auditRows.length) {
+          const payload = auditRows[0]?.payload;
+          terminalAudit = typeof payload === "string" ? JSON.parse(payload) as Record<string, any> : null;
+          break;
+        }
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
+      }
+
+      expect(terminalAudit, "The route's finally block must persist and read back its terminal reconciliation audit").toBeTruthy();
+      expect(terminalAudit).toMatchObject({
+        jobId,
+        terminalJobStatus: "done",
+        pipelineOutcome: "complete",
+        reconciliationAuthorityVerified: true,
+        organizationReconciliation: { status: "succeeded" },
+        personReconciliation: { status: "succeeded" },
+        modelAuditAttachment: { complete: true, requestCount: 1, responseCount: 1, pairedRequestCount: 1 },
+        lockReleaseCallReturned: true,
+        lockReleasedReadBack: true,
+        terminalChecksPassed: true,
+        terminalChecks: {
+          terminalStatusVerified: true,
+          pipelineOutcomeVerified: true,
+          reconciliationVerified: true,
+          persistedCountsVerified: true,
+          sourceEvidenceVerified: true,
+          traceAttachmentVerified: true,
+          durableTraceVerified: true,
+          lockReleaseVerified: true,
+        },
+      });
+      expect(Number(terminalAudit.durableTraceEventCountReadBack)).toBeGreaterThan(0);
+      expect(Number(terminalAudit.sourceBackedNamedFindingCountReadBack)).toBeGreaterThan(0);
+      expect(Number(terminalAudit.persistedCardCountReadBack)).toBeGreaterThanOrEqual(Number(terminalAudit.expectedNewCardCount));
+      expect(Number(terminalAudit.persistedEvidenceCountReadBack)).toBeGreaterThanOrEqual(Number(terminalAudit.expectedNewEvidenceRowCount));
+      expect(mocks.releaseCanonicalJob).toHaveBeenCalledWith("atlas-run", jobId);
+      expect(mocks.activeJobId).toBeNull();
+
+      const [readBack] = await db.select({
+        id: tables.researchCaseEventsTable.id,
+        payload: tables.researchCaseEventsTable.payload,
+      }).from(tables.researchCaseEventsTable)
+        .where(eq(tables.researchCaseEventsTable.correlationKey, verifiedCorrelation)).limit(1);
+      expect(readBack?.id).toBeTruthy();
+      expect(JSON.parse(String(readBack?.payload ?? "{}"))).toMatchObject({
+        jobId,
+        terminalChecksPassed: true,
+        lockReleasedReadBack: true,
+      });
+    } finally {
+      if (server) {
+        await new Promise<void>((resolveClose) => server!.close(() => resolveClose()));
+      }
+      for (const key of auditKeys) {
+        const previous = priorAuditEnvironment.get(key);
+        if (previous === undefined) delete process.env[key];
+        else process.env[key] = previous;
+      }
+      if (existsSync(auditPath)) unlinkSync(auditPath);
+    }
+  }, 30_000);
+
 });
