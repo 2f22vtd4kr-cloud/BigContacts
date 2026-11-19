@@ -1965,37 +1965,51 @@ function normalizeRecoverableBrowserFetchAction(raw: string): string {
   }
 }
 
-function normalizeRecoverableSingleWebSearchShape(raw: string): string {
+function normalizeRecoverableSingleWebSearchShape(raw: string, actionAllowlist: readonly string[]): string {
   const json = extractJsonObject(raw);
   if (!json) return raw;
   try {
     const value = JSON.parse(json) as Record<string, unknown>;
     if (cleanText(value.action, 40).toLowerCase() !== "web_search" || cleanText(value.query, 300)) return raw;
-    if (!Array.isArray(value.searches) || value.searches.length !== 1) return raw;
-    const item = value.searches[0];
-    if (!item || typeof item !== "object" || Array.isArray(item)) return raw;
-    const search = item as Record<string, unknown>;
-    if (search.registry !== undefined && search.registry !== null) return raw;
-    const query = cleanText(search.query, 300);
-    if (!query) return raw;
-    const provider = cleanText(search.provider, 20).toLowerCase();
-    if (provider && !["serper", "tavily", "exa"].includes(provider)) return raw;
-    const purpose = cleanText(value.purpose, 500) || cleanText(search.purpose, 500);
-    return JSON.stringify({
-      ...value,
-      query,
-      ...(provider ? { provider } : {}),
-      ...(typeof search.locale === "string" ? { locale: search.locale } : {}),
-      ...(typeof search.market === "string" ? { market: search.market } : {}),
-      ...(purpose ? { purpose } : {}),
-    });
+    if (!Array.isArray(value.searches) || value.searches.length === 0) return raw;
+    const searches: Array<Record<string, unknown>> = [];
+    for (const item of value.searches) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return raw;
+      const search = item as Record<string, unknown>;
+      if (search.registry !== undefined && search.registry !== null) return raw;
+      const query = cleanText(search.query, 300);
+      if (!query) return raw;
+      const provider = cleanText(search.provider, 20).toLowerCase();
+      if (provider && !["serper", "tavily", "exa"].includes(provider)) return raw;
+      searches.push({
+        query,
+        ...(provider ? { provider } : {}),
+        ...(typeof search.locale === "string" ? { locale: search.locale } : {}),
+        ...(typeof search.market === "string" ? { market: search.market } : {}),
+        ...(typeof search.purpose === "string" ? { purpose: search.purpose } : {}),
+      });
+    }
+    if (searches.length === 1) {
+      const search = searches[0]!;
+      const purpose = cleanText(value.purpose, 500) || cleanText(search.purpose, 500);
+      return JSON.stringify({
+        ...value,
+        query: search.query,
+        ...(search.provider ? { provider: search.provider } : {}),
+        ...(typeof search.locale === "string" ? { locale: search.locale } : {}),
+        ...(typeof search.market === "string" ? { market: search.market } : {}),
+        ...(purpose ? { purpose } : {}),
+      });
+    }
+    if (!actionAllowlist.includes("parallel_web_search")) return raw;
+    return JSON.stringify({ ...value, action: "parallel_web_search", searches });
   } catch {
     return raw;
   }
 }
 
 function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null {
-  const normalizedRaw = normalizeRecoverableBrowserFetchAction(normalizeRecoverableSingleWebSearchShape(raw));
+  const normalizedRaw = normalizeRecoverableBrowserFetchAction(normalizeRecoverableSingleWebSearchShape(raw, actionAllowlist));
   const rawDiagnostic = describeAgentActionParseFailure(raw, actionAllowlist);
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
