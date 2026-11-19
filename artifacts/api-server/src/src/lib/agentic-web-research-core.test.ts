@@ -2974,6 +2974,10 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("without another network request");
       expect(agenticCoreSource).toContain("record.pageArtifact =");
       expect(agenticCoreSource).toContain("pageReadSource: \"retained_fetch_artifact\"");
+      expect(agenticCoreSource).toContain("pageArtifactAvailable: page.fromRetainedArtifact");
+      expect(agenticCoreSource).toContain("if (!page.fromRetainedArtifact) visits += 1");
+      expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
+      expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
       expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
       expect(bureauAgenticPassSource).toContain("Buffer.byteLength(artifactPayload, \"utf8\") > 128 * 1024");
