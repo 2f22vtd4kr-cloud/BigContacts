@@ -6344,6 +6344,26 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         }
         promptLastObservation = compactedObservation;
       }
+      // Compaction may shorten the page excerpt, but it must never hide the
+      // availability of the retained source artifact or its exact read cursor.
+      const retainedPageContinuations = promptTrajectoryRecords
+        .filter((record) => record.action === "visit" && record.execution === "success" && record.args?.pageHasMore === true)
+        .slice(-4)
+        .map((record) => ({
+          url: typeof record.args?.url === "string" ? record.args.url : record.observedUrls?.[0] ?? "",
+          nextOffset: Number(record.args?.pageReadNextOffset ?? MAX_OBS),
+        }))
+        .filter((entry) => entry.url);
+      if (retainedPageContinuations.length) {
+        promptLastObservation = [
+          promptLastObservation,
+          "RETAINED FETCHED PAGE CONTINUATION (optional, model-directed): " + JSON.stringify(retainedPageContinuations)
+            + ". If more text from one of these sources would help, request visit again with its exact URL. The runtime will read the next section from the durable fetched-page artifact; it will not make another network request. Continue researching or stop if another action is better.",
+        ].filter(Boolean).join("\\n\\n");
+      }
+      if (livenessAdvisory && !promptLastObservation.includes(livenessAdvisory)) {
+        promptLastObservation = [promptLastObservation, livenessAdvisory].filter(Boolean).join("\\n\\n");
+      }
       let prompt: string;
       let promptMeasurement = { originalPromptChars: 0, promptReductionChars: 0 };
       const capturePromptMeasurement = (measurement: { originalPromptChars: number; finalPromptChars: number }) => {
