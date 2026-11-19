@@ -90,6 +90,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   const sourceUrl = `https://www.sec.gov/Archives/edgar/data/0000320193/offline-${runToken}`;
   const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
   const secondName = `John Offline ${runToken.slice(0, 8)}`;
+  const middleName = `Alex Middle ${runToken.slice(0, 8)}`;
+  const directorName = `Morgan Late ${runToken.slice(0, 8)}`;
+  const distinctiveTailQuote = `FINAL PAGE QUOTATION: The board appointed ${directorName} as Managing Director effective 18 November 2026.`;
 
   beforeAll(async () => {
     const dbModule = await import("@workspace/db");
@@ -162,6 +165,25 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       { vectorType: "other", value: "Chief Executive Officer", personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${firstName} is Chief Executive Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
       { vectorType: "other", value: "Chief Financial Officer", personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${secondName} is Chief Financial Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
     ];
+    const middleFinding = {
+      ...findings[0]!,
+      value: "Chief Operating Officer",
+      personName: middleName,
+      role: "Chief Operating Officer",
+      note: "Investigator-selected person lead observed in the middle section of the fetched page.",
+      exactQuote: `${middleName} is Chief Operating Officer.`,
+      promotionReason: "The fetched page directly attributes the current operating role to this named person.",
+    };
+    const directorFinding = {
+      ...findings[0]!,
+      value: "Managing Director",
+      personName: directorName,
+      role: "Managing Director",
+      note: "Investigator-selected director lead observed only in the final retained page section.",
+      exactQuote: distinctiveTailQuote,
+      promotionReason: "The exact final-page quotation directly attributes the Managing Director role to this person.",
+    };
+    const allFindings = [...findings, middleFinding, directorFinding];
     const actions = [
       {
         action: "web_search",
@@ -177,20 +199,30 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         action: "visit",
         query: null,
         url: sourceUrl,
-        thought: "Fetch the discovered page to inspect the named people and roles.",
-        hypothesis: "The fetched company page may bind both names to their roles.",
-        purpose: "Verify the exact names and roles in observed page text.",
+        thought: "Fetch the discovered page and inspect the names and roles available in its opening and middle sections.",
+        hypothesis: "The fetched company page may bind several people to their roles.",
+        purpose: "Verify source-backed leadership names while preserving any unread remainder.",
         expectedInformationGain: 0.9,
-        findings,
+        findings: [...findings, middleFinding],
+      },
+      {
+        action: "visit",
+        query: null,
+        url: sourceUrl,
+        thought: "Read the remaining section of the same source to inspect its final director entry and quotation.",
+        hypothesis: "The retained remainder may contain another relevant director and an exact role quotation.",
+        purpose: "Inspect the unread tail of the already fetched source without issuing another network request.",
+        expectedInformationGain: 0.95,
+        findings: [directorFinding],
       },
       {
         action: "done",
         query: null,
-        thought: "The fetched source directly attributes both professional roles to the named people.",
-        hypothesis: "The page identifies the named people in their current executive roles.",
-        purpose: "Return the source-backed findings and model-owned interpretation for Boss adjudication.",
-        expectedInformationGain: 0.9,
-        findings,
+        thought: "The opening, middle, and final sections of the same fetched source support the identified leadership roles.",
+        hypothesis: "The page attributes the named people to their stated current executive roles.",
+        purpose: "Return the source-backed findings and exact final-page quotation for independent Boss adjudication.",
+        expectedInformationGain: 0.95,
+        findings: allFindings,
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -206,7 +238,15 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       if (url === "https://google.serper.dev/search") return new Response(JSON.stringify({ organic: [{ title: "Apex Offline Holdings — Leadership", link: sourceUrl, snippet: `${firstName} is Chief Executive Officer; ${secondName} is Chief Financial Officer.` }] }), { status: 200, headers: { "content-type": "application/json" } });
       if (url === sourceUrl) {
-        const response = new Response(`<html><body><h1>Apex Offline Holdings</h1><p>${firstName} is Chief Executive Officer.</p><p>${secondName} is Chief Financial Officer.</p></body></html>`, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+        const pageHtml = [
+          "<html><body><h1>Apex Offline Holdings</h1>",
+          `<p>${firstName} is Chief Executive Officer.</p>`,
+          `<p>${"Historical public filing narrative with no additional named officers. ".repeat(82)} ${secondName} is Chief Financial Officer.</p>`,
+          `<p>${"Corporate governance directory entries and filing history. ".repeat(82)} ${middleName} is Chief Operating Officer.</p>`,
+          `<p>${"Additional annual-report narrative and board-history text. ".repeat(145)} ${distinctiveTailQuote}</p>`,
+          "</body></html>",
+        ].join("");
+        const response = new Response(pageHtml, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
         Object.defineProperty(response, "url", { value: sourceUrl });
         return response;
       }
@@ -327,13 +367,46 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
     const investigatorCalls = mocks.outboundUrls.filter((url) => url.endsWith("/chat/completions")).length;
-    expect(investigatorCalls).toBe(3);
+    expect(investigatorCalls).toBe(4);
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
-    expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
-    const visitEvent = outcome.events.find((event: any) => { try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; } });
-    expect(visitEvent?.actorRole).toBe("head_investigator");
-    expect(visitEvent?.eventType).toBe("tool_observation");
-    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true, personName: firstName, sourceUrls: expect.arrayContaining([mocks.pageUrl]) })]) })]));
+    expect(mocks.outboundUrls.filter((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toHaveLength(1);
+    const visitEvents = outcome.events.filter((event: any) => { try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; } });
+    expect(visitEvents).toHaveLength(2);
+    expect(visitEvents.every((event: any) => event.actorRole === "head_investigator" && event.eventType === "tool_observation")).toBe(true);
+    const visitPayloads = visitEvents.map((event: any) => JSON.parse(event.payload ?? "{}"));
+    expect(visitPayloads[0]).toMatchObject({
+      execution: "success",
+      observedUrls: [mocks.pageUrl],
+      args: { pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+    });
+    expect(visitPayloads[0].observation).toContain(firstName);
+    expect(visitPayloads[1]).toMatchObject({
+      execution: "success",
+      observedUrls: [mocks.pageUrl],
+      args: { pageReadSource: "retained_fetch_artifact", pageHasMore: false },
+    });
+    expect(visitPayloads[1].args.pageReadOffset).toBeGreaterThan(0);
+    expect(visitPayloads[1].observation).toContain(directorName);
+    expect(visitPayloads[1].observation).toContain(distinctiveTailQuote);
+    const pageArtifactChunks = outcome.events
+      .filter((event: any) => event.status === "page_artifact")
+      .map((event: any) => JSON.parse(event.payload ?? "{}"));
+    expect(pageArtifactChunks.length).toBeGreaterThan(1);
+    expect(pageArtifactChunks.every((chunk: any) => chunk.kind === "fetched_page_artifact_chunk"
+      && chunk.sourceUrl === mocks.pageUrl && chunk.sourceVerified === true)).toBe(true);
+    expect(new Set(pageArtifactChunks.map((chunk: any) => chunk.sha256)).size).toBe(1);
+    expect(pageArtifactChunks).toHaveLength(pageArtifactChunks[0].chunkCount);
+    const lateDirectorClaim = outcome.events
+      .filter((event: any) => event.eventType === "claim")
+      .map((event: any) => { try { return JSON.parse(event.payload ?? "{}"); } catch { return {}; } })
+      .find((payload: any) => payload.claim?.personName === directorName);
+    expect(lateDirectorClaim?.claim).toMatchObject({
+      personName: directorName,
+      role: "Managing Director",
+      exactQuote: distinctiveTailQuote,
+      sourceUrls: [mocks.pageUrl],
+    });
+    expect(lateDirectorClaim?.observationEventIds?.length).toBeGreaterThan(0);
     expect(JSON.parse(outcome.ownedCase.caseFile).jobId).toBe(outcome.jobId);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
     const rawDiagnosticResult = (outcome.jobUpdate as any)?.result;
@@ -346,7 +419,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       currentAction: outcome.ownedCase.currentAction,
       targetCalls: mocks.targetCalls,
       outboundUrls: mocks.outboundUrls,
-    })).toHaveLength(2);
+    })).toHaveLength(4);
+    expect(outcome.admittedEntities.map((entity: any) => entity.name)).toContain(directorName);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
