@@ -6195,11 +6195,14 @@ if (action.action === "parallel_web_search") {
   // An omitted/null provider follows the same configured healthy runtime default
   // as a single web_search. Resolve once, persist the effective provider, and
   // retain the Investigator-selected query without inventing a new search.
-  const resolvedParallelSearches = action.searches.map((search) => ({
-    ...search,
-    provider: search.provider ?? selectConfiguredSearchProvider(searchProviderFailures),
-  }));
-  if (resolvedParallelSearches.some((search) => !search.provider)) {
+  const resolvedParallelSearches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }> = [];
+  let missingParallelSearchDefault = false;
+  for (const search of action.searches) {
+    const provider = search.provider ?? selectConfiguredSearchProvider(searchProviderFailures);
+    if (!provider) missingParallelSearchDefault = true;
+    else resolvedParallelSearches.push({ ...search, provider });
+  }
+  if (missingParallelSearchDefault) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
@@ -6209,10 +6212,10 @@ if (action.action === "parallel_web_search") {
     emit("parallel_web_search", { provider: "multi", status: "blocked", summary: record.observation });
     continue;
   }
-  action.searches = resolvedParallelSearches as typeof action.searches;
-  selectedArgs.searches = action.searches;
+  action.searches = resolvedParallelSearches;
+  selectedArgs.searches = resolvedParallelSearches;
   record.args = selectedArgs;
-  const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
+  const providerRejectedSearches = resolvedParallelSearches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
     const proposedSearches = [...action.searches];
     const allowedSearches = proposedSearches.filter((search) => !isSearchProviderDisabled(searchProviderFailures, search.provider));
