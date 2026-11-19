@@ -2028,6 +2028,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
     if (providerContractFailure) throw new Error("investigator_provider_contract_error");
+    // A terminal action-contract failure with no executed search/fetch is an
+    // infrastructure outcome, never evidence that discovery was exhausted.
+    if (discovery.stopReason === "PARSE_FAILURE" && discovery.searches === 0 && discovery.visits === 0) {
+      throw new Error("investigator_action_parse_failure");
+    }
     let researched = 0; let contactsFound = 0; let operatorTargetSpendingCapReached = false; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; let priorCandidateType: "person" | "organization" | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; priorCandidateType = prior.candidateType === "person" || prior.candidateType === "organization" ? prior.candidateType : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     // Deterministic execution safety only: let Boss correct a rejected direction once,
     // but do not spend more model calls repeating the same invalid control decision.
@@ -2959,6 +2964,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const dailyTokenBudgetExhausted = /daily_token_budget_exhausted/i.test(rawMessage);
     const usageLedgerUnavailable = /daily_usage_ledger_unavailable|investigator_usage_ledger_unavailable/i.test(rawMessage);
     const providerContractError = /investigator_provider_contract_error|provider_contract_error/i.test(rawMessage);
+    const actionParseFailure = /investigator_action_parse_failure/i.test(rawMessage);
     const recoverableRightHandOpeningFailure = isRecoverableRightHandOpeningFailure(failureStage, error);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -2976,7 +2982,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                   ? "daily-usage-ledger-unavailable"
                   : providerContractError
                     ? "investigator-provider-contract-error"
-                    : "canonical-atlas-failed";
+                    : actionParseFailure
+                      ? "investigator-action-parse-failure"
+                      : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
@@ -2996,6 +3004,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       budgetExhausted: dailyTokenBudgetExhausted,
       usageLedgerUnavailable,
       providerContractError,
+      actionParseFailure,
+      researchActionsExecuted: null,
       resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
