@@ -12,7 +12,7 @@ import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from ".
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
 import { classifyExternalProvider, getGroqTokenRequest, reconcileGroqTokenResponse, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
-import { describeThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
+import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
 import { compactInvestigationContextWithFallback, compactRecentObservationWithFallback } from "./ai-investigation-context-compaction";
@@ -3233,7 +3233,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
   const modelGroups = groupInvestigatorCapabilitiesByModelAndCredential(capabilities, configuredModel);
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const excludedCapabilities: InvestigatorCapability[] = [];
-  const sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }> = [];
+  const sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number; sampleResults: Array<{ sample: number; passed: boolean; failureCode: string | null; rawOutputClass: string; latencyMs: number }> }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
   for (const { model, capabilities: modelCapabilities } of modelGroups) {
