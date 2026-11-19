@@ -766,8 +766,12 @@ export async function compactInvestigationContextWithFallback(
   input: AiInvestigationContextCompactionInput,
   kind: "observation" | "historical_memory" = "historical_memory",
 ): Promise<InvestigationContextCompactionResult | null> {
-  const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
-  if (!source) return { text: "", method: "unchanged" };
+  const rawSource = typeof input.rawContext === "string" ? input.rawContext : "";
+  // Historical memory is an evidence-bearing record: below the AI threshold,
+  // preserve every character exactly, including boundary whitespace. Only
+  // observation transport projections may normalize surrounding whitespace.
+  const source = kind === "historical_memory" ? rawSource : rawSource.trim();
+  if (!source.trim()) return { text: source, method: "unchanged" };
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.max(1, Math.min(MAX_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return { text: source, method: "unchanged" };
