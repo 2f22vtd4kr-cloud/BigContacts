@@ -45,7 +45,7 @@ const investigatorRuntimeHealth = new Map<InvestigatorCapability, MutableInvesti
 function investigatorRuntimeHealthStatus(current: MutableInvestigatorCapabilityRuntimeHealth): InvestigatorCapabilityRuntimeHealth["status"] {
   const totalActions = current.successfulActions + current.failedActions;
   if (totalActions === 0) return "unobserved";
-  const failureRateIsMaterial = current.failedActions >= 2 && current.failedActions * 2 >= totalActions;
+  const failureRateIsMaterial = current.consecutiveFailures > 0 && current.failedActions >= 2 && current.failedActions * 2 >= totalActions;
   return current.consecutiveFailures >= 2 || failureRateIsMaterial ? "degraded" : "healthy";
 }
 
