@@ -67,9 +67,6 @@ async function buildAll() {
     }
   }
 
-  // Unknown provenance is never eligible for build-cache reuse.
-  if (dirtyState === "unknown") dirty = true;
-
   await esbuild({
     // The imported BigContacts implementation lives under src/src. The
     // top-level src tree is only the minimal scaffold and exposes healthz
