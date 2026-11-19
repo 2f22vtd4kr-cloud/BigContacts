@@ -57,6 +57,13 @@ function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
     || Boolean(env.NODE_TEST_CONTEXT);
   if (isTestRunner) return env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
   if (env.NODE_ENV === "development") return true;
+  if (env.NODE_ENV === "production") {
+    const destination = env.APEX_MODEL_AUDIT_FILE?.trim() ?? "";
+    const privateDestination = destination.startsWith("private-audits/") || destination.startsWith(".local/audits/");
+    // Production traces are opt-in, private, job-scoped and contact-redacted.
+    // Visible workspace audits remain a development-only operator choice.
+    return privateDestination && env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA !== "true";
+  }
   return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
 }
 
