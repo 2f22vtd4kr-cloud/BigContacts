@@ -1,7 +1,19 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { normalizeRuntimeBuildProvenance } from "./runtime-build-provenance";
 
 describe("runtime build provenance", () => {
+  it("prefers imported source provenance over unrelated starter-project Git metadata", () => {
+    const buildSource = readFileSync(resolve(process.cwd(), "build.mjs"), "utf8");
+    const bootSource = readFileSync(resolve(process.cwd(), "../../scripts/replit-boot.sh"), "utf8");
+    expect(buildSource).toContain("APEX_SOURCE_REVISION");
+    expect(buildSource).toContain(".apex-source-revision");
+    expect(buildSource).toContain("git remote get-url origin");
+    expect(buildSource).toContain("Never stamp an unrelated starter SHA as Apex");
+    expect(bootSource).toContain("const expected=process.env.APEX_SOURCE_REVISION");
+  });
+
   it("preserves a valid source revision, worktree state, and build timestamp", () => {
     expect(normalizeRuntimeBuildProvenance({
       revision: "A".repeat(40),
