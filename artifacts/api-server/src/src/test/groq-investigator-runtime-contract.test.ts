@@ -237,6 +237,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyB.response_format).toBeUndefined();
     expect((oneTwentyB.response_format as { type?: string } | undefined)?.type).toBe("json_schema");
     expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
+    const correction = buildActionParseFailureObservation("invalid_action_arguments action=parallel_web_search invalid=searches");
+    expect(correction).not.toContain("20 required top-level fields");
+    expect(correction).not.toContain("all schema keys");
+    expect(correction).toContain("Follow the active model output contract.");
   });
 
   it("routes transport HTTP 400 output-validation envelopes into bounded recovery and rejects schema/request errors", () => {
