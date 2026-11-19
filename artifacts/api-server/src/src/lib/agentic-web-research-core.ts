@@ -2310,12 +2310,12 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string): string {
   if (model !== "openai/gpt-oss-20b") return prompt;
   const standaloneOutputAt = Math.max(
-    prompt.lastIndexOf("\\nOUTPUT CONTRACT:"),
+    prompt.lastIndexOf("\nOUTPUT CONTRACT:"),
     prompt.startsWith("OUTPUT CONTRACT:") ? 0 : -1,
   );
   const outputAt = standaloneOutputAt < 0 ? -1 : standaloneOutputAt + (standaloneOutputAt > 0 ? 1 : 0);
   if (outputAt < 0) {
-    return prompt + "\\n\\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.");
+    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.");
   }
   return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt));
 }
