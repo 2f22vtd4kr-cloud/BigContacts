@@ -48,7 +48,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
-  it("uses a deterministic historical-memory projection for ordinary context without any model call", async () => {
+  it("retains complete historical memory verbatim below the AI-compaction threshold", async () => {
     const source = [
       "CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123",
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: exact objective remains authoritative.",
@@ -64,23 +64,22 @@ describe("AI investigation context compaction", () => {
       turn: 1,
     }, "historical_memory");
 
-    expect(result?.method).toBe("deterministic_projection");
-    expect(result?.text.length).toBeLessThanOrEqual(1_800);
-    expect(result?.text).toContain("DETERMINISTIC HISTORICAL MEMORY PROJECTION");
-    expect(result?.text).toContain("source observations, evidence and control decisions remain in durable case events/state");
-    expect(result?.text).toContain("omitted context is unknown");
+    expect(result?.method).toBe("unchanged");
+    expect(result?.text).toBe(source);
+    expect(result?.text).toContain("CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123");
     expect(extractAiContextUrls(result?.text ?? "")).toContain("https://registry.example.test/company/123");
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
-  it("keeps fallback compaction on the bounded path when a caller omits its turn", async () => {
+  it("retains sub-threshold historical memory in full when a caller omits its turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Observed source facts and provenance remain durable. ".repeat(160);
     expect(source.length).toBeGreaterThan(8_000);
     expect(source.length).toBeLessThan(9_000);
     const result = await compactInvestigationContextWithFallback({
       rawContext: source, maxChars: 900, jobId: "job-missing-turn-fallback",
     }, "historical_memory");
-    expect(result?.method).toBe("deterministic_projection");
+    expect(result?.method).toBe("unchanged");
+    expect(result?.text).toBe(source);
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
 
@@ -717,8 +716,7 @@ describe("AI investigation context compaction", () => {
       turn: 1,
     }, "historical_memory");
 
-    expect(result?.method).toBe("deterministic_projection");
-    expect(result?.text.length).toBeLessThanOrEqual(1_800);
+    expect(result).toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-20b",
@@ -920,10 +918,8 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-fidelity", caseId: 91 });
-    expect(result?.method).toBe("deterministic_projection");
-    expect(result?.text).toContain("VERBATIM NUMERIC / FINANCIAL SOURCE EXCERPTS");
-    expect(result?.text).toContain(sourceFact);
-    expect(result?.text).not.toContain("100% owner");
+    expect(result).toBeNull();
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalled();
   });
 
@@ -936,9 +932,7 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-denominator", caseId: 92 });
-    expect(result?.method).toBe("deterministic_projection");
-    expect(result?.text).toContain(sourceFact);
-    expect(result?.text).not.toContain("100% of the company's portfolio");
+    expect(result).toBeNull();
   });
 
   it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
@@ -950,8 +944,6 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-words", caseId: 93 });
-    expect(result?.method).toBe("deterministic_projection");
-    expect(result?.text).toContain(sourceFact);
-    expect(result?.text).not.toContain("One hundred percent of the company's portfolio");
+    expect(result).toBeNull();
   });
 });
