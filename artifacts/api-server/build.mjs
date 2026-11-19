@@ -26,18 +26,32 @@ async function buildAll() {
   // An explicit source revision is authoritative; otherwise only trust Git when
   // its origin is this repository. Never stamp an unrelated starter SHA as Apex.
   let importedSourceRevision = "";
-  try {
-    importedSourceRevision = (await readFile(path.resolve(rootDir, ".apex-source-revision"), "utf8")).trim();
-  } catch {
-    // A clean Git checkout can still establish its revision from the verified origin.
+  let importedSourceManifest = false;
+  for (const [manifestName, isImmutableArchive] of [["APEX_SOURCE_REVISION", true], [".apex-source-revision", false]] as const) {
+    try {
+      const candidate = (await readFile(path.resolve(rootDir, manifestName), "utf8")).trim();
+      if (/^[a-f0-9]{40}$/i.test(candidate)) {
+        importedSourceRevision = candidate;
+        importedSourceManifest = isImmutableArchive;
+        break;
+      }
+    } catch {
+      // Continue to the next authoritative source marker.
+    }
   }
-  const explicitSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() || importedSourceRevision;
+  const environmentSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() || "";
+  const explicitSourceRevision = environmentSourceRevision || importedSourceRevision;
   const explicitSourceDirty = process.env.APEX_SOURCE_DIRTY?.trim().toLowerCase() ?? "";
   if (/^[a-f0-9]{40}$/i.test(explicitSourceRevision)) {
     revision = explicitSourceRevision.toLowerCase();
     if (explicitSourceDirty === "clean" || explicitSourceDirty === "dirty") {
       dirtyState = explicitSourceDirty;
       dirty = explicitSourceDirty === "dirty";
+    } else if (importedSourceManifest && !environmentSourceRevision) {
+      // The immutable import bundle was produced from git archive at this exact
+      // commit. Keep the source SHA authoritative but do not infer the current
+      // Replit worktree's cleanliness from its unrelated starter .git directory.
+      dirtyState = "unknown";
     }
   } else {
     try {
