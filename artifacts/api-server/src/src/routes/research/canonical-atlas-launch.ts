@@ -226,7 +226,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         const investigatorProbe = await probeGroqInvestigatorCapabilities();
         const preflightReport = {
           buildProvenance,
-          terminalState: investigatorProbe.ok ? "running" : "failed",
           status: investigatorProbe.ok ? "passed" : "failed",
           checkedCapabilities: investigatorProbe.checked,
           excludedCapabilities: investigatorProbe.excludedCapabilities,
@@ -237,7 +236,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         logger.info({ jobId: atlasJobId, investigatorPreflight: preflightReport }, "Apex Investigator preflight completed.");
         const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
         await updateJob(atlasJobId!, {
-          result: JSON.stringify({ buildProvenance, investigatorPreflight: preflightReport }),
+          result: JSON.stringify({ buildProvenance, investigatorPreflight: preflightReport, terminalState: investigatorProbe.ok ? "running" : "failed" }),
           message: investigatorProbe.ok
             ? `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`
             : `Investigator preflight failed (${probeReport || "no sample summary"}); excluded capabilities: ${investigatorProbe.excludedCapabilities.join(", ") || "none"}.`,
