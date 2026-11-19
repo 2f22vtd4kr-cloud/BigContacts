@@ -659,6 +659,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
 
       expect(terminalAudit, "The route's finally block must persist and read back its terminal reconciliation audit").toBeTruthy();
+      if (!terminalAudit) throw new Error("Atlas launch finalizer did not persist a terminal reconciliation audit.");
       expect(terminalAudit).toMatchObject({
         jobId,
         terminalJobStatus: "done",
