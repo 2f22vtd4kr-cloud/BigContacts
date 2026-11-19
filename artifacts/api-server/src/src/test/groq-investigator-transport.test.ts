@@ -29,7 +29,7 @@ vi.mock("../lib/agentic-llm-telemetry", async (importOriginal) => {
   };
 });
 
-import { callGroqJson } from "../lib/agentic-web-research-core";
+import { callGroqJson, probeGroqInvestigatorCapabilities } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 const strictInvestigatorPrompt = [
@@ -153,6 +153,50 @@ describe("Groq Investigator HTTP transport recovery", () => {
     expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
     const request = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
     expect(request.response_format.type).toBe("json_schema");
+  });
+
+  it("preflights each distinct configured Investigator model with its own real response_format", async () => {
+    vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "true");
+    vi.stubEnv("GROQ_AGENTIC_MODEL", "openai/gpt-oss-120b");
+    const validAction = {
+      action: "web_search",
+      query: "Apex prelaunch provider contract probe",
+      provider: "serper",
+      url: null,
+      email: null,
+      username: null,
+      domain: null,
+      registry: null,
+      thought: "Verify response format only.",
+      hypothesis: "The configured model can emit the action contract.",
+      purpose: "Prelaunch response-format compatibility.",
+      expectedInformationGain: 0,
+      locale: null,
+      market: null,
+      target: null,
+      targetType: null,
+      profile: null,
+      sources: [],
+      searches: [],
+      findings: [],
+    };
+    transportMocks.responses.push(
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+    );
+
+    const result = await probeGroqInvestigatorCapabilities();
+
+    expect(result.ok).toBe(true);
+    expect(result.checked.map((entry) => entry.model)).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+    const twentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
+    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
+    expect(twentyBRequest.response_format).toBeUndefined();
+    expect(twentyBRequest.messages[1].content).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    expect(oneTwentyBRequest.response_format.type).toBe("json_schema");
+    expect(oneTwentyBRequest.messages[1].content).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBRequest.messages[1].content).not.toContain("provider=null");
   });
 
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {
