@@ -1,6 +1,7 @@
 /** Bureau-facing wrapper around the canonical model-owned ReAct Investigator. */
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
@@ -131,7 +132,67 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
       inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision", "provider_error"]),
     ))
     .orderBy(researchCaseEventsTable.id);
-  return replayInvestigatorTrajectoryEvents(events);
+  const records = replayInvestigatorTrajectoryEvents(events);
+  const artifactEvents = await db.select({
+    payload: researchCaseEventsTable.payload,
+  }).from(researchCaseEventsTable)
+    .where(and(
+      eq(researchCaseEventsTable.caseId, caseId),
+      eq(researchCaseEventsTable.eventType, "observation"),
+      eq(researchCaseEventsTable.status, "page_artifact"),
+    ))
+    .orderBy(researchCaseEventsTable.id);
+  const chunksByArtifact = new Map<string, {
+    runId: string; turn: number; sourceUrl: string; sha256: string; retrievedAt: string;
+    chunkCount: number; chunks: Map<number, string>;
+  }>();
+  for (const event of artifactEvents) {
+    if (typeof event.payload !== "string") continue;
+    try {
+      const payload = JSON.parse(event.payload) as Record<string, unknown>;
+      if (payload.kind !== "fetched_page_artifact_chunk"
+        || typeof payload.runId !== "string"
+        || typeof payload.turn !== "number"
+        || typeof payload.sourceUrl !== "string"
+        || typeof payload.sha256 !== "string"
+        || typeof payload.retrievedAt !== "string"
+        || typeof payload.chunkIndex !== "number"
+        || typeof payload.chunkCount !== "number"
+        || typeof payload.text !== "string") continue;
+      const key = payload.runId + ":" + payload.turn;
+      const entry = chunksByArtifact.get(key) ?? {
+        runId: payload.runId,
+        turn: payload.turn,
+        sourceUrl: payload.sourceUrl,
+        sha256: payload.sha256,
+        retrievedAt: payload.retrievedAt,
+        chunkCount: payload.chunkCount,
+        chunks: new Map<number, string>(),
+      };
+      if (entry.sha256 !== payload.sha256 || entry.chunkCount !== payload.chunkCount
+        || entry.sourceUrl !== payload.sourceUrl || entry.retrievedAt !== payload.retrievedAt) continue;
+      entry.chunks.set(payload.chunkIndex, payload.text);
+      chunksByArtifact.set(key, entry);
+    } catch {
+      // An incomplete or malformed artifact remains unavailable; it is never
+      // silently reconstructed from a partial set of chunks.
+    }
+  }
+  for (const artifact of chunksByArtifact.values()) {
+    if (artifact.chunks.size !== artifact.chunkCount) continue;
+    const ordered = Array.from({ length: artifact.chunkCount }, (_, index) => artifact.chunks.get(index));
+    if (ordered.some((chunk) => typeof chunk !== "string")) continue;
+    const text = (ordered as string[]).join("");
+    if (createHash("sha256").update(text).digest("hex") !== artifact.sha256) continue;
+    const record = records.find((item) => item.turn === artifact.turn && (item.action === "visit" || item.action === "browser_fetch"));
+    if (record) record.pageArtifact = {
+      sourceUrl: artifact.sourceUrl,
+      text,
+      sha256: artifact.sha256,
+      retrievedAt: artifact.retrievedAt,
+    };
+  }
+  return records;
 }
 
 type MountedCaseContext = { document: string; durableUrlInventory?: string };
@@ -290,7 +351,12 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const newTrajectoryLines=renumberedTrajectory.slice(Math.max(0,renumberedTrajectory.length-newOffsetRecords.length));
   const accumulatedTrajectory=[...priorTrajectory,...newTrajectoryLines];
   const accumulatedRecords=[...priorRecords,...newOffsetRecords];
-  const durableProjectionRecords=compactDurableDiscoveryRecords(accumulatedRecords);
+  // Page bodies live in separately chunked immutable observation events, not
+  // in the bounded caseFile projection or the 128 KB trajectory-event payload.
+  const durableProjectionRecords=compactDurableDiscoveryRecords(accumulatedRecords.map((record)=>{
+    const { pageArtifact: _pageArtifact, ...compactRecord } = record;
+    return compactRecord;
+  }));
   // Keep the need to rehydrate omitted URLs beyond the bounded last-64 record
   // window; otherwise a later continuation would forget that durable URLs were
   // intentionally omitted from the caseFile projection.
@@ -330,6 +396,64 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
       const payload=JSON.stringify(sanitizeObservableValue({jobId:input.jobId??null,runId:input.runId,runModel:input.investigatorLlm??result.model,turn:record.turn,action:record.action,args:record.args,thought:record.thought??null,pivotScopeKey:record.pivotScopeKey??null,leadUrls:[...new Set(record.leadUrls??[])].slice(0,24),execution:record.execution,observation:record.observation??null,observedUrls:record.observedUrls,findings:record.findings,sourceBindings:record.sourceBindings??[],providerFallback:record.providerFallback??[],stopReason:record.stopReason??null,failureDomain:record.failureDomain??null,failureKind:record.failureKind??null}));
       const inserted=await tx.insert(researchCaseEventsTable).values({caseId,iteration:recordEventIteration,actorRole:"head_investigator",eventType,status:record.execution,summary:record.action==="done"?`Investigator ended ReAct run; findings=${record.findings.length}.`:`Investigator turn ${record.turn}: ${record.action}; execution=${record.execution}.`,correlationKey,payload}).onConflictDoNothing({target:[researchCaseEventsTable.caseId,researchCaseEventsTable.correlationKey]}).returning({id:researchCaseEventsTable.id});
       if(!inserted[0]?.id){const[existing]=await tx.select({id:researchCaseEventsTable.id,payload:researchCaseEventsTable.payload,eventType:researchCaseEventsTable.eventType,actorRole:researchCaseEventsTable.actorRole}).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId,caseId),eq(researchCaseEventsTable.correlationKey,correlationKey))).limit(1);if(!existing||existing.eventType!==eventType||existing.actorRole!=="head_investigator"||existing.payload!==payload)throw new Error(`Discovery trajectory replay mismatch for ${correlationKey}`);}
+      if (record.pageArtifact) {
+        const artifact = record.pageArtifact;
+        const chunks: string[] = [];
+        let chunk = "";
+        let chunkBytes = 0;
+        // 72 KiB leaves ample room for JSON metadata under the DB's 128 KiB
+        // immutable research-event payload limit, including multibyte UTF-8.
+        for (const character of artifact.text) {
+          const characterBytes = Buffer.byteLength(character, "utf8");
+          if (chunk && chunkBytes + characterBytes > 72 * 1024) {
+            chunks.push(chunk);
+            chunk = "";
+            chunkBytes = 0;
+          }
+          chunk += character;
+          chunkBytes += characterBytes;
+        }
+        if (chunk || !chunks.length) chunks.push(chunk);
+        for (const [chunkIndex, chunkText] of chunks.entries()) {
+          const artifactKey = `${input.runId}:turn:${record.turn}:page-artifact:${chunkIndex}`;
+          const artifactPayload = JSON.stringify({
+            kind: "fetched_page_artifact_chunk",
+            jobId: input.jobId ?? null,
+            runId: input.runId,
+            turn: record.turn,
+            action: record.action,
+            sourceUrl: artifact.sourceUrl,
+            sha256: artifact.sha256,
+            retrievedAt: artifact.retrievedAt,
+            chunkIndex,
+            chunkCount: chunks.length,
+            text: chunkText,
+          });
+          if (Buffer.byteLength(artifactPayload, "utf8") > 128 * 1024) {
+            throw new Error(`Fetched page artifact chunk exceeded durable event payload bound at turn ${record.turn}.`);
+          }
+          const artifactInserted = await tx.insert(researchCaseEventsTable).values({
+            caseId,
+            iteration: recordEventIteration,
+            actorRole: "system",
+            eventType: "observation",
+            status: "page_artifact",
+            summary: `Retained fetched page artifact ${chunkIndex + 1}/${chunks.length} for Investigator turn ${record.turn}.`,
+            correlationKey: artifactKey,
+            payload: artifactPayload,
+          }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+          if (!artifactInserted[0]?.id) {
+            const [existingArtifact] = await tx.select({ payload: researchCaseEventsTable.payload, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status })
+              .from(researchCaseEventsTable)
+              .where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, artifactKey)))
+              .limit(1);
+            if (!existingArtifact || existingArtifact.payload !== artifactPayload || existingArtifact.actorRole !== "system"
+              || existingArtifact.eventType !== "observation" || existingArtifact.status !== "page_artifact") {
+              throw new Error(`Fetched page artifact replay mismatch for ${artifactKey}`);
+            }
+          }
+        }
+      }
     }
     for(const record of offsetRecords.filter((candidate)=>input.finalize===true&&candidate.action==="done"&&candidate.execution==="success")){
       for(const[findingIndex,finding]of record.findings.entries()){
