@@ -137,7 +137,7 @@ describe("AI investigation context compaction", () => {
     ).join("\n\n");
     expect(source.length).toBeGreaterThan(11_000);
     expect(source.length).toBeLessThanOrEqual(80_000);
-    const summary = "Source-backed observations remain durable and unresolved questions stay open.";
+    const summary = "source-backed observation remains durable; unresolved questions stay open.";
     rightHandMocks.runGroqRightHandFreeJson.mockImplementation(async () => ({
       model: "openai/gpt-oss-20b",
       raw: JSON.stringify({ summary }),
