@@ -2387,21 +2387,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             rightHandAssessment = typeof parsedReview.assessment === "string" ? parsedReview.assessment : null;
           } catch { rightHandAssessment = null; }
         }
-        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
-          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
-          && !rightHandReconsiderationUsed;
-        if (reviewChallengesConsequentialDecision) {
-          rightHandReconsiderationUsed = true;
-          rejectedControlDecision = {
-            controlTurn: controlTurns,
-            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
-            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
-          };
-          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
-          // Do not execute the challenged stop/admission/pivot yet. The next
-          // Boss call receives the durable Right-hand assessment above.
-          continue;
-        }
         await assertAtlasJobActive(atlasJobId);
         failureStage = "case_persistence";
         await db.transaction(async (tx) => {
@@ -2422,12 +2407,33 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             eventType: "observation", status: review.status === "completed" ? "recorded" : "unavailable",
             summary: review.status === "completed"
               ? "Right-hand independently reviewed a consequential Investigator/Boss decision; advice is non-authoritative."
-              : "Right-hand independent review was unavailable; Boss decision remains recorded without independent advice.",
+              : "Right-hand independent review was unavailable; Boss decision is recorded without independent advice.",
             correlationKey: `${atlasJobId}:right-hand-consequential:${controlTurns}`,
-            payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, reviewedAction: decision.action, status: review.status, model: review.model, raw: review.raw, error: review.error, authority: "advisory_only" }),
+            payload: JSON.stringify({
+              jobId: atlasJobId, controlTurn: controlTurns,
+              reviewedAction: decision.action,
+              bossDecision: { action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null },
+              status: review.status, model: review.model, raw: review.raw, error: review.error,
+              authority: "advisory_only",
+            }),
           }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
         }, { isolationLevel: "serializable" });
         phaseSummary[`right_hand_review_${controlTurns}`] = review.status === "completed" ? "Independent consequential review recorded as advisory." : "Independent consequential review unavailable; Boss retains responsibility.";
+        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
+          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
+          && !rightHandReconsiderationUsed;
+        if (reviewChallengesConsequentialDecision) {
+          rightHandReconsiderationUsed = true;
+          rejectedControlDecision = {
+            controlTurn: controlTurns,
+            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
+            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
+          };
+          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
+          // Do not execute the challenged stop/admission/pivot yet. The next
+          // Boss call receives the durable Right-hand assessment above.
+          continue;
+        }
       }
       if (controlValidationFeedback) rejectedControlDecision = null;
       await assertAtlasJobActive(atlasJobId);
