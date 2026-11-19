@@ -162,8 +162,8 @@ export function summarizeModelAuditTrace(contents: string): {
   pairedRequestCount: number;
   complete: boolean;
 } {
-  const requestIds = new Set([...contents.matchAll(/^### Model request (\\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
-  const responseIds = new Set([...contents.matchAll(/^### Model response (\\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
+  const requestIds = new Set([...contents.matchAll(/^### Model request (\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
+  const responseIds = new Set([...contents.matchAll(/^### Model response (\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
   const pairedRequestCount = [...requestIds].filter((requestId) => responseIds.has(requestId)).length;
   return {
     requestCount: requestIds.size,
