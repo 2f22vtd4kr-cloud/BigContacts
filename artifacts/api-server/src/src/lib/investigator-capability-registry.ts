@@ -90,7 +90,7 @@ export function getInvestigatorCapabilityRuntimeHealthSnapshot(
     const current = investigatorRuntimeHealth.get(capability) ?? emptyInvestigatorRuntimeHealth();
     return {
       capability,
-      status: current.consecutiveFailures >= 2 ? "degraded" : "healthy",
+      status: investigatorRuntimeHealthStatus(current),
       ...current,
     };
   });
