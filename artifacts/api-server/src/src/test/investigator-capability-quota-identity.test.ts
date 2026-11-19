@@ -45,6 +45,16 @@ describe("Investigator credential quota identity", () => {
     ]);
   });
 
+  it("keeps preflight and quota aliases within the same model lane despite a shared credential", () => {
+    expect(getInvestigatorCredentialAliases(env, ["groq-investigator-20b"])).toEqual([
+      "groq-investigator-20b",
+    ]);
+    expect(getInvestigatorCredentialAliases(env, ["groq-investigator-1"])).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
+    ]);
+  });
+
   it("treats whitespace-normalized equal credentials as the same quota pool", () => {
     const whitespaceEnv = {
       ...env,
