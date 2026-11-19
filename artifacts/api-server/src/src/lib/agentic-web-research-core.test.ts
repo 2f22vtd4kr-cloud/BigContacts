@@ -4842,13 +4842,31 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
     });
   });
 
-  it("does not coerce multi-item or registry-shaped searches into web_search", () => {
-    expect(parseAgentAction(JSON.stringify({
-      action: "web_search", query: null, searches: [{ query: "one" }, { query: "two" }],
-    }), ["web_search"])).toBeNull();
-    expect(parseAgentAction(JSON.stringify({
+  it("normalizes multiple searches into parallel_web_search only when that action is allowed", () => {
+    const raw = JSON.stringify({
+      action: "web_search",
+      query: null,
+      searches: [
+        { query: "first model-authored search", provider: "exa" },
+        { query: "second model-authored search", provider: "tavily", locale: "en", market: "GB" },
+      ],
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+    expect(parseAgentAction(raw, ["web_search", "parallel_web_search"])).toMatchObject({
+      action: "parallel_web_search",
+      searches: [
+        { query: "first model-authored search", provider: "exa" },
+        { query: "second model-authored search", provider: "tavily", locale: "en", market: "GB" },
+      ],
+    });
+  });
+
+  it("does not coerce registry-shaped searches into web_search or parallel_web_search", () => {
+    const raw = JSON.stringify({
       action: "web_search", query: null, searches: [{ query: "one", registry: "sec-edgar" }],
-    }), ["web_search"])).toBeNull();
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+    expect(parseAgentAction(raw, ["web_search", "parallel_web_search"])).toBeNull();
   });
 
   it("defaults out-of-range rationale scores without weakening action argument validation", () => {
