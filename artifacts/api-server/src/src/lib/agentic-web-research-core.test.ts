@@ -89,8 +89,8 @@ describe("retained fetched-page continuation", () => {
 function syntheticTextPdf(text: string): Uint8Array {
   const escapedText = text.replace(/[\\()]/g, "\\$&");
   const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
-  const textOperators = chunks.map((chunk, index) => "(" + chunk + ") Tj" + (index + 1 < chunks.length ? "\n0 -15 Td" : "")).join("\n");
-  const stream = "BT\n/F1 12 Tf\n72 720 Td\n" + textOperators + "\nET";
+  const textOperators = chunks.map((chunk, index) => "(" + chunk + ") Tj" + (index + 1 < chunks.length ? "\n0 -1 Td" : "")).join("\n");
+  const stream = "BT\n/F1 1 Tf\n72 720 Td\n" + textOperators + "\nET";
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -154,6 +154,9 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       exactQuote,
       "C".repeat(1_000),
     ].join("\n");
+    // toolVisit stores the sanitized text projection; its whitespace-normalized
+    // bytes are the cursor/hash contract restored after a process restart.
+    const retainedPageText = pageText.replace(/\\s+/g, " ").trim();
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
       status: 200,
@@ -167,8 +170,8 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       };
       const initial = await toolVisit(url, undefined, firstProcessStore, 1);
       expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
-      expect(initial.pageText).toBe(pageText);
-      expect(initial.pageSha256).toBe(createHash("sha256").update(pageText).digest("hex"));
+      expect(initial.pageText).toBe(retainedPageText);
+      expect(initial.pageSha256).toBe(createHash("sha256").update(retainedPageText).digest("hex"));
       expect(initial.observation).toContain("START: Jane Doe");
       expect(initial.observation).not.toContain("MIDDLE: Marcus Lee");
       expect(initial.observation).not.toContain("END: Elena Varga");
@@ -209,8 +212,8 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
         }),
       };
       const chunkSize = 12 * 1024;
-      const chunks = Array.from({ length: Math.ceil(pageText.length / chunkSize) }, (_, index) =>
-        pageText.slice(index * chunkSize, (index + 1) * chunkSize));
+      const chunks = Array.from({ length: Math.ceil(retainedPageText.length / chunkSize) }, (_, index) =>
+        retainedPageText.slice(index * chunkSize, (index + 1) * chunkSize));
       const artifactEvents = chunks.map((chunkText, chunkIndex) => ({
         id: 20 + chunkIndex,
         payload: JSON.stringify({
@@ -228,7 +231,7 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       }));
       const replayed = replayInvestigatorTrajectoryEvents([initialEvent, continuationEvent]);
       attachDurableFetchedPageArtifacts(replayed, artifactEvents);
-      expect(replayed[0]?.pageArtifact?.text).toBe(pageText);
+      expect(replayed[0]?.pageArtifact?.text).toBe(retainedPageText);
       expect(replayed[0]?.pageArtifact?.sha256).toBe(initial.pageSha256);
 
       // A fresh store represents a process restart. It must restore both the
