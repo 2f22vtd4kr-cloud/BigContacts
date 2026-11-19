@@ -62,9 +62,9 @@ export function getAvailableInvestigatorCapabilities(
 }
 
 /**
- * Expand a set of failed capability slots to every configured slot sharing
- * those credentials. Boss must see aliases as excluded too, or it may choose
- * an apparently different slot that cannot escape the exhausted quota pool.
+ * Expand failed capability slots to configured aliases sharing both the
+ * credential and model lane. Boss must not treat a same-key slot on another
+ * model lane as exhausted; 20B and 120B quotas/contracts remain distinct.
  */
 export function getInvestigatorCredentialAliases(
   env: NodeJS.ProcessEnv = process.env,
