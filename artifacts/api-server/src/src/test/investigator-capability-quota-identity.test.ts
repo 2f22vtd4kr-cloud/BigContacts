@@ -125,6 +125,7 @@ describe("Investigator credential quota identity", () => {
     expect(degraded.failedActions).toBe(2);
     expect(degraded.successfulActions).toBe(1);
     expect(getAvailableInvestigatorCapabilities(env)).toContain(capability);
+    expect(recordInvestigatorCapabilityRuntimeOutcome(capability, { success: true }).status).toBe("healthy");
   });
 
   it("exposes the 20B endpoint by default and permits explicit disablement", () => {
