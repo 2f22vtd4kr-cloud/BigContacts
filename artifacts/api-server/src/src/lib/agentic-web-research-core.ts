@@ -3209,6 +3209,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
       const controller = new AbortController();
       const abortParent = () => controller.abort();
       signal?.addEventListener("abort", abortParent, { once: true });
+      // Each independent sample owns its own decision deadline.
       const timer = setTimeout(() => controller.abort(), 45_000);
       try {
         const result = await withProviderRole("investigator", () => callGroqJson(
