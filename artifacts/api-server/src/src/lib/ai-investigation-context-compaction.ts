@@ -771,9 +771,7 @@ export async function compactInvestigationContextWithFallback(
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.max(1, Math.min(MAX_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return { text: source, method: "unchanged" };
-  // Below the semantic-compaction activation threshold, retain historical
-  // memory verbatim even when it exceeds the preferred target. Never replace
-  // required case history with a deterministic head/tail or keyword excerpt.
+  // Below the semantic-compaction activation threshold, retain historical memory verbatim even when it exceeds the preferred target. Never replace required case history with a deterministic head/tail or keyword excerpt.
   if (kind === "historical_memory" && source.length < AI_COMPACTION_MIN_SOURCE_CHARS) {
     return { text: source, method: "unchanged" };
   }
