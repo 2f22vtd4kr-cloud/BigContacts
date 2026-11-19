@@ -2429,6 +2429,7 @@ async function callGroqJson(
   iteration?: number,
   originalPromptChars: number = prompt.length,
   promptMode: "discovery" | "target" = "discovery",
+  strictPreflight = false,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -2869,7 +2870,12 @@ async function callGroqJson(
           lastProviderError = "completion_output_truncated";
           return { model, raw: "", error: lastProviderError };
         }
-        if (raw) return { model, raw };
+        if (raw) {
+          // A launch preflight must prove the configured response_format itself
+          // works; a successful JSON-object compatibility retry is not enough.
+          if (strictPreflight && jsonObjectFallbackUsed) return { model, raw: "", error: "provider_contract_error" };
+          return { model, raw };
+        }
         lastProviderError = "empty_response";
         break;
       } catch (error: any) {
@@ -3004,6 +3010,47 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
+
+/**
+ * Probe every configured Investigator capability before a canonical job is
+ * created. This sends one minimal model request per configured capability using
+ * the exact response_format selected for that model. No research tool executes.
+ */
+export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{ ok: boolean; checked: Array<{ capability: InvestigatorCapability; model: string }>; failedCapability?: InvestigatorCapability; error?: string }> {
+  const capabilities = getAvailableInvestigatorCapabilities();
+  if (!capabilities.length) return { ok: false, checked: [], error: "No configured Groq Investigator capability is available." };
+  const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
+  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const prompt = [
+    "PRE-LAUNCH PROVIDER CONTRACT PROBE. This is not a research job. Do not call tools, browse, or claim external observations.",
+    "Return exactly one valid JSON action object for web_search with query=\"Apex Atlas prelaunch contract probe\", provider=null, thought=\"Verify configured Investigator output contract only.\", hypothesis=\"The model can emit the configured action object.\", purpose=\"Pre-launch response-format compatibility probe.\", expectedInformationGain=0.",
+    strictContract,
+  ].join("\n\n");
+  for (const capability of capabilities) {
+    if (signal?.aborted) return { ok: false, checked, failedCapability: capability, error: "Pre-launch Investigator contract probe was cancelled." };
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    try {
+      const result = await callGroqJson(
+        prompt, controller.signal, "identity_resolution", capability, undefined,
+        null, null, ["web_search"], "prelaunch-contract-probe", 0, prompt.length, "discovery", true,
+      );
+      if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
+        return { ok: false, checked, failedCapability: capability, error: result?.error ?? "provider_contract_error" };
+      }
+      checked.push({ capability, model: result.model });
+    } catch (error) {
+      return { ok: false, checked, failedCapability: capability, error: error instanceof Error ? error.message : "provider_contract_error" };
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+  return { ok: true, checked };
+}
+
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars, promptMode));
 }
