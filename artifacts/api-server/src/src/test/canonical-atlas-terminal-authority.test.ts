@@ -48,6 +48,8 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasLaunchSource).toContain("personReconciliation");
     expect(canonicalAtlasLaunchSource).toContain("persistedCardCountReadBack");
     expect(canonicalAtlasLaunchSource).toContain("persistedEvidenceCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("persistedCardCountByJobReadBack === expectedNewCardCount");
+    expect(canonicalAtlasLaunchSource).toContain("persistedEvidenceCountByJobReadBack === expectedNewEvidenceRowCount");
     expect(canonicalAtlasLaunchSource).toContain("durableTraceEventCountReadBack");
     expect(canonicalAtlasLaunchSource).toContain("const modelAuditAttachment = resolveModelAuditAttachmentForJob(atlasJobId);");
     expect(canonicalAtlasLaunchSource).toContain("modelAuditAttachment.complete && modelAuditAttachment.requestCount > 0");
