@@ -40,6 +40,7 @@ describe("retained fetched-page continuation persistence boundary", () => {
   it("marks wrapper-checkpointed artifacts durable only when a durable callback will persist them before the next model turn", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
+    expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
     expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
     expect(agenticWrapperSource).toContain("await input.onTrajectoryRecord?.(normalizedRecord)");
   });
