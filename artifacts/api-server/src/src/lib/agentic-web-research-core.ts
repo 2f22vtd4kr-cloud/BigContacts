@@ -3047,6 +3047,8 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   const capabilities = getAvailableInvestigatorCapabilities();
   if (!capabilities.length) return { ok: false, checked: [], error: "No configured Groq Investigator capability is available." };
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
+  const probedModels = new Set<string>();
+  const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
   const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
   const prompt = [
     "PRE-LAUNCH PROVIDER CONTRACT PROBE. This is not a research job. Do not call tools, browse, or claim external observations.",
@@ -3054,16 +3056,19 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     strictContract,
   ].join("\n\n");
   for (const capability of capabilities) {
+    const routedModel = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
+    if (probedModels.has(routedModel)) continue;
+    probedModels.add(routedModel);
     if (signal?.aborted) return { ok: false, checked, failedCapability: capability, error: "Pre-launch Investigator contract probe was cancelled." };
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(() => controller.abort(), 45_000);
     try {
-      const result = await callGroqJson(
+      const result = await withProviderRole("investigator", () => callGroqJson(
         prompt, controller.signal, "identity_resolution", capability, undefined,
         null, null, ["web_search"], "prelaunch-contract-probe", 0, prompt.length, "discovery", true,
-      );
+      ));
       if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
         return { ok: false, checked, failedCapability: capability, error: result?.error ?? "provider_contract_error" };
       }
