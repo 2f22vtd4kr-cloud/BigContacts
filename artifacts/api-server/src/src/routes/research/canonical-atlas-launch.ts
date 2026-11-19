@@ -345,12 +345,20 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           .where(sql`${entitiesTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
         const evidenceMetadataRows = await db.select({ metadata: researchEvidenceTable.metadata }).from(researchEvidenceTable)
           .where(sql`${researchEvidenceTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
-        const metadataBelongsToJob = (value: unknown): boolean => {
-          if (typeof value !== "string") return false;
-          try { const parsed = JSON.parse(value) as Record<string, unknown>; return parsed.atlasJobId === atlasJobId; } catch { return false; }
+        const terminalCaseIds = new Set(terminalCases.map((researchCase) => researchCase.id));
+        const parseMetadata = (value: unknown): Record<string, unknown> | null => {
+          if (typeof value !== "string") return null;
+          try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
         };
-        const persistedCardCountReadBack = cardMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
-        const persistedEvidenceCountReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const metadataBelongsToJob = (value: unknown): boolean => parseMetadata(value)?.atlasJobId === atlasJobId;
+        const metadataBelongsToJobOrCase = (value: unknown): boolean => {
+          const parsed = parseMetadata(value);
+          return parsed?.atlasJobId === atlasJobId || terminalCaseIds.has(Number(parsed?.discoveryCaseId));
+        };
+        const persistedCardCountByJobReadBack = cardMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const persistedEvidenceCountByJobReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const persistedCardCountReadBack = cardMetadataRows.filter((row) => metadataBelongsToJobOrCase(row.metadata)).length;
+        const persistedEvidenceCountReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJobOrCase(row.metadata)).length;
         const findingEventRows = terminalCases.length ? await db.select({
           actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload,
         }).from(researchCaseEventsTable).where(and(
@@ -437,7 +445,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           jobId: atlasJobId, terminalJobStatus: terminalJob?.status ?? "unknown", pipelineOutcome: terminalJob?.outcome ?? "unknown",
           buildProvenance, sourceRevision: buildProvenance.commitSha, reconciliationAuthorityVerified,
           organizationReconciliation, personReconciliation, expectedNewCardCount, expectedNewEvidenceRowCount,
-          persistedCardCountReadBack, persistedEvidenceCountReadBack, sourceBackedNamedFindingCountReadBack,
+          persistedCardCountReadBack, persistedEvidenceCountReadBack, persistedCardCountByJobReadBack, persistedEvidenceCountByJobReadBack, sourceBackedNamedFindingCountReadBack,
           durableTraceEventCountReadBack: Number(traceCount?.count ?? 0), modelAuditAttachment, llmTelemetry,
           lockReleaseCallReturned: releaseCallReturned, lockReleasedReadBack: lockReleased,
           terminalChecks: finalChecks, terminalChecksPassed, recordedAt: String(terminalJob?.finishedAt ?? new Date().toISOString()),
