@@ -134,6 +134,7 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
     .orderBy(researchCaseEventsTable.id);
   const records = replayInvestigatorTrajectoryEvents(events);
   const artifactEvents = await db.select({
+    id: researchCaseEventsTable.id,
     payload: researchCaseEventsTable.payload,
   }).from(researchCaseEventsTable)
     .where(and(
@@ -144,7 +145,7 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
     .orderBy(researchCaseEventsTable.id);
   const chunksByArtifact = new Map<string, {
     runId: string; turn: number; sourceUrl: string; sha256: string; retrievedAt: string;
-    chunkCount: number; chunks: Map<number, string>;
+    sourceVerified: boolean | null; firstEventId: number; chunkCount: number; chunks: Map<number, string>;
   }>();
   for (const event of artifactEvents) {
     if (typeof event.payload !== "string") continue;
@@ -166,11 +167,15 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
         sourceUrl: payload.sourceUrl,
         sha256: payload.sha256,
         retrievedAt: payload.retrievedAt,
+        sourceVerified: typeof payload.sourceVerified === "boolean" ? payload.sourceVerified : null,
+        firstEventId: event.id,
         chunkCount: payload.chunkCount,
         chunks: new Map<number, string>(),
       };
       if (entry.sha256 !== payload.sha256 || entry.chunkCount !== payload.chunkCount
-        || entry.sourceUrl !== payload.sourceUrl || entry.retrievedAt !== payload.retrievedAt) continue;
+        || entry.sourceUrl !== payload.sourceUrl || entry.retrievedAt !== payload.retrievedAt
+        || entry.sourceVerified !== (typeof payload.sourceVerified === "boolean" ? payload.sourceVerified : null)) continue;
+      entry.firstEventId = Math.min(entry.firstEventId, event.id);
       entry.chunks.set(payload.chunkIndex, payload.text);
       chunksByArtifact.set(key, entry);
     } catch {
@@ -184,12 +189,15 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
     if (ordered.some((chunk) => typeof chunk !== "string")) continue;
     const text = (ordered as string[]).join("");
     if (createHash("sha256").update(text).digest("hex") !== artifact.sha256) continue;
-    const record = records.find((item) => item.turn === artifact.turn && (item.action === "visit" || item.action === "browser_fetch"));
+    const record = records.find((item) => item.runId === artifact.runId && item.turn === artifact.turn
+      && (item.action === "visit" || item.action === "browser_fetch"));
     if (record) record.pageArtifact = {
       sourceUrl: artifact.sourceUrl,
       text,
       sha256: artifact.sha256,
       retrievedAt: artifact.retrievedAt,
+      sourceVerified: artifact.sourceVerified ?? (record.execution === "success" && record.observedUrls.length > 0),
+      artifactEventId: artifact.firstEventId,
     };
   }
   return records;
@@ -424,6 +432,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
             action: record.action,
             sourceUrl: artifact.sourceUrl,
             sha256: artifact.sha256,
+            sourceVerified: artifact.sourceVerified ?? (record.execution === "success" && record.observedUrls.length > 0),
             retrievedAt: artifact.retrievedAt,
             chunkIndex,
             chunkCount: chunks.length,
