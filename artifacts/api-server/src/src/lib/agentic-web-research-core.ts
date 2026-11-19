@@ -1160,7 +1160,7 @@ export function selectConfiguredSearchProvider(
 
 export type ParallelWebSearchRequest = {
   query: string;
-  provider?: "serper" | "tavily" | "exa";
+  provider?: "serper" | "tavily" | "exa" | null;
   locale?: string;
   market?: string;
   purpose?: string;
