@@ -116,7 +116,7 @@ export async function appendJobLog(jobId:string,line:string,opts?:{dedupeKey?:st
 export async function updateTerminalJobAudit(
   jobId: string,
   expectedStatus: JobStatus,
-  patch: Pick<JobState, "result" | "message" | "outcome">,
+  patch: Pick<JobState, "result" | "message" | "outcome" | "finishedAt">,
 ): Promise<boolean> {
   if (!["done", "failed", "cancelled"].includes(expectedStatus)) return false;
   const previous = memoryJobs.get(jobId);
