@@ -1717,9 +1717,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
-      const zeroResearchParseFailure = result.stopReason === "PARSE_FAILURE"
-        && result.searches === 0 && result.visits === 0
-        && (result.trajectoryRecords ?? []).some((record) => record.action === "parse_failure" && record.stopReason === "PARSE_FAILURE");
+      const isZeroResearchParseFailure = (candidate: typeof result): boolean =>
+        candidate.stopReason === "PARSE_FAILURE"
+        && candidate.searches === 0 && candidate.visits === 0
+        && (candidate.trajectoryRecords ?? []).some((record) => record.action === "parse_failure" && record.stopReason === "PARSE_FAILURE");
+      let zeroResearchParseFailure = isZeroResearchParseFailure(result);
       consecutiveActionParseFailureEpisodes = zeroResearchParseFailure
         ? consecutiveActionParseFailureEpisodes + 1
         : 0;
@@ -1754,6 +1756,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
+        zeroResearchParseFailure = isZeroResearchParseFailure(result);
+        if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;
         if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
       }
       return result;
