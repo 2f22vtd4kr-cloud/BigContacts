@@ -4876,7 +4876,7 @@ describe("canonical terminal audit completeness", () => {
     expect(canonicalAtlasDiscoverySource).toContain("rationaleIncompleteActions: rationaleIncompleteActionsAtTerminal");
     expect(canonicalAtlasDiscoverySource).toContain("llmTelemetry: { ...llmTelemetryAtTerminal, accountingScope: \"process_local_job_id\" }");
     expect(canonicalAtlasDiscoverySource).toContain("terminalSnapshot.activeJobLockReleased = activeJobLockReleased;");
-    expect(canonicalAtlasDiscoverySource).toContain("providerWaitMeasurement: \"not_instrumented\"");
+    expect(canonicalAtlasDiscoverySource).toContain("providerWaitMeasurement: \"groq_provider_gate_before_request\"");
   });
 });
 
