@@ -38,7 +38,7 @@ function groqResponse(status: number, body: unknown): Response {
   });
 }
 
-async function callTransport() {
+async function callTransport(strictPreflight = false) {
   return callGroqJson(
     strictInvestigatorPrompt,
     new AbortController().signal,
@@ -52,6 +52,7 @@ async function callTransport() {
     0,
     strictInvestigatorPrompt.length,
     "discovery",
+    strictPreflight,
   );
 }
 
@@ -118,6 +119,23 @@ describe("Groq Investigator HTTP transport recovery", () => {
     const retryRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
     expect(firstRequest.response_format.type).toBe("json_schema");
     expect(retryRequest.response_format.type).toBe("json_object");
+  });
+
+  it("blocks a strict-schema launch preflight on its first HTTP 400 without compatibility fallback", async () => {
+    transportMocks.responses.push(groqResponse(400, {
+      error: {
+        message: "Generated output failed JSON validation.",
+        type: "invalid_request_error",
+        code: "json_validate_failed",
+      },
+    }));
+
+    const result = await callTransport(true);
+
+    expect(result?.error).toBe("provider_contract_error");
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    const request = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
+    expect(request.response_format.type).toBe("json_schema");
   });
 
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {
