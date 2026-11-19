@@ -1369,6 +1369,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
+    let consecutiveActionParseFailureEpisodes = 0;
     // This counter is initialized before opening-episode recovery can invoke the
     // shared reassignment helper.
     let consecutiveInvestigatorTokenCapacityFailures = 0;
@@ -1479,7 +1480,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failedCapability: InvestigatorCapability,
       failure: string,
       detail: Record<string, unknown>,
-      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" = "upstream_token_window_wait_exceeded",
+      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" | "action_parse_failure" = "upstream_token_window_wait_exceeded",
     ): Promise<void> => {
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
@@ -1520,7 +1521,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           status: "error",
           summary: trigger === "upstream_token_quota_exhausted"
             ? "Boss-directed Investigator reassignment was unavailable after an explicit tokens-per-day quota failure; discovery will be parked for review."
-            : "Boss-directed Investigator reassignment was unavailable after repeated token-window capacity failures; discovery will be parked for review.",
+            : trigger === "action_parse_failure"
+              ? "Boss-directed Investigator capability reassignment was unavailable after repeated terminal action-contract failures; discovery will be parked for review."
+              : "Boss-directed Investigator reassignment was unavailable after repeated token-window capacity failures; discovery will be parked for review.",
           correlationKey: `${atlasJobId}:investigator-token-capacity-reassignment-unavailable:${nextIteration}`,
           payload: JSON.stringify({
             jobId: atlasJobId,
@@ -1535,11 +1538,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const reassignInvestigatorAfterPersistentTokenCapacity = async (
       failedCapability: InvestigatorCapability,
       failure: string,
-      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" = "upstream_token_window_wait_exceeded",
+      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" | "action_parse_failure" = "upstream_token_window_wait_exceeded",
     ): Promise<InvestigatorCapability | null> => {
       if (tokenCapacityReassignmentUsed) return null;
       tokenCapacityReassignmentUsed = true;
       const dailyTokenQuota = trigger === "upstream_token_quota_exhausted";
+      const actionParseFailure = trigger === "action_parse_failure";
       tokenCapacityUnavailableInvestigators.add(failedCapability);
       const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
       // Groq token budgets are model-scoped. Keep same-model credential aliases
@@ -1564,7 +1568,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         }, trigger);
         phaseSummary.investigatorReassignment = dailyTokenQuota
           ? `${failedCapability} exhausted the explicit tokens-per-day budget; no distinct configured Investigator remains, so the case is parked for review.`
-          : `${failedCapability} remained unavailable after bounded token-window retries; no distinct configured Investigator remains, so the case is parked for review.`;
+          : actionParseFailure
+            ? `${failedCapability} repeatedly failed to produce parseable actions; no distinct configured Investigator remains, so the case is parked for review.`
+            : `${failedCapability} remained unavailable after bounded token-window retries; no distinct configured Investigator remains, so the case is parked for review.`;
         return null;
       }
       await assertAtlasJobActive(atlasJobId);
@@ -1705,23 +1711,38 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
-      while (isInvestigatorHardQuotaExhausted(result) || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)) {
+      const zeroResearchParseFailure = result.stopReason === "PARSE_FAILURE"
+        && result.searches === 0 && result.visits === 0
+        && (result.trajectoryRecords ?? []).some((record) => record.action === "parse_failure" && record.stopReason === "PARSE_FAILURE");
+      consecutiveActionParseFailureEpisodes = zeroResearchParseFailure
+        ? consecutiveActionParseFailureEpisodes + 1
+        : 0;
+      while (isInvestigatorHardQuotaExhausted(result)
+        || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)
+        || (zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2)) {
         const dailyTokenQuotaFailure = isInvestigatorTokenDailyQuotaUnavailableEpisode(result);
+        const actionParseFailure = zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2;
         // Preserve the original hard-request-quota budget calculation; the
         // separate TPD path is bounded to one act and the global budget left.
         const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
-        const quotaRecoveryIterations = dailyTokenQuotaFailure
+        const quotaRecoveryIterations = dailyTokenQuotaFailure || actionParseFailure
           ? Math.max(0, tokenDailyQuotaAdditionalIterations)
           : remainingIterations;
         if (quotaRecoveryIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = isInvestigatorHardQuotaExhausted(result)
           ? await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted")
-          : await reassignInvestigatorAfterPersistentTokenCapacity(
-            failedCapability,
-            result.error ?? "upstream_token_quota_exhausted",
-            "upstream_token_quota_exhausted",
-          );
+          : actionParseFailure
+            ? await reassignInvestigatorAfterPersistentTokenCapacity(
+              failedCapability,
+              "two consecutive discovery episodes ended in terminal PARSE_FAILURE with zero executed research actions",
+              "action_parse_failure",
+            )
+            : await reassignInvestigatorAfterPersistentTokenCapacity(
+              failedCapability,
+              result.error ?? "upstream_token_quota_exhausted",
+              "upstream_token_quota_exhausted",
+            );
         if (!replacement) break;
         failureStage = "investigator_episode";
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
