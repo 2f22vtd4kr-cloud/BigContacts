@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -11,6 +12,7 @@ import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, class
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 import { getGroqTokenRequest, resetProviderGateForTests } from "./provider-gate";
 import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
+import { attachDurableFetchedPageArtifacts, replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
 
 const outboundMocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
@@ -83,6 +85,147 @@ describe("retained fetched-page continuation", () => {
     expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
   });
 });
+describe("fetched-page retention across fetch, durable replay, and restart", () => {
+  it("fetches once, restores the persisted cursor, reads the final section, and never refetches an exhausted page", async () => {
+    const url = "https://example.com/company/team";
+    const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
+    const pageText = [
+      "START: Jane Doe, company chair",
+      "A".repeat(17_000),
+      "MIDDLE: Marcus Lee, shareholder liaison",
+      "B".repeat(17_000),
+      "END: Elena Varga, director",
+      exactQuote,
+      "C".repeat(1_000),
+    ].join("\n");
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    }));
+    try {
+      const firstProcessStore: RetainedFetchedPageStore = {
+        pages: new Map(),
+        retainedChars: 0,
+        maxChars: 64_000_000,
+      };
+      const initial = await toolVisit(url, undefined, firstProcessStore, 1);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(initial.pageText).toBe(pageText);
+      expect(initial.pageSha256).toBe(createHash("sha256").update(pageText).digest("hex"));
+      expect(initial.observation).toContain("START: Jane Doe");
+      expect(initial.observation).not.toContain("MIDDLE: Marcus Lee");
+      expect(initial.observation).not.toContain("END: Elena Varga");
+      expect(initial.pageHasMore).toBe(true);
+
+      const middle = await toolVisit(url, undefined, firstProcessStore, 2);
+      expect(middle.fromRetainedArtifact).toBe(true);
+      expect(middle.observation).toContain("MIDDLE: Marcus Lee");
+      expect(middle.observation).not.toContain("END: Elena Varga");
+
+      // Simulate the immutable trajectory and separately chunked page events
+      // that are committed before the bureau yields to another model turn.
+      const runId = "synthetic-restart-run";
+      const initialEvent = {
+        id: 10,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 1, action: "visit",
+          args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+          execution: "success", observation: initial.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const continuationEvent = {
+        id: 40,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 2, action: "visit", args: {
+            url,
+            pageReadSource: "retained_fetch_artifact",
+            pageReadNextOffset: middle.pageReadNextOffset,
+            pageHasMore: true,
+            pageArtifactAvailable: true,
+            pageArtifactDurable: true,
+          },
+          execution: "success", observation: middle.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const chunkSize = 12 * 1024;
+      const chunks = Array.from({ length: Math.ceil(pageText.length / chunkSize) }, (_, index) =>
+        pageText.slice(index * chunkSize, (index + 1) * chunkSize));
+      const artifactEvents = chunks.map((chunkText, chunkIndex) => ({
+        id: 20 + chunkIndex,
+        payload: JSON.stringify({
+          kind: "fetched_page_artifact_chunk",
+          runId,
+          turn: 1,
+          sourceUrl: url,
+          sha256: initial.pageSha256,
+          retrievedAt: "2026-11-19T12:00:00.000Z",
+          sourceVerified: true,
+          chunkIndex,
+          chunkCount: chunks.length,
+          text: chunkText,
+        }),
+      }));
+      const replayed = replayInvestigatorTrajectoryEvents([initialEvent, continuationEvent]);
+      attachDurableFetchedPageArtifacts(replayed, artifactEvents);
+      expect(replayed[0]?.pageArtifact?.text).toBe(pageText);
+      expect(replayed[0]?.pageArtifact?.sha256).toBe(initial.pageSha256);
+
+      // A fresh store represents a process restart. It must restore both the
+      // full hash-verified text and the last durably observed continuation offset.
+      const restartedStore = restoreRetainedFetchedPageStore(replayed);
+      expect(restartedStore.pages.get(url)?.nextOffset).toBe(middle.pageReadNextOffset);
+
+      const finalSection = await toolVisit(url, undefined, restartedStore, 3);
+      expect(finalSection.fromRetainedArtifact).toBe(true);
+      expect(finalSection.observation).toContain("END: Elena Varga, director");
+      expect(finalSection.observation).toContain(exactQuote);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+
+      const exhausted = await toolVisit(url, undefined, restartedStore, 4);
+      expect(exhausted.fromRetainedArtifact).toBe(true);
+      expect(exhausted.pageHasMore).toBe(false);
+      expect(exhausted.observation).toContain("already been read");
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
+  it("fails closed when a durable cursor has a missing or corrupted page artifact", () => {
+    const url = "https://example.com/company/team";
+    const records = [{
+      turn: 1,
+      runId: "synthetic-restart-run",
+      model: "test-model",
+      action: "visit",
+      args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+      execution: "success",
+      observation: "Initial bounded observation",
+      observedUrls: [url],
+      findings: [],
+      providerFallback: [],
+      pageArtifact: {
+        sourceUrl: url,
+        text: "corrupted page body",
+        sha256: "0".repeat(64),
+        retrievedAt: "2026-11-19T12:00:00.000Z",
+        sourceVerified: true,
+      },
+    }] as unknown as AgenticTrajectoryRecord[];
+    const restored = restoreRetainedFetchedPageStore(records);
+    expect(restored.pages.size).toBe(0);
+    expect(records[0]?.args.pageHasMore).toBe(false);
+    expect(records[0]?.args.pageArtifactAvailable).toBe(false);
+    expect(records[0]?.observation).toContain("ARTIFACT UNAVAILABLE");
+  });
+});
+
 describe("Investigator preflight model and credential lanes", () => {
   it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
     expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
