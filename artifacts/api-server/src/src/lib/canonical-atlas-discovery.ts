@@ -2055,8 +2055,54 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
     if (providerContractFailure) throw new Error("investigator_provider_contract_error");
-    // A terminal action-contract failure with no executed search/fetch is an
-    // infrastructure outcome, never evidence that discovery was exhausted.
+    // Give one terminal zero-research parse failure a second model-authored
+    // episode within the remaining global budget. If the same capability fails
+    // again, runDiscoveryWithQuotaRecovery excludes it and asks Boss to select
+    // a distinct configured capability; no research query or route is prescribed.
+    if (discovery.stopReason === "PARSE_FAILURE" && discovery.searches === 0 && discovery.visits === 0) {
+      const remainingAfterParseFailure = resolveRemainingDiscoveryIterations({
+        totalIterationCeiling: discoveryIterationCeiling,
+        investigatorIterationsUsed: discovery.iterations,
+      });
+      const parseFailureRetryIterations = Math.min(
+        resolveDiscoveryIterationsPerAct(depth, remainingAfterParseFailure),
+        remainingAfterParseFailure,
+      );
+      if (parseFailureRetryIterations > 0 && assertAtlasDeadline() > 30_000) {
+        await assertAtlasJobActive(atlasJobId);
+        const retryEpisode = await runBureauAgenticWebPass({
+          mode: "discovery",
+          targetName: "",
+          objective: openingInvestigatorObjective,
+          investigatorLlm: selectedInvestigator,
+          caseId: discoveryCaseId,
+          jobId: atlasJobId,
+          maxIterations: parseFailureRetryIterations,
+          hardTimeoutMs: Math.min(openingDiscoveryBudget, assertAtlasDeadline() - 5_000),
+          priorTrajectoryRecords: discovery.trajectoryRecords ?? [],
+          aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext,
+          aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn,
+          initialConsecutiveActionParseFailures: 0,
+          shouldCancel: shouldCancelAtlasInvestigator,
+          onDiscoveryCheckpoint: checkpointDiscoveryFindings,
+        });
+        const recoveredRetryEpisode = await runDiscoveryWithQuotaRecovery(
+          retryEpisode,
+          openingInvestigatorObjective,
+          Math.min(openingDiscoveryBudget, assertAtlasDeadline() - 5_000),
+          parseFailureRetryIterations,
+          discovery.trajectoryRecords ?? [],
+          resolveInvestigatorTokenDailyQuotaRecoveryIterations(
+            parseFailureRetryIterations,
+            retryEpisode.iterations ?? retryEpisode.trajectoryRecords?.length ?? 0,
+            remainingAfterParseFailure,
+          ),
+        );
+        discovery = mergeDiscoveryResults(discovery, recoveredRetryEpisode);
+      }
+    }
+    // A second terminal parse failure with no external research is still an
+    // infrastructure failure. Never send it to Boss as an exhausted search.
     if (discovery.stopReason === "PARSE_FAILURE" && discovery.searches === 0 && discovery.visits === 0) {
       throw new Error("investigator_action_parse_failure");
     }
