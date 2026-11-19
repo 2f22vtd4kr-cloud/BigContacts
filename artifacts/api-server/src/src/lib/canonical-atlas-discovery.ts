@@ -14,6 +14,7 @@ import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapab
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, discoverySearchLivenessAdvisory, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { getInvestigatorCapabilityRuntimeHealthSnapshot } from "./investigator-capability-registry";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -2257,6 +2258,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoverySearchActionsUsed,
       };
       const researchLivenessAdvisory = discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []);
+      const investigatorLaneHealth = getInvestigatorCapabilityRuntimeHealthSnapshot();
       const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
         leadInventory: controlLeadInventory,
         admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })),
@@ -2267,6 +2269,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         provider: boss.investigatorLlm,
         rightHandIndependentReview: latestRightHandReviewContext,
         researchLivenessAdvisory,
+      investigatorLaneHealth,
       controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss discovery direction at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected structured research direction or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
           : controlValidationFeedback.kind === "candidate_selection"
@@ -2344,6 +2347,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           "BOSS DECISION:", JSON.stringify({ action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null }),
           "ADMITTED CANDIDATES:", JSON.stringify(admittedCandidateSources.slice(0, 12).map(({ name, role, targetType, sourceUrls }) => ({ name, role, targetType, sourceUrls: sourceUrls.slice(0, 3) }))),
           "RESEARCH LIVENESS (advisory only; do not infer negative evidence or prescribe a fixed route):", researchLivenessAdvisory ?? "No current liveness advisory.",
+          "INVESTIGATOR LANE HEALTH (runtime parse/provider diagnostics; advisory only; Boss retains capability selection):", JSON.stringify(investigatorLaneHealth),
           "LATEST INVESTIGATOR OBSERVATIONS:", JSON.stringify((discovery.trajectoryRecords ?? []).slice(-6).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: compactControlText(record.observation, 900), observedUrls: (record.observedUrls ?? []).slice(0, 4), failureDomain: record.failureDomain, failureKind: record.failureKind }))),
           "Return JSON fields: assessment (support/challenge/unresolved), materialGaps (string[]), contradictions (string[]), alternativeInterpretation (string), recommendation (string), confidence (0..1).",
         ].join("\n");
