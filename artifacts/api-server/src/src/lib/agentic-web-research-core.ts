@@ -6216,7 +6216,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     if ((requestedKey && retainedFetchedPages.pages.has(requestedKey))
       || (sourceKey && retainedFetchedPages.pages.has(sourceKey))) continue;
     priorRecord.args = { ...priorRecord.args, pageHasMore: false, pageArtifactDurable: false };
-    priorRecord.observation = [priorRecord.observation, "[RETAINED PAGE ARTIFACT UNAVAILABLE OR OUTSIDE THE RUN RETENTION BUDGET. Do not repeat the fetch; no complete readable artifact is available.]"].filter(Boolean).join("\\n");
+    priorRecord.observation = [priorRecord.observation, "[RETAINED PAGE ARTIFACT UNAVAILABLE OR OUTSIDE THE RUN RETENTION BUDGET. Do not repeat the fetch; no complete readable artifact is available.]"].filter(Boolean).join("\n");
   }
   const priorTurnOffset = Math.max(0, ...priorTrajectoryRecords.map((record) => record.turn), ...(input.priorIntelligenceContext?.recentActions.map((action) => action.turn) ?? []));
   const intelligence = new ResearchIntelligenceEngine({ caseId: input.priorIntelligenceContext?.caseId ?? null, executionId: input.priorIntelligenceContext?.executionId || input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
