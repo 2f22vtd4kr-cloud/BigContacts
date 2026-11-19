@@ -74,6 +74,10 @@ assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
 assert(/export const APEX_COMPANY_REALISM_GUIDANCE_COMPACT/.test(orientation) && /role === "investigator" \|\| role === "dig_agent"[\s\S]*?APEX_COMPANY_REALISM_GUIDANCE_COMPACT/.test(orientation), "compact company-realism guidance must remain included in the Investigator and dig-agent system orientation");
 assert(orientation.includes("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message.") && !orientation.includes("OUTPUT: JSON action object; include all schema keys"), "the shared Investigator system prompt must defer strict all-fields formatting to model-specific user contracts so 20B does not inherit it");
+const investigatorCoreStart = orientation.indexOf("export function apexInvestigatorSystemCore");
+const investigatorCoreEnd = orientation.indexOf("export function apexOrientationCompact", investigatorCoreStart);
+const investigatorCore = investigatorCoreStart >= 0 && investigatorCoreEnd > investigatorCoreStart ? orientation.slice(investigatorCoreStart, investigatorCoreEnd) : "";
+assert(investigatorCore.includes("APEX_COMPANY_REALISM_GUIDANCE_COMPACT"), "compact company-realism guidance must be part of the active ReAct Investigator system prompt, not only an unused orientation helper");
 assert(/const composedPrompt = \[[\s\S]*?authoritativeCaseObjective[\s\S]*?activeBossScopeSection/.test(core), "the complete objective and current Boss scope remain separate in the full Investigator prompt");
 assert(/genericDiscoveryCompanyLabel/.test(core) && /Generic case labels including Case Co are metadata/.test(core), "generic case labels must not become discovery entity anchors");
 assert(/const DEFAULT_MAX_CHARS = 4_200/.test(compaction), "context compaction default must remain reduced");
