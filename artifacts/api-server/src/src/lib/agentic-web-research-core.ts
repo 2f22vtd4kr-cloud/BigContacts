@@ -2485,7 +2485,7 @@ function groqHardRequestQuota(response: Response, body: string): boolean {
   return remainingRequests === 0;
 }
 
-async function callGroqJson(
+export async function callGroqJson(
   prompt: string,
   signal: AbortSignal,
   cognitiveTask: ResearchCognitiveTask = "identity_resolution",
