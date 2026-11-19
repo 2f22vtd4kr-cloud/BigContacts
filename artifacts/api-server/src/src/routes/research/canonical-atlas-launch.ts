@@ -363,21 +363,45 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           ),
         )) : [];
         const sourceBackedFindingKeys = new Set<string>();
+        const verifiedSourceObservations = new Map<string, string[]>();
+        const candidateFindings: Record<string, unknown>[] = [];
+        const normalizeEvidenceUrl = (raw: string): string => {
+          try { const url = new URL(raw); url.hash = ""; return url.href.replace(/\/$/, ""); } catch { return raw.trim(); }
+        };
+        const normalizeEvidenceText = (raw: string): string => raw.replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
         for (const row of findingEventRows) {
           if (typeof row.payload !== "string") continue;
           let payload: Record<string, unknown>;
           try { payload = JSON.parse(row.payload) as Record<string, unknown>; } catch { continue; }
-          if (!Array.isArray(payload.findings)) continue;
-          for (const rawFinding of payload.findings) {
-            if (!rawFinding || typeof rawFinding !== "object" || Array.isArray(rawFinding)) continue;
-            const finding = rawFinding as Record<string, unknown>;
-            const scope = finding.scope === "candidate" || finding.scope === "organization" ? String(finding.scope) : "";
-            const name = typeof finding.personName === "string" && finding.personName.trim() ? finding.personName.trim() : typeof finding.value === "string" ? finding.value.trim() : "";
-            const quote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
-            const urls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url)) : [];
-            if (!scope || !name || !quote || !urls.length || finding.promotionDecision === "reject") continue;
-            sourceBackedFindingKeys.add(scope + ":" + name.toLowerCase() + ":" + quote + ":" + urls[0]);
+          if ((payload.action === "visit" || payload.action === "browser_fetch") && payload.execution === "success"
+            && typeof payload.observation === "string" && Array.isArray(payload.observedUrls)) {
+            for (const rawUrl of payload.observedUrls) {
+              if (typeof rawUrl !== "string" || !/^https:\/\//i.test(rawUrl)) continue;
+              const key = normalizeEvidenceUrl(rawUrl);
+              const observations = verifiedSourceObservations.get(key) ?? [];
+              observations.push(payload.observation);
+              verifiedSourceObservations.set(key, observations);
+            }
           }
+          if (Array.isArray(payload.findings)) for (const rawFinding of payload.findings) {
+            if (rawFinding && typeof rawFinding === "object" && !Array.isArray(rawFinding)) candidateFindings.push(rawFinding as Record<string, unknown>);
+          }
+        }
+        for (const finding of candidateFindings) {
+          const scope = finding.scope === "candidate" || finding.scope === "organization" ? String(finding.scope) : "";
+          const name = typeof finding.personName === "string" && finding.personName.trim() ? finding.personName.trim() : typeof finding.value === "string" ? finding.value.trim() : "";
+          const quote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
+          const urls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url)) : [];
+          if (!scope || !name || !quote || !urls.length || finding.promotionDecision === "reject") continue;
+          const normalizedName = normalizeEvidenceText(name);
+          const normalizedQuote = normalizeEvidenceText(quote);
+          const sourceVerifiedInObservation = urls.some((url) => (verifiedSourceObservations.get(normalizeEvidenceUrl(url)) ?? [])
+            .some((observation) => {
+              const normalizedObservation = normalizeEvidenceText(observation);
+              return normalizedObservation.includes(normalizedQuote) && normalizedObservation.includes(normalizedName);
+            }));
+          if (!sourceVerifiedInObservation) continue;
+          sourceBackedFindingKeys.add(scope + ":" + normalizedName + ":" + normalizedQuote + ":" + normalizeEvidenceUrl(urls[0]));
         }
         const sourceBackedNamedFindingCountReadBack = sourceBackedFindingKeys.size;
         const expectedNewCardCount = organizationReconciliation.cards + personReconciliation.cards;
