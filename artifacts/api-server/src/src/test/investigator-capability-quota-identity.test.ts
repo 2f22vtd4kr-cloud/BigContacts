@@ -94,6 +94,7 @@ describe("Investigator credential quota identity", () => {
 
   it("degrades a lane after consecutive runtime contract failures, recovers on a valid action, and never auto-rotates", () => {
     const capability: InvestigatorCapability = "groq-investigator-2";
+    expect(getInvestigatorCapabilityRuntimeHealthSnapshot(env).find((lane) => lane.capability === capability)?.status).toBe("unobserved");
     expect(recordInvestigatorCapabilityRuntimeOutcome(capability, {
       success: false, failureClass: "action_parse_failure",
     }).status).toBe("healthy");
