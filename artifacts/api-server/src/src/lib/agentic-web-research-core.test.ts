@@ -2980,7 +2980,10 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true })");
       expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
       expect(agenticCoreSource).toContain("const body = sanitizeObservableValue(stripHtml(raw))");
-      expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeUrlsInText(stripHtml(result.html)) : \"\";");
+      expect(agenticCoreSource).toContain("sourceVerified: Boolean(observedBrowserUrl)");
+      expect(agenticCoreSource).toContain("record.execution = sourceVerified ?");
+      expect(agenticCoreSource).toContain("priorRecord.durableEventId > retained.artifactEventId");
+      expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeObservableValue(stripHtml(result.html)) : \"\";");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("for (const record of completePromptRecords)");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
@@ -2989,6 +2992,25 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(bureauAgenticPassSource).toContain("record.pageArtifact =");
       expect(bureauAgenticPassSource).toContain("createHash(\"sha256\").update(text).digest(\"hex\")");
       expect(bureauAgenticPassSource).toContain("const { pageArtifact: _pageArtifact, ...compactRecord } = record");
+    });
+
+    it("allows local continuation of an unverified partial browser page only when its artifact is retained", () => {
+      const partialBrowserPage = {
+        ...livenessRecord("browser_fetch", "partial"),
+        turn: 4,
+        args: { url: "https://example.com/team", provider: "scrapfly", pageHasMore: true, pageArtifactAvailable: true },
+        observedUrls: [],
+      };
+      const continuation = {
+        url: "https://example.com/team", provider: "scrapfly",
+        hypothesis: "Inspect names in the remaining section.",
+        purpose: "Read the retained page without another request.",
+      };
+      expect(redundantResearchActionReason("browser_fetch", continuation, [partialBrowserPage])).toBeNull();
+      expect(redundantResearchActionReason("browser_fetch", continuation, [{
+        ...partialBrowserPage,
+        args: { ...partialBrowserPage.args, pageArtifactAvailable: false },
+      }])).toContain("partial/unverified page observation");
     });
 
     it("blocks the same normalized URL and capability when the model only changes its rationale", () => {
