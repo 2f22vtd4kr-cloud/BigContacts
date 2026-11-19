@@ -2308,9 +2308,9 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  const availableActionsMatch = normalized.match(/^AVAILABLE ACTIONS:\\s*(.+)$/m);
+  const availableActionsMatch = normalized.match(/^AVAILABLE ACTIONS:\s*(.+)$/m);
   const actionAllowlist = availableActionsMatch
-    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\\.$/, "")).filter(Boolean)
+    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
     : getModelSelectableAgentActions();
   if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
@@ -2352,7 +2352,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. Optional provider fields may be null or omitted to use the configured healthy runtime default. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
