@@ -11,6 +11,15 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({
   safeOutboundFetch: transportMocks.safeOutboundFetch,
 }));
 
+vi.mock("../lib/provider-gate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/provider-gate")>();
+  return {
+    ...actual,
+    withProviderRetryOwnership: (( _provider: unknown, _owner: unknown, callback: () => unknown) => callback()) as typeof actual.withProviderRetryOwnership,
+    runProviderCall: ((_options: unknown, callback: () => unknown) => callback()) as typeof actual.runProviderCall,
+  };
+});
+
 vi.mock("../lib/agentic-llm-telemetry", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/agentic-llm-telemetry")>();
   return {
