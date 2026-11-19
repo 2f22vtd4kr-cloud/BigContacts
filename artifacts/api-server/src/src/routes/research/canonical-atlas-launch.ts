@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { db, researchCasesTable } from "@workspace/db";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob, updateTerminalJobAudit } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, isCanonicalJobOwner, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
@@ -353,6 +353,36 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           caseReadbackError = error instanceof Error ? error.message : "case read-back failed";
         }
         const trace = await getDiscoveryTrace(atlasJobId);
+        let durableTraceRecords: Array<Record<string, unknown>> = [];
+        if (!trace && caseReadback.length) {
+          try {
+            const eventRows = await db.select({ id: researchCaseEventsTable.id, caseId: researchCaseEventsTable.caseId, payload: researchCaseEventsTable.payload })
+              .from(researchCaseEventsTable)
+              .where(and(inArray(researchCaseEventsTable.caseId, caseReadback.map((row) => row.id)), eq(researchCaseEventsTable.eventType, "tool_observation")))
+              .orderBy(researchCaseEventsTable.id);
+            durableTraceRecords = eventRows.map((row) => {
+              let payload: Record<string, unknown> = {};
+              try { const parsed = row.payload ? JSON.parse(row.payload) : {}; if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed as Record<string, unknown>; } catch {}
+              return {
+                eventId: row.id,
+                caseId: row.caseId,
+                turn: payload.turn ?? null,
+                action: payload.action ?? null,
+                execution: payload.execution ?? null,
+                observation: typeof payload.observation === "string" ? payload.observation.slice(0, 4_000) : null,
+                observedUrls: Array.isArray(payload.observedUrls) ? payload.observedUrls : [],
+                pageContentChars: typeof payload.pageContent === "string" ? payload.pageContent.length : 0,
+                pageContentTruncated: payload.pageContentTruncated ?? false,
+                pageContentCharsOmitted: payload.pageContentCharsOmitted ?? null,
+                failureDomain: payload.failureDomain ?? null,
+                failureKind: payload.failureKind ?? null,
+              };
+            });
+          } catch (error) {
+            caseReadbackError = [caseReadbackError, error instanceof Error ? error.message : "durable trace read-back failed"].filter(Boolean).join("; ");
+          }
+        }
+        const traceAttachment = trace ?? (durableTraceRecords.length ? { jobId: atlasJobId, source: "durable_case_events", records: durableTraceRecords } : null);
         const llmTelemetry = getAgenticLlmTelemetryForJob(atlasJobId);
         const terminalAudit = {
           recordedAt: new Date().toISOString(),
@@ -379,8 +409,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             latencyMs: llmTelemetry.latencyMs,
             providerWaitMs: llmTelemetry.providerWaitMs,
           },
-          investigatorTrace: trace,
-          investigatorTraceAttached: Boolean(trace),
+          investigatorTrace: traceAttachment,
+          investigatorTraceAttached: Boolean(traceAttachment),
         };
         let previousResult: Record<string, unknown> = {};
         try {
@@ -391,7 +421,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           previousResult = { priorResultText: terminalJob.result ?? null };
         }
         const finalResult = JSON.stringify({ ...previousResult, terminalAudit });
-        const finalMessage = `${terminalJob.message} Terminal audit: cases=${caseReadback.length}, organizationCards=${organizationReconciliation?.cards ?? "unknown"}, personCards=${personReconciliation?.cards ?? "unknown"}, traceAttached=${Boolean(trace)}, lockReleased=${lockReleased}, totalTokens=${llmTelemetry.totalTokens}, providerWaitMs=${llmTelemetry.providerWaitMs}.`;
+        const finalMessage = `${terminalJob.message} Terminal audit: cases=${caseReadback.length}, organizationCards=${organizationReconciliation?.cards ?? "unknown"}, personCards=${personReconciliation?.cards ?? "unknown"}, traceAttached=${Boolean(traceAttachment)}, lockReleased=${lockReleased}, totalTokens=${llmTelemetry.totalTokens}, providerWaitMs=${llmTelemetry.providerWaitMs}.`;
         const persisted = await updateTerminalJobAudit(atlasJobId, terminalJob.status, { result: finalResult, message: finalMessage });
         if (!persisted) {
           logger.error({ jobId: atlasJobId, terminalState: terminalJob.status },
