@@ -410,7 +410,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           if (!scope || !name || !quote || !urls.length || finding.promotionDecision === "reject") continue;
           const normalizedName = normalizeEvidenceText(name);
           const normalizedQuote = normalizeEvidenceText(quote);
-          const sourceVerifiedInObservation = urls.some((url) => {
+          const verifiedSourceUrl = urls.find((url) => {
             // A single fetched page may be exposed to the model in several retained
             // continuation sections. Verify the name and exact quotation against
             // the complete set of successful observations for that same URL.
@@ -419,8 +419,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             );
             return normalizedObservation.includes(normalizedQuote) && normalizedObservation.includes(normalizedName);
           });
-          if (!sourceVerifiedInObservation) continue;
-          sourceBackedFindingKeys.add(scope + ":" + normalizedName + ":" + normalizedQuote + ":" + normalizeEvidenceUrl(urls[0]));
+          if (!verifiedSourceUrl) continue;
+          sourceBackedFindingKeys.add(scope + ":" + normalizedName + ":" + normalizedQuote + ":" + normalizeEvidenceUrl(verifiedSourceUrl));
         }
         const sourceBackedNamedFindingCountReadBack = sourceBackedFindingKeys.size;
         const expectedNewCardCount = organizationReconciliation.cards + personReconciliation.cards;
