@@ -114,10 +114,13 @@ function syntheticTextPdf(text: string): Uint8Array {
 }
 
 describe("fetched-page retention across fetch, durable replay, and restart", () => {
-  it("retains complete extracted PDF text and continues beyond the first observation without refetching", async () => {
+  it("retains, durably replays, and resumes complete PDF text through the final quotation without refetching", async () => {
     const url = "https://example.com/filings/company-report.pdf";
-    const distinctiveTail = "PDF_FINAL_SECTION: Director Elena Varga";
-    const pdfBytes = syntheticTextPdf("PDF_START " + "A".repeat(18_000) + " " + distinctiveTail);
+    const distinctiveTail = 'PDF_FINAL_SECTION: Director Elena Varga. EXACT QUOTE: "The board confirms Elena Varga as a director."';
+    const pdfBytes = syntheticTextPdf(
+      "PDF_START " + "A".repeat(18_000) + " PDF_MIDDLE: public filing officer history "
+      + "B".repeat(18_000) + " " + distinctiveTail,
+    );
     const store: RetainedFetchedPageStore = { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 };
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(Buffer.from(pdfBytes), {
@@ -129,12 +132,80 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
       expect(initial.pageHasMore).toBe(true);
       expect(initial.observation).toContain("PDF_START");
-      expect(initial.observation).not.toContain(distinctiveTail);
+      expect(initial.observation).not.toContain("PDF_MIDDLE");
+      expect(initial.observation).not.toContain("PDF_FINAL_SECTION");
+      expect(initial.pageText?.length).toBeGreaterThan(32_000);
       expect(typeof initial.pageSha256).toBe("string");
 
-      const continuation = await toolVisit(url, undefined, store, 2);
-      expect(continuation.fromRetainedArtifact).toBe(true);
-      expect(continuation.observation).toContain(distinctiveTail);
+      const middle = await toolVisit(url, undefined, store, 2);
+      expect(middle.fromRetainedArtifact).toBe(true);
+      expect(middle.observation).toContain("PDF_MIDDLE");
+      expect(middle.observation).not.toContain("PDF_FINAL_SECTION");
+      expect(middle.pageHasMore).toBe(true);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+
+      const runId = "synthetic-pdf-restart-run";
+      const initialEvent = {
+        id: 10,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 1, action: "visit",
+          args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+          execution: "success", observation: initial.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const continuationEvent = {
+        id: 40,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 2, action: "visit",
+          args: {
+            url,
+            pageReadSource: "retained_fetch_artifact",
+            pageReadNextOffset: middle.pageReadNextOffset,
+            pageHasMore: true,
+            pageArtifactAvailable: true,
+            pageArtifactDurable: true,
+          },
+          execution: "success", observation: middle.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const pageText = initial.pageText!;
+      const sha256 = initial.pageSha256!;
+      const chunkSize = 12 * 1024;
+      const chunks = Array.from({ length: Math.ceil(pageText.length / chunkSize) }, (_, index) =>
+        pageText.slice(index * chunkSize, (index + 1) * chunkSize));
+      const artifactEvents = chunks.map((chunkText, chunkIndex) => ({
+        id: 20 + chunkIndex,
+        payload: JSON.stringify({
+          kind: "fetched_page_artifact_chunk",
+          runId,
+          turn: 1,
+          sourceUrl: url,
+          sha256,
+          retrievedAt: initial.pageRetrievedAt ?? "2026-11-19T12:00:00.000Z",
+          sourceVerified: true,
+          chunkIndex,
+          chunkCount: chunks.length,
+          text: chunkText,
+        }),
+      }));
+      const replayed = replayInvestigatorTrajectoryEvents([initialEvent, continuationEvent]);
+      attachDurableFetchedPageArtifacts(replayed, artifactEvents);
+      expect(replayed[0]?.pageArtifact?.text).toBe(pageText);
+      expect(replayed[0]?.pageArtifact?.sha256).toBe(sha256);
+
+      // A fresh store models a process restart after the continuation checkpoint.
+      const restartedStore = restoreRetainedFetchedPageStore(replayed);
+      expect(restartedStore.pages.get(url)?.nextOffset).toBe(middle.pageReadNextOffset);
+
+      const finalSection = await toolVisit(url, undefined, restartedStore, 3);
+      expect(finalSection.fromRetainedArtifact).toBe(true);
+      expect(finalSection.observation).toContain("PDF_FINAL_SECTION: Director Elena Varga");
+      expect(finalSection.observation).toContain('"The board confirms Elena Varga as a director."');
+      expect(finalSection.pageHasMore).toBe(false);
       expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
     } finally {
       outboundMocks.safeOutboundFetch.mockReset();
