@@ -49,6 +49,10 @@ describe("Investigator credential quota identity", () => {
     expect(getInvestigatorCredentialAliases(env, ["groq-investigator-20b"])).toEqual([
       "groq-investigator-20b",
     ]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-3",
+    ]);
     expect(getInvestigatorCredentialAliases(env, ["groq-investigator-1"])).toEqual([
       "groq-investigator-1",
       "groq-investigator-2",
