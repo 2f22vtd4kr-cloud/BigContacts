@@ -144,7 +144,7 @@ export function compactRegistryCompanyLeads(
   }
   return leads;
 }
-export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; leadUrls?: string[]; execution: "selected" | "success" | "partial" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind; rationaleIncomplete?: boolean; sourceBindings?: Array<{ findingValue: string; sourceUrl: string; sourceTurn: number; spanStart: number; spanEnd: number; pageNumber: number | null }> };
+export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; leadUrls?: string[]; execution: "selected" | "success" | "partial" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind; rationaleIncomplete?: boolean; pageArtifact?: { sourceUrl: string; text: string; sha256: string; retrievedAt: string }; sourceBindings?: Array<{ findingValue: string; sourceUrl: string; sourceTurn: number; spanStart: number; spanEnd: number; pageNumber: number | null }> };
 /**
  * Search-result URLs are actionable leads, not fetched source observations.
  * Keep them separate so control agents can see unresolved leads without treating
@@ -1567,7 +1567,7 @@ type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retai
  * bounded independently of prompt size; reading a retained page never performs
  * another outbound request.
  */
-async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean }> {
+async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string }> {
   const displayUrl = sanitizeUrlForEvidence(url);
   const pageKey = normalizedActionResourceUrl(url) ?? url;
   const retainedPage = pageStore?.pages.get(pageKey);
@@ -1693,6 +1693,11 @@ async function toolVisit(url: string, signal?: AbortSignal, pageStore?: Retained
       pageReadOffset,
       pageReadNextOffset,
       pageHasMore: retained,
+      ...(retained ? {
+        pageText: body,
+        pageSha256: createHash("sha256").update(body).digest("hex"),
+        pageRetrievedAt: new Date().toISOString(),
+      } : {}),
     };
   } catch (error) {
     if (signal?.aborted) return { observation: `visit cancelled for ${displayUrl}`, status: "cancelled", observedUrl: null, failureKind: "cancelled" };
@@ -6109,6 +6114,31 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     retainedChars: 0,
     maxChars: 64_000_000,
   };
+  // Restore retained page artifacts and the newest read cursor when a durable
+  // case resumes in a new process. The page body is excluded from model prompts.
+  for (const priorRecord of input.priorTrajectoryRecords ?? []) {
+    const artifact = priorRecord.pageArtifact;
+    const sourceUrl = typeof artifact?.sourceUrl === "string" ? artifact.sourceUrl : "";
+    const text = typeof artifact?.text === "string" ? artifact.text : "";
+    const key = sourceUrl ? normalizedActionResourceUrl(sourceUrl) : null;
+    if (key && text && !retainedFetchedPages.pages.has(key)
+      && retainedFetchedPages.retainedChars + text.length <= retainedFetchedPages.maxChars) {
+      retainedFetchedPages.pages.set(key, {
+        text,
+        nextOffset: Math.min(text.length, MAX_OBS),
+        sourceUrl,
+      });
+      retainedFetchedPages.retainedChars += text.length;
+    }
+    const readKey = typeof priorRecord.args?.url === "string"
+      ? normalizedActionResourceUrl(priorRecord.args.url)
+      : null;
+    if (readKey && priorRecord.args?.pageReadSource === "retained_fetch_artifact") {
+      const retained = retainedFetchedPages.pages.get(readKey);
+      const nextOffset = Number(priorRecord.args.pageReadNextOffset);
+      if (retained && Number.isFinite(nextOffset)) retained.nextOffset = Math.max(retained.nextOffset, Math.min(retained.text.length, Math.floor(nextOffset)));
+    }
+  }
   const priorTurnOffset = Math.max(0, ...priorTrajectoryRecords.map((record) => record.turn), ...(input.priorIntelligenceContext?.recentActions.map((action) => action.turn) ?? []));
   const intelligence = new ResearchIntelligenceEngine({ caseId: input.priorIntelligenceContext?.caseId ?? null, executionId: input.priorIntelligenceContext?.executionId || input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
   if (input.priorIntelligenceContext) intelligence.restoreContext(sanitizeObservableValue(input.priorIntelligenceContext));
@@ -6210,13 +6240,16 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // unusually large, try non-authoritative semantic compaction, then a deterministic projection rather than clipping
       // the middle with code. The raw observation and exact evidence remain in the
       // durable trajectory; only this model-facing copy is replaced.
-      const promptTrajectoryRecords = allPromptRecords.map((record) => ({
-        ...record,
+      const promptTrajectoryRecords = allPromptRecords.map((record) => {
+        const { pageArtifact: _pageArtifact, ...promptRecord } = record;
+        return {
+        ...promptRecord,
         args: { ...(record.args ?? {}) },
         observedUrls: [...(record.observedUrls ?? [])],
         leadUrls: [...(record.leadUrls ?? [])],
         findings: [...(record.findings ?? [])],
-      }));
+      };
+      });
       const latestPromptRecord = promptTrajectoryRecords.at(-1);
       const livenessAdvisory = input.mode === "discovery"
         ? discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...records])
@@ -6617,6 +6650,14 @@ if (communityObservationSource && page.status === "success") {
   record.observation = page.observation;
 }
 if (page.observedUrl) record.observedUrls = [page.observedUrl];
+if (page.pageText && page.observedUrl && page.pageSha256 && page.pageRetrievedAt) {
+  record.pageArtifact = {
+    sourceUrl: page.observedUrl,
+    text: page.pageText,
+    sha256: page.pageSha256,
+    retrievedAt: page.pageRetrievedAt,
+  };
+}
 lastObservation = record.observation;
 pushHistory(`step${i + 1}: visit ${canonical} execution=${record.execution}${page.observedUrl ? ` observed=${page.observedUrl}` : ""}`);
 await emitSanitizedTrajectoryRecord(record);
