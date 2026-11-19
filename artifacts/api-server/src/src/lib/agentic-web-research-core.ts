@@ -6184,9 +6184,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   // in chronological order so continuation resumes at the last observed offset.
   for (const priorRecord of [...completePriorTrajectoryRecords].reverse()) {
     const artifact = priorRecord.pageArtifact;
-    const sourceUrl = typeof artifact?.sourceUrl === "string" ? artifact.sourceUrl : "";
+    if (!artifact || typeof artifact.text !== "string" || !artifact.text) continue;
+    const sourceUrl = typeof artifact.sourceUrl === "string" ? artifact.sourceUrl : "";
     const requestedUrl = typeof priorRecord.args?.url === "string" ? priorRecord.args.url : sourceUrl;
-    const text = typeof artifact?.text === "string" ? artifact.text : "";
+    const text = artifact.text;
     const keys = [...new Set([sourceUrl, requestedUrl]
       .map((url) => normalizedActionResourceUrl(url))
       .filter((key): key is string => Boolean(key)))];
