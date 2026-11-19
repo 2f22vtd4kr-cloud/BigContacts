@@ -2272,11 +2272,11 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  if (model === "openai/gpt-oss-20b") {
+  if (model && structuredActionResponseFormat(model).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
-      throw new Error("Cannot send a GPT-OSS 20B Investigator request without its reduced action-specific output contract.");
+      throw new Error("Cannot send a non-strict Investigator request without its reduced action-specific output contract.");
     }
     return normalized;
   }
@@ -2301,23 +2301,23 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
 
 const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
 
-/** GPT-OSS 20B uses JSON-object output with local validation, not the strict-schema model contract. */
-export function buildInvestigatorOutputContractForModel(model: string, strictContract: string): string {
-  if (model !== "openai/gpt-oss-20b") return strictContract;
+/** Models without provider-enforced strict schema use a reduced action-specific contract and local validation. */
+export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[]): string {
+  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
   return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable. parallel_web_search searches[] items require query; provider may be null or omitted to use the configured healthy runtime default. findings[] should include only observed fields (vectorType, value, scope, sourceUrls, note, plus any supported attribution/evidence details); do not fabricate null-filled placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
-export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string): string {
-  if (model !== "openai/gpt-oss-20b") return prompt;
+export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
+  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return prompt;
   const standaloneOutputAt = Math.max(
-    prompt.lastIndexOf("\nOUTPUT CONTRACT:"),
+    prompt.lastIndexOf("\\nOUTPUT CONTRACT:"),
     prompt.startsWith("OUTPUT CONTRACT:") ? 0 : -1,
   );
   const outputAt = standaloneOutputAt < 0 ? -1 : standaloneOutputAt + (standaloneOutputAt > 0 ? 1 : 0);
   if (outputAt < 0) {
-    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.");
+    return prompt + "\\n\\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist);
   }
-  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt));
+  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist);
 }
 
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
@@ -2325,7 +2325,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
-  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt);
+  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist);
   const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
@@ -2576,7 +2576,7 @@ export async function callGroqJson(
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
-        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt);
+        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist);
         const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model);
         const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
