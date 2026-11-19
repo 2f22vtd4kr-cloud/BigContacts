@@ -62,9 +62,9 @@ export function getAvailableInvestigatorCapabilities(
 }
 
 /**
- * Expand a set of failed capability slots to every configured slot sharing
- * those credentials. Boss must see aliases as excluded too, or it may choose
- * an apparently different slot that cannot escape the exhausted quota pool.
+ * Expand failed capability slots to configured aliases sharing both the
+ * credential and model lane. Boss must not treat a same-key slot on another
+ * model lane as exhausted; 20B and 120B quotas/contracts remain distinct.
  */
 export function getInvestigatorCredentialAliases(
   env: NodeJS.ProcessEnv = process.env,
@@ -75,19 +75,21 @@ export function getInvestigatorCredentialAliases(
       .map((capability) => {
         const keyName = investigatorCapabilityKeyName(capability);
         const credential = keyName ? env[keyName]?.trim() : undefined;
-        return credential ? digestDiagnosticText(credential) : null;
+        if (!credential) return null;
+        const modelLane = capability === GROQ_INVESTIGATOR_20B_CAPABILITY ? "20b" : "120b";
+        return modelLane + ":" + digestDiagnosticText(credential);
       })
       .filter((value): value is string => value !== null),
   );
   if (!fingerprints.size) return [];
-  // A model-specific TPD fallback shares a credential but not the exhausted
-  // model's per-model token budget. Keep it out of credential-alias exclusion;
-  // the explicit token-capacity recovery path decides when it is eligible.
+  // A shared credential does not make 20B and 120B the same quota or
+  // compatibility lane. Expand aliases only within the failed model lane.
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
-    if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return false;
     const keyName = investigatorCapabilityKeyName(capability);
     const credential = keyName ? env[keyName]?.trim() : undefined;
-    return Boolean(credential && fingerprints.has(digestDiagnosticText(credential)));
+    if (!credential) return false;
+    const modelLane = capability === GROQ_INVESTIGATOR_20B_CAPABILITY ? "20b" : "120b";
+    return fingerprints.has(modelLane + ":" + digestDiagnosticText(credential));
   });
 }
 

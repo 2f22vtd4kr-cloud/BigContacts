@@ -312,7 +312,7 @@ describe("offline Investigator-to-card survival path", () => {
       oversightMode: "internal",
     });
 
-    expect(result.status).toBe("completed");
+    expect(result.status, JSON.stringify(result)).toBe("completed");
     expect(result.findings).toBe(1);
     expect(testState.insertedContacts).toHaveLength(1);
     const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
@@ -417,7 +417,7 @@ describe("offline Investigator-to-card survival path", () => {
       hardTimeoutMs: 30_000,
     });
 
-    expect(result.status).toBe("completed");
+    expect(result.status, JSON.stringify(result)).toBe("completed");
     expect(result.model).toBe("openai/gpt-oss-20b");
     expect(result.stopReason).toBe("MODEL_DECIDED_DONE");
     expect(result.researchOutcome).toBe("evidence_backed");

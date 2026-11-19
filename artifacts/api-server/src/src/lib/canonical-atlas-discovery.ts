@@ -3,6 +3,7 @@ import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researc
 import { updateJob, clearActiveJobIfOwned, getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
+import { reconcilePreflightInvestigatorAssignment } from "./canonical-investigator-assignment";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
@@ -51,6 +52,7 @@ export type CanonicalAtlasOptions = {
   discoveryMotivation?: string;
   discoveryGeography?: string;
   discoveryExclusions?: string[];
+  excludedInvestigatorLlm?: InvestigatorCapability[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
@@ -1297,6 +1299,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Select one available Investigator capability exposed by the runtime registry; do not prescribe a research sequence.",
       ],
       startingLane: "model-selected discovery",
+      excludedInvestigatorLlm: opts.excludedInvestigatorLlm,
     });
     await assertAtlasJobActive(atlasJobId);
 
@@ -1311,10 +1314,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         throw new Error("Canonical discovery case has unreadable durable Investigator selection.");
       }
       if (storedInvestigator) {
-        if (!getAvailableInvestigatorCapabilities().includes(storedInvestigator)) {
+        const explicitlyPreflightExcluded = (opts.excludedInvestigatorLlm ?? []).includes(storedInvestigator);
+        if (!getAvailableInvestigatorCapabilities().includes(storedInvestigator) && !explicitlyPreflightExcluded) {
           throw new Error(`Previously selected discovery Investigator capability ${storedInvestigator} is unavailable; refusing silent capability rotation.`);
         }
-        if (boss.investigatorLlm !== storedInvestigator) {
+        if (boss.investigatorLlm !== storedInvestigator && !explicitlyPreflightExcluded) {
           throw new Error(`Groq Boss attempted to change the durable discovery Investigator from ${storedInvestigator} to ${boss.investigatorLlm ?? "none"}; refusing silent capability rotation.`);
         }
       }
@@ -1381,6 +1385,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // shared reassignment helper.
     let consecutiveInvestigatorTokenCapacityFailures = 0;
     const allUnavailableInvestigatorCapabilities = () => [...new Set([
+      ...(opts.excludedInvestigatorLlm ?? []),
       ...quotaExhaustedInvestigators,
       ...tokenCapacityUnavailableInvestigators,
     ])];
@@ -1786,6 +1791,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: researchCasesTable.status,
         currentAction: researchCasesTable.currentAction,
         iteration: researchCasesTable.iteration,
+        caseFile: researchCasesTable.caseFile,
       })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -1799,6 +1805,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       ) {
         throw new Error("Canonical Atlas discovery case is no longer active; refusing assignment event after cancellation.");
       }
+      const reconciledAssignment = reconcilePreflightInvestigatorAssignment({
+        caseFile: lockedCase.caseFile,
+        selectedInvestigator: boss.investigatorLlm!,
+        availableInvestigators: getAvailableInvestigatorCapabilities(),
+        excludedInvestigators: opts.excludedInvestigatorLlm ?? [],
+      });
       const [latestOpeningEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
         .from(researchCaseEventsTable)
         .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
@@ -1806,7 +1818,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         .limit(1);
       const bossOpeningIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestOpeningEvent?.iteration);
       await tx.update(researchCasesTable)
-        .set({ iteration: bossOpeningIteration, updatedAt: new Date() })
+        .set({ caseFile: reconciledAssignment.caseFile, iteration: bossOpeningIteration, updatedAt: new Date() })
         .where(eq(researchCasesTable.id, discoveryCaseId));
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
@@ -1819,6 +1831,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         payload: JSON.stringify({
           jobId: atlasJobId,
           investigatorLlm: boss.investigatorLlm,
+          previousInvestigatorLlm: reconciledAssignment.previousInvestigator,
+          investigatorAssignmentChanged: reconciledAssignment.changed,
           model: boss.model,
           report: boss.report,
           nextDirections: boss.nextDirections,

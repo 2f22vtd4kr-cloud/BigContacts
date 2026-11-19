@@ -98,6 +98,12 @@ async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
   let atlasJobId: string | null = null;
   let lockClaimed = false;
+  const buildProvenance = {
+    commitSha: process.env.APEX_BUILD_REVISION?.trim() || "unknown",
+    dirty: process.env.APEX_BUILD_DIRTY ?? "unknown",
+    builtAt: process.env.APEX_BUILD_TIMESTAMP ?? null,
+  };
+  let investigatorPreflightReport: Record<string, unknown> | null = null;
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const parsedTargetId = parseCanonicalSingleTargetId(body);
@@ -182,22 +188,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  // Fail before creating a job or acquiring its lease if any configured
-  // Investigator model rejects its real response_format. This is a provider
-  // contract check only; the probe never executes a research action.
-  const investigatorProbe = await probeGroqInvestigatorCapabilities();
-  if (!investigatorProbe.ok) {
-    res.status(503).json({
-      error: "Apex launch blocked: a configured Groq Investigator model failed its pre-launch response-format probe.",
-      code: "INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED",
-      failedCapability: investigatorProbe.failedCapability ?? null,
-      checkedCapabilities: investigatorProbe.checked,
-      detail: investigatorProbe.error ?? "provider_contract_error",
-      remediation: "Fix the configured model's Groq response_format compatibility before starting an Apex job. No research job was created.",
-    });
-    return;
-  }
-
   const targetCount = resolveCanonicalAtlasTargetCount(body.targetCount);
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
@@ -207,31 +197,55 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   atlasJobId = await createJob("atlas-run");
   const claimed = await claimCanonicalJob("atlas-run", atlasJobId);
   if (!claimed) {
-    await updateJob(atlasJobId, { status: "cancelled", outcome: "incomplete", message: "Canonical Atlas launch rejected: another instance owns the distributed launch lock.", finishedAt: new Date().toISOString() });
+    await updateJob(atlasJobId, { status: "cancelled", outcome: "incomplete", result: JSON.stringify({ buildProvenance, terminalState: "cancelled", failureStage: "lock_claim" }), message: "Canonical Atlas launch rejected: another instance owns the distributed launch lock.", finishedAt: new Date().toISOString() });
     res.status(409).json({ error: "Atlas pipeline already running." });
     return;
   }
 
   lockClaimed = true;
-  // A crashed/partitioned owner can disappear after the Redis lease expires
-  // without getting a final renewal callback. Once this job owns the canonical
-  // lock, any other active canonical case is therefore stale and must be fenced
-  // before the new pipeline can mutate the control plane.
-  await fenceStaleCanonicalCases(atlasJobId);
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
     total: singleTargetId ? 1 : targetCount,
     atlasPhase: 0,
     atlasPhaseTotal: singleTargetId ? 1 : 4,
+    result: JSON.stringify({ buildProvenance, terminalState: "running" }),
     message: singleTargetId ? "Canonical single-target investigation initializing…" : "Canonical model-owned discovery initializing…",
   });
+  // A crashed/partitioned owner can disappear after the Redis lease expires
+  // without getting a final renewal callback. Once this job owns the canonical
+  // lock, any other active canonical case is therefore stale and must be fenced
+  // before the new pipeline can mutate the control plane.
+  await fenceStaleCanonicalCases(atlasJobId);
 
   void (async () => {
     try {
       await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
+        // Preflight is job work, not synchronous HTTP launch work. The API can
+        // return 202 with a durable job ID before any provider probe begins.
+        const investigatorProbe = await probeGroqInvestigatorCapabilities();
+        const preflightReport = {
+          buildProvenance,
+          status: investigatorProbe.ok ? "passed" : "failed",
+          checkedCapabilities: investigatorProbe.checked,
+          excludedCapabilities: investigatorProbe.excludedCapabilities,
+          sampleSummary: investigatorProbe.sampleSummary,
+          error: investigatorProbe.error ?? null,
+        };
+        investigatorPreflightReport = preflightReport;
+        logger.info({ jobId: atlasJobId, investigatorPreflight: preflightReport }, "Apex Investigator preflight completed.");
+        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
+        await updateJob(atlasJobId!, {
+          result: JSON.stringify({ buildProvenance, investigatorPreflight: preflightReport, terminalState: investigatorProbe.ok ? "running" : "failed" }),
+          message: investigatorProbe.ok
+            ? `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`
+            : `Investigator preflight failed (${probeReport || "no sample summary"}); excluded capabilities: ${investigatorProbe.excludedCapabilities.join(", ") || "none"}.`,
+        });
+        if (!investigatorProbe.ok) {
+          throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
+        }
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -239,6 +253,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             targetTimeoutMs,
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
+            excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
           });
         }
       });
@@ -256,7 +271,20 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       } catch {
         // Preserve the original job failure even if durable case cleanup is unavailable.
       }
-      await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+      await updateJob(atlasJobId, {
+        status: "failed",
+        outcome: "incomplete",
+        result: JSON.stringify({
+          buildProvenance,
+          ...(investigatorPreflightReport ? { investigatorPreflight: investigatorPreflightReport } : {}),
+          terminalState: "failed",
+          failureStage: "background_pipeline",
+          errorClass: diagnostic.errorName,
+          errorCode: diagnostic.errorCode ?? null,
+        }),
+        message,
+        finishedAt: new Date().toISOString(),
+      });
     } finally {
       try {
         await reconcileOrganizationReviewCardsForJob(atlasJobId);
@@ -281,14 +309,28 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
+    sourceRevision: buildProvenance.commitSha,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
+    investigatorPreflight: { status: "pending", message: "Provider compatibility is checked in the background before research actions begin; per-model sample results and exclusions are recorded on the job." },
     options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
     const diagnostic = describeThrownProviderError(error);
     const message = `Canonical Atlas launch infrastructure unavailable (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
     if (atlasJobId) {
-      await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await updateJob(atlasJobId, {
+        status: "failed",
+        outcome: "incomplete",
+        result: JSON.stringify({
+          buildProvenance,
+          terminalState: "failed",
+          failureStage: "launch_infrastructure",
+          errorClass: diagnostic.errorName,
+          errorCode: diagnostic.errorCode ?? null,
+        }),
+        message,
+        finishedAt: new Date().toISOString(),
+      }).catch(() => undefined);
     }
     if (atlasJobId) {
       await releaseCanonicalJob("atlas-run", atlasJobId).catch(() => undefined);

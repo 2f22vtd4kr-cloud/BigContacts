@@ -11,14 +11,18 @@ const outerBoundary = outerTryStart >= 0 && outerCatchStart > outerTryStart ? so
 pass("canonical launch has an outer failure boundary", outerTryStart >= 0 && outerCatchStart > outerTryStart);
 pass("Redis initialization is inside the boundary", outerBoundary.includes("await enablePermanentRedis();"));
 pass("job creation is inside the boundary", /await createJob\("atlas-run"\)/.test(source));
-pass("configured Investigator response formats are probed before job creation", /await probeGroqInvestigatorCapabilities\(\)/.test(source) && source.indexOf("await probeGroqInvestigatorCapabilities()") < source.indexOf('await createJob("atlas-run")'));
-pass("preflight failure returns a clear 503 without creating a research job", source.includes("INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED") && source.includes("No research job was created."));
+pass("Investigator provider preflight runs inside accepted background job work", /void \(async \(\) => \{[\s\S]*?await withProviderScope\([\s\S]*?await probeGroqInvestigatorCapabilities\(\)/.test(source) && source.indexOf("await probeGroqInvestigatorCapabilities()") > source.indexOf('await createJob("atlas-run")'));
+pass("launch returns an accepted job while preflight runs in its detached worker", /void \(async \(\) => \{[\s\S]*?await probeGroqInvestigatorCapabilities\(\)/.test(source) && /res\.status\(202\)\.json/.test(source));
+pass("preflight permits healthy lanes and fails research only when no capability passes", source.includes("if (!investigatorProbe.ok)") && source.includes("excludedCapabilities") && !source.includes("INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED"));
 pass("canonical lock claim is inside the boundary", /await claimCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
-pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,500}updateJob\(atlasJobId, \{ status: "failed"/.test(source));
-pass("cleanup releases only this request owner token", /if \(atlasJobId\) \{[\s\S]{0,250}releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
+pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,800}updateJob\(atlasJobId, \{[\s\S]{0,100}status: "failed"/.test(source));
+pass("cleanup releases only this request owner token", /if \(atlasJobId\) \{[\s\S]{0,1000}releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
+pass("accepted jobs persist the build commit SHA and build state", source.includes("process.env.APEX_BUILD_REVISION") && source.includes("result: JSON.stringify({ buildProvenance, terminalState: \"running\" })") && source.includes("sourceRevision: buildProvenance.commitSha"));
+pass("preflight audit records build provenance and terminal job state", /preflightReport = \{[\s\S]*?buildProvenance,[\s\S]*?status: investigatorProbe\.ok \? "passed" : "failed"/.test(source) && /result: JSON\.stringify\(\{ buildProvenance, investigatorPreflight: preflightReport, terminalState: investigatorProbe\.ok \? "running" : "failed" \}\)/.test(source));
+pass("infrastructure failures persist commit SHA and failed terminal state", /terminalState: "failed",[\s\S]*?failureStage: "launch_infrastructure"/.test(source));
 pass("infrastructure failures return structured 503", /if \(!res\.headersSent\) res\.status\(503\)\.json/.test(source));
 pass("stale-case fence preserves the historical durable job owner", /currentAction: "canonical-lease-lost"[\s\S]*updatedAt: new Date\(\)/.test(source) && !/currentAction: "canonical-lease-lost"[\s\S]*caseFile: sql/.test(source));
-pass("background pipeline has its own failure/finally cleanup", /void \(async \(\) => \{[\s\S]*?catch \(error\)[\s\S]*?updateJob\(atlasJobId, \{ status: "failed"/.test(source)&&/finally \{[\s\S]*?releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
+pass("background pipeline has its own failure/finally cleanup", /void \(async \(\) => \{[\s\S]*?catch \(error\)[\s\S]*?updateJob\(atlasJobId, \{[\s\S]{0,100}status: "failed"/.test(source)&&/finally \{[\s\S]*?releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 
 if (failures.length) {
   console.error("CANONICAL LAUNCH FAILURE BOUNDARY: FAIL");

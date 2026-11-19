@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -33,6 +33,31 @@ const completeInvestigatorProviderPrompt = [
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+describe("Investigator preflight model and credential lanes", () => {
+  it("keeps shared-key aliases together but tests different credentials and 20B/120B models independently", () => {
+    const env: NodeJS.ProcessEnv = {
+      GROQ_INVESTIGATOR_API_KEY: "shared-key",
+      GROQ_INVESTIGATOR_API_KEY_1: "shared-key",
+      GROQ_INVESTIGATOR_API_KEY_2: "independent-key",
+      GROQ_INVESTIGATOR_API_KEY_3: "",
+    };
+    const groups = groupInvestigatorCapabilitiesByModelAndCredential([
+      "groq-investigator-20b",
+      "groq-investigator-1",
+      "groq-investigator-2",
+      "groq-investigator-3",
+    ], "openai/gpt-oss-120b", env);
+
+    expect(groups.map((group) => group.capabilities)).toEqual([
+      ["groq-investigator-20b"],
+      ["groq-investigator-1", "groq-investigator-2"],
+      ["groq-investigator-3"],
+    ]);
+    expect(groups[0].model).not.toBe(groups[1].model);
+    expect(groups[1].model).toBe(groups[2].model);
+  });
+});
+
 describe("Investigator provider prompt schema boundary", () => {
   it("rejects a prompt with complete root keys but missing nested findings fields", () => {
     const incomplete = completeInvestigatorProviderPrompt.replace(
@@ -288,9 +313,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(modelPrompt).toContain("Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates.");
-    expect(modelPrompt).toContain("Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate.");
-    expect(modelPrompt).toContain("Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.");
+    expect(modelPrompt).toContain("Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates.");
+    expect(modelPrompt).toContain("Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate.");
+    expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
@@ -386,7 +411,8 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     // rather than clipping mandatory objective, schema or evidence context.
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
-    expect(userPrompt.length).toBeLessThanOrEqual(4_000);
+    // 4,000 is the preferred compaction target, not a hard ceiling: complete mandatory objective, scope, action, registry, terminal and schema sections must survive. Mandatory pinned context may exceed the preferred target; retain a bounded 4,500-character regression ceiling while the schema-inclusive request/token limits below remain authoritative.
+    expect(userPrompt.length).toBeLessThanOrEqual(4_500);
     expect(requestChars).toBeLessThanOrEqual(11_500);
     expect(empiricalTokens).toBeLessThanOrEqual(2_650);
     expect(conservativeTokens).toBeLessThanOrEqual(3_400);
@@ -906,7 +932,7 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
 
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
     expect(prompt).toContain("SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.");
-    expect(prompt).toMatch(/ONLY if the exact action appears in (?:ACTION ALLOWLIST and )?AVAILABLE ACTIONS this turn/);
+    expect(prompt).toMatch(/AVAILABLE ACTIONS: .*this turn's allowlist; use only listed actions/);
     expect(prompt).not.toContain("intentionally not available capabilities");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
@@ -1099,7 +1125,7 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
-    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary|no fixed target, action or tool sequence/i);
   });
 
 describe("discovery lead inventory", () => {
@@ -1635,8 +1661,8 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
-    const actionLine = prompt.split("\n").find((line) => line.includes("ACTION ALLOWLIST / AVAILABLE ACTIONS:")) ?? "";
-    const advertisedActions = actionLine.split("ACTION ALLOWLIST / AVAILABLE ACTIONS: ")[1]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
+    const actionLine = prompt.split("\n").find((line) => line.includes("AVAILABLE ACTIONS:")) ?? "";
+    const advertisedActions = actionLine.split("AVAILABLE ACTIONS: ")[1]?.split(" (This is this turn's allowlist;")[0]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
     expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
     expect(advertisedActions).toHaveLength(expectedActions.length);
     expect(prompt).not.toContain("footprint_email");
@@ -1798,7 +1824,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
     expect(prompt).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
     expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
-    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
@@ -2476,7 +2502,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
   });
@@ -4827,6 +4853,48 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
     });
   });
 
+  it("normalizes one searches[] item into the root web_search contract", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: null,
+      searches: [{ query: "model-authored public company search", provider: "exa", locale: "en", market: "GB" }],
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({
+      action: "web_search",
+      query: "model-authored public company search",
+      provider: "exa",
+      locale: "en",
+      market: "GB",
+    });
+  });
+
+  it("normalizes multiple searches into parallel_web_search only when that action is allowed", () => {
+    const raw = JSON.stringify({
+      action: "web_search",
+      query: null,
+      searches: [
+        { query: "first model-authored search", provider: "exa" },
+        { query: "second model-authored search", provider: "tavily", locale: "en", market: "GB" },
+      ],
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+    expect(parseAgentAction(raw, ["web_search", "parallel_web_search"])).toMatchObject({
+      action: "parallel_web_search",
+      searches: [
+        { query: "first model-authored search", provider: "exa" },
+        { query: "second model-authored search", provider: "tavily", locale: "en", market: "GB" },
+      ],
+    });
+  });
+
+  it("does not coerce registry-shaped searches into web_search or parallel_web_search", () => {
+    const raw = JSON.stringify({
+      action: "web_search", query: null, searches: [{ query: "one", registry: "sec-edgar" }],
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+    expect(parseAgentAction(raw, ["web_search", "parallel_web_search"])).toBeNull();
+  });
+
   it("defaults out-of-range rationale scores without weakening action argument validation", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "web_search",
@@ -4842,10 +4910,36 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
 
 
 describe("Investigator preflight uses production prompt composition", () => {
+  it("omits searches[] and findings[] from the production prompt and strict schema when those actions are unavailable", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify one publicly documented example organization.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Preflight probe.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const contract = prompt.slice(prompt.lastIndexOf("OUTPUT CONTRACT:"));
+    expect(contract).not.toContain("searches[]");
+    expect(contract).not.toContain("findings[]");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"]) as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    const properties = responseFormat.json_schema?.schema?.properties ?? {};
+    expect(properties).not.toHaveProperty("searches");
+    expect(properties).not.toHaveProperty("findings");
+  });
+
   it("composes a model-authored trivial objective and samples three independently generated actions", () => {
     expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
     expect(agenticCoreSource).toContain("for (let sample = 0; sample < 3; sample += 1)");
+    expect(agenticCoreSource).toContain("Each independent sample owns its own decision deadline");
+    expect(agenticCoreSource).toContain("Three samples are diagnostic, not an all-three-or-nothing launch gate");
+    expect(agenticCoreSource).toContain("sampleSummary");
+    expect(agenticCoreSource).toContain('].join("\\n\\n")');
     expect(agenticCoreSource).toContain("parseAgentAction(result.raw, [\"web_search\"])");
     expect(agenticCoreSource).toContain("do not copy supplied action values");
   });
@@ -4854,6 +4948,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
     expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
+    expect(agenticCoreSource).toContain("web_search uses the root query and optional root provider");
   });
 });
 

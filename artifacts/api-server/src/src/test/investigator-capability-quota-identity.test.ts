@@ -15,6 +15,7 @@ describe("Investigator credential quota identity", () => {
     GROQ_INVESTIGATOR_API_KEY_3: "",
   } as NodeJS.ProcessEnv;
 
+
   it("keeps configured slots visible while counting duplicate credentials as one quota pool", () => {
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
       "groq-investigator-20b",
@@ -39,6 +40,20 @@ describe("Investigator credential quota identity", () => {
 
   it("expands an exhausted slot into every configured alias for the Boss", () => {
     expect(getInvestigatorCredentialAliases(env, ["groq-investigator-2"])).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
+    ]);
+  });
+
+  it("keeps preflight and quota aliases within the same model lane despite a shared credential", () => {
+    expect(getInvestigatorCredentialAliases(env, ["groq-investigator-20b"])).toEqual([
+      "groq-investigator-20b",
+    ]);
+    expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-3",
+    ]);
+    expect(getInvestigatorCredentialAliases(env, ["groq-investigator-1"])).toEqual([
       "groq-investigator-1",
       "groq-investigator-2",
     ]);

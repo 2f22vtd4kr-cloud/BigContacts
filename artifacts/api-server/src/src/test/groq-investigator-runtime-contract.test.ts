@@ -862,6 +862,41 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.required).toEqual(Object.keys(schema?.properties ?? {}));
   });
 
+  it("keeps the actual provider-bound prompt and strict schema limited to allowed action shapes", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify one publicly documented example organization.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Provider contract probe only.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const strictBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(strictUser).not.toContain("searches[]");
+    expect(strictUser).not.toContain("findings[]");
+    const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
+    expect(strictSchema).not.toHaveProperty("searches");
+    expect(strictSchema).not.toHaveProperty("findings");
+
+    const twentyBBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(twentyBUser).not.toContain("searches[]");
+    expect(twentyBUser).not.toContain("findings[]");
+  });
+
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
     const variants = [
       ["web_search"], ["parallel_web_search"], ["parallel_registry_search"],
@@ -876,12 +911,23 @@ describe("Groq Investigator runtime contract", () => {
       expect(schema).toBeDefined();
       assertGroqStrictSchemaNode(schema);
       const properties = schema?.properties as Record<string, Record<string, unknown>>;
-      const searchItem = properties.searches?.items as Record<string, unknown>;
-      const findingItem = properties.findings?.items as Record<string, unknown>;
-      expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
-      expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
-      expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
-      expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      const supportsSearchArrays = actions.includes("parallel_web_search") || actions.includes("parallel_registry_search");
+      const supportsFindings = actions.includes("done");
+      expect(Object.keys(properties)).toEqual(expect.arrayContaining(["action", "query", "provider"]));
+      if (supportsSearchArrays) {
+        const searchItem = properties.searches?.items as Record<string, unknown>;
+        expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
+        expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
+      } else {
+        expect(properties).not.toHaveProperty("searches");
+      }
+      if (supportsFindings) {
+        const findingItem = properties.findings?.items as Record<string, unknown>;
+        expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
+        expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      } else {
+        expect(properties).not.toHaveProperty("findings");
+      }
       expect((properties.provider as { type?: unknown })?.type).toEqual(["string", "null"]);
     }
   });
