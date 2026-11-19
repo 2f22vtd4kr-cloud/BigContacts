@@ -135,7 +135,7 @@ const legacyObservedCompletionTokens = 509;
 const legacyCompletionCap = 512;
 console.log("INVESTIGATOR PROMPT MEASUREMENT (offline; no live provider call)");
 console.log("  Tokenizer: not available in this offline check; estimate = ceil(characters / 3.4).");
-console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + promptSections.length + " sections).");
+console.log("  System prompt: " + systemPromptChars + " characters / " + Math.ceil(systemPromptChars / 3.4) + " estimated tokens (" + (promptSections.length + 1) + " sections).");
 console.log("  User/context allowance: " + userPromptBudgetChars + " characters / " + Math.ceil(userPromptBudgetChars / 3.4) + " estimated tokens.");
 console.log("  GPT-OSS 20B response schema overhead: 0 characters (provider response_format omitted; local parser remains authoritative).");
 console.log("  Estimated GPT-OSS 20B input per routine Investigator turn: " + estimatedPromptTokens + " tokens.");
