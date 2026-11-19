@@ -1771,7 +1771,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             );
         if (!replacement) break;
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, initialResearchAdvisory: discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]) ?? undefined, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
         zeroResearchParseFailure = isZeroResearchParseFailure(recovered);
@@ -2116,6 +2116,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           maxIterations: parseFailureRetryIterations,
           hardTimeoutMs: Math.min(openingDiscoveryBudget, assertAtlasDeadline() - 5_000),
           priorTrajectoryRecords: discovery.trajectoryRecords ?? [],
+          initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined,
           aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext,
           aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn,
           initialConsecutiveActionParseFailures: 0,
@@ -2704,7 +2705,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "investigator_episode";
         const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations);
         latestDiscoveryEpisodeLimit = nextEpisodeLimit;
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,
