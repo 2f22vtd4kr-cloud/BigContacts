@@ -99,7 +99,7 @@ describe("Groq Investigator HTTP transport recovery", () => {
     vi.unstubAllEnvs();
   });
 
-  it("reaches the bounded JSON-object recovery after a json_validate_failed HTTP 400", async () => {
+  it("reaches the bounded completion-budget recovery after a json_validate_failed HTTP 400", async () => {
     transportMocks.responses.push(
       groqResponse(400, {
         error: {
@@ -134,7 +134,8 @@ describe("Groq Investigator HTTP transport recovery", () => {
     const firstRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
     const retryRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
     expect(firstRequest.response_format.type).toBe("json_schema");
-    expect(retryRequest.response_format.type).toBe("json_object");
+    expect(retryRequest.response_format.type).toBe("json_schema");
+    expect(retryRequest.max_completion_tokens).toBeGreaterThan(firstRequest.max_completion_tokens);
   });
 
   it("blocks a strict-schema launch preflight on its first HTTP 400 without compatibility fallback", async () => {
