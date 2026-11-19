@@ -459,6 +459,7 @@ export type GroqBossDiscoveryInput = {
   startingLane?: string;
   /** Investigator capabilities unavailable for this Boss decision (for example, preflight-incompatible or quota-exhausted lanes). */
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }[] }[];
 };
 
 const openingCapabilitySelectionOrientation = [
@@ -475,19 +476,30 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
   const soleCapabilityGuidance = input.excludedInvestigatorLlm?.length && availableInvestigators.length === 1
     ? `SINGLE-CAPABILITY ASSIGNMENT: ${availableInvestigators[0]} is the only currently permitted Investigator capability. Select exactly this capability in investigatorLlm; never reuse an excluded capability. This selects execution capability only and does not prescribe a target, query, tool, provider or research sequence.`
     : "";
+  const laneHealth = (input.investigatorLaneHealth ?? []).map((lane) => ({
+    model: lane.model,
+    capabilities: lane.capabilities,
+    passedSamples: lane.passedSamples,
+    failedSamples: lane.failedSamples,
+    samples: lane.samples ?? [],
+  }));
+  const laneHealthGuidance = laneHealth.length
+    ? `PREFLIGHT LANE HEALTH (measured provider-contract diagnostics, not research evidence): ${JSON.stringify(laneHealth)}. Use the observed sample reliability when choosing among available capabilities. The runtime excludes lanes with fewer than two valid samples out of three; never select an excluded capability.`
+    : "";
   return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
 Investigator model economy: prefer groq-investigator-20b for routine discovery and action selection because the reduced action contract is designed for this economical model. Choose a 120B Investigator capability only when the objective is unusually complex or high-stakes and the expected reasoning benefit justifies its larger token cost. This is a capability choice, not a research itinerary; the Investigator still decides every research action. Boss strategic control and independent Right-hand review remain on their separate control/review model lanes.
 
-The Investigator will begin the canonical mixed-source discovery phase under the exact human objective after this assignment. Discovery combines a randomized, runtime-callable registry/asset-register catalog with independent public-web routes when relevant adapters exist; no target, query, provider, or source itinerary is predetermined. This call selects only the execution capability; the opening control pass evaluates the live source catalog and the Investigator chooses the exact hypotheses, target class, sources, queries, tools, pivots, and stopping point from actual returned observations. Do not add geographic scope or a target preference.
+After this capability assignment, the Investigator owns research execution. No source family, registry, provider, query, geography, target class, or research sequence is required in advance. The Investigator and subsequent Boss/Right-hand control turns choose research directions from the human objective and actual returned observations. Do not add geographic scope or a target preference.
 
 Human objective (context only; do not reinterpret or expand it): ${input.objective.trim()}
 Human motivation (context only): ${input.motivation.trim()}
 Available Investigator capabilities: ${JSON.stringify(availableInvestigators)}
 Excluded capabilities (never select): ${JSON.stringify([...excluded])}
 ${soleCapabilityGuidance}
+${laneHealthGuidance}
 
 Return exactly one JSON object with this shape and no additional properties:
 { "investigatorLlm": "one capability from the available Investigator list" }`;
