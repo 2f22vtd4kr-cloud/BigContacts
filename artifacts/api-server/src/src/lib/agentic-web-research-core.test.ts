@@ -40,7 +40,7 @@ describe("Investigator provider prompt schema boundary", () => {
       "findings[] required keys: vectorType, value",
     );
     expect(() => buildGroqInvestigatorRequestBody({
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
       prompt: incomplete,
       cognitiveTask: "discovery",
     })).toThrow("complete root and nested action schema");
@@ -219,7 +219,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("OUTPUT: JSON action object; include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
-    expect(systemCore).toContain("PARALLEL SHAPES: single web_search may omit provider (runtime default)");
+    expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
@@ -2663,8 +2663,8 @@ Choose each next action yourself from the available capabilities and observed ev
     const singleDispatch = agenticCoreSource.slice(singleStart, visitStart);
     expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeGreaterThan(-1);
     expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
-    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeGreaterThan(-1);
-    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
+    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason({ ...search, provider: search.provider ?? \"\" }, previousResearchRecords)")).toBeGreaterThan(-1);
+    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason({ ...search, provider: search.provider ?? \"\" }, previousResearchRecords)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
     expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeGreaterThan(-1);
     expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query, effectiveWebSearchProvider!"));
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason({ query: action.query, provider: effectiveWebSearchProvider!")).toBeGreaterThan(-1);
