@@ -2653,6 +2653,7 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
+          if (strictPreflight) return { model, raw: "", error: "investigator_preflight_http_429" };
           if (tokenDailyQuota) {
             // Retrying the same key after a retry-after hint cannot replenish a
             // daily token budget. Canonical Atlas may request one durable,
@@ -2760,6 +2761,7 @@ async function callGroqJson(
           if (http400Class === "provider_contract_error" || (strictPreflight && response.status === 400)) {
             return { model, raw: "", error: "provider_contract_error" };
           }
+          if (strictPreflight) return { model, raw: "", error: `investigator_preflight_http_${response.status}` };
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode,
@@ -3045,6 +3047,8 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   if (!capabilities.length) return { ok: false, checked: [], error: "No configured Groq Investigator capability is available." };
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const probedModels = new Set<string>();
+  let failedCapability: InvestigatorCapability | undefined;
+  let failureReason: string | undefined;
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
   const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
   const prompt = [
@@ -3067,17 +3071,22 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
         null, null, ["web_search"], "prelaunch-contract-probe", 0, prompt.length, "discovery", true,
       ));
       if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
-        return { ok: false, checked, failedCapability: capability, error: result?.error ?? "provider_contract_error" };
+        failedCapability ??= capability;
+        failureReason ??= result?.error ?? "provider_contract_error";
+        continue;
       }
       checked.push({ capability, model: result.model });
     } catch (error) {
-      return { ok: false, checked, failedCapability: capability, error: error instanceof Error ? error.message : "provider_contract_error" };
+      failedCapability ??= capability;
+      failureReason ??= error instanceof Error ? error.message : "provider_contract_error";
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener("abort", abort);
     }
   }
-  return { ok: true, checked };
+  return failedCapability
+    ? { ok: false, checked, failedCapability, error: failureReason ?? "provider_contract_error" }
+    : { ok: true, checked };
 }
 
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
