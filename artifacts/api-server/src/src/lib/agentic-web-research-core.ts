@@ -3173,9 +3173,9 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
 }
 
 /**
- * Probe each distinct model represented by the configured Investigator
- * capabilities before a canonical job is created. Send one minimal request per
- * distinct model using that model's actual response_format. No research tool executes.
+ * Probe each distinct configured Investigator model lane after the canonical
+ * job is accepted. Each lane receives three independent production-contract
+ * samples with per-sample deadlines; no research tool executes.
  */
 export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{
   ok: boolean;
