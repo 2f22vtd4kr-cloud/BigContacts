@@ -18,6 +18,16 @@ export type GroqInvestigatorCapability = `groq-investigator-${number}` | "groq-i
 export type InvestigatorCapability = GroqInvestigatorCapability;
 export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
+const investigatorCapabilityHealthExclusions = new Set<InvestigatorCapability>();
+
+/** Replace transient model-lane exclusions after a fresh, bounded preflight. */
+export function setInvestigatorCapabilityHealthExclusions(
+  capabilities: readonly InvestigatorCapability[],
+): void {
+  investigatorCapabilityHealthExclusions.clear();
+  for (const capability of capabilities) investigatorCapabilityHealthExclusions.add(capability);
+}
+
 export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
   // GPT-OSS 20B is available by default when the shared Investigator credential is configured.
   GROQ_INVESTIGATOR_20B_CAPABILITY,
@@ -57,7 +67,7 @@ export function getAvailableInvestigatorCapabilities(
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
     if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY && !isTwentyBInvestigatorEnabled(env)) return false;
     const keyName = investigatorCapabilityKeyName(capability);
-    return Boolean(keyName && env[keyName]?.trim());
+    return Boolean(keyName && env[keyName]?.trim() && (env !== process.env || !investigatorCapabilityHealthExclusions.has(capability)));
   });
 }
 
