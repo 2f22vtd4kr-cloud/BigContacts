@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
@@ -156,7 +156,24 @@ function shouldIncludeContactDataForAuditFile(
     && normalizedRelativePath.startsWith("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_");
 }
 
-export function resolveModelAuditAttachmentForJob(jobId: string): { relativePath: string; bytes: number } | null {
+export function summarizeModelAuditTrace(contents: string): {
+  requestCount: number;
+  responseCount: number;
+  pairedRequestCount: number;
+  complete: boolean;
+} {
+  const requestIds = new Set([...contents.matchAll(/^### Model request (\\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
+  const responseIds = new Set([...contents.matchAll(/^### Model response (\\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
+  const pairedRequestCount = [...requestIds].filter((requestId) => responseIds.has(requestId)).length;
+  return {
+    requestCount: requestIds.size,
+    responseCount: responseIds.size,
+    pairedRequestCount,
+    complete: requestIds.size > 0 && responseIds.size === requestIds.size && pairedRequestCount === requestIds.size,
+  };
+}
+
+export function resolveModelAuditAttachmentForJob(jobId: string): { relativePath: string; bytes: number; requestCount: number; responseCount: number; pairedRequestCount: number; complete: boolean } | null {
   const configuredPath = process.env.APEX_MODEL_AUDIT_FILE?.trim();
   if (!configuredPath) return null;
   const jobPath = resolveModelAuditFilePathForJob(configuredPath, jobId);
@@ -166,10 +183,16 @@ export function resolveModelAuditAttachmentForJob(jobId: string): { relativePath
     process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
   );
   if (!auditPath || !existsSync(auditPath)) return null;
-  return {
-    relativePath: relative(workspaceRootFrom(process.cwd()), auditPath).replace(/\\\\/g, "/"),
-    bytes: statSync(auditPath).size,
-  };
+  try {
+    const traceSummary = summarizeModelAuditTrace(readFileSync(auditPath, "utf8"));
+    return {
+      relativePath: relative(workspaceRootFrom(process.cwd()), auditPath).replace(/\\\\/g, "/"),
+      bytes: statSync(auditPath).size,
+      ...traceSummary,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function resolveSafeModelAuditFilePath(
