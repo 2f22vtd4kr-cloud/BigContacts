@@ -200,6 +200,7 @@ vi.mock("../lib/investigator-capability-registry", () => ({
   GROQ_INVESTIGATOR_20B_CAPABILITY: "groq-investigator-20b",
   getAvailableInvestigatorCapabilities: vi.fn(() => ["groq-investigator-1", "groq-investigator-20b"]),
   investigatorCapabilityKeyName: vi.fn(() => "GROQ_INVESTIGATOR_API_KEY"),
+  recordInvestigatorCapabilityRuntimeOutcome: vi.fn(),
 }));
 vi.mock("../lib/identity-collision", () => ({
   assessIdentityCollision: vi.fn(() => ({ risk: null, identityMatch: 0.95, reason: null })),
