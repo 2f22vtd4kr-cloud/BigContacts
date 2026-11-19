@@ -15,6 +15,7 @@ import { withProviderScope } from "../../lib/provider-gate";
 import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
 import { reconcileOrganizationReviewCardsForJob, reconcilePersonReviewCardsForJob } from "../../lib/research-lead-card-reconciliation";
 import { logger } from "../../lib/logger";
+import { resolveModelAuditAttachmentForJob } from "../../lib/model-prompt-audit";
 
 const router = Router();
 
@@ -373,6 +374,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           persistedCardCountReadBack,
           persistedEvidenceCountReadBack,
           durableTraceEventCountReadBack: Number(traceCount?.count ?? 0),
+          modelAuditAttachment: resolveModelAuditAttachmentForJob(atlasJobId),
           lockReleaseCallReturned: releaseCallReturned,
           lockReleasedReadBack: lockReleased,
           recordedAt: new Date().toISOString(),
