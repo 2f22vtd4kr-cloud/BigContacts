@@ -19,6 +19,12 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("investigatorActionsRemaining:");
     expect(canonicalAtlasDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
+  it("makes discovery stagnation telemetry visible to Boss and independent Right-hand review", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? [])");
+    expect(canonicalAtlasDiscoverySource).toContain("researchLivenessAdvisory,");
+    expect(canonicalAtlasDiscoverySource).toContain("RESEARCH LIVENESS (advisory only");
+  });
+
   it("records reconciliation results, database read-back counts, durable trace count, and lock-release verification", () => {
     expect(canonicalAtlasLaunchSource).toContain("organizationReconciliation");
     expect(canonicalAtlasLaunchSource).toContain("personReconciliation");
