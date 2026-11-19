@@ -3097,9 +3097,9 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
 }
 
 /**
- * Probe every configured Investigator capability before a canonical job is
- * created. This sends one minimal model request per configured capability using
- * the exact response_format selected for that model. No research tool executes.
+ * Probe each distinct model represented by the configured Investigator
+ * capabilities before a canonical job is created. Send one minimal request per
+ * distinct model using that model's actual response_format. No research tool executes.
  */
 export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{ ok: boolean; checked: Array<{ capability: InvestigatorCapability; model: string }>; failedCapability?: InvestigatorCapability; error?: string }> {
   const capabilities = getAvailableInvestigatorCapabilities();
