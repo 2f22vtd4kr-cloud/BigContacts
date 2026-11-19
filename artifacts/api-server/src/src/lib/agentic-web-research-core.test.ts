@@ -31,9 +31,19 @@ const completeInvestigatorProviderPrompt = [
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
   "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
+const agenticWrapperSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/durable-trajectory-replay.ts"), "utf8");
+
+describe("retained fetched-page continuation persistence boundary", () => {
+  it("marks wrapper-checkpointed artifacts durable only when a durable callback will persist them before the next model turn", () => {
+    expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
+    expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
+    expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
+    expect(agenticWrapperSource).toContain("await input.onTrajectoryRecord?.(normalizedRecord)");
+  });
+});
 
 describe("retained fetched-page continuation", () => {
   it("reads successive sections from the already fetched page without another network request", async () => {
