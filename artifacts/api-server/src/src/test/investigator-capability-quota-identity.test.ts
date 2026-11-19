@@ -104,7 +104,7 @@ describe("Investigator credential quota identity", () => {
     expect(degraded.status).toBe("degraded");
     expect(degraded.parseFailures).toBe(2);
     expect(getInvestigatorCapabilityRuntimeHealthSnapshot(env).find((lane) => lane.capability === capability)?.status).toBe("degraded");
-    expect(getAvailableDistinctInvestigatorCapabilities(env)).toContain(capability);
+    expect(getAvailableInvestigatorCapabilities(env)).toContain(capability);
 
     const recovered = recordInvestigatorCapabilityRuntimeOutcome(capability, { success: true });
     expect(recovered.status).toBe("healthy");
