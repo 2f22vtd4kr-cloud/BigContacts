@@ -62,6 +62,7 @@ export function replayInvestigatorTrajectoryEvents(
 
     records.push({
       turn: Number(turn),
+      ...(runId ? { runId } : {}),
       model: typeof payload.runModel === "string" ? payload.runModel : "replayed",
       action: action.trim(),
       args,
