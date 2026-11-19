@@ -27,7 +27,7 @@ import { getAvailableRegistryIds, getAvailableRegistryIdsForPrompt, normalizeReg
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
 import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
 import { inferResearchCognitiveTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
-import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, getConfiguredInvestigatorCapabilities, investigatorCapabilityKeyName, setInvestigatorCapabilityHealthExclusions, type InvestigatorCapability } from "./investigator-capability-registry";
+import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
 import { buildBrowserFetchProviderTelemetry, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable } from "./browser-fetch-core";
 import {
@@ -3168,9 +3168,8 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   failedCapability?: InvestigatorCapability;
   error?: string;
 }> {
-  const capabilities = getConfiguredInvestigatorCapabilities();
+  const capabilities = getAvailableInvestigatorCapabilities();
   if (!capabilities.length) {
-    setInvestigatorCapabilityHealthExclusions([]);
     return { ok: false, checked: [], excludedCapabilities: [], sampleSummary: [], error: "No configured Groq Investigator capability is available." };
   }
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
@@ -3243,7 +3242,6 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   }
   // Unhealthy model lanes are excluded from later Boss assignments; healthy
   // lanes continue. A launch is blocked only when no lane passed.
-  setInvestigatorCapabilityHealthExclusions(excludedCapabilities);
   return {
     ok: checked.length > 0,
     checked,
