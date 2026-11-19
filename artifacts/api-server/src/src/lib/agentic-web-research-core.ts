@@ -1558,7 +1558,7 @@ export function describeToolVisitFailure(error: unknown): { status: "timeout" | 
   };
 }
 
-type RetainedFetchedPage = { text: string; nextOffset: number; sourceUrl: string };
+type RetainedFetchedPage = { text: string; nextOffset: number; sourceUrl: string; artifactTurn: number };
 type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retainedChars: number; maxChars: number };
 
 /**
@@ -1567,11 +1567,11 @@ type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retai
  * bounded independently of prompt size; reading a retained page never performs
  * another outbound request.
  */
-async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string }> {
+async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore, artifactTurn = 0): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string }> {
   const displayUrl = sanitizeUrlForEvidence(url);
   const pageKey = normalizedActionResourceUrl(url) ?? url;
   const retainedPage = pageStore?.pages.get(pageKey);
-  if (retainedPage) {
+  if (retainedPage && retainedPage.nextOffset < retainedPage.text.length) {
     const start = retainedPage.nextOffset;
     const end = Math.min(retainedPage.text.length, start + MAX_OBS);
     retainedPage.nextOffset = end;
@@ -1676,7 +1676,7 @@ async function toolVisit(url: string, signal?: AbortSignal, pageStore?: Retained
     const pageHasMore = body.length > MAX_OBS;
     const retained = Boolean(pageHasMore && pageStore && pageStore.retainedChars + body.length <= pageStore.maxChars);
     if (retained && pageStore) {
-      pageStore.pages.set(pageKey, { text: body, nextOffset: pageReadNextOffset, sourceUrl: normalizedUrl(url) ?? displayUrl });
+      pageStore.pages.set(pageKey, { text: body, nextOffset: pageReadNextOffset, sourceUrl: normalizedUrl(url) ?? displayUrl, artifactTurn });
       pageStore.retainedChars += body.length;
     }
     const boundedBody = sanitizeUrlsInText(body.slice(0, MAX_OBS));
@@ -6181,6 +6181,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         text,
         nextOffset: Math.min(text.length, MAX_OBS),
         sourceUrl,
+        artifactTurn: priorRecord.turn,
       });
       retainedFetchedPages.retainedChars += text.length;
     }
@@ -6192,7 +6193,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     if (readKey && priorRecord.args?.pageReadSource === "retained_fetch_artifact") {
       const retained = retainedFetchedPages.pages.get(readKey);
       const nextOffset = Number(priorRecord.args.pageReadNextOffset);
-      if (retained && Number.isFinite(nextOffset)) retained.nextOffset = Math.max(retained.nextOffset, Math.min(retained.text.length, Math.floor(nextOffset)));
+      if (retained && priorRecord.turn >= retained.artifactTurn && Number.isFinite(nextOffset)) {
+        retained.nextOffset = Math.max(retained.nextOffset, Math.min(retained.text.length, Math.floor(nextOffset)));
+      }
     }
   }
   const priorTurnOffset = Math.max(0, ...priorTrajectoryRecords.map((record) => record.turn), ...(input.priorIntelligenceContext?.recentActions.map((action) => action.turn) ?? []));
@@ -6701,7 +6704,7 @@ ${searchText}${queryQualityWarning ? "\n\nINVESTIGATOR QUERY GUIDANCE (advisory,
 assignSearchResultLeads(record, record.execution === "success" ? result.urls : []); lastObservation = record.observation ?? ""; } catch (error: any) { record.execution = runController.signal.aborted ? "cancelled" : "error"; record.failureDomain = "tool_execution"; record.failureKind = runController.signal.aborted ? (input.signal?.aborted ? "cancelled" : "timeout") : "request_failure"; record.observation = safeAgenticError(error, runController.signal.aborted); lastObservation = record.observation ?? ""; } pushHistory(`step${i + 1}: web_search execution=${record.execution} provider=${effectiveWebSearchProvider} query=${action.query}`); await emitSanitizedTrajectoryRecord(record); emit("web_search", { query: action.query, provider: effectiveWebSearchProvider!, status: record.execution, summary: `${record.leadUrls?.length ?? 0} search-result lead URLs surfaced` }); continue; } if (action.action === "visit") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: visit ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("visit", { url: sanitizeUrlForEvidence(action.url), provider: "page-fetch", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } } const canonical = normalizedUrl(action.url) || action.url;
 visits += 1;
 runtimeStage = "external_page_fetch";
-const page = await toolVisit(canonical, runController.signal, retainedFetchedPages);
+const page = await toolVisit(canonical, runController.signal, retainedFetchedPages, record.turn);
 const communityObservationSource = isCommunityObservationSourceUrl(page.observedUrl ?? canonical);
 record.args = {
   ...record.args,
@@ -6755,7 +6758,7 @@ continue;
 if (action.action === "browser_fetch") { if (input.mode === "discovery") { const sourcePolicy = validateDiscoverySourceUrl(action.url); if (!sourcePolicy.allowed) { record.execution = "blocked"; record.observation = sourcePolicy.reason; record.observedUrls = []; lastObservation = sourcePolicy.reason; pushHistory(`step${i + 1}: browser_fetch ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=discovery_source_targetability`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: sanitizeUrlForEvidence(action.url), provider: "browser", status: "blocked", summary: "Discovery targetability gate blocked fetch before outbound request." }); continue; } }
 const retainedBrowserKey = normalizedActionResourceUrl(action.url);
 const retainedBrowserPage = retainedBrowserKey ? retainedFetchedPages.pages.get(retainedBrowserKey) : undefined;
-if (retainedBrowserPage) {
+if (retainedBrowserPage && retainedBrowserPage.nextOffset < retainedBrowserPage.text.length) {
   const pageReadOffset = retainedBrowserPage.nextOffset;
   const pageReadNextOffset = Math.min(retainedBrowserPage.text.length, pageReadOffset + MAX_OBS);
   retainedBrowserPage.nextOffset = pageReadNextOffset;
@@ -6780,7 +6783,7 @@ const browserFinalPageKey = normalizedActionResourceUrl(observedBrowserUrl ?? ac
 const browserPageRetained = Boolean(browserHasMore && browserPageKey
   && retainedFetchedPages.retainedChars + rawBrowserText.length <= retainedFetchedPages.maxChars);
 if (browserPageRetained && browserPageKey) {
-  const retainedBrowserArtifact = { text: rawBrowserText, nextOffset: Math.min(rawBrowserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url };
+  const retainedBrowserArtifact = { text: rawBrowserText, nextOffset: Math.min(rawBrowserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url, artifactTurn: record.turn };
   retainedFetchedPages.pages.set(browserPageKey, retainedBrowserArtifact);
   if (browserFinalPageKey && browserFinalPageKey !== browserPageKey) retainedFetchedPages.pages.set(browserFinalPageKey, retainedBrowserArtifact);
   retainedFetchedPages.retainedChars += rawBrowserText.length;
