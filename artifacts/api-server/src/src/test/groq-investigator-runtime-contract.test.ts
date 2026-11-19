@@ -229,6 +229,9 @@ describe("Groq Investigator runtime contract", () => {
     const twentyBUser = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     const oneTwentyBUser = (oneTwentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(twentyBUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    const twentyBSystem = (twentyB.messages as Array<{ role: string; content: string }>).find((message) => message.role === "system")?.content ?? "";
+    expect(twentyBSystem).toContain("follow the model-specific output contract");
+    expect(twentyBSystem).not.toContain("include all schema keys");
     expect(twentyBUser).toContain("unused keys may be omitted");
     expect(twentyBUser).toContain("provider may be null or omitted");
     expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
