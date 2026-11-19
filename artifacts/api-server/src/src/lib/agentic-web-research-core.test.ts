@@ -4839,3 +4839,20 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
     expect(parseAgentAction(JSON.stringify({ action: "web_search", query: "" }), ["web_search"])).toBeNull();
   });
 });
+
+
+describe("Investigator preflight uses production prompt composition", () => {
+  it("composes a model-authored trivial objective and samples three independently generated actions", () => {
+    expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
+    expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
+    expect(agenticCoreSource).toContain("for (let sample = 0; sample < 3; sample += 1)");
+    expect(agenticCoreSource).toContain("parseAgentAction(result.raw, [\"web_search\"])");
+    expect(agenticCoreSource).toContain("do not copy supplied action values");
+  });
+
+  it("states the rationale contract required by the local parser in the non-strict model prompt", () => {
+    expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
+    expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
+    expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
+  });
+});
