@@ -2159,6 +2159,32 @@ export function classifyGroqInvestigatorHttp400(input: {
   return "provider_contract_error";
 }
 
+/** The exact HTTP-error decision used by the Groq transport and its transport-boundary tests. */
+export function decideGroqInvestigatorHttpError(input: {
+  status: number;
+  providerCode: string | null;
+  providerErrorType?: string | null;
+  providerParam?: string | null;
+  providerMessage: string;
+  responseFormat: "json_schema" | "json_object";
+  completionBudgetRetryUsed: boolean;
+  currentMaxCompletionTokens: number;
+  failureDetailsAvailable?: boolean;
+  rateLimitRemainingTokens?: number | null;
+  promptTokenEstimate?: number;
+  completionTokensUsed?: number | null;
+  strictPreflight?: boolean;
+}): { classification: "output_validation_recoverable" | "provider_contract_error" | null; recovery: GroqInvestigatorOutputRecoveryDecision } {
+  const classification = classifyGroqInvestigatorHttp400(input);
+  if (classification === "provider_contract_error" || (input.strictPreflight && input.status === 400)) {
+    return { classification: "provider_contract_error", recovery: { action: "fail" } };
+  }
+  return {
+    classification,
+    recovery: chooseGroqInvestigatorOutputRecovery(input),
+  };
+}
+
 /** Retry only output-format/completion failures; never alter strategy or capability. */
 export function chooseGroqInvestigatorOutputRecovery(input: {
   status: number; providerCode: string | null; providerMessage: string;
