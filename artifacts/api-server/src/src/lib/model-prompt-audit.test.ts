@@ -178,28 +178,43 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("requires every job-scoped model request to have a matching visible response record", () => {
-    expect(summarizeModelAuditTrace([
-      "### Model request request-1",
-      "### Model response request-1",
-      "### Model request request-2",
-      "### Model response request-2",
-    ].join("\n"))).toEqual({
+  it("requires exactly one valid visible response for every job-scoped model request", () => {
+    const section = (kind: "request" | "response", id: string) => {
+      const payload = JSON.stringify({ event: "atlas_model_" + kind, requestId: id });
+      const fence = String.fromCharCode(96).repeat(3);
+      return "### Model " + kind + " " + id + "\n\n" + fence + "json\n" + payload + "\n" + fence + "\n";
+    };
+    expect(summarizeModelAuditTrace(
+      section("request", "request-1") + section("response", "request-1")
+      + section("request", "request-2") + section("response", "request-2"),
+    )).toEqual({
       requestCount: 2,
       responseCount: 2,
       pairedRequestCount: 2,
       complete: true,
     });
-    expect(summarizeModelAuditTrace([
-      "### Model request request-1",
-      "### Model response request-1",
-      "### Model request request-2",
-    ].join("\n"))).toEqual({
+    expect(summarizeModelAuditTrace(
+      section("request", "request-1") + section("response", "request-1") + section("request", "request-2"),
+    )).toEqual({
       requestCount: 2,
       responseCount: 1,
       pairedRequestCount: 1,
       complete: false,
     });
+    expect(summarizeModelAuditTrace(
+      section("request", "request-1") + section("request", "request-1")
+      + section("response", "request-1"),
+    ).complete).toBe(false);
+    expect(summarizeModelAuditTrace(
+      section("request", "request-1") + section("response", "request-1")
+      + section("response", "request-1"),
+    ).complete).toBe(false);
+    expect(summarizeModelAuditTrace(
+      section("response", "orphan-response") + section("request", "request-1")
+      + section("response", "request-1"),
+    ).complete).toBe(false);
+    const incomplete = "### Model request request-1\n\n" + fenceForTest + "json\n{\"event\":\"atlas_model_request\",";
+    expect(summarizeModelAuditTrace(incomplete).complete).toBe(false);
   });
 
   it("allows explicit production capture only to private job-scoped files with contact values redacted", () => {
