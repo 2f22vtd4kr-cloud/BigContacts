@@ -277,6 +277,14 @@ describe("Groq Investigator runtime contract", () => {
     });
     expect(schemaTextRejected.classification).toBe("provider_contract_error");
     expect(schemaTextRejected.recovery.action).toBe("fail");
+    expect(decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "14 required keys are missing from the response object.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    }).classification).toBe("provider_contract_error");
 
     const launchProbe = decideGroqInvestigatorHttpError({
       status: 400,
