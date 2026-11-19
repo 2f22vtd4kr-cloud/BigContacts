@@ -751,6 +751,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       act: currentAct,
       recentActs: recentActs.slice(-4),
       previousBossDisposition: lastOversight?.action ?? null,
+      investigatorLaneHealth: options.investigatorLaneHealth,
       jobId: atlasJobId,
     });
     // The review function returns the control decision, while its immutable
