@@ -2700,6 +2700,12 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
+  it("feeds the liveness advisory into the actual discovery Investigator observation", () => {
+    expect(agenticCoreSource).toContain("const livenessAdvisory = input.mode === \"discovery\"");
+    expect(agenticCoreSource).toContain("discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...records])");
+    expect(agenticCoreSource).toContain("lastObservation, livenessAdvisory");
+  });
+
   it("counts single registry searches as search-only activity in liveness guidance", () => {
     const records = [
       livenessRecord("registry_search", "success"),
@@ -2945,6 +2951,23 @@ Choose each next action yourself from the available capabilities and observed ev
       },
       observedUrls: ["https://example.com/team"],
     };
+
+    it("allows the Investigator to read the next retained page section without an outbound retry", () => {
+      const truncatedVisit = {
+        ...successfulVisit,
+        args: { ...successfulVisit.args, pageHasMore: true, pageReadSource: "retained_fetch_artifact" },
+      };
+      expect(redundantResearchActionReason("visit", {
+        url: "https://EXAMPLE.com/team#contact",
+        hypothesis: "Inspect the remaining names lower on the same source page.",
+        purpose: "Continue reading the already fetched page.",
+      }, [truncatedVisit])).toBeNull();
+      expect(agenticCoreSource).toContain("PAGE CONTINUATION");
+      expect(agenticCoreSource).toContain("without another network request");
+      expect(agenticCoreSource).toContain("record.pageArtifact =");
+      expect(agenticCoreSource).toContain("pageReadSource: \"retained_fetch_artifact\"");
+      expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
+    });
 
     it("blocks the same normalized URL and capability when the model only changes its rationale", () => {
       const reason = redundantResearchActionReason("visit", {
