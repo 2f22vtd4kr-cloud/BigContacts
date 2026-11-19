@@ -3019,8 +3019,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       rationaleIncompleteActions: rationaleIncompleteActionsAtTerminal,
       investigatorTrajectoryRecords: terminalTrajectory.length,
       llmTelemetry: { ...llmTelemetryAtTerminal, accountingScope: "process_local_job_id" },
-      providerWaitMs: null,
-      providerWaitMeasurement: "not_instrumented",
+      providerWaitMs: llmTelemetryAtTerminal.providerWaitMs,
+      providerWaitMeasurement: "groq_provider_gate_before_request",
       activeJobLockReleased: null as boolean | null,
     };
     // A durable terminal snapshot makes completed/failed runs auditable without
