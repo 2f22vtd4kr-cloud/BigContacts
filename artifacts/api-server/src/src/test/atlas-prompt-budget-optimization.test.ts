@@ -110,7 +110,9 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(total).toBeGreaterThan(8_400);
     expect(userMessage.length).toBeGreaterThan(6_800);
     expect(userMessage).toContain("OVERSIZED DYNAMIC STATE ".repeat(2_000));
-    expect(userMessage).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(userMessage).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
+    expect(userMessage).toContain("action-specific required fields only");
+    expect(userMessage).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
   it("preserves the complete latest Investigator record above the preferred message target", () => {
