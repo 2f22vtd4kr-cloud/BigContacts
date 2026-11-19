@@ -15,7 +15,10 @@ assert(/gatedSafeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search
 assert(/gatedSafeOutboundFetch\(url/.test(core), "Investigator page visits do not use the gated SSRF-safe transport.");
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
 assert(/classifyGroqInvestigatorHttp400/.test(core) && /providerCode === "json_validate_failed"/.test(core), "Groq HTTP 400 handling must distinguish recoverable generated-output validation from provider contract rejection.");
-assert(/http400Class === "provider_contract_error"/.test(core) && !/if \(response\.status === 400\) return \{ model, raw: "", error: "provider_contract_error" \}/.test(core), "blanket HTTP 400 early return must not bypass json_validate_failed recovery.");
+const contract400GuardAt = core.indexOf('if (http400Class === "provider_contract_error"');
+const outputRecoveryAt = core.indexOf("const recovery = chooseGroqInvestigatorOutputRecovery", contract400GuardAt);
+const exhausted400At = core.lastIndexOf('if (response.status === 400) return { model, raw: "", error: "provider_contract_error" }');
+assert(contract400GuardAt >= 0 && outputRecoveryAt > contract400GuardAt && exhausted400At > outputRecoveryAt, "only non-recoverable 400s fail before output recovery; json_validate_failed reaches recovery and becomes a contract error only after recovery is exhausted.");
 assert(/strictPreflight && response\.status === 400/.test(core) && /probeGroqInvestigatorCapabilities/.test(core), "launch preflight must fail on a single 400 before a research job can start.");
 assert(/redirect: "manual"/.test(ssrf), "Canonical SSRF transport does not force manual redirect semantics.");
 assert(/MAX_RESPONSE_BYTES/.test(ssrf) && /res\.destroy/.test(ssrf), "Canonical SSRF transport is missing its streaming response ceiling.");
