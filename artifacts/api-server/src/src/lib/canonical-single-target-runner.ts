@@ -3,6 +3,7 @@ import { db, entitiesTable, assetsTable, relationshipsTable, researchCasesTable,
 import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
+import { reconcilePreflightInvestigatorAssignment } from "./canonical-investigator-assignment";
 import { runTargetContactAgent } from "./target-contact-agent";
 import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
@@ -443,7 +444,17 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     if (Date.now() >= deadline) deadlineExceeded = true; else {
       const opening = await runGroqBossDiscovery({ objective: `${caseRow.objective}\n\nSHARED CASE CONTEXT:\n${contextDocument}`, motivation: "Select the Investigator capability for one target-scoped free-ReAct investigation. Groq Boss is not the researcher and must not prescribe a tool sequence.", geography: "Target-specific public web and official sources", exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select one currently available Investigator capability from the runtime capability registry. Do not prescribe a tool, provider, query, or research sequence."], startingLane: "exact target assignment from shared case context", excludedInvestigatorLlm: [...initialExcludedInvestigators] });
       investigatorLlm = opening.investigatorLlm; if (!investigatorLlm) { await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-boss-opening-assignment-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await publishJob( { status: "failed", progress: 1, message: `Groq Boss did not select a usable Investigator for ${target.name}; no fallback permitted.`, result: JSON.stringify({ caseId: caseRow.id, opening }) }); return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm }; }
-      contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Groq Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` }); caseState.contextDocument = contextDocument; caseState.investigatorLlm = investigatorLlm; caseState.rightHandOpening = { status: "deferred", model: "none", reason: "Deferred until the Investigator produces source observations or a consequential decision." }; const [openingProjection] = await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)).returning({ id: researchCasesTable.id }); if (!openingProjection?.id) throw new Error("Canonical Atlas target case was cancelled before Boss opening projection.");
+      contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Groq Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` });
+      caseState.contextDocument = contextDocument;
+      caseState.rightHandOpening = { status: "deferred", model: "none", reason: "Deferred until the Investigator produces source observations or a consequential decision." };
+      const reconciledAssignment = reconcilePreflightInvestigatorAssignment({
+        caseFile: JSON.stringify(caseState),
+        selectedInvestigator: investigatorLlm,
+        availableInvestigators: getAvailableInvestigatorCapabilities(),
+        excludedInvestigators: initialExcludedInput,
+      });
+      caseState = JSON.parse(reconciledAssignment.caseFile) as Record<string, unknown>;
+      const [openingProjection] = await db.update(researchCasesTable).set({ caseFile: reconciledAssignment.caseFile, directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)).returning({ id: researchCasesTable.id }); if (!openingProjection?.id) throw new Error("Canonical Atlas target case was cancelled before Boss opening projection.");
        await db.transaction(async (tx) => {
          await lockResearchCaseEventAppendStream(tx, caseRow.id);
          const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
@@ -456,7 +467,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
           status: "recorded",
           summary: "Groq Boss opened target investigation and selected the Investigator.",
           correlationKey: `${atlasJobId}:target-boss-opening:${caseRow.id}`,
-          payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, model: opening.model, investigatorLlm, report: opening.report, nextDirections: opening.nextDirections, uncertainties: opening.uncertainties }),
+          payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, model: opening.model, investigatorLlm, previousInvestigatorLlm: reconciledAssignment.previousInvestigator, investigatorAssignmentChanged: reconciledAssignment.changed, assignmentTrigger: reconciledAssignment.changed ? "preflight_excluded" : null, report: opening.report, nextDirections: opening.nextDirections, uncertainties: opening.uncertainties }),
          });
        });
     }
