@@ -43,8 +43,10 @@ type MutableInvestigatorCapabilityRuntimeHealth = Omit<InvestigatorCapabilityRun
 const investigatorRuntimeHealth = new Map<InvestigatorCapability, MutableInvestigatorCapabilityRuntimeHealth>();
 
 function investigatorRuntimeHealthStatus(current: MutableInvestigatorCapabilityRuntimeHealth): InvestigatorCapabilityRuntimeHealth["status"] {
-  if (current.successfulActions + current.failedActions === 0) return "unobserved";
-  return current.consecutiveFailures >= 2 ? "degraded" : "healthy";
+  const totalActions = current.successfulActions + current.failedActions;
+  if (totalActions === 0) return "unobserved";
+  const failureRateIsMaterial = current.failedActions >= 2 && current.failedActions * 2 >= totalActions;
+  return current.consecutiveFailures >= 2 || failureRateIsMaterial ? "degraded" : "healthy";
 }
 
 function emptyInvestigatorRuntimeHealth(): MutableInvestigatorCapabilityRuntimeHealth {
