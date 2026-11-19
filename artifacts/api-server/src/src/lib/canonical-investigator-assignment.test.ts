@@ -3,7 +3,7 @@ import { reconcilePreflightInvestigatorAssignment } from "./canonical-investigat
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 
 const investigator20b = "groq-investigator-20b" as InvestigatorCapability;
-const investigator120b = "groq-investigator" as InvestigatorCapability;
+const investigator120b = "groq-investigator-1" as InvestigatorCapability;
 
 describe("canonical discovery preflight Investigator assignment", () => {
   it("persists a healthy Boss replacement when the durable capability was explicitly excluded", () => {
