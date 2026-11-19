@@ -68,13 +68,15 @@ describe("operator authentication boundary", () => {
     expect(replitConfig).toContain('NODE_ENV = "development"');
     expect(replitConfig).toContain('APEX_OPERATOR_AUTH_BYPASS = "true"');
     expect(replitConfig).toContain('VITE_APEX_OPERATOR_AUTH_BYPASS = "true"');
-    expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
+    expect(replitConfig).toContain('run = "env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh"');
     expect(replitConfig).toContain('&& env NODE_ENV=development APEX_OPERATOR_AUTH_BYPASS=true VITE_APEX_OPERATOR_AUTH_BYPASS=true bash scripts/replit-boot.sh');
     const deploymentConfig = replitConfig.split("[deployment]")[1]?.split("[deployment.postBuild]")[0] ?? "";
     expect(deploymentConfig).toContain("NODE_ENV=production");
     expect(deploymentConfig).not.toContain("APEX_OPERATOR_AUTH_BYPASS=true");
     expect(deploymentConfig).not.toContain("VITE_APEX_OPERATOR_AUTH_BYPASS=true");
-    expect(deploymentConfig).toContain("APEX_CAPTURE_MODEL_PROMPTS=false");
+    expect(deploymentConfig).toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
+    expect(deploymentConfig).toContain("APEX_MODEL_AUDIT_FILE=private-audits/apex-atlas-run-{jobId}.md");
+    expect(deploymentConfig).toContain("APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false");
     expect(deploymentConfig).toContain("APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA=false");
     expect(replitBoot).toContain('"${NODE_ENV:-}" == "development"');
     expect(replitBoot).toContain("Rebuild on every development boot");
