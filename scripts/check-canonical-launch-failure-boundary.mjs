@@ -18,7 +18,7 @@ pass("canonical lock claim is inside the boundary", /await claimCanonicalJob\("a
 pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,800}updateJob\(atlasJobId, \{[\s\S]{0,100}status: "failed"/.test(source));
 pass("cleanup releases only this request owner token", /if \(atlasJobId\) \{[\s\S]{0,1000}releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 pass("accepted jobs persist the build commit SHA and build state", source.includes("process.env.APEX_BUILD_REVISION") && source.includes("result: JSON.stringify({ buildProvenance, terminalState: \"running\" })") && source.includes("sourceRevision: buildProvenance.commitSha"));
-pass("preflight audit records build provenance and blocked terminal state", /preflightReport = \{[\s\S]*?buildProvenance,[\s\S]*?terminalState: investigatorProbe\.ok \? "running" : "failed"/.test(source));
+pass("preflight audit records build provenance and terminal job state", /preflightReport = \{[\s\S]*?buildProvenance,[\s\S]*?status: investigatorProbe\.ok \? "passed" : "failed"/.test(source) && /result: JSON\.stringify\(\{ buildProvenance, investigatorPreflight: preflightReport, terminalState: investigatorProbe\.ok \? "running" : "failed" \}\)/.test(source));
 pass("infrastructure failures persist commit SHA and failed terminal state", /terminalState: "failed",[\s\S]*?failureStage: "launch_infrastructure"/.test(source));
 pass("infrastructure failures return structured 503", /if \(!res\.headersSent\) res\.status\(503\)\.json/.test(source));
 pass("stale-case fence preserves the historical durable job owner", /currentAction: "canonical-lease-lost"[\s\S]*updatedAt: new Date\(\)/.test(source) && !/currentAction: "canonical-lease-lost"[\s\S]*caseFile: sql/.test(source));
