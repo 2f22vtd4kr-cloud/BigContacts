@@ -3280,7 +3280,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
     capabilities: InvestigatorCapability[];
     passedSamples: number;
     failedSamples: number;
-    samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }>;
+    samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }>;
   }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
