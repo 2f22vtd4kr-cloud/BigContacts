@@ -54,7 +54,7 @@ export type CanonicalAtlasOptions = {
   discoveryGeography?: string;
   discoveryExclusions?: string[];
   excludedInvestigatorLlm?: InvestigatorCapability[];
-  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }[] }[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }[] }[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
