@@ -6205,7 +6205,14 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       ); const canFinishDiscovery = input.mode !== "discovery"
         || hasUsableDiscoveryExternalObservation([...priorTrajectoryRecords, ...records]);
       const actionAllowlistForTurn = canFinishDiscovery ? actionsForTurn : actionsForTurn.filter((action) => action !== "done"); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
-      const allPromptRecords = sanitizeObservableValue([...priorTrajectoryRecords, ...records].slice(-MAX_TRAJECTORY_RECORDS)) as AgenticTrajectoryRecord[];
+      const allPromptRecords = sanitizeObservableValue(
+        [...priorTrajectoryRecords, ...records]
+          .map((record) => {
+            const { pageArtifact: _pageArtifact, ...promptRecord } = record;
+            return promptRecord;
+          })
+          .slice(-MAX_TRAJECTORY_RECORDS),
+      ) as AgenticTrajectoryRecord[];
       // The bounded projection is for live action prompts only. Boss memory receives
       // the complete durable prior trajectory before any MAX_TRAJECTORY_RECORDS cut.
       const completePromptRecords = [...completePriorTrajectoryRecords, ...records];
