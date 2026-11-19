@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, resolveParallelWebSearchProviders, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, boundInvestigatorProviderPrompt, investigatorUserPromptBudget, buildGroqInvestigatorRequestBody, buildInvestigatorOutputContractForModel, classifyGroqInvestigatorHttp400, decideGroqInvestigatorHttpError, resolveParallelWebSearchProviders, selectGroqInvestigatorModel, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, hasUsableDiscoveryExternalObservation, discoveryTerminalGate, structuredActionResponseFormat, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -237,16 +237,57 @@ describe("Groq Investigator runtime contract", () => {
     expect(buildInvestigatorOutputContractForModel("openai/gpt-oss-120b", "OUTPUT CONTRACT: strict")).toBe("OUTPUT CONTRACT: strict");
   });
 
-  it("recovers only Groq json_validate_failed 400s and fails fast on request/schema 400s", () => {
-    expect(classifyGroqInvestigatorHttp400({
-      status: 400, providerCode: "json_validate_failed", providerErrorType: "invalid_request_error",
-    })).toBe("output_validation_recoverable");
-    expect(classifyGroqInvestigatorHttp400({
-      status: 400, providerCode: "invalid_request_error", providerErrorType: "invalid_request_error", providerParam: "response_format",
-    })).toBe("provider_contract_error");
-    expect(classifyGroqInvestigatorHttp400({
-      status: 400, providerCode: "json_validate_failed", providerMessage: "JSON schema mismatch: required root field missing",
-    })).toBe("provider_contract_error");
+  it("routes transport HTTP 400 output-validation envelopes into bounded recovery and rejects schema/request errors", () => {
+    const recoverable = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerErrorType: "invalid_request_error",
+      providerMessage: "Generated output failed JSON validation.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+      rateLimitRemainingTokens: 20_000,
+      promptTokenEstimate: 2_000,
+    });
+    expect(recoverable.classification).toBe("output_validation_recoverable");
+    expect(recoverable.recovery.action).toBe("increase_completion_budget");
+
+    const schemaRejected = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "invalid_request_error",
+      providerErrorType: "invalid_request_error",
+      providerParam: "response_format",
+      providerMessage: "Invalid response format.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    });
+    expect(schemaRejected.classification).toBe("provider_contract_error");
+    expect(schemaRejected.recovery.action).toBe("fail");
+
+    const schemaTextRejected = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "JSON schema mismatch: required root field missing",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+    });
+    expect(schemaTextRejected.classification).toBe("provider_contract_error");
+    expect(schemaTextRejected.recovery.action).toBe("fail");
+
+    const launchProbe = decideGroqInvestigatorHttpError({
+      status: 400,
+      providerCode: "json_validate_failed",
+      providerMessage: "Generated output failed validation.",
+      responseFormat: "json_schema",
+      completionBudgetRetryUsed: false,
+      currentMaxCompletionTokens: 1024,
+      strictPreflight: true,
+    });
+    expect(launchProbe.classification).toBe("provider_contract_error");
+    expect(launchProbe.recovery.action).toBe("fail");
+
     expect(classifyGroqInvestigatorHttp400({
       status: 400, providerCode: "bad_request", providerErrorType: "invalid_request_error",
     })).toBe("provider_contract_error");
