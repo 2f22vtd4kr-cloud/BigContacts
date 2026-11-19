@@ -397,7 +397,7 @@ describe("model-owned discovery relevance reasoning", () => {
 
 describe("live discovery semantic-authority boundary", () => {
   it("keeps lexical pivot/geography/source-class diagnostics out of live action admission", () => {
-    const runtimeStart = agenticCoreSource.indexOf("const selectedArgs = { ...action } as Record<string, unknown>;");
+    const runtimeStart = agenticCoreSource.indexOf("export async function runAgenticWebResearch");
     expect(runtimeStart).toBeGreaterThan(-1);
     for (const diagnostic of [
       "discoveryPivotAlignmentReason(",
@@ -5079,7 +5079,8 @@ describe("canonical Investigator parse-failure recovery", () => {
   it("recomputes the zero-research parse-failure predicate after a recovery episode", () => {
     expect(canonicalAtlasDiscoverySource).toContain("const isZeroResearchParseFailure = (candidate: typeof result): boolean =>");
     expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(result);");
-    expect(canonicalAtlasDiscoverySource).toContain("if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;");
+    expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(recovered);");
+    expect(canonicalAtlasDiscoverySource).toContain("parseFailureCountForLane = zeroResearchParseFailure");
   });
 
   it("persists incomplete model rationale as telemetry without blocking action execution", () => {
