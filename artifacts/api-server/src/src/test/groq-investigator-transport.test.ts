@@ -21,6 +21,7 @@ vi.mock("../lib/agentic-llm-telemetry", async (importOriginal) => {
 });
 
 import { callGroqJson } from "../lib/agentic-web-research-core";
+import { resetProviderGateForTests } from "../lib/provider-gate";
 
 const strictInvestigatorPrompt = [
   "PRE-LAUNCH TRANSPORT TEST.",
@@ -58,6 +59,7 @@ async function callTransport(strictPreflight = false) {
 
 describe("Groq Investigator HTTP transport recovery", () => {
   beforeEach(() => {
+    resetProviderGateForTests();
     vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "transport-test-key");
     vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "false");
     vi.stubEnv("GROQ_AGENTIC_MODEL", "openai/gpt-oss-120b");
@@ -80,6 +82,7 @@ describe("Groq Investigator HTTP transport recovery", () => {
   });
 
   afterEach(() => {
+    resetProviderGateForTests();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
