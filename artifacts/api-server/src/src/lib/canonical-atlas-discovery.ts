@@ -1579,11 +1579,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         jobId: atlasJobId,
         caseId: discoveryCaseId,
         objective: `${discoveryObjective}\n\n${dailyTokenQuota
-          ? `EXPLICIT TOKENS-PER-DAY QUOTA RECOVERY: Investigator capability ${failedCapability} returned upstream_token_quota_exhausted after Groq explicitly reported its tokens-per-day (TPD) limit. This is a daily token budget, NOT hard request-count quota and NOT a short-window token reset; do not relabel it as upstream_quota_exhausted or retry the same key. Choose exactly one capability from this runtime-computed alternate list to continue this same durable case: ${availableAlternates.join(", ") || "(none)"}. Do not choose an excluded capability. The explicit groq-investigator-20b capability uses GPT-OSS 20B and is a valid alternate model budget even when it shares the configured credential. Do not prescribe a search query, tool, provider, or research sequence. If the alternate list is empty or no listed capability is viable, leave the case for review.`
-          : `PERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated upstream_token_window_wait_exceeded failures after bounded same-capability retries in consecutive discovery episodes. This is token-window capacity exhaustion, NOT hard request-quota exhaustion; do not relabel it as upstream_quota_exhausted. Choose exactly one capability from this runtime-computed alternate list to continue this same durable case: ${availableAlternates.join(", ") || "(none)"}. Do not choose an excluded capability. The explicit groq-investigator-20b capability uses GPT-OSS 20B and is a valid alternate model budget even when it shares the configured credential. Do not prescribe a search query, tool, provider, or research sequence. If the alternate list is empty or no listed capability is viable, leave the case for review.`}\n\nFAILURE: ${failure}`,
+          ? `EXPLICIT TOKENS-PER-DAY QUOTA RECOVERY: Investigator capability ${failedCapability} hit the upstream tokens-per-day limit. Select one distinct available Investigator capability from: ${availableAlternates.join(", ") || "(none)"}. Do not choose an excluded capability; preserve the same objective and evidence; do not prescribe research actions.`
+          : actionParseFailure
+            ? `INVESTIGATOR ACTION-CONTRACT FAILOVER: capability ${failedCapability} produced terminal PARSE_FAILURE in two consecutive discovery episodes with zero executed searches or fetches. This is an infrastructure/model-output failure, not research evidence or exhausted discovery. Exclude this capability and select one distinct available Investigator capability from: ${availableAlternates.join(", ") || "(none)"}. Preserve the same objective, case, evidence and remaining global iteration budget. Do not prescribe a query, source, provider, geography or research sequence; the replacement Investigator owns all research decisions. If no alternate is viable, leave the case for review.`
+            : `PERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated token-window capacity failures. Select one distinct available Investigator capability from: ${availableAlternates.join(", ") || "(none)"}. Do not choose an excluded capability; preserve the same objective and evidence; do not prescribe research actions.`}\n\nFAILURE: ${failure}`,
         motivation: dailyTokenQuota
           ? "Recover one canonical investigation after an explicit daily token-cap failure. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates."
-          : "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
+          : actionParseFailure
+            ? "Recover one canonical investigation after repeated model action-contract failures. Let the Boss select a distinct available Investigator capability; the Investigator continues to own every research decision."
+            : "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
         geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
         exclusions: opts.discoveryExclusions ?? [
           "Do not browse as Boss.",
@@ -1593,7 +1597,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         ],
         startingLane: dailyTokenQuota
           ? "Boss-directed Investigator reassignment after explicit tokens-per-day quota exhaustion"
-          : "Boss-directed Investigator reassignment after repeated token-window capacity failures",
+          : actionParseFailure
+            ? "Boss-directed Investigator capability reassignment after two terminal zero-research action-contract failures"
+            : "Boss-directed Investigator reassignment after repeated token-window capacity failures",
         excludedInvestigatorLlm: bossExcludedCapabilities,
       });
       await assertAtlasJobActive(atlasJobId);
