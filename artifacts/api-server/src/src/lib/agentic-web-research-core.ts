@@ -3177,6 +3177,25 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
  * job is accepted. Each lane receives three independent production-contract
  * samples with per-sample deadlines; no research tool executes.
  */
+export function groupInvestigatorCapabilitiesByModelAndCredential(
+  capabilities: readonly InvestigatorCapability[],
+  configuredModel: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): Array<{ model: string; capabilities: InvestigatorCapability[] }> {
+  const groups = new Map<string, { model: string; capabilities: InvestigatorCapability[] }>();
+  for (const capability of capabilities) {
+    const keyName = investigatorCapabilityKeyName(capability);
+    const credential = keyName ? env[keyName]?.trim() : undefined;
+    if (!credential) continue;
+    const model = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
+    const groupKey = model + ":" + digestDiagnosticText(credential);
+    const group = groups.get(groupKey) ?? { model, capabilities: [] };
+    group.capabilities.push(capability);
+    groups.set(groupKey, group);
+  }
+  return [...groups.values()];
+}
+
 export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{
   ok: boolean;
   checked: Array<{ capability: InvestigatorCapability; model: string }>;
@@ -3190,17 +3209,13 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     return { ok: false, checked: [], excludedCapabilities: [], sampleSummary: [], error: "No configured Groq Investigator capability is available." };
   }
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
-  const byModel = new Map<string, InvestigatorCapability[]>();
-  for (const capability of capabilities) {
-    const model = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
-    byModel.set(model, [...(byModel.get(model) ?? []), capability]);
-  }
+  const modelGroups = groupInvestigatorCapabilitiesByModelAndCredential(capabilities, configuredModel);
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const excludedCapabilities: InvestigatorCapability[] = [];
   const sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
-  for (const [model, modelCapabilities] of byModel) {
+  for (const { model, capabilities: modelCapabilities } of modelGroups) {
     if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
     const productionPrompt = buildStepPrompt({
       targetName: "",
