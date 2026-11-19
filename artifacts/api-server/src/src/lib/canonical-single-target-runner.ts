@@ -388,7 +388,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       contextDocument = compactInvestigationContext({ raw: replayedContext + "\n\n" + seededSourceSection + "\n\n" + seededContactHandling });
     } const initialExcludedInput = options.excludedInvestigatorLlm ?? []; const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
     const storedInvestigatorCapability = typeof caseState.investigatorLlm === "string" ? caseState.investigatorLlm as InvestigatorCapability : null;
-    if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability)) {
+    if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability) && !initialExcludedInvestigators.has(storedInvestigatorCapability)) {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "selected-investigator-capability-unavailable", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
       await publishJob({ status: "failed", progress: 1, outcome: "incomplete", message: "Previously selected Investigator capability " + storedInvestigatorCapability + " is unavailable; refusing silent capability rotation for " + target.name + ".", result: JSON.stringify({ caseId: caseRow.id, selectedInvestigator: storedInvestigatorCapability }) });
       return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm: storedInvestigatorCapability };
