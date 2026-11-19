@@ -2996,7 +2996,8 @@ Choose each next action yourself from the available capabilities and observed ev
 
     it("allows local continuation of an unverified partial browser page only when its artifact is retained", () => {
       const partialBrowserPage = {
-        ...livenessRecord("browser_fetch", "partial"),
+        ...livenessRecord("browser_fetch", "success"),
+        execution: "partial",
         turn: 4,
         args: { url: "https://example.com/team", provider: "scrapfly", pageHasMore: true, pageArtifactAvailable: true },
         observedUrls: [],
