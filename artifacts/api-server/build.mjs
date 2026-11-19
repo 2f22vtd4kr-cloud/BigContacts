@@ -36,7 +36,7 @@ async function buildAll() {
   } else {
     try {
       const origin = execFileSync("git", ["remote", "get-url", "origin"], { cwd: rootDir, encoding: "utf8" }).trim();
-      const canonicalOrigin = /(?:github\\.com[:/]2f22vtd4kr-cloud\\/BigContacts)(?:\\.git)?$/i.test(origin);
+      const canonicalOrigin = /(?:github\.com[:/]2f22vtd4kr-cloud\/BigContacts)(?:\.git)?$/i.test(origin);
       if (canonicalOrigin) {
         revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
         dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
