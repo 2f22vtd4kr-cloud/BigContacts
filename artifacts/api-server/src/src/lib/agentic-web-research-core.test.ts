@@ -288,9 +288,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(modelPrompt).toContain("Countries, sectors, organisations, people and asset types are model decisions inferred from the human objective and evidence, not deterministic admission gates.");
-    expect(modelPrompt).toContain("Use locale for language and market as an evidence-backed jurisdictional hypothesis, not a human-only gate.");
-    expect(modelPrompt).toContain("Respect explicit human geographic constraints; when none exist, choose jurisdictions by objective fit and evidence.");
+    expect(modelPrompt).toContain("Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates.");
+    expect(modelPrompt).toContain("Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate.");
+    expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
@@ -1636,8 +1636,8 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
-    const actionLine = prompt.split("\n").find((line) => line.includes("ACTION ALLOWLIST / AVAILABLE ACTIONS:")) ?? "";
-    const advertisedActions = actionLine.split("ACTION ALLOWLIST / AVAILABLE ACTIONS: ")[1]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
+    const actionLine = prompt.split("\n").find((line) => line.includes("AVAILABLE ACTIONS (this turn's allowlist; use only listed actions):")) ?? "";
+    const advertisedActions = actionLine.split("AVAILABLE ACTIONS (this turn's allowlist; use only listed actions): ")[1]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
     expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
     expect(advertisedActions).toHaveLength(expectedActions.length);
     expect(prompt).not.toContain("footprint_email");
@@ -1799,7 +1799,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
     expect(prompt).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
     expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
-    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
