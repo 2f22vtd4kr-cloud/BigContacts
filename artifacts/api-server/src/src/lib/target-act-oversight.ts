@@ -258,7 +258,7 @@ if (oversightContext.length > 4_500) {
     turn: input.act.turn,
   }, "historical_memory");
   if (!summarizedContext?.text) {
-    return failClosedBeforePrompt("Shared case state could not be safely projected into the bounded Right-hand prompt; oversight was not asked to judge an empty context.");
+    return failClosedBeforePrompt("Shared case state could not be preserved verbatim or summarized by AI into the bounded Right-hand prompt; oversight was not asked to judge an empty context.");
   }
   oversightContext = summarizedContext.text;
 }
@@ -314,7 +314,7 @@ if (rawPriorActMemory.length > 4_000 || priorActs.some((record) => typeof record
     turn: input.act.turn,
   }, "historical_memory");
   if (!summarizedPriorActs?.text) {
-    return failClosedBeforePrompt("Recent Investigator acts could not be safely projected into the bounded Right-hand prompt; oversight was not asked to judge an empty history.");
+    return failClosedBeforePrompt("Recent Investigator acts could not be preserved verbatim or summarized by AI into the bounded Right-hand prompt; oversight was not asked to judge an empty history.");
   }
   trajectory = [{
     compactedRecentActMemory: summarizedPriorActs.text,
