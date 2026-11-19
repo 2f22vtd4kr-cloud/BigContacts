@@ -2985,7 +2985,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                     : actionParseFailure
                       ? "investigator-action-parse-failure"
                       : "canonical-atlas-failed";
-    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
+    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: actionParseFailure ? "investigator_episode" : failureStage, error: actionParseFailure ? new Error("PARSE_FAILURE") : error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
     // (class, SQLSTATE, digest, and an optional safe runtime preview). Preserve it for operators;
@@ -3019,7 +3019,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `Canonical Atlas stopped because the durable daily usage ledger was unavailable; provider egress was blocked and the case is preserved for review. (${diagnosticSuffix})`
             : providerContractError
               ? `Canonical Atlas Investigator provider contract rejected the request (HTTP 400); run stopped before research or Boss adjudication. (${diagnosticSuffix})`
-              : `${safeFailureSummary} (${diagnosticSuffix})`;
+              : actionParseFailure
+                ? `Canonical Atlas Investigator produced no parseable action; no search or fetch executed. This is an infrastructure failure, not evidence that discovery was exhausted. The case is preserved for review. (${diagnosticSuffix})`
+                : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({
