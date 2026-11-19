@@ -484,7 +484,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("browser_fetch");
     expect(repair).toContain("currently configured values");
     expect(repair).toContain("choose another action");
-    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
+    expect(repair).toContain("Follow the active model output contract.");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
