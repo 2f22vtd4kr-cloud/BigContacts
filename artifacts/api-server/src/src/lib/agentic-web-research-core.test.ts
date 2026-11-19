@@ -87,7 +87,7 @@ describe("retained fetched-page continuation", () => {
 });
 
 function syntheticTextPdf(text: string): Uint8Array {
-  const escapedText = text.replace(/[\\()]/g, "\\describe("fetched-page retention across fetch, durable replay, and restart", () => {");
+  const escapedText = text.replace(/[\\()]/g, "\\$&");
   const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
   const textOperators = chunks.map((chunk, index) => "(" + chunk + ") Tj" + (index + 1 < chunks.length ? "\n0 -15 Td" : "")).join("\n");
   const stream = "BT\n/F1 12 Tf\n72 720 Td\n" + textOperators + "\nET";
