@@ -11,6 +11,7 @@ import { getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { investigatorRecordsFromEvents, replayInvestigatorIntelligence } from "./research-intelligence-replay";
+import { attachDurableFetchedPageArtifacts } from "./durable-trajectory-replay";
 import { checkpointExecutionForAct, shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES } from "./agentic-web-research-core";
@@ -49,7 +50,11 @@ async function loadDurableInvestigatorRecords(caseId: number | undefined): Promi
   if (caseId == null) return [];
   const events = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status, payload: researchCaseEventsTable.payload })
     .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, caseId)).orderBy(asc(researchCaseEventsTable.id));
-  return investigatorRecordsFromEvents(events);
+  const records = investigatorRecordsFromEvents(events);
+  attachDurableFetchedPageArtifacts(records, events.flatMap((event) =>
+    event.status === "page_artifact" && typeof event.payload === "string" ? [{ id: event.id, payload: event.payload }] : [],
+  ));
+  return records;
 }
 function renumberTrajectory(value: string, turn: number): string { return value.replace(/^step\d+:/, `step${turn}:`); }
 
