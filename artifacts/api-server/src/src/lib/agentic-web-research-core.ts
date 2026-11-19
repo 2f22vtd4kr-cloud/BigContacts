@@ -3164,13 +3164,14 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   ok: boolean;
   checked: Array<{ capability: InvestigatorCapability; model: string }>;
   excludedCapabilities: InvestigatorCapability[];
+  sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }>;
   failedCapability?: InvestigatorCapability;
   error?: string;
 }> {
   const capabilities = getConfiguredInvestigatorCapabilities();
   if (!capabilities.length) {
     setInvestigatorCapabilityHealthExclusions([]);
-    return { ok: false, checked: [], excludedCapabilities: [], error: "No configured Groq Investigator capability is available." };
+    return { ok: false, checked: [], excludedCapabilities: [], sampleSummary: [], error: "No configured Groq Investigator capability is available." };
   }
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
   const byModel = new Map<string, InvestigatorCapability[]>();
@@ -3180,6 +3181,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   }
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const excludedCapabilities: InvestigatorCapability[] = [];
+  const sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
   for (const [model, modelCapabilities] of byModel) {
@@ -3198,12 +3200,13 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
       productionPrompt,
       "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
     ].join("\n\n");
-    let modelPassed = true;
+    let passedSamples = 0;
     let failureReason = "";
-    // Each independent sample owns its own decision deadline; a slow first
-    // response cannot consume the remaining samples' entire validation window.
+    // Three samples are diagnostic, not an all-three-or-nothing launch gate.
+    // A lane remains usable if at least one independently generated action
+    // satisfies the production parser; a lane with zero valid samples is excluded.
     for (let sample = 0; sample < 3; sample += 1) {
-      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
       const controller = new AbortController();
       const abortParent = () => controller.abort();
       signal?.addEventListener("abort", abortParent, { once: true });
@@ -3213,21 +3216,25 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
           prompt, controller.signal, "identity_resolution", modelCapabilities[0], undefined,
           null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
         ));
-        if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
-          modelPassed = false;
-          failureReason = result?.error ?? "provider_contract_error";
-          break;
+        if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
+          passedSamples += 1;
+        } else {
+          failureReason ||= result?.error ?? "provider_contract_error";
         }
       } catch (error) {
-        modelPassed = false;
-        failureReason = error instanceof Error ? error.message : "provider_contract_error";
-        break;
+        failureReason ||= error instanceof Error ? error.message : "provider_contract_error";
       } finally {
         clearTimeout(timer);
         signal?.removeEventListener("abort", abortParent);
       }
     }
-    if (modelPassed) {
+    sampleSummary.push({
+      model,
+      capabilities: modelCapabilities,
+      passedSamples,
+      failedSamples: 3 - passedSamples,
+    });
+    if (passedSamples > 0) {
       for (const capability of modelCapabilities) checked.push({ capability, model });
     } else {
       excludedCapabilities.push(...modelCapabilities);
@@ -3241,6 +3248,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     ok: checked.length > 0,
     checked,
     excludedCapabilities,
+    sampleSummary,
     ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}),
   };
 }
