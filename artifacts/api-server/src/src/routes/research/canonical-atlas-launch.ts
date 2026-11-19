@@ -247,7 +247,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
         }
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities, investigatorLaneHealth: investigatorProbe.sampleSummary });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -256,6 +256,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
             excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
+            investigatorLaneHealth: investigatorProbe.sampleSummary,
           });
         }
       });
