@@ -391,7 +391,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           if ((payload.action === "visit" || payload.action === "browser_fetch") && payload.execution === "success"
             && typeof payload.observation === "string" && Array.isArray(payload.observedUrls)) {
             for (const rawUrl of payload.observedUrls) {
-              if (typeof rawUrl !== "string" || !/^https:\/\//i.test(rawUrl)) continue;
+              if (typeof rawUrl !== "string" || !/^https?:\/\//i.test(rawUrl)) continue;
               const key = normalizeEvidenceUrl(rawUrl);
               const observations = verifiedSourceObservations.get(key) ?? [];
               observations.push(payload.observation);
@@ -406,7 +406,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           const scope = finding.scope === "candidate" || finding.scope === "organization" ? String(finding.scope) : "";
           const name = typeof finding.personName === "string" && finding.personName.trim() ? finding.personName.trim() : typeof finding.value === "string" ? finding.value.trim() : "";
           const quote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
-          const urls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url)) : [];
+          const urls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)) : [];
           if (!scope || !name || !quote || !urls.length || finding.promotionDecision === "reject") continue;
           const normalizedName = normalizeEvidenceText(name);
           const normalizedQuote = normalizeEvidenceText(quote);
