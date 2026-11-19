@@ -6591,13 +6591,18 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       lastObservation = terminalParseFailure
         ? `The previous model response was not a usable action object (${parseFailure}); no outbound request was made. The consecutive-parse-failure limit or decision budget is exhausted, so no correction turn remains. stopReason=PARSE_FAILURE.`
         : buildActionParseFailureObservation(parseFailure);
-      records.push(buildAgenticActionParseFailureRecord({
+      const parseFailureRecord = buildAgenticActionParseFailureRecord({
         turn: priorTurnOffset + i + 1,
         model: modelUsed,
         observation: lastObservation,
         terminal: terminalParseFailure,
-      }));
-      await emitSanitizedTrajectoryRecord(records[records.length - 1]!);
+      });
+      parseFailureRecord.args = {
+        ...(parseFailureRecord.args ?? {}),
+        investigatorCapability: input.investigatorLlm ?? null,
+      };
+      records.push(parseFailureRecord);
+      await emitSanitizedTrajectoryRecord(parseFailureRecord);
       consecutiveActionParseFailures = nextParseFailureCount;
       if (terminalParseFailure) {
         const terminalError = `Investigator returned invalid action contracts ${consecutiveActionParseFailures} times consecutively; stopReason=PARSE_FAILURE (${parseFailure}).`;
@@ -6612,7 +6617,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     if (input.investigatorLlm) recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true });
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>;
+    const selectedArgs = { ...action, investigatorCapability: input.investigatorLlm ?? null } as Record<string, unknown>;
 delete selectedArgs.thought;
 delete selectedArgs.partialFindings;
 delete selectedArgs.findings;
