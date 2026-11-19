@@ -1219,7 +1219,13 @@ async function materializePartialOrganizationLeadCards(input: {
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
-  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
+  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {};
+  let terminalAuditTrajectory: Array<{ action: string; execution: string; rationaleIncomplete?: boolean }> = [];
+  let terminalAuditLockReleased: boolean | null = null;
+  const captureTerminalAuditTrajectory = (records: Array<{ action: string; execution: string; rationaleIncomplete?: boolean }> | undefined): void => {
+    terminalAuditTrajectory = records ?? [];
+  };
+  const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   let discoveryObjective = opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
   if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS) {
     throw new Error(`Canonical Atlas discovery objective exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS} characters.`);
@@ -2034,6 +2040,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let latestDiscoveryEpisodeLimit = openingInvestigatorIterations;
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+    captureTerminalAuditTrajectory(discovery.trajectoryRecords);
     discovery = await runDiscoveryWithQuotaRecovery(
       discovery,
       openingInvestigatorObjective,
@@ -2046,6 +2053,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoveryIterationCeiling,
       ),
     );
+    captureTerminalAuditTrajectory(discovery.trajectoryRecords);
     if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
     if (discovery.stopReason === "USAGE_LEDGER_UNAVAILABLE") throw new Error("investigator_usage_ledger_unavailable");
     // Preserve model-selected partial leads before surfacing a provider contract
@@ -2104,6 +2112,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           ),
         );
         discovery = mergeDiscoveryResults(discovery, recoveredRetryEpisode);
+        captureTerminalAuditTrajectory(discovery.trajectoryRecords);
       }
     }
     // A second terminal parse failure with no external research is still an
@@ -2698,6 +2707,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
+          captureTerminalAuditTrajectory(discovery.trajectoryRecords);
           // The episode error path exits before the normal admission refresh.
           // Preserve qualified candidates and source-backed organization-only
           // partial cards from every captured action before terminalizing failure.
@@ -2849,6 +2859,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // but replacing the durable summary with the latest episode can erase
         // previously observed searches/visits from the job result.
         discovery = mergeDiscoveryResults(discovery, nextDiscovery);
+        captureTerminalAuditTrajectory(discovery.trajectoryRecords);
         latestEpisodeActionExecuted = hasExecutedInvestigatorResearchAction(nextDiscovery.trajectoryRecords ?? []);
         latestEpisodeHadRecoverableModelFailure = hasRecoverableInvestigatorDecisionFailure(nextDiscovery.trajectoryRecords ?? []);
         if (selectedInvestigator !== tokenCapacityFailureInvestigator) {
@@ -3100,6 +3111,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // all other unexpected exception messages remain digest-only.
     const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
     const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
+    const failureTrajectory = terminalAuditTrajectory;
+    const failureSearchActions = countDiscoverySearchActions(failureTrajectory as AgenticTrajectoryRecord[]);
+    const failureVisitActions = failureTrajectory.filter((record) =>
+      (record.action === "visit" || record.action === "browser_fetch") && record.execution !== "selected" && record.execution !== "blocked",
+    ).length;
+    const failureResearchActions = failureTrajectory.filter((record) =>
+      !["done", "parse_failure", "provider_error", "provider_contract_error"].includes(record.action)
+      && record.execution !== "selected" && record.execution !== "blocked",
+    ).length;
+    const failureRationaleIncomplete = failureTrajectory.filter((record) => record.rationaleIncomplete === true).length;
+    const failureLlmTelemetry = getAgenticLlmTelemetryForJob(atlasJobId);
     const failureTerminalSnapshot = {
       status: dailyTokenBudgetExhausted ? "budget_exhausted" : "incomplete",
       jobStatus: cancelled ? "cancelled" : "failed",
@@ -3113,7 +3135,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       usageLedgerUnavailable,
       providerContractError,
       actionParseFailure,
-      researchActionsExecuted: actionParseFailure ? 0 : null,
+      researchActionsExecuted: actionParseFailure ? 0 : failureResearchActions,
+      discoverySearchActionsUsed: failureSearchActions,
+      discoveryVisitActionsUsed: failureVisitActions,
+      rationaleIncompleteActions: failureRationaleIncomplete,
+      investigatorTrajectoryRecords: failureTrajectory.length,
+      llmTelemetry: { ...failureLlmTelemetry, accountingScope: "process_local_job_id" },
+      providerWaitMs: failureLlmTelemetry.providerWaitMs,
+      providerWaitMeasurement: "groq_provider_gate_before_request",
+      activeJobLockReleased: null as boolean | null,
       resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
@@ -3159,8 +3189,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // original error so the outer launch boundary can reconcile it.
       }
     }
-    try { await clearActiveJobIfOwned(lockKey, atlasJobId); } catch {
+    try {
+      terminalAuditLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
+    } catch {
       // Outer launch boundary owns the final cleanup attempt.
+    }
+    failureTerminalSnapshot.activeJobLockReleased = terminalAuditLockReleased;
+    phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
+    if (!jobStateUnavailable) {
+      try {
+        await updateJob(atlasJobId, { result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }) });
+      } catch {
+        // Preserve the original failure if the final lock-release audit update fails.
+      }
     }
     throw error;
   }}
