@@ -65,7 +65,7 @@ describe("AI investigation context compaction", () => {
     }, "historical_memory");
 
     expect(result?.method).toBe("unchanged");
-    expect(result?.text).toBe(source.trim());
+    expect(result?.text).toBe(source);
     expect(result?.text).toContain("CURRENT DURABLE URL INVENTORY: https://registry.example.test/company/123");
     expect(extractAiContextUrls(result?.text ?? "")).toContain("https://registry.example.test/company/123");
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
