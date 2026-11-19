@@ -386,7 +386,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     // rather than clipping mandatory objective, schema or evidence context.
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
-    // 4,000 is the preferred compaction target, not a hard ceiling: complete mandatory objective, scope, action, registry, terminal and schema sections must survive. The measured mandatory baseline is 4,349 characters; retain a bounded 4,500-character regression ceiling while the schema-inclusive request/token limits below remain authoritative.
+    // 4,000 is the preferred compaction target, not a hard ceiling: complete mandatory objective, scope, action, registry, terminal and schema sections must survive. Mandatory pinned context may exceed the preferred target; retain a bounded 4,500-character regression ceiling while the schema-inclusive request/token limits below remain authoritative.
     expect(userPrompt.length).toBeLessThanOrEqual(4_500);
     expect(requestChars).toBeLessThanOrEqual(11_500);
     expect(empiricalTokens).toBeLessThanOrEqual(2_650);
