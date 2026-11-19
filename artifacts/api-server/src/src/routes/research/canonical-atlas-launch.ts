@@ -368,6 +368,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           jobId: atlasJobId,
           terminalJobStatus: terminalJob?.status ?? "unknown",
           pipelineOutcome: terminalJob?.outcome ?? "unknown",
+          buildProvenance,
+          sourceRevision: buildProvenance.commitSha,
           reconciliationAuthorityVerified,
           organizationReconciliation,
           personReconciliation,
