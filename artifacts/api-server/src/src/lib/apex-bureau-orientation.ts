@@ -131,7 +131,7 @@ export function apexOrientationCompact(role: ApexOrientationRole, includeFullPla
   const playbook = includeFullPlaybook && (role === "boss" || role === "right_hand")
     ? `\n\nMASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK\nConsult before Phase 1 Discovery and revisit relevant scenarios when direction is unclear. This is guidance, not a fixed pipeline. The human objective and evidence remain authoritative.\n\n${APEX_BUREAU_PLAYBOOK}\n`
     : "";
-  const oriented = `${role === "investigator" || role === "dig_agent" ? investigatorBase : controlBase}${playbook}`;
+  const oriented = `${role === "investigator" || role === "dig_agent" ? `${investigatorBase}\n${APEX_COMPANY_REALISM_GUIDANCE_COMPACT}` : controlBase}${playbook}`;
   if (role !== "dig_agent") return oriented;
   return `${oriented}\nDISCOVERY REVIEW LEADS: Preserve useful objective-fit people, companies or assets as provisional review cards; the model chooses, not every result. Use exact observed names, stated roles or null, candidate/organization scope, only associated public HTTPS URLs, and a note explaining relevance and uncertainty. Search snippets remain leads, not fetched evidence. A review lead is not verified identity, role, ownership, wealth or contactability. Never invent facts, names, roles, routes or URLs. Boss may select leads for target-scoped verification; selection is not promotion.`;
 }
