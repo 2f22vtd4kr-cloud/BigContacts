@@ -59,7 +59,7 @@ describe("discovery runtime architecture", () => {
   });
   it("selects targets autonomously while beginning with a mixed-source discovery portfolio", () => {
     expect(bossDiscoverySource).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
-    expect(bossDiscoverySource).toContain("randomized, runtime-callable registry/asset-register catalog");
+    expect(bossDiscoverySource).toContain("This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.");
     expect(bossDiscoverySource).toContain("Do not compare sectors, geographies, or strategies.");
     expect(bossDiscoverySource).toContain("Do not add geographic scope or a target preference.");
     expect(orientationSource).toContain("SOURCE SELECTION & JURISDICTION");
@@ -96,7 +96,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("const requiresIndependentReview = (discovery.trajectoryRecords ?? []).length > 0");
     expect(canonicalDiscoverySource).toContain("(investigatorProposedStop || investigatorProposedCandidate || bossConsequentialDecision)");
     expect(canonicalDiscoverySource).toContain("rightHandReconsiderationUsed");
-    const rightHandSource = canonicalDiscoverySource.slice(rightHandCall, rightHandCall + 2600);
+    const rightHandSource = canonicalDiscoverySource.slice(rightHandCall, rightHandCall + 5_000);
     expect(rightHandSource).toContain("consequential_discovery_decision_review");
     expect(rightHandSource).toContain("Right-hand independently challenged the consequential decision");
     expect(canonicalDiscoverySource).not.toContain("const rightHandRaw = await import");
