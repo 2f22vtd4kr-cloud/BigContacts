@@ -2679,7 +2679,6 @@ export async function callGroqJson(
           httpStatus: response.status,
           responseBody: body,
           latencyMs: Date.now() - started,
-            providerWaitMs,
         });
         if (isModelPromptAuditCaptureEnabled() && !modelAuditResponseRecorded) {
           throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Investigator response");
