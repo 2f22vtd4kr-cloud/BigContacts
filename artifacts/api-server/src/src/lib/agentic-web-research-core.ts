@@ -326,7 +326,7 @@ export function buildDiscoveryLeadUtilizationState(
         ? rawSearches.flatMap((search) => {
             if (!search || typeof search !== "object" || Array.isArray(search)) return [];
             const provider = (search as Record<string, unknown>).provider;
-            return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : [];
+            return typeof provider === "string" && provider.trim() ? [provider.trim().toLowerCase()] : ["runtime-default"];
           })
         : [];
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
@@ -1725,7 +1725,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (value.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) return `invalid_action_arguments action=parallel_web_search searches_max=${MAX_PARALLEL_SEARCHES_PER_BATCH}`;
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
     const valid = value.searches as Array<Record<string, unknown>>;
-    if (valid.some((item) => !cleanText(item.query, 300) || !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20)))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
+    if (valid.some((item) => !cleanText(item.query, 300) || (item.provider !== undefined && item.provider !== null && !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20))))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
     if (valid.some((item) => item.registry !== undefined && item.registry !== null)) return "invalid_action_arguments action=parallel_web_search invalid=registry";
   } else if (action === "parallel_registry_search") {
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_registry_search missing=searches";
@@ -1816,7 +1816,7 @@ export function buildActionParseFailureObservation(parseFailure: string): string
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Include provider, locale, market and purpose keys; use null for unused optional values. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=parallel_web_search/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query" and "provider" (serper, tavily, or exa); include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 1–4 objects. Each search item requires a non-empty "query"; "provider" may be serper, tavily, exa, null or omitted (null/omitted uses the configured healthy runtime default). Include locale and market keys, using null when unused. Include registry and purpose keys, using null when unused. Otherwise choose another permitted action. ${rationaleContract} Return all 20 required top-level fields and include all schema keys; use null for unused optional scalar fields and [] for unused optional arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
