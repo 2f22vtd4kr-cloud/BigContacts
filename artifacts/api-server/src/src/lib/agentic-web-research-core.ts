@@ -2202,8 +2202,16 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * Prompt-size targets are advisory: source-backed observations and the schema
  * are never cut by a final character-count reducer.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery"): string {
+export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
+  if (model === "openai/gpt-oss-20b") {
+    const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
+    const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
+    if (!/ACTION-SPECIFIC OUTPUT CONTRACT:/i.test(contract) || !/action-specific required fields/i.test(contract)) {
+      throw new Error("Cannot send a GPT-OSS 20B Investigator request without its reduced action-specific output contract.");
+    }
+    return normalized;
+  }
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
   const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
   const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
@@ -2225,12 +2233,25 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
 
 const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
 
+/** GPT-OSS 20B uses JSON-object output with local validation, not the strict-schema model contract. */
+export function buildInvestigatorOutputContractForModel(model: string, strictContract: string): string {
+  if (model !== "openai/gpt-oss-20b") return strictContract;
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable. parallel_web_search searches[] items require query; provider may be null or omitted to use the configured healthy runtime default. findings[] should include only observed fields (vectorType, value, scope, sourceUrls, note, plus any supported attribution/evidence details); do not fabricate null-filled placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
-  const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, inferredMode);
+  const modelSpecificPrompt = model === "openai/gpt-oss-20b"
+    ? (() => {
+        const outputAt = prompt.lastIndexOf("OUTPUT CONTRACT:");
+        if (outputAt < 0) throw new Error("Cannot construct a GPT-OSS 20B request without an output contract.");
+        return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt));
+      })()
+    : prompt;
+  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
