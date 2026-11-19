@@ -276,8 +276,10 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
     omissions.textUrls += thought.omittedUrls + observation.omittedUrls;
     const totalOmissions = omissions.argumentUrls + omissions.argumentTextsWithUrls + omissions.observedUrls
       + omissions.leadUrls + omissions.findingSourceUrls + omissions.sourceBindingUrls + omissions.textUrls;
+    const recordWithoutPageContent = { ...record };
+    delete recordWithoutPageContent.pageContent;
     const projected: DurableProjectionRecord = {
-      ...record,
+      ...recordWithoutPageContent,
       args,
       thought: thought.value,
       observation: observation.value,

@@ -84,19 +84,31 @@ describe("immutable Investigator trajectory replay", () => {
 });
 
 
-  it("replays retained fetched-page text across Investigator continuations", () => {
-    const records = replayInvestigatorTrajectoryEvents([{
-      id: 21,
-      eventType: "tool_observation",
-      payload: JSON.stringify({
-        runId: "run-page", turn: 4, action: "visit", execution: "success",
-        args: { url: "https://example.com/source" },
-        observation: "PAGE https://example.com/source [PAGE TEXT RETAINED FOR READ_PAGE]",
-        observedUrls: ["https://example.com/source"], leadUrls: [], findings: [], sourceBindings: [],
-        pageContent: "section one\nJane Example, Managing Director",
-        pageContentTruncated: false, pageContentCharsOmitted: 0,
-      }),
-    }]);
+  it("reassembles retained fetched-page text chunks across Investigator continuations", () => {
+    const records = replayInvestigatorTrajectoryEvents([
+      {
+        id: 21,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId: "run-page", turn: 4, action: "visit", execution: "success",
+          args: { url: "https://example.com/source" },
+          observation: "PAGE https://example.com/source [PAGE TEXT RETAINED FOR READ_PAGE]",
+          observedUrls: ["https://example.com/source"], leadUrls: [], findings: [], sourceBindings: [],
+          pageContentChunkCount: 2, pageContentChars: 43,
+          pageContentTruncated: false, pageContentCharsOmitted: 0,
+        }),
+      },
+      {
+        id: 22,
+        eventType: "tool_observation",
+        payload: JSON.stringify({ runId: "run-page", turn: 4, parentEventId: 21, pageTextChunk: true, chunkIndex: 0, chunkCount: 2, pageContentChunk: "section one\\n" }),
+      },
+      {
+        id: 23,
+        eventType: "tool_observation",
+        payload: JSON.stringify({ runId: "run-page", turn: 4, parentEventId: 21, pageTextChunk: true, chunkIndex: 1, chunkCount: 2, pageContentChunk: "Jane Example, Managing Director" }),
+      },
+    ]);
     expect(records).toHaveLength(1);
     expect(records[0]?.pageContent).toContain("Jane Example, Managing Director");
     expect(records[0]?.pageContentCharsOmitted).toBe(0);

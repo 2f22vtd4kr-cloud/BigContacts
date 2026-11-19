@@ -360,10 +360,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
               .from(researchCaseEventsTable)
               .where(and(inArray(researchCaseEventsTable.caseId, caseReadback.map((row) => row.id)), eq(researchCaseEventsTable.eventType, "tool_observation")))
               .orderBy(researchCaseEventsTable.id);
-            durableTraceRecords = eventRows.map((row) => {
+            durableTraceRecords = eventRows.flatMap((row) => {
               let payload: Record<string, unknown> = {};
               try { const parsed = row.payload ? JSON.parse(row.payload) : {}; if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed as Record<string, unknown>; } catch {}
-              return {
+              if (payload.pageTextChunk === true) return [];
+              return [{
                 eventId: row.id,
                 caseId: row.caseId,
                 turn: payload.turn ?? null,
@@ -371,12 +372,12 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
                 execution: payload.execution ?? null,
                 observation: typeof payload.observation === "string" ? payload.observation.slice(0, 4_000) : null,
                 observedUrls: Array.isArray(payload.observedUrls) ? payload.observedUrls : [],
-                pageContentChars: typeof payload.pageContent === "string" ? payload.pageContent.length : 0,
+                pageContentChars: typeof payload.pageContentChars === "number" ? payload.pageContentChars : 0,
                 pageContentTruncated: payload.pageContentTruncated ?? false,
                 pageContentCharsOmitted: payload.pageContentCharsOmitted ?? null,
                 failureDomain: payload.failureDomain ?? null,
                 failureKind: payload.failureKind ?? null,
-              };
+              }];
             });
           } catch (error) {
             caseReadbackError = [caseReadbackError, error instanceof Error ? error.message : "durable trace read-back failed"].filter(Boolean).join("; ");

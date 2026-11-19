@@ -28,9 +28,9 @@ export function replayInvestigatorTrajectoryEvents(
   const ordered = [...events].sort((a, b) => a.id - b.id);
   const records: AgenticTrajectoryRecord[] = [];
   const seen = new Set<string>();
+  const pageChunks = new Map<number, Array<{ index: number; count: number; text: string }>>();
 
   for (const event of ordered) {
-    if (!["tool_observation", "decision", "provider_error"].includes(event.eventType)) continue;
     let payload: Record<string, unknown> | null = null;
     try {
       payload = objectValue(JSON.parse(event.payload));
@@ -38,6 +38,18 @@ export function replayInvestigatorTrajectoryEvents(
       continue;
     }
     if (!payload) continue;
+    if (payload.pageTextChunk === true) {
+      const parentEventId = Number(payload.parentEventId);
+      const chunkIndex = Number(payload.chunkIndex);
+      const chunkCount = Number(payload.chunkCount);
+      if (Number.isSafeInteger(parentEventId) && parentEventId > 0 && Number.isSafeInteger(chunkIndex) && chunkIndex >= 0 && Number.isSafeInteger(chunkCount) && chunkCount > 0 && typeof payload.pageContentChunk === "string") {
+        const chunks = pageChunks.get(parentEventId) ?? [];
+        chunks.push({ index: chunkIndex, count: chunkCount, text: payload.pageContentChunk });
+        pageChunks.set(parentEventId, chunks);
+      }
+      continue;
+    }
+    if (!["tool_observation", "decision", "provider_error"].includes(event.eventType)) continue;
 
     const turn = payload.turn;
     const action = payload.action;
@@ -84,5 +96,17 @@ export function replayInvestigatorTrajectoryEvents(
     });
   }
 
+  for (const record of records) {
+    const chunks = record.durableEventId == null ? [] : pageChunks.get(record.durableEventId) ?? [];
+    if (!chunks.length) continue;
+    const orderedChunks = [...chunks].sort((a, b) => a.index - b.index);
+    const expectedCount = orderedChunks[0]?.count ?? 0;
+    const complete = expectedCount > 0 && orderedChunks.length === expectedCount && orderedChunks.every((chunk, index) => chunk.index === index && chunk.count === expectedCount);
+    if (complete) record.pageContent = orderedChunks.map((chunk) => chunk.text).join("");
+    else {
+      record.pageContentTruncated = true;
+      record.pageContentCharsOmitted = null;
+    }
+  }
   return records.sort((a, b) => a.turn - b.turn || (a.durableEventId ?? 0) - (b.durableEventId ?? 0));
 }

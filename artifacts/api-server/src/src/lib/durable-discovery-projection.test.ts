@@ -269,3 +269,17 @@ describe("durable discovery projection URL integrity", () => {
   });
 
 });
+
+
+describe("durable fetched-page projection", () => {
+  it("keeps full fetched-page text in immutable events, not the bounded case-file projection", () => {
+    const records = compactDurableDiscoveryRecords([{
+      turn: 1, model: "test", action: "visit", args: { url: "https://example.com/source" },
+      execution: "success", observation: "PAGE", observedUrls: ["https://example.com/source"], findings: [],
+      pageContent: "x".repeat(40_000), pageContentTruncated: false, pageContentCharsOmitted: 0,
+    }]);
+    expect(records[0]?.pageContent).toBeUndefined();
+    expect(records[0]?.pageContentTruncated).toBe(false);
+    expect(records[0]?.pageContentCharsOmitted).toBe(0);
+  });
+});
