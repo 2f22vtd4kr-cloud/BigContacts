@@ -57,7 +57,7 @@ async function callTransport() {
 
 describe("Groq Investigator HTTP transport recovery", () => {
   beforeEach(() => {
-    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "transport-test-key");
+    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY_1", "transport-test-key");
     vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "false");
     vi.stubEnv("GROQ_AGENTIC_MODEL", "openai/gpt-oss-120b");
     transportMocks.responses = [];
