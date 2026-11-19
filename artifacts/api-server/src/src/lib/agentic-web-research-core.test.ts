@@ -4856,3 +4856,16 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
   });
 });
+
+describe("canonical Investigator parse-failure recovery", () => {
+  it("recomputes the zero-research parse-failure predicate after a recovery episode", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("const isZeroResearchParseFailure = (candidate: typeof result): boolean =>");
+    expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(result);");
+    expect(canonicalAtlasDiscoverySource).toContain("if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;");
+  });
+
+  it("persists incomplete model rationale as telemetry without blocking action execution", () => {
+    expect(agenticCoreSource).toContain("rationaleIncomplete: action.rationaleIncomplete === true");
+    expect(agenticCoreSource).toContain("rationaleIncomplete?: boolean");
+  });
+});
