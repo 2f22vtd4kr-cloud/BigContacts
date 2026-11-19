@@ -220,6 +220,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("COMPANY REALISM:");
+    expect(systemCore).toContain("Operations, decision-makers, capital capacity, ownership and routes matter only when mission-relevant");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
