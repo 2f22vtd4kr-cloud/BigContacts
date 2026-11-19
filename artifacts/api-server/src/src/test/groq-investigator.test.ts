@@ -678,7 +678,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBe(2);
   });
 
-  it("rejects a non-terminal tool action without model-authored rationale and retries once without executing it", async () => {
+  it("executes a valid research action with incomplete rationale and records the telemetry flag", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-action-rationale-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
@@ -713,13 +713,13 @@ describe.sequential("Groq Investigator provider boundary", () => {
 
     expect(result.status).toBe("completed");
     expect(result.trajectoryRecords[0]).toMatchObject({
-      action: "parse_failure",
-      execution: "error",
+      action: "web_search",
+      rationaleIncomplete: true,
     });
-    expect(result.trajectoryRecords[0]?.observation).toContain("missing_action_rationale");
+    expect(result.trajectoryRecords[0]?.execution).not.toBe("selected");
     expect(result.trajectoryRecords[1]?.action).toBe("done");
-    // Two provider calls means the malformed action was corrected before web search ran.
-    expect(calls).toBe(2);
+    // The action executes without a rationale-repair turn; the second model response ends the episode.
+    expect(calls).toBe(3);
   });
 
   it("classifies dynamic-wrapper persistence exceptions after a completed core act", async () => {
