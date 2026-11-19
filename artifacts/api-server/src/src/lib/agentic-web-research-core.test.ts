@@ -4794,3 +4794,48 @@ describe("community source lead handling and evidence-led scope", () => {
     expect(repeatedDiscoverySearchReason({ query: first, provider: "serper", locale: "en", market: undefined }, prior)).toContain("exact normalized duplicate");
   });
 });
+
+
+describe("Investigator action rationale is non-blocking telemetry", () => {
+  it("executes a valid search when rationale is missing and marks it incomplete", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "publicly documented example organization",
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({
+      action: "web_search",
+      query: "publicly documented example organization",
+      hypothesis: expect.any(String),
+      purpose: expect.any(String),
+      expectedInformationGain: 0.5,
+      rationaleIncomplete: true,
+    });
+  });
+
+  it("coerces a numeric-string information gain and preserves complete rationale", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "publicly documented example organization",
+      hypothesis: "An official source may identify an operating organization.",
+      purpose: "Find a public source for model-led follow-up.",
+      expectedInformationGain: "0.7",
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({
+      action: "web_search",
+      expectedInformationGain: 0.7,
+      rationaleIncomplete: false,
+    });
+  });
+
+  it("defaults out-of-range rationale scores without weakening action argument validation", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "publicly documented example organization",
+      hypothesis: "An official source may identify an operating organization.",
+      purpose: "Find a public source for model-led follow-up.",
+      expectedInformationGain: 2,
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({ action: "web_search", expectedInformationGain: 0.5, rationaleIncomplete: true });
+    expect(parseAgentAction(JSON.stringify({ action: "web_search", query: "" }), ["web_search"])).toBeNull();
+  });
+});
