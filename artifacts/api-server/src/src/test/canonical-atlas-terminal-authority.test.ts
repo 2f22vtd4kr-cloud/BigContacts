@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const canonicalAtlasLaunchSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 
 describe("canonical Atlas terminal authority", () => {
   it("persists an authoritative terminal snapshot for successful and failed jobs", () => {
@@ -18,6 +19,16 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("investigatorActionsRemaining:");
     expect(canonicalAtlasDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
+  it("records reconciliation results, database read-back counts, durable trace count, and lock-release verification", () => {
+    expect(canonicalAtlasLaunchSource).toContain("organizationReconciliation");
+    expect(canonicalAtlasLaunchSource).toContain("personReconciliation");
+    expect(canonicalAtlasLaunchSource).toContain("persistedCardCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("persistedEvidenceCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("durableTraceEventCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("lockReleasedReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("terminal-reconciliation");
+  });
+
   it("allows a completed target episode to become the current terminal", () => {
     expect(deriveLatestEvidenceBackedTerminal("target", "complete")).toBe("target");
   });
