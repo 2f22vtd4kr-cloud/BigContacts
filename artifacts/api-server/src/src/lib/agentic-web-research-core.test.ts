@@ -4902,7 +4902,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
     expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
-    expect(agenticCoreSource).toContain("web_search uses root query and optional root provider");
+    expect(agenticCoreSource).toContain("web_search uses the root query and optional root provider");
   });
 });
 
