@@ -3127,7 +3127,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     try {
       const result = await withProviderRole("investigator", () => callGroqJson(
         prompt, controller.signal, "identity_resolution", capability, undefined,
-        null, null, ["web_search"], "prelaunch-contract-probe", 0, prompt.length, "discovery", true,
+        null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
       ));
       if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
         failedCapability ??= capability;
