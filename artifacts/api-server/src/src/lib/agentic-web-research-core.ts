@@ -6782,7 +6782,7 @@ if (communityObservationSource && page.status === "success") {
 }
 if (page.observedUrl) record.observedUrls = [page.observedUrl];
 if (page.pageText && page.observedUrl && page.pageSha256 && page.pageRetrievedAt) {
-  const durablePageText = sanitizeUrlsInText(page.pageText);
+  const durablePageText = page.pageText;
   record.pageArtifact = {
     sourceUrl: page.observedUrl,
     text: durablePageText,
