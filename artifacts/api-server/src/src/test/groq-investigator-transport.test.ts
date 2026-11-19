@@ -35,7 +35,11 @@ const strictInvestigatorPrompt = [
 function groqResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "x-ratelimit-remaining-tokens": "100000",
+      "x-ratelimit-reset-tokens": "60s",
+    },
   });
 }
 
@@ -84,7 +88,6 @@ describe("Groq Investigator HTTP transport recovery", () => {
   afterEach(() => {
     resetProviderGateForTests();
     vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
 
   it("reaches the bounded JSON-object recovery after a json_validate_failed HTTP 400", async () => {
