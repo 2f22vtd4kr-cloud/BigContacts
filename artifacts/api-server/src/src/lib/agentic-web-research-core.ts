@@ -2308,7 +2308,11 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
   const normalized = typeof prompt === "string" ? prompt : "";
-  if (model && structuredActionResponseFormat(model).type !== "json_schema") {
+  const availableActionsMatch = normalized.match(/^AVAILABLE ACTIONS:\\s*(.+)$/m);
+  const actionAllowlist = availableActionsMatch
+    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim()).filter(Boolean)
+    : getModelSelectableAgentActions();
+  if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
@@ -2316,9 +2320,11 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     }
     return normalized;
   }
-  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"];
-  const requiredSearchFields = ["query", "provider", "registry", "locale", "market", "purpose"];
-  const requiredFindingFields = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"];
+  const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
+  const supportsFindings = actionAllowlist.includes("done");
+  const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
+  const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
+  const requiredFindingFields = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
@@ -2326,8 +2332,8 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const completeSchemaPresent = requiredSchemaFields.every((field) => schemaSection.includes(field))
     && requiredSearchFields.every((field) => schemaSection.includes(field))
     && requiredFindingFields.every((field) => schemaSection.includes(field))
-    && /searches\[\] required keys/i.test(schemaSection)
-    && /findings\[\] required keys/i.test(schemaSection)
+    && (!supportsSearchArrays || /searches\[\] required keys/i.test(schemaSection))
+    && (!supportsFindings || /findings\[\] required keys/i.test(schemaSection))
     && /null for unused/i.test(schemaSection);
   if (!completeSchemaPresent) {
     throw new Error("Cannot send an Investigator request without its complete root and nested action schema.");
