@@ -81,8 +81,8 @@ describe("immutable Investigator trajectory replay", () => {
 
   it("rehydrates page artifacts only onto the matching run and preserves source verification", () => {
     const records = replayInvestigatorTrajectoryEvents([
-      { id: 10, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", execution: "success", observedUrls: ["https://a.example/team"], findings: [] }) },
-      { id: 11, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-b", turn: 1, action: "browser_fetch", execution: "partial", observedUrls: [], findings: [] }) },
+      { id: 10, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", args: { url: "https://a.example/team" }, execution: "success", observedUrls: ["https://a.example/team"], findings: [] }) },
+      { id: 11, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-b", turn: 1, action: "browser_fetch", args: { url: "https://b.example/team" }, execution: "partial", observedUrls: [], findings: [] }) },
     ]);
     const verifiedText = "Jane Doe is the managing director of Example A.";
     const unverifiedText = "John Roe is mentioned on Example B.";
@@ -106,6 +106,27 @@ describe("immutable Investigator trajectory replay", () => {
     expect(records[1].pageArtifact).toMatchObject({
       sourceUrl: "https://b.example/team", text: unverifiedText, sourceVerified: false, artifactEventId: 22,
     });
+  });
+
+  it("rejects a complete hash-valid page artifact from an unrelated source URL", () => {
+    const records = replayInvestigatorTrajectoryEvents([
+      { id: 10, eventType: "tool_observation", payload: JSON.stringify({
+        runId: "run-a", turn: 1, action: "visit", args: { url: "https://a.example/team" },
+        execution: "success", observedUrls: ["https://a.example/team"], findings: [],
+      }) },
+    ]);
+    const unrelatedText = "An unrelated page that shares the run and turn but not the source URL.";
+    attachDurableFetchedPageArtifacts(records, [{
+      id: 20,
+      payload: JSON.stringify({
+        kind: "fetched_page_artifact_chunk", runId: "run-a", turn: 1,
+        sourceUrl: "https://b.example/team",
+        sha256: createHash("sha256").update(unrelatedText).digest("hex"),
+        retrievedAt: "2026-11-19T12:00:00.000Z", sourceVerified: true,
+        chunkIndex: 0, chunkCount: 1, text: unrelatedText,
+      }),
+    }]);
+    expect(records[0]?.pageArtifact).toBeUndefined();
   });
 
   it("does not attach incomplete or hash-mismatched fetched-page artifacts", () => {
