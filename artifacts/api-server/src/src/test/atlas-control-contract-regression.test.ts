@@ -116,7 +116,7 @@ describe("canonical opening discovery contract", () => {
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
     const canonical = canonicalDiscoverySource;
-    expect(canonical).toContain("classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost })");
+    expect(canonical).toContain('const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: actionParseFailure ? "investigator_episode" : failureStage, error: actionParseFailure ? new Error("PARSE_FAILURE") : error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });');
     expect(canonical).toContain("failureDomain=${failureDiagnostic.domain}");
     expect(canonical).toContain("failureKind=${failureDiagnostic.kind}");
     expect(canonical).toContain('failureStage = "model_action_validation"');
