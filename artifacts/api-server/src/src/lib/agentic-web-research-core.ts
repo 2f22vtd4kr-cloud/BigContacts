@@ -6333,20 +6333,13 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
         }
-        if (compactedMemory.method === "deterministic_projection") {
-          emit("deterministic_historical_memory_projection", {
-            status: "partial",
-            summary: "No validated AI semantic summary was available within the bounded historical-memory compaction policy; a URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
-          });
-        }
         aiCompactedHistoricalContext = compactedMemory.text;
         if (compactedMemory.method === "ai_semantic") {
           const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
           aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
         } else {
-          // A deterministic excerpt is not proof that every historical record
-          // was semantically summarized. Keep unvisited leads eligible to carry
-          // forward until a genuine semantic summary covers their turns.
+          // Unchanged memory below the AI-compaction threshold remains complete
+          // and verbatim; it is not a semantic summary and advances no turn marker.
           aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
         }
       }
@@ -6523,9 +6516,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         return resultBase("error", i, "UNEXPECTED_ERROR", message);
       }
       // Historical memory is required working context, not optional padding. If an
-      // emergency prompt tier dropped it, use one bounded semantic compaction or a labelled deterministic projection to condense the memory and
-      // rebuild once. If it still cannot fit alongside the action/schema contracts,
-      // stop this turn rather than silently lose prior research.
+      // emergency prompt tier dropped it, request one bounded AI semantic reduction
+      // and rebuild once. Never substitute a deterministic historical excerpt.
+      // If the complete/AI-compacted memory cannot fit beside the action/schema
+      // contracts, stop this turn rather than silently lose prior research.
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
         const shorterMemory = await compactInvestigationContextWithFallback({
           rawContext: aiCompactedHistoricalContext,
@@ -6538,15 +6532,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           const message = "Historical research context could not be shortened enough to fit the complete Investigator prompt without removing required schema/action contracts.";
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
-        }
-        if (shorterMemory.method === "deterministic_projection") {
-          emit("deterministic_historical_memory_projection", {
-            status: "partial",
-            summary: "No validated AI semantic summary was available within the bounded historical-memory compaction policy; a shorter URL-safe deterministic projection was supplied. Full case history remains durable; omitted content is unknown.",
-          });
-          // Shortening an AI summary deterministically can omit facts from that
-          // summary too, so do not advance the semantic-through marker.
-          aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
         }
         aiCompactedHistoricalContext = shorterMemory.text;
         try {
