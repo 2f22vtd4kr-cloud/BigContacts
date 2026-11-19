@@ -27,7 +27,7 @@ import { getAvailableRegistryIds, getAvailableRegistryIdsForPrompt, normalizeReg
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
 import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
 import { inferResearchCognitiveTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
-import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
+import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, setInvestigatorCapabilityHealthExclusions, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
 import { buildBrowserFetchProviderTelemetry, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable } from "./browser-fetch-core";
 import {
@@ -1965,8 +1965,37 @@ function normalizeRecoverableBrowserFetchAction(raw: string): string {
   }
 }
 
+function normalizeRecoverableSingleWebSearchShape(raw: string): string {
+  const json = extractJsonObject(raw);
+  if (!json) return raw;
+  try {
+    const value = JSON.parse(json) as Record<string, unknown>;
+    if (cleanText(value.action, 40).toLowerCase() !== "web_search" || cleanText(value.query, 300)) return raw;
+    if (!Array.isArray(value.searches) || value.searches.length !== 1) return raw;
+    const item = value.searches[0];
+    if (!item || typeof item !== "object" || Array.isArray(item)) return raw;
+    const search = item as Record<string, unknown>;
+    if (search.registry !== undefined && search.registry !== null) return raw;
+    const query = cleanText(search.query, 300);
+    if (!query) return raw;
+    const provider = cleanText(search.provider, 20).toLowerCase();
+    if (provider && !["serper", "tavily", "exa"].includes(provider)) return raw;
+    const purpose = cleanText(value.purpose, 500) || cleanText(search.purpose, 500);
+    return JSON.stringify({
+      ...value,
+      query,
+      ...(provider ? { provider } : {}),
+      ...(typeof search.locale === "string" ? { locale: search.locale } : {}),
+      ...(typeof search.market === "string" ? { market: search.market } : {}),
+      ...(purpose ? { purpose } : {}),
+    });
+  } catch {
+    return raw;
+  }
+}
+
 function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null {
-  const normalizedRaw = normalizeRecoverableBrowserFetchAction(raw);
+  const normalizedRaw = normalizeRecoverableBrowserFetchAction(normalizeRecoverableSingleWebSearchShape(raw));
   const rawDiagnostic = describeAgentActionParseFailure(raw, actionAllowlist);
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
@@ -2311,7 +2340,14 @@ const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NO
 /** Models without provider-enforced strict schema use a reduced action-specific contract and local validation. */
 export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[]): string {
   if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable. parallel_web_search searches[] items require query; provider may be null or omitted to use the configured healthy runtime default. findings[] should include only observed fields (vectorType, value, scope, sourceUrls, note, plus any supported attribution/evidence details); do not fabricate null-filled placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  const allowed = new Set(actionAllowlist ?? getModelSelectableAgentActions());
+  const shapes = [
+    allowed.has("web_search") ? "web_search uses root query and optional root provider; do not put a single search in searches[]." : "",
+    allowed.has("parallel_web_search") ? "parallel_web_search uses searches[] items with query; provider may be omitted for the healthy runtime default." : "",
+    allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
+    allowed.has("done") ? "done may include source-backed findings[] only." : "",
+  ].filter(Boolean).join(" ");
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. " + shapes + " findings[] should include only observed fields; do not fabricate placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
@@ -3119,69 +3155,89 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
  * capabilities before a canonical job is created. Send one minimal request per
  * distinct model using that model's actual response_format. No research tool executes.
  */
-export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{ ok: boolean; checked: Array<{ capability: InvestigatorCapability; model: string }>; failedCapability?: InvestigatorCapability; error?: string }> {
+export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{
+  ok: boolean;
+  checked: Array<{ capability: InvestigatorCapability; model: string }>;
+  excludedCapabilities: InvestigatorCapability[];
+  failedCapability?: InvestigatorCapability;
+  error?: string;
+}> {
   const capabilities = getAvailableInvestigatorCapabilities();
-  if (!capabilities.length) return { ok: false, checked: [], error: "No configured Groq Investigator capability is available." };
-  const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
-  const probedModels = new Set<string>();
-  let failedCapability: InvestigatorCapability | undefined;
-  let failureReason: string | undefined;
+  if (!capabilities.length) {
+    setInvestigatorCapabilityHealthExclusions([]);
+    return { ok: false, checked: [], excludedCapabilities: [], error: "No configured Groq Investigator capability is available." };
+  }
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
-  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use a concise hypothesis/purpose and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. Local parser enforces action-specific values and evidence rules.";
-  const productionPrompt = buildStepPrompt({
-    targetName: "",
-    objective: "Identify one publicly documented example organization.",
-    history: [],
-    trajectoryRecords: [],
-    lastObservation: "Provider compatibility probe only. No research action has executed and no external observation may be claimed.",
-    findings: [],
-    mode: "discovery",
-    actionAllowlist: ["web_search"],
-  });
-  const prompt = [
-    productionPrompt,
-    "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
-    strictContract,
-  ].join("\\n\\n");
+  const byModel = new Map<string, InvestigatorCapability[]>();
   for (const capability of capabilities) {
-    const routedModel = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
-    if (probedModels.has(routedModel)) continue;
-    probedModels.add(routedModel);
-    if (signal?.aborted) return { ok: false, checked, failedCapability: capability, error: "Pre-launch Investigator contract probe was cancelled." };
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(() => controller.abort(), 45_000);
-    try {
-      let modelPassed = true;
-      let lastResult: Awaited<ReturnType<typeof callGroqJson>> = null;
-      // Three independently composed samples catch brittle echo-only successes.
-      for (let sample = 0; sample < 3; sample += 1) {
+    const model = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
+    byModel.set(model, [...(byModel.get(model) ?? []), capability]);
+  }
+  const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
+  const excludedCapabilities: InvestigatorCapability[] = [];
+  let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
+
+  for (const [model, modelCapabilities] of byModel) {
+    if (signal?.aborted) return { ok: false, checked, excludedCapabilities, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+    const productionPrompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify one publicly documented example organization.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Provider compatibility probe only. No research action has executed and no external observation may be claimed.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const prompt = [
+      productionPrompt,
+      "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
+    ].join("\n\n");
+    let modelPassed = true;
+    let failureReason = "";
+    // Each independent sample owns its own decision deadline; a slow first
+    // response cannot consume the remaining samples' entire validation window.
+    for (let sample = 0; sample < 3; sample += 1) {
+      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+      const controller = new AbortController();
+      const abortParent = () => controller.abort();
+      signal?.addEventListener("abort", abortParent, { once: true });
+      const timer = setTimeout(() => controller.abort(), 45_000);
+      try {
         const result = await withProviderRole("investigator", () => callGroqJson(
-          prompt, controller.signal, "identity_resolution", capability, undefined,
+          prompt, controller.signal, "identity_resolution", modelCapabilities[0], undefined,
           null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
         ));
-        lastResult = result;
         if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
           modelPassed = false;
-          failedCapability ??= capability;
-          failureReason ??= result?.error ?? "provider_contract_error";
+          failureReason = result?.error ?? "provider_contract_error";
           break;
         }
+      } catch (error) {
+        modelPassed = false;
+        failureReason = error instanceof Error ? error.message : "provider_contract_error";
+        break;
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abortParent);
       }
-      if (!modelPassed) continue;
-      checked.push({ capability, model: lastResult?.model ?? routedModel });
-    } catch (error) {
-      failedCapability ??= capability;
-      failureReason ??= error instanceof Error ? error.message : "provider_contract_error";
-    } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", abort);
+    }
+    if (modelPassed) {
+      for (const capability of modelCapabilities) checked.push({ capability, model });
+    } else {
+      excludedCapabilities.push(...modelCapabilities);
+      firstFailure ??= { capability: modelCapabilities[0]!, error: failureReason || "provider_contract_error" };
     }
   }
-  return failedCapability
-    ? { ok: false, checked, failedCapability, error: failureReason ?? "provider_contract_error" }
-    : { ok: true, checked };
+  // Unhealthy model lanes are excluded from later Boss assignments; healthy
+  // lanes continue. A launch is blocked only when no lane passed.
+  setInvestigatorCapabilityHealthExclusions(excludedCapabilities);
+  return {
+    ok: checked.length > 0,
+    checked,
+    excludedCapabilities,
+    ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}),
+  };
 }
 
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
@@ -5374,7 +5430,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     buildLatestRecordTail(),
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
-  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const actionShapeGuidance = [
+    availableActions.includes("web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; do not encode a single web_search as searches[]." : "",
+    availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
+    availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
+    availableActions.includes("done") ? "For done, put only source-backed findings in findings[]." : "",
+  ].filter(Boolean).join(" ");
+  const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. " + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
   const requiredFieldNames = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", "searches", "findings"] as const;
   const requiredSearchFieldNames = ["query", "provider", "registry", "locale", "market", "purpose"] as const;
   const requiredFindingFieldNames = ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const;
