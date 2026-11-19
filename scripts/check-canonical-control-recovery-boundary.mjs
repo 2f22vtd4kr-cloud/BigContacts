@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const client = fs.readFileSync("artifacts/apex-finder/src/lib/launch-atlas.ts", "utf8");
+const discovery = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 
 const checks = [
   ["recovery route is mounted on the canonical continuation handler", continuation.includes('"/research/bureau/cases/:caseId/recover-control"')],
@@ -14,6 +15,7 @@ const checks = [
   ["recovery validates Right-hand output before Boss", continuation.includes("validateContinuationRightHand(parsed)")],
   ["recovery fails closed before Boss when Right-hand is unavailable or invalid", continuation.includes('if(rightHand.status!=="completed"||rightHand.error)') && continuation.indexOf('if(rightHand.status!=="completed"||rightHand.error)') < continuation.indexOf("const boss=await runGroqBossDiscovery")],
   ["control-unavailable recovery is parked at a recoverable canonical action", continuation.includes('code:"ATLAS_CONTROL_UNAVAILABLE"') && continuation.includes('controlUnavailable?"canonical-control-unavailable"')],
+  ["provider contract failures persist partial Investigator findings before failing and never enter Boss recovery", (() => { const flag = discovery.indexOf('const providerContractFailure = discovery.stopReason === "PROVIDER_CONTRACT_ERROR"'); const admission = discovery.indexOf("await materializeAtlasAdmissions", flag); const failure = discovery.indexOf('if (providerContractFailure) throw new Error("investigator_provider_contract_error")', flag); return flag >= 0 && admission > flag && failure > admission; })()],
 
   ["recovery never substitutes an oversight provider for the model-owned Investigator", !continuation.includes('investigatorLlm: "groq"') && !continuation.includes('investigatorLlm: "mistral"')],
   ["desk exposes the recovery helper", client.includes("export async function recoverAtlasControl(caseId: number)")],
