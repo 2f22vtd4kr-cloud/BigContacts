@@ -100,6 +100,15 @@ describe("bounded PDF text extraction", () => {
     expect(result).toMatchObject({ pagesRead: 2, totalPages: 2, ocrRequired: true, ocrRequiredPages: [1] });
   });
 
+  it("extracts a complete text document larger than one Investigator observation window", async () => {
+    const distinctiveTail = "FINAL-PDF-SECTION: Director Elena Varga";
+    const result = await extractPdfText(minimalPdf("PDF-START " + "A".repeat(18_000) + " " + distinctiveTail));
+    expect(result.text.length).toBeGreaterThan(16_000);
+    expect(result.text).toContain("PDF-START");
+    expect(result.text).toContain(distinctiveTail);
+    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, truncated: false });
+  });
+
   it("caps extracted text and refuses oversized input before parsing", async () => {
     const result = await extractPdfText(minimalPdf("A".repeat(500)), { maxChars: 256 });
     expect(result.text.length).toBeLessThanOrEqual(256);
