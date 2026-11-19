@@ -2979,6 +2979,8 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain('failureClass: "action_parse_failure"');
       expect(agenticCoreSource).toContain("recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true })");
       expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
+      expect(agenticCoreSource).toContain("const body = sanitizeUrlsInText(stripHtml(raw))");
+      expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeUrlsInText(stripHtml(result.html)) : \"\";");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
       expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
