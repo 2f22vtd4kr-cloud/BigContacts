@@ -610,13 +610,13 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   if (input.compactionKind === "observation") return null;
 
   const objectiveSection = source.match(
-    /(?:^|\\n\\n)CURRENT CASE OBJECTIVE\\s*\\/\\s*APPROVED BOSS SCOPE(?:\\s*\\(authoritative\\))?:\\s*([\\s\\S]*?)(?=\\n\\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\\/RIGHT-HAND CONTEXT|OBSERVATION\\b)|$)/i,
+    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
   );
   if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
   // The objective is authoritative and is supplied verbatim to the Investigator.
   // Do not spend model tokens summarizing it as historical memory.
   const historicalSource = objectiveSection
-    ? source.replace(objectiveSection[0], "\\n").trim()
+    ? source.replace(objectiveSection[0], "\n").trim()
     : source;
 
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
@@ -694,8 +694,8 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 
     if (partialSummaries.length === sourceChunks.length) {
       const combine = (segments: string[]) => segments
-        .map((segment, index) => "MEMORY SEGMENT " + (index + 1) + ":\\n" + segment)
-        .join("\\n\\n");
+        .map((segment, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + segment)
+        .join("\n\n");
       let segments = partialSummaries;
       for (let depth = 0; depth < 4; depth += 1) {
         const combined = combine(segments);
