@@ -182,22 +182,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  // Fail before creating a job or acquiring its lease if any configured
-  // Investigator model rejects its real response_format. This is a provider
-  // contract check only; the probe never executes a research action.
-  const investigatorProbe = await probeGroqInvestigatorCapabilities();
-  if (!investigatorProbe.ok) {
-    res.status(503).json({
-      error: "Apex launch blocked: a configured Groq Investigator model failed its pre-launch response-format probe.",
-      code: "INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED",
-      failedCapability: investigatorProbe.failedCapability ?? null,
-      checkedCapabilities: investigatorProbe.checked,
-      detail: investigatorProbe.error ?? "provider_contract_error",
-      remediation: "Fix the configured model's Groq response_format compatibility before starting an Apex job. No research job was created.",
-    });
-    return;
-  }
-
   const targetCount = resolveCanonicalAtlasTargetCount(body.targetCount);
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
@@ -230,8 +214,25 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   void (async () => {
     try {
       await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
+        // Preflight is job work, not synchronous HTTP launch work. The API can
+        // return 202 with a durable job ID before any provider probe begins.
+        const investigatorProbe = await probeGroqInvestigatorCapabilities();
+        logger.info({
+          jobId: atlasJobId,
+          checkedCapabilities: investigatorProbe.checked,
+          excludedCapabilities: investigatorProbe.excludedCapabilities,
+          sampleSummary: investigatorProbe.sampleSummary,
+          allCapabilitiesFailed: !investigatorProbe.ok,
+        }, "Apex Investigator preflight completed.");
+        if (!investigatorProbe.ok) {
+          throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
+        }
+        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
+        await updateJob(atlasJobId!, {
+          message: `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`,
+        });
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -239,6 +240,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             targetTimeoutMs,
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
+            excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
           });
         }
       });
