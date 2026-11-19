@@ -13,6 +13,8 @@ describe("runtime build provenance", () => {
     expect(buildSource).toContain('"remote", "get-url", "origin"');
     expect(buildSource).toContain("Never stamp an unrelated starter SHA as Apex");
     expect(bootSource).toContain("const expected=process.env.APEX_SOURCE_REVISION");
+    expect(bootSource).toContain('stamp.dirtyState==="clean"');
+    expect(buildSource).toContain("dirtyState, builtAt");
   });
 
   it("preserves a valid source revision, worktree state, and build timestamp", () => {
