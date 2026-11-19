@@ -54,7 +54,9 @@ describe("target case context progresses at action boundaries", () => {
     expect(runner).toContain('payload.recordKind === "trajectory_action"');
     expect(runner).toContain("const seenSourceTurns = new Set<string>()");
     expect(runner).toContain("const granularControlTurns = new Set(uniqueGranular.map((item) => item.controlTurn))");
-    expect(runner).toContain("const records = selected.map((item, index) => ({ ...item.record, turn: index + 1 }))");
+    expect(runner).toContain("const sourceRecords = selected.map((item) => item.record);");
+    expect(runner).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
+    expect(runner).toContain("const records = sourceRecords.map((record, index) => ({ ...record, turn: index + 1 }));");
   });
 });
 
