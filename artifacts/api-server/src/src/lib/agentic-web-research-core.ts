@@ -3325,7 +3325,6 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
             ? describeAgentActionParseFailure(result.raw, ["web_search"])
             : "";
           const providerDiagnostic = result?.error ?? "provider_contract_error";
-          diagnostic = parseDiagnostic || providerDiagnostic;
           classification = result?.error
             ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic)
               ? "provider_transport_failure"
@@ -3333,7 +3332,8 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
             : /invalid_action_arguments|unsupported_action|missing_action/.test(parseDiagnostic)
               ? "action_contract_failure"
               : "response_parse_failure";
-          failureReason ||= providerDiagnostic;
+          diagnostic = parseDiagnostic || classification + ":" + digestDiagnosticText(providerDiagnostic);
+          failureReason ||= classification + ":" + digestDiagnosticText(providerDiagnostic);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "provider_contract_error";
