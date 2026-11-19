@@ -565,8 +565,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages).toHaveLength(2);
   });
 
-  it("rejects nullable top-level rationale fields on non-terminal research actions", () => {
-    const invalidResearchAction = JSON.stringify({
+  it("accepts an otherwise valid research action when optional rationale is incomplete", () => {
+    const incompleteRationaleAction = JSON.stringify({
       action: "web_search",
       query: "regional manufacturing company ownership filing",
       provider: "serper",
@@ -574,8 +574,12 @@ describe("Groq Investigator runtime contract", () => {
       purpose: "test whether an official filing names an owner",
       expectedInformationGain: 0.6,
     });
-    expect(describeAgentActionParseFailure(invalidResearchAction, ["web_search"]))
-      .toBe("missing_action_rationale action=web_search missing=hypothesis");
+    expect(describeAgentActionParseFailure(incompleteRationaleAction, ["web_search"])).toBe("");
+    expect(parseAgentAction(incompleteRationaleAction, ["web_search"])).toMatchObject({
+      action: "web_search",
+      hypothesis: "Rationale not supplied by model; action retained for execution review.",
+      rationaleIncomplete: true,
+    });
   });
 
   it("keeps a discovery turn usable after the active-scope guard blocks its prior action", () => {
