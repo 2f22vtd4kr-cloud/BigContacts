@@ -4866,6 +4866,28 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
 
 
 describe("Investigator preflight uses production prompt composition", () => {
+  it("omits searches[] and findings[] from the production prompt and strict schema when those actions are unavailable", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify one publicly documented example organization.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Preflight probe.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const contract = prompt.slice(prompt.lastIndexOf("OUTPUT CONTRACT:"));
+    expect(contract).not.toContain("searches[]");
+    expect(contract).not.toContain("findings[]");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"]) as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    const properties = responseFormat.json_schema?.schema?.properties ?? {};
+    expect(properties).not.toHaveProperty("searches");
+    expect(properties).not.toHaveProperty("findings");
+  });
+
   it("composes a model-authored trivial objective and samples three independently generated actions", () => {
     expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
