@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -34,6 +34,38 @@ const completeInvestigatorProviderPrompt = [
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/durable-trajectory-replay.ts"), "utf8");
+
+describe("retained fetched-page continuation", () => {
+  it("reads successive sections from the already fetched page without another network request", async () => {
+    const url = "https://example.com/team";
+    const pageText = "A".repeat(16_000) + "B".repeat(16_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
+    const pageStore: RetainedFetchedPageStore = {
+      pages: new Map([[url, {
+        text: pageText,
+        nextOffset: 16_000,
+        sourceUrl: url,
+        artifactTurn: 1,
+        sourceVerified: true,
+      }]]),
+      retainedChars: pageText.length,
+      maxChars: 64_000_000,
+    };
+    outboundMocks.safeOutboundFetch.mockClear();
+
+    const firstContinuation = await toolVisit(url, undefined, pageStore, 2);
+    expect(firstContinuation.fromRetainedArtifact).toBe(true);
+    expect(firstContinuation.pageReadOffset).toBe(16_000);
+    expect(firstContinuation.pageReadNextOffset).toBe(32_000);
+    expect(firstContinuation.observation).toContain("B".repeat(1_000));
+
+    const secondContinuation = await toolVisit(url, undefined, pageStore, 3);
+    expect(secondContinuation.fromRetainedArtifact).toBe(true);
+    expect(secondContinuation.pageReadOffset).toBe(32_000);
+    expect(secondContinuation.observation).toContain("TAIL-SECOND-SECTION");
+    expect(secondContinuation.observation).toContain("[END OF RETAINED PAGE CONTENT]");
+    expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
+  });
+});
 describe("Investigator preflight model and credential lanes", () => {
   it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
     expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
