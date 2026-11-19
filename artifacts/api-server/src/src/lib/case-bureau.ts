@@ -475,7 +475,7 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
   const soleCapabilityGuidance = input.excludedInvestigatorLlm?.length && availableInvestigators.length === 1
     ? `SINGLE-CAPABILITY ASSIGNMENT: ${availableInvestigators[0]} is the only currently permitted Investigator capability. Select exactly this capability in investigatorLlm; never reuse an excluded capability. This selects execution capability only and does not prescribe a target, query, tool, provider or research sequence.`
     : "";
-  return `${openingCapabilitySelectionOrientation}\\n\\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
+  return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
