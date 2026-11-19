@@ -134,7 +134,7 @@ describe("AI investigation context compaction", () => {
   it("uses bounded hierarchical AI summaries for historical memory well beyond the former 11k window", async () => {
     const source = Array.from({ length: 600 }, (_, index) =>
       `RECORD ${index}: source-backed observation remains durable; unresolved questions stay open.`,
-    ).join("\\n\\n");
+    ).join("\n\n");
     expect(source.length).toBeGreaterThan(11_000);
     expect(source.length).toBeLessThanOrEqual(80_000);
     const summary = "Source-backed observations remain durable and unresolved questions stay open.";
