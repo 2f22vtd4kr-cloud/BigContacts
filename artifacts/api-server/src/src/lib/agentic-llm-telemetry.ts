@@ -62,6 +62,19 @@ let completionTokens = 0;
 let totalTokens = 0;
 let latencyMs = 0;
 
+type JobTelemetry = {
+  attempts: number;
+  successes: number;
+  failed: number;
+  promptTokens: number;
+  cachedPromptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  latencyMs: number;
+};
+const jobTelemetry = new Map<string, JobTelemetry>();
+const MAX_JOB_TELEMETRY_ENTRIES = 256;
+
 const SAFE_REASONS = new Set([
   "upstream_quota_exhausted", "upstream_rate_limited", "request_size", "provider_rejected",
   "empty_response", "exception", "timeout", "cancelled", "network_error", "rate_limited",
@@ -419,6 +432,25 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
   completionTokens += event.completionTokens ?? 0;
   totalTokens += event.totalTokens ?? ((event.promptTokens ?? 0) + (event.completionTokens ?? 0));
   latencyMs += event.latencyMs ?? 0;
+  if (event.jobId) {
+    let scoped = jobTelemetry.get(event.jobId);
+    if (!scoped) {
+      if (jobTelemetry.size >= MAX_JOB_TELEMETRY_ENTRIES) {
+        const oldest = jobTelemetry.keys().next().value;
+        if (oldest) jobTelemetry.delete(oldest);
+      }
+      scoped = { attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: 0 };
+      jobTelemetry.set(event.jobId, scoped);
+    }
+    scoped.attempts += 1;
+    if (event.success) scoped.successes += 1;
+    else scoped.failed += 1;
+    scoped.promptTokens += event.promptTokens ?? 0;
+    scoped.cachedPromptTokens += event.cachedPromptTokens ?? 0;
+    scoped.completionTokens += event.completionTokens ?? 0;
+    scoped.totalTokens += event.totalTokens ?? ((event.promptTokens ?? 0) + (event.completionTokens ?? 0));
+    scoped.latencyMs += event.latencyMs ?? 0;
+  }
 
   console.log(JSON.stringify({
     event: "apex_agentic_llm_attempt",
@@ -475,6 +507,15 @@ export function getAgenticLlmTelemetry() {
   };
 }
 
+/** Return process-local LLM accounting scoped to one canonical Atlas job. */
+export function getAgenticLlmTelemetryForJob(jobId: string) {
+  const metrics = jobTelemetry.get(jobId);
+  return metrics ? { ...metrics } : {
+    attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0,
+    completionTokens: 0, totalTokens: 0, latencyMs: 0,
+  };
+}
+
 export function resetAgenticLlmTelemetry(): void {
   attempts = 0;
   successes = 0;
@@ -484,4 +525,5 @@ export function resetAgenticLlmTelemetry(): void {
   completionTokens = 0;
   totalTokens = 0;
   latencyMs = 0;
+  jobTelemetry.clear();
 }
