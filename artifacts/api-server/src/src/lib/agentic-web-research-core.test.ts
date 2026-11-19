@@ -3001,7 +3001,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     it("allows local continuation of an unverified partial browser page only when its artifact is retained", () => {
-      const partialBrowserPage = {
+      const partialBrowserPage: AgenticTrajectoryRecord = {
         ...livenessRecord("browser_fetch", "success"),
         execution: "partial",
         turn: 4,
