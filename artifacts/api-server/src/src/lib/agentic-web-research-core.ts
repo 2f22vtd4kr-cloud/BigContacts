@@ -2342,12 +2342,11 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
   if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
   const allowed = new Set(actionAllowlist ?? getModelSelectableAgentActions());
   const shapes = [
-    allowed.has("web_search") ? "web_search uses root query and optional root provider; do not put a single search in searches[]." : "",
-    allowed.has("parallel_web_search") ? "parallel_web_search uses searches[] items with query; provider may be null or omitted to use the configured healthy runtime default." : "",
+    allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
-    allowed.has("done") ? "done may include source-backed findings[] only." : "",
+    allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. " + shapes + " findings[] should include only observed fields; do not fabricate placeholders. Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
@@ -3386,25 +3385,27 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     : selectableActions.filter((action) => action !== "browser_fetch");
   const providerEnum = [...new Set(["serper", "tavily", "exa", "rdap", "whoisjson", ...browserProviders])];
   const availableRegistryEnum: string[] = [...getAvailableRegistryIdsForPrompt()];
-  const schema = {
-    ...AGENTIC_STRUCTURED_SCHEMA,
-    properties: {
-      ...AGENTIC_STRUCTURED_SCHEMA.properties,
-      action: { type: "string", enum: availableActions },
-      provider: { type: "string", enum: providerEnum },
-      registry: { type: "string", enum: availableRegistryEnum },
-      searches: {
-        ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
-        items: {
-          ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
-          properties: {
-            ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
-            registry: { type: "string", enum: availableRegistryEnum },
-          },
+  const schemaProperties: Record<string, unknown> = {
+    ...AGENTIC_STRUCTURED_SCHEMA.properties,
+    action: { type: "string", enum: availableActions },
+    provider: { type: "string", enum: providerEnum },
+    registry: { type: "string", enum: availableRegistryEnum },
+    searches: {
+      ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
+      items: {
+        ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
+        properties: {
+          ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
+          registry: { type: "string", enum: availableRegistryEnum },
         },
       },
     },
   };
+  const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
+  const supportsFindings = availableActions.includes("done");
+  if (!supportsSearchArrays) delete schemaProperties.searches;
+  if (!supportsFindings) delete schemaProperties.findings;
+  const schema = { ...AGENTIC_STRUCTURED_SCHEMA, properties: schemaProperties };
   return strictSupported
     ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: strictifyGroqJsonSchema(schema as unknown as Record<string, unknown>) } }
     : { type: "json_object" };
