@@ -8,7 +8,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
   it("polls cancellation and verifies lease ownership during every canonical discovery Investigator pass", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
     expect(discovery).toContain("const shouldCancelAtlasInvestigator = async (): Promise<boolean> =>");
-    expect(discovery.match(/shouldCancel: shouldCancelAtlasInvestigator/g)).toHaveLength(3);
+    expect(discovery.match(/shouldCancel: shouldCancelAtlasInvestigator/g)).toHaveLength(4);
     expect(discovery).toContain("await getJobStrict(atlasJobId)");
     expect(discovery).toContain("isCanonicalJobOwner(lockKey, atlasJobId)");
   });
