@@ -1617,6 +1617,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? "Boss-directed Investigator capability reassignment after two terminal zero-research action-contract failures"
             : "Boss-directed Investigator reassignment after repeated token-window capacity failures",
         excludedInvestigatorLlm: bossExcludedCapabilities,
+        investigatorLaneHealth: opts.investigatorLaneHealth,
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
@@ -2265,7 +2266,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoverySearchActionsUsed,
       };
       const researchLivenessAdvisory = discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []);
-      const investigatorLaneHealth = getInvestigatorCapabilityRuntimeHealthSnapshot();
+      const investigatorLaneHealth = { preflight: opts.investigatorLaneHealth ?? [], runtime: getInvestigatorCapabilityRuntimeHealthSnapshot() };
       const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
         leadInventory: controlLeadInventory,
         admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })),
