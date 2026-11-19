@@ -1562,8 +1562,8 @@ export function describeToolVisitFailure(error: unknown): { status: "timeout" | 
   };
 }
 
-type RetainedFetchedPage = { text: string; nextOffset: number; sourceUrl: string; artifactTurn: number; sourceVerified: boolean; artifactRunId?: string; artifactEventId?: number };
-type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retainedChars: number; maxChars: number };
+export type RetainedFetchedPage = { text: string; nextOffset: number; sourceUrl: string; artifactTurn: number; sourceVerified: boolean; artifactRunId?: string; artifactEventId?: number };
+export type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retainedChars: number; maxChars: number };
 
 /**
  * Fetch once, then let the Investigator request successive text windows from the
@@ -1571,7 +1571,7 @@ type RetainedFetchedPageStore = { pages: Map<string, RetainedFetchedPage>; retai
  * bounded independently of prompt size; reading a retained page never performs
  * another outbound request.
  */
-async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore, artifactTurn = 0): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string; fromRetainedArtifact?: boolean }> {
+export async function toolVisit(url: string, signal?: AbortSignal, pageStore?: RetainedFetchedPageStore, artifactTurn = 0): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind; pageIdentity?: ObservedOrganizationIdentity | null; pageReadOffset?: number; pageReadNextOffset?: number; pageHasMore?: boolean; pageText?: string; pageSha256?: string; pageRetrievedAt?: string; fromRetainedArtifact?: boolean }> {
   const displayUrl = sanitizeUrlForEvidence(url);
   const pageKey = normalizedActionResourceUrl(url) ?? url;
   const retainedPage = pageStore?.pages.get(pageKey);
