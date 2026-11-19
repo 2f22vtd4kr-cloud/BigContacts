@@ -217,11 +217,11 @@ export function compactPromptSectionPreservingUrlTokens(
 
 
 /**
- * Non-semantic bounded projection used only when an AI compaction request is
- * unavailable. The authoritative objective, evidence, and complete trajectory
- * remain in the durable case state/event ledger; this is only a model-facing
- * working-context projection. URLs are kept whole or omitted whole, and
- * omissions are explicitly unknown rather than negative evidence.
+ * Observation-only non-semantic bounded transport projection. Historical
+ * research memory must be preserved verbatim or summarized by AI; it never uses
+ * this deterministic excerpt. The complete observation remains in the durable
+ * case event ledger. URLs are kept whole or omitted whole, and omissions are
+ * explicitly unknown rather than negative evidence.
  */
 export function buildDeterministicContextProjection(
   value: string,
