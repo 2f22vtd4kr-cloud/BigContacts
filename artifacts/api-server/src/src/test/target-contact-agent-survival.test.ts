@@ -312,7 +312,7 @@ describe("offline Investigator-to-card survival path", () => {
       oversightMode: "internal",
     });
 
-    expect(result.status).toBe("completed");
+    expect(result.status, JSON.stringify(result)).toBe("completed");
     expect(result.findings).toBe(1);
     expect(testState.insertedContacts).toHaveLength(1);
     const evidenceMetadata = JSON.parse(testState.insertedContacts[0].metadata);
