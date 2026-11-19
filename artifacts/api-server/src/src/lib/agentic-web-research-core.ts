@@ -2558,6 +2558,8 @@ export async function callGroqJson(
       let dailyBudgetTokens = 0;
       let dailyEstimatedTokens = 0;
       let providerRequestSent = false;
+      let providerWaitMs = 0;
+      let providerGateStartedAt = 0;
       const systemPromptCharsBeforeRequest = INVESTIGATOR_SYSTEM_PROMPT().length;
       const promptEnvelopeChars = GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE.length + 2;
       const baseOriginalPromptChars = Math.max(workingPrompt.length, Math.floor(originalPromptChars));
@@ -2655,8 +2657,10 @@ export async function callGroqJson(
           signal,
         };
         const groqRequest = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", groqRequestInit);
+        providerGateStartedAt = Date.now();
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal, groqRequest }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", groqRequestInit, () => {
+            providerWaitMs = Math.max(0, Date.now() - providerGateStartedAt);
             providerRequestSent = true;
           })),
         );
@@ -2675,6 +2679,7 @@ export async function callGroqJson(
           httpStatus: response.status,
           responseBody: body,
           latencyMs: Date.now() - started,
+            providerWaitMs,
         });
         if (isModelPromptAuditCaptureEnabled() && !modelAuditResponseRecorded) {
           throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Investigator response");
@@ -2707,6 +2712,7 @@ export async function callGroqJson(
             status: 429,
             success: false,
             latencyMs: Date.now() - started,
+            providerWaitMs,
             retryIndex: attempt,
             reason: tokenDailyQuota ? "upstream_token_quota_exhausted" : hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
             providerErrorCode,
@@ -2792,6 +2798,7 @@ export async function callGroqJson(
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
+            providerWaitMs,
             retryIndex: attempt,
             reason: response.status === 400 && providerCode === "json_validate_failed"
               ? (isGroqCompletionTruncationMessage(providerMessage)
@@ -2906,6 +2913,7 @@ export async function callGroqJson(
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
+            providerWaitMs,
             retryIndex: attempt,
             reason: "invalid_json_response",
           });
@@ -2931,6 +2939,7 @@ export async function callGroqJson(
           success: Boolean(raw) && finishReason !== "length",
           ...usageMetrics,
           latencyMs: Date.now() - started,
+            providerWaitMs,
           retryIndex: attempt,
           reason: finishReason === "length" ? "completion_output_truncated" : raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
           rateLimitRemainingTokens: rateLimits.remainingTokens,
@@ -2986,6 +2995,7 @@ export async function callGroqJson(
           status: "error",
           success: false,
           latencyMs: Date.now() - started,
+            providerWaitMs,
           retryIndex: attempt,
           reason,
         });
@@ -3032,7 +3042,8 @@ export async function callGroqJson(
             dailyBudgetTokens,
             estimatedTokens: dailyEstimatedTokens,
             providerRequestSent, provider: "groq", model,
-            ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
+            ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started,
+            providerWaitMs, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
         if (dailyBudgetFailure) return { model, raw: "", error: dailyBudgetFailure.code };
         // A local provider-gate quota/cooldown is already a provider-wide stop
         // signal for this role. Do not waste the remaining key/model matrix on
@@ -3074,6 +3085,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
       try {
         boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, promptMode);
       } catch (error) {
+        if (!providerRequestSent && providerGateStartedAt > 0) providerWaitMs = Math.max(0, Date.now() - providerGateStartedAt);
         const reason = error instanceof Error ? error.message : "investigator_prompt_budget_exceeded";
         setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
         return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
