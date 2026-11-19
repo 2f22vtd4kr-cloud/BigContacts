@@ -472,12 +472,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("1–4 objects");
     expect(repair).toContain('supported "registry" ID');
     expect(repair).toContain('Each item requires a non-empty "query" and a supported "registry" ID');
-    expect(repair).toContain("Include provider, locale, market and purpose keys; use null for unused optional values.");
-    expect(repair).toContain("Nested searches/findings objects must include all schema keys");
-    expect(repair).toContain("use null for unused scalar fields and [] for unused arrays");
-    expect(repair).toContain("Include all schema keys");
-    expect(repair).toContain("using null for unused optional nested values");
-    expect(repair).toContain("Return all 20 required top-level fields and include all schema keys");
+    expect(repair).toContain("Optional purpose hints may be omitted when unused.");
+    expect(repair).toContain("Follow the active model output contract.");
+    expect(repair).not.toContain("all schema keys");
+    expect(repair).not.toContain("20 required top-level fields");
     expect(repair).toContain("Non-done hypothesis/purpose must be non-empty strings");
   });
 
