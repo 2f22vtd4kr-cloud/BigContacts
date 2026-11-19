@@ -88,6 +88,20 @@ export function replayInvestigatorTrajectoryEvents(
 
 export type DurableFetchedPageArtifactEvent = { id: number; payload: string };
 
+function normalizedFetchedPageSourceUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+
 /**
  * Attach only complete, hash-verified page artifacts to the exact run/turn that
  * produced them. Equal turn numbers in separate runs must never cross-bind.
@@ -157,6 +171,14 @@ export function attachDurableFetchedPageArtifacts(
     const record = records.find((item) => item.runId === artifact.runId && item.turn === artifact.turn
       && (item.action === "visit" || item.action === "browser_fetch"));
     if (!record) continue;
+    const artifactSourceUrl = normalizedFetchedPageSourceUrl(artifact.sourceUrl);
+    const recordSourceUrls = [
+      record.args?.url,
+      ...(record.observedUrls ?? []),
+    ].map(normalizedFetchedPageSourceUrl).filter((url): url is string => Boolean(url));
+    // Run/turn coincidence is not sufficient provenance: an artifact must
+    // belong to the exact requested or provider-attested final source URL.
+    if (!artifactSourceUrl || !recordSourceUrls.includes(artifactSourceUrl)) continue;
     record.pageArtifact = {
       sourceUrl: artifact.sourceUrl,
       text,
