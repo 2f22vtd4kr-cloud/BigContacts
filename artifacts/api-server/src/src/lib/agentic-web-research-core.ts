@@ -2796,48 +2796,47 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
-          // Only provider request/schema contract errors fail fast. Groq uses
-          // json_validate_failed for both completion truncation and output-format
-          // validation; those are handled by the bounded recovery policy below.
-          const http400Class = classifyGroqInvestigatorHttp400({
+          // Use the same pure decision function exercised by transport-boundary
+          // tests so provider-contract failures cannot drift from recovery policy.
+          const providerParam = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { param?: unknown } };
+              return typeof parsed.error?.param === "string" ? parsed.error.param : null;
+            } catch { return null; }
+          })();
+          const failureDetailsAvailable = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { failed_generation?: unknown } };
+              return parsed.error?.failed_generation !== undefined && parsed.error?.failed_generation !== null;
+            } catch { return false; }
+          })();
+          const completionTokensUsed = (() => {
+            try {
+              const parsed = JSON.parse(body) as { usage?: { completion_tokens?: unknown } };
+              const value = parsed.usage?.completion_tokens;
+              return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+            } catch { return null; }
+          })();
+          const httpErrorDecision = decideGroqInvestigatorHttpError({
             status: response.status,
             providerCode,
             providerErrorType,
-            providerParam: (() => {
-              try {
-                const parsed = JSON.parse(body) as { error?: { param?: unknown } };
-                return typeof parsed.error?.param === "string" ? parsed.error.param : null;
-              } catch { return null; }
-            })(),
+            providerParam,
             providerMessage,
+            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
+            completionBudgetRetryUsed,
+            currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+            failureDetailsAvailable,
+            rateLimitRemainingTokens: rateLimits.remainingTokens,
+            promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
+            completionTokensUsed,
+            strictPreflight,
           });
-          if (http400Class === "provider_contract_error" || (strictPreflight && response.status === 400)) {
+          if (httpErrorDecision.classification === "provider_contract_error") {
             return { model, raw: "", error: "provider_contract_error" };
           }
           if (strictPreflight) return { model, raw: "", error: `investigator_preflight_http_${response.status}` };
-          const recovery = chooseGroqInvestigatorOutputRecovery({
-            status: response.status,
-            providerCode,
-            providerMessage,
-            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
-            failureDetailsAvailable: (() => {
-              try {
-                const parsed = JSON.parse(body) as { error?: { failed_generation?: unknown } };
-                return parsed.error?.failed_generation !== undefined && parsed.error?.failed_generation !== null;
-              } catch { return false; }
-            })(),
-            completionBudgetRetryUsed,
-            currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
-            rateLimitRemainingTokens: rateLimits.remainingTokens,
-            promptTokenEstimate: promptMeasurement.estimatedPromptTokens,
-            completionTokensUsed: (() => {
-              try {
-                const parsed = JSON.parse(body) as { usage?: { completion_tokens?: unknown } };
-                const value = parsed.usage?.completion_tokens;
-                return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-              } catch { return null; }
-            })(),
-          });
+          const recovery = httpErrorDecision.recovery;
           if (recovery.action === "increase_completion_budget") {
             // Truncation is an output-capacity failure, not a key or quota failure.
             // Retry only this selected model/capability with a bounded completion budget.
