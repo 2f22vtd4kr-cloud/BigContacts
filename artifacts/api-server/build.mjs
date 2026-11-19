@@ -27,7 +27,7 @@ async function buildAll() {
   // its origin is this repository. Never stamp an unrelated starter SHA as Apex.
   let importedSourceRevision = "";
   let importedSourceManifest = false;
-  for (const [manifestName, isImmutableArchive] of [["APEX_SOURCE_REVISION", true], [".apex-source-revision", false]] as const) {
+  for (const [manifestName, isImmutableArchive] of [["APEX_SOURCE_REVISION", true], [".apex-source-revision", false]]) {
     try {
       const candidate = (await readFile(path.resolve(rootDir, manifestName), "utf8")).trim();
       if (/^[a-f0-9]{40}$/i.test(candidate)) {
