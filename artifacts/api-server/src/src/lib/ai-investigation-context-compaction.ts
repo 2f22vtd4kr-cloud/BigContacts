@@ -756,12 +756,11 @@ export type InvestigationContextCompactionResult = {
 export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * A non-authoritative context transformation may try one bounded 20B semantic
- * compaction request for genuinely long historical memory. It never consumes the
- * shared 120B Boss/control budget. If the semantic attempt is unavailable, preserve
- * a bounded, URL-safe deterministic projection instead; the complete source remains
- * durable and omissions are explicitly unknown. This does not replace or simulate
- * any oversight decision.
+ * Historical memory is either included verbatim below the semantic-compaction
+ * threshold or reduced by one bounded 20B model-written summary. If that required
+ * summary is unavailable or invalid, fail closed; never substitute a deterministic
+ * excerpt. Non-semantic observation transport may still use a URL-safe projection.
+ * This never consumes the shared 120B Boss/control budget or simulates oversight.
  */
 export async function compactInvestigationContextWithFallback(
   input: AiInvestigationContextCompactionInput,
