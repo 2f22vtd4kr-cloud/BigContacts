@@ -386,7 +386,9 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     if (!seedContextPersisted?.id) throw new Error("Seeded target provenance could not be persisted before model execution."); let durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) {
       const replayedContext = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings });
       contextDocument = compactInvestigationContext({ raw: replayedContext + "\n\n" + seededSourceSection + "\n\n" + seededContactHandling });
-    } const initialExcludedInput = options.excludedInvestigatorLlm ?? []; const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
+    } const initialExcludedInput = options.excludedInvestigatorLlm ?? [];
+    // Preflight excludes a model capability, not every credential sharing its API key. Alias expansion is model-lane-aware so a 20B failure cannot hide a healthy 120B lane.
+    const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
     const storedInvestigatorCapability = typeof caseState.investigatorLlm === "string" ? caseState.investigatorLlm as InvestigatorCapability : null;
     if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability) && !initialExcludedInvestigators.has(storedInvestigatorCapability)) {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "selected-investigator-capability-unavailable", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
