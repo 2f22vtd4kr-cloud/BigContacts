@@ -1,7 +1,9 @@
 /** Bytes accepted by the PDF text-only path. Never hand unbounded network input to a parser. */
 export const PDF_TEXT_MAX_BYTES = 8_000_000;
 export const PDF_TEXT_MAX_PAGES = 50;
-export const PDF_TEXT_MAX_CHARS = 16_000;
+// Keep PDF extraction bounded but large enough to support the same retained-page
+// continuation used for HTML observations. The model still receives MAX_OBS-sized windows.
+export const PDF_TEXT_MAX_CHARS = 2_000_000;
 
 export type PdfTextExtractionFailureReason =
   | "pdf_encrypted"
