@@ -85,7 +85,63 @@ describe("retained fetched-page continuation", () => {
     expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
   });
 });
+
+function syntheticTextPdf(text: string): Uint8Array {
+  const escapedText = text.replace(/[\\()]/g, "\\describe("fetched-page retention across fetch, durable replay, and restart", () => {");
+  const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
+  const textOperators = chunks.map((chunk, index) => "(" + chunk + ") Tj" + (index + 1 < chunks.length ? "\n0 -15 Td" : "")).join("\n");
+  const stream = "BT\n/F1 12 Tf\n72 720 Td\n" + textOperators + "\nET";
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Length " + Buffer.byteLength(stream, "latin1") + " >>\nstream\n" + stream + "\nendstream",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(Buffer.byteLength(pdf, "latin1"));
+    pdf += (index + 1) + " 0 obj\n" + objects[index] + "\nendobj\n";
+  }
+  const xrefOffset = Buffer.byteLength(pdf, "latin1");
+  pdf += "xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n";
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += String(offsets[index]).padStart(10, "0") + " 00000 n \n";
+  }
+  pdf += "trailer\n<< /Root 1 0 R /Size " + (objects.length + 1) + " >>\nstartxref\n" + xrefOffset + "\n%%EOF\n";
+  return new Uint8Array(Buffer.from(pdf, "latin1"));
+}
+
 describe("fetched-page retention across fetch, durable replay, and restart", () => {
+  it("retains complete extracted PDF text and continues beyond the first observation without refetching", async () => {
+    const url = "https://example.com/filings/company-report.pdf";
+    const distinctiveTail = "PDF_FINAL_SECTION: Director Elena Varga";
+    const pdfBytes = syntheticTextPdf("PDF_START " + "A".repeat(18_000) + " " + distinctiveTail);
+    const store: RetainedFetchedPageStore = { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 };
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(Buffer.from(pdfBytes), {
+      status: 200,
+      headers: { "content-type": "application/pdf" },
+    }));
+    try {
+      const initial = await toolVisit(url, undefined, store, 1);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(initial.pageHasMore).toBe(true);
+      expect(initial.observation).toContain("PDF_START");
+      expect(initial.observation).not.toContain(distinctiveTail);
+      expect(typeof initial.pageSha256).toBe("string");
+
+      const continuation = await toolVisit(url, undefined, store, 2);
+      expect(continuation.fromRetainedArtifact).toBe(true);
+      expect(continuation.observation).toContain(distinctiveTail);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
   it("fetches once, restores the persisted cursor, reads the final section, and never refetches an exhausted page", async () => {
     const url = "https://example.com/company/team";
     const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
