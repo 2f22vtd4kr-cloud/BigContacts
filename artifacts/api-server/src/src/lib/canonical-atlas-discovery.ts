@@ -36,6 +36,7 @@ import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-episte
 import { bindExactRegistryLeadName } from "./registry-result-source-binding";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
+import { getAgenticLlmTelemetryForJob } from "./agentic-llm-telemetry";
 import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
@@ -2983,7 +2984,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `canonical-control-${finalControlAction ?? "incomplete"}`
             : "canonical-evidence-terminal-incomplete"
       : "canonical-atlas-complete";
-    const discoverySearchActionsUsedAtTerminal = countDiscoverySearchActions(discovery.trajectoryRecords ?? []);
+    const terminalTrajectory = discovery.trajectoryRecords ?? [];
+    const discoverySearchActionsUsedAtTerminal = countDiscoverySearchActions(terminalTrajectory);
+    const discoveryVisitActionsUsedAtTerminal = terminalTrajectory.filter((record) =>
+      (record.action === "visit" || record.action === "browser_fetch") && record.execution !== "selected" && record.execution !== "blocked",
+    ).length;
+    const researchActionsExecutedAtTerminal = terminalTrajectory.filter((record) =>
+      !["done", "parse_failure", "provider_error", "provider_contract_error"].includes(record.action)
+      && record.execution !== "selected" && record.execution !== "blocked",
+    ).length;
+    const rationaleIncompleteActionsAtTerminal = terminalTrajectory.filter((record) => record.rationaleIncomplete === true).length;
+    const llmTelemetryAtTerminal = getAgenticLlmTelemetryForJob(atlasJobId);
     const terminalSnapshot = {
       status: finalIncomplete ? "incomplete" : "complete",
       jobStatus: finalIncomplete ? "failed" : "done",
@@ -3003,7 +3014,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorActionsUsed: investigatorIterationsUsed,
       investigatorActionLimit: depth.agenticMaxIterations,
       discoverySearchActionsUsed: discoverySearchActionsUsedAtTerminal,
-      
+      discoveryVisitActionsUsed: discoveryVisitActionsUsedAtTerminal,
+      researchActionsExecuted: researchActionsExecutedAtTerminal,
+      rationaleIncompleteActions: rationaleIncompleteActionsAtTerminal,
+      investigatorTrajectoryRecords: terminalTrajectory.length,
+      llmTelemetry: { ...llmTelemetryAtTerminal, accountingScope: "process_local_job_id" },
+      providerWaitMs: null,
+      providerWaitMeasurement: "not_instrumented",
+      activeJobLockReleased: null,
     };
     // A durable terminal snapshot makes completed/failed runs auditable without
     // inferring final state from an intermediate progress checkpoint.
@@ -3021,8 +3039,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
     failureStage = "job_state_or_lease";
-    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (operatorTargetSpendingCapReached ? `Operator target-investigation spending cap reached after ${researched} target investigation(s); Boss requested additional target-stage work, so the case is preserved for review.` : investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ terminal: terminalSnapshot, rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
-    await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+    const terminalJobResult = {
+      terminal: terminalSnapshot,
+      rightHand,
+      boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
+      discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: terminalTrajectory, runs: discoveryRuns },
+      control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited },
+      phaseSummary,
+    };
+    await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (operatorTargetSpendingCapReached ? `Operator target-investigation spending cap reached after ${researched} target investigation(s); Boss requested additional target-stage work, so the case is preserved for review.` : investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify(terminalJobResult), finishedAt: new Date().toISOString() });
+    const activeJobLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
+    terminalSnapshot.activeJobLockReleased = activeJobLockReleased;
+    phaseSummary.terminal = JSON.stringify(terminalSnapshot);
+    terminalJobResult.phaseSummary = phaseSummary;
+    await updateJob(atlasJobId, { result: JSON.stringify(terminalJobResult) });
+    return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "";
     let durableJob: Awaited<ReturnType<typeof getJobStrict>> = null;
