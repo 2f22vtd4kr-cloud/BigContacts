@@ -33,9 +33,11 @@ const completeInvestigatorProviderPrompt = [
 ].join("\n\n");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/durable-trajectory-replay.ts"), "utf8");
 describe("Investigator preflight model and credential lanes", () => {
   it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
     expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
+    expect(agenticCoreSource).toContain("rawOutputClass");
     expect(agenticCoreSource).toContain("samples.push({");
     expect(agenticCoreSource).toContain("classification,");
     expect(agenticCoreSource).toContain("latencyMs: Date.now() - sampleStartedAt");
@@ -2983,14 +2985,18 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("sourceVerified: Boolean(observedBrowserUrl)");
       expect(agenticCoreSource).toContain("record.execution = sourceVerified ?");
       expect(agenticCoreSource).toContain("priorRecord.durableEventId > retained.artifactEventId");
+      expect(agenticCoreSource).toContain("RESEARCH CONTINUITY ADVISORY (diagnostic only; not an ordered route)");
+      expect(bureauAgenticPassSource).toContain("initialResearchAdvisory:input.initialResearchAdvisory");
+      expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords");
       expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeObservableValue(stripHtml(result.html)) : \"\";");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("for (const record of completePromptRecords)");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
       expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
       expect(bureauAgenticPassSource).toContain("Buffer.byteLength(artifactPayload, \"utf8\") > 128 * 1024");
-      expect(bureauAgenticPassSource).toContain("record.pageArtifact =");
-      expect(bureauAgenticPassSource).toContain("createHash(\"sha256\").update(text).digest(\"hex\")");
+      expect(bureauAgenticPassSource).toContain("attachDurableFetchedPageArtifacts");
+      expect(durableTrajectoryReplaySource).toContain("record.pageArtifact =");
+      expect(durableTrajectoryReplaySource).toContain("createHash(\"sha256\").update(text).digest(\"hex\")");
       expect(bureauAgenticPassSource).toContain("const { pageArtifact: _pageArtifact, ...compactRecord } = record");
     });
 
