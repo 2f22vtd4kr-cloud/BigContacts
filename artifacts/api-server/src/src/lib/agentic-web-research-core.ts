@@ -1671,7 +1671,9 @@ async function toolVisit(url: string, signal?: AbortSignal, pageStore?: Retained
     const raw = new TextDecoder().decode(responseBytes);
     const pageIdentity = extractObservedOrganizationIdentity(raw, normalizedUrl(url) ?? url);
     const facts = extractContactFactsFromHtml(raw);
-    const body = stripHtml(raw);
+    // Sanitize the complete retained text before calculating cursors. Durable
+    // continuation offsets must refer to the exact text restored after restart.
+    const body = sanitizeUrlsInText(stripHtml(raw));
     const pageReadOffset = 0;
     const pageReadNextOffset = Math.min(body.length, MAX_OBS);
     const pageHasMore = body.length > MAX_OBS;
@@ -1680,7 +1682,7 @@ async function toolVisit(url: string, signal?: AbortSignal, pageStore?: Retained
       pageStore.pages.set(pageKey, { text: body, nextOffset: pageReadNextOffset, sourceUrl: normalizedUrl(url) ?? displayUrl, artifactTurn });
       pageStore.retainedChars += body.length;
     }
-    const boundedBody = sanitizeUrlsInText(body.slice(0, MAX_OBS));
+    const boundedBody = body.slice(0, MAX_OBS);
     const continuationNote = pageHasMore
       ? retained
         ? "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run. To inspect the next section, request visit again for this exact URL; it will return the next text window from retained content without another network request.]"
@@ -6821,21 +6823,21 @@ if (retainedBrowserPage && retainedBrowserPage.nextOffset < retainedBrowserPage.
 }
 if (isPdfPageResponse(action.url, null)) { record.execution = "blocked"; record.failureDomain = "external_page_fetch"; record.failureKind = "pdf_unsupported"; lastObservation = `failureDomain=external_page_fetch failureKind=pdf_unsupported; PDF URL detected at ${sanitizeUrlForEvidence(action.url)}; browser_fetch does not extract PDF text, so no browser provider request was made and content is unobserved. Use visit for bounded text extraction; if it reports no extractable text, find another readable public source. Search snippets remain unverified leads.`; record.observation = lastObservation; record.observedUrls = []; pushHistory(`step${i + 1}: browser_fetch ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=pdf_text_extraction_unsupported`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: sanitizeUrlForEvidence(action.url), provider: "browser", status: "blocked", summary: "PDF not fetched; text extraction unsupported." }); continue; } try { const { browserFetchHtml } = await import("./browser-fetch"); if (!isBrowserFetchProviderAvailable(action.provider)) { record.execution = "blocked"; record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; lastObservation = "BROWSER_PROVIDER_UNAVAILABLE provider=" + action.provider + "; available_providers=" + (getAvailableBrowserFetchProviders().join("|") || "none") + "; no outbound request attempted. Choose any other available capability; the runtime does not prescribe a next action."; record.observation = lastObservation; } else { runtimeStage = "external_page_fetch"; const result = await browserFetchHtml(action.url, { provider: action.provider, signal: runController.signal }); const providerTelemetry = buildBrowserFetchProviderTelemetry(action.provider, result.provider); record.providerFallback = providerTelemetry.providerFallback; record.args = { ...record.args, requestedProvider: providerTelemetry.requestedProvider, actualProvider: providerTelemetry.actualProvider }; visits += result.html ? 1 : 0; const observedBrowserUrl = result.observedUrl ? normalizedUrl(result.observedUrl) : null;
 const communityObservationSource = isCommunityObservationSourceUrl(observedBrowserUrl ?? action.url);
-const rawBrowserText = result.html ? stripHtml(result.html) : "";
-const browserText = rawBrowserText.slice(0, MAX_OBS);
-const browserHasMore = rawBrowserText.length > MAX_OBS;
+const browserText = result.html ? sanitizeUrlsInText(stripHtml(result.html)) : "";
+const browserObservationText = browserText.slice(0, MAX_OBS);
+const browserHasMore = browserText.length > MAX_OBS;
 const browserPageKey = normalizedActionResourceUrl(action.url);
 const browserFinalPageKey = normalizedActionResourceUrl(observedBrowserUrl ?? action.url);
 const browserPageRetained = Boolean(browserHasMore && browserPageKey
-  && retainedFetchedPages.retainedChars + rawBrowserText.length <= retainedFetchedPages.maxChars);
+  && retainedFetchedPages.retainedChars + browserText.length <= retainedFetchedPages.maxChars);
 if (browserPageRetained && browserPageKey) {
-  const retainedBrowserArtifact = { text: rawBrowserText, nextOffset: Math.min(rawBrowserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url, artifactTurn: record.turn };
+  const retainedBrowserArtifact = { text: browserText, nextOffset: Math.min(browserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url, artifactTurn: record.turn };
   retainedFetchedPages.pages.set(browserPageKey, retainedBrowserArtifact);
   if (browserFinalPageKey && browserFinalPageKey !== browserPageKey) retainedFetchedPages.pages.set(browserFinalPageKey, retainedBrowserArtifact);
-  retainedFetchedPages.retainedChars += rawBrowserText.length;
-  record.args = { ...record.args, pageReadOffset: 0, pageReadNextOffset: Math.min(rawBrowserText.length, MAX_OBS), pageHasMore: true, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: Boolean(input.onTrajectoryRecord) };
+  retainedFetchedPages.retainedChars += browserText.length;
+  record.args = { ...record.args, pageReadOffset: 0, pageReadNextOffset: Math.min(browserText.length, MAX_OBS), pageHasMore: true, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: Boolean(input.onTrajectoryRecord) };
 }
-const communityText = communityObservationSource ? sanitizeCommunityObservationText(browserText) : browserText;
+const communityText = communityObservationSource ? sanitizeCommunityObservationText(browserObservationText) : browserObservationText;
 lastObservation = result.html
   ? `BROWSER_FETCH provider=${result.provider} requested_url=${sanitizeUrlForEvidence(action.url)}
 ${observedBrowserUrl ? `VERIFIED_FINAL_URL: ${observedBrowserUrl}` : "SOURCE_URL_UNVERIFIED: provider did not attest final navigation URL; use this content as a lead, not claim-grade source evidence."}
@@ -6848,8 +6850,8 @@ record.observedUrls = result.html && observedBrowserUrl ? [observedBrowserUrl] :
 if (browserPageRetained && browserPageKey) {
   record.pageArtifact = {
     sourceUrl: observedBrowserUrl ?? action.url,
-    text: sanitizeUrlsInText(rawBrowserText),
-    sha256: createHash("sha256").update(sanitizeUrlsInText(rawBrowserText)).digest("hex"),
+    text: browserText,
+    sha256: createHash("sha256").update(browserText).digest("hex"),
     retrievedAt: new Date().toISOString(),
   };
 }
