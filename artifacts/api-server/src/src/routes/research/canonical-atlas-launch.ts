@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { db, researchCasesTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
@@ -286,22 +286,97 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         finishedAt: new Date().toISOString(),
       });
     } finally {
+      let organizationReconciliation: { status: "succeeded" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = { status: "failed", cards: 0, evidenceRows: 0 };
+      let personReconciliation: { status: "succeeded" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = { status: "failed", cards: 0, evidenceRows: 0 };
       try {
-        await reconcileOrganizationReviewCardsForJob(atlasJobId);
+        organizationReconciliation = { status: "succeeded", ...(await reconcileOrganizationReviewCardsForJob(atlasJobId)) };
       } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only organization card reconciliation deferred; durable research trace remains available.");
+        organizationReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
+        logger.warn({ jobId: atlasJobId, errorDigest: organizationReconciliation.errorDigest },
+          "Review-only organization card reconciliation failed; durable research trace remains available.");
       }
       try {
-        await reconcilePersonReviewCardsForJob(atlasJobId);
+        personReconciliation = { status: "succeeded", ...(await reconcilePersonReviewCardsForJob(atlasJobId)) };
       } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only person card reconciliation deferred; durable research trace remains available.");
+        personReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
+        logger.warn({ jobId: atlasJobId, errorDigest: personReconciliation.errorDigest },
+          "Review-only person card reconciliation failed; durable research trace remains available.");
       }
+
+      let releaseCallReturned: boolean | null = null;
+      let lockReleased: boolean | null = null;
       try {
-        await releaseCanonicalJob("atlas-run", atlasJobId);
-      } catch {
-        // Keep the durable TTL lease when release is unavailable; never delete another owner's lock.
+        releaseCallReturned = await releaseCanonicalJob("atlas-run", atlasJobId);
+        lockReleased = (await getActiveJobStrict("atlas-run")) !== atlasJobId;
+      } catch (error) {
+        logger.warn({ jobId: atlasJobId, errorDigest: describeThrownProviderError(error).messageDigest ?? "unknown" },
+          "Canonical Atlas lock release could not be verified; the durable TTL lease is preserved.");
+      }
+
+      // Persist a separate immutable terminal audit after reconciliation and
+      // lock verification. It distinguishes a completed pipeline from a
+      // successfully reconciled, read-back-verified terminal job.
+      try {
+        const terminalJob = await getJobStrict(atlasJobId);
+        const terminalCases = await db.select({
+          id: researchCasesTable.id,
+          iteration: researchCasesTable.iteration,
+        }).from(researchCasesTable).where(or(
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+        ));
+        const [traceCount] = terminalCases.length
+          ? await db.select({ count: sql<number>`count(*)::int`.as("count") })
+              .from(researchCaseEventsTable)
+              .where(and(
+                eq(researchCaseEventsTable.caseId, terminalCases[0]!.id),
+                sql`${researchCaseEventsTable.payload}::jsonb ->> 'jobId' = ${atlasJobId}`,
+              ))
+          : [{ count: 0 }];
+        const [cardCount] = await db.select({ count: sql<number>`count(*)::int`.as("count") })
+          .from(entitiesTable)
+          .where(sql`${entitiesTable.metadata}::jsonb ->> 'atlasJobId' = ${atlasJobId}`);
+        const [evidenceCount] = await db.select({ count: sql<number>`count(*)::int`.as("count") })
+          .from(researchEvidenceTable)
+          .where(sql`${researchEvidenceTable.metadata}::jsonb ->> 'atlasJobId' = ${atlasJobId}`);
+        const terminalAudit = {
+          jobId: atlasJobId,
+          terminalJobStatus: terminalJob?.status ?? "unknown",
+          pipelineOutcome: terminalJob?.outcome ?? "unknown",
+          organizationReconciliation,
+          personReconciliation,
+          persistedCardCountReadBack: Number(cardCount?.count ?? 0),
+          persistedEvidenceCountReadBack: Number(evidenceCount?.count ?? 0),
+          durableTraceEventCountReadBack: Number(traceCount?.count ?? 0),
+          lockReleaseCallReturned: releaseCallReturned,
+          lockReleasedReadBack: lockReleased,
+          recordedAt: new Date().toISOString(),
+        };
+        if (!terminalCases.length) {
+          logger.error({ jobId: atlasJobId, terminalAudit }, "Atlas terminal audit could not attach because no job-bound durable case was found.");
+        } else {
+          for (const researchCase of terminalCases) {
+            const [latestEvent] = await db.select({
+              iteration: sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration"),
+            }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, researchCase.id));
+            await db.insert(researchCaseEventsTable).values({
+              caseId: researchCase.id,
+              iteration: Number(latestEvent?.iteration ?? researchCase.iteration ?? 0) + 1,
+              actorRole: "system",
+              eventType: "status",
+              status: "recorded",
+              summary: "Canonical Atlas terminal reconciliation audit with persisted count and lock read-back.",
+              correlationKey: `${atlasJobId}:terminal-reconciliation`,
+              payload: JSON.stringify(terminalAudit),
+            }).onConflictDoNothing({
+              target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey],
+            });
+          }
+          logger.info({ jobId: atlasJobId, terminalAudit }, "Canonical Atlas terminal reconciliation audit persisted.");
+        }
+      } catch (error) {
+        logger.error({ jobId: atlasJobId, errorDigest: describeThrownProviderError(error).messageDigest ?? "unknown" },
+          "Canonical Atlas terminal reconciliation audit could not be persisted.");
       }
     }
   })();
