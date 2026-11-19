@@ -370,7 +370,10 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     expect(investigatorCalls).toBe(4);
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
     expect(mocks.outboundUrls.filter((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toHaveLength(1);
-    const visitEvents = outcome.events.filter((event: any) => { try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; } });
+    const visitEvents = outcome.events.filter((event: any) => {
+      if (event.eventType !== "tool_observation") return false;
+      try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; }
+    });
     expect(visitEvents).toHaveLength(2);
     expect(visitEvents.every((event: any) => event.actorRole === "head_investigator" && event.eventType === "tool_observation")).toBe(true);
     const visitPayloads = visitEvents.map((event: any) => JSON.parse(event.payload ?? "{}"));
