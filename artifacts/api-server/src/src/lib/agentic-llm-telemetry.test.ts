@@ -477,21 +477,21 @@ describe("per-job Investigator LLM accounting", () => {
       provider: "groq", role: "investigator", jobId: "audit-job-a",
       model: "openai/gpt-oss-120b", promptChars: 10, status: 200,
       success: true, promptTokens: 100, completionTokens: 40, totalTokens: 140,
-      latencyMs: 250, retryIndex: 0,
+      latencyMs: 250, providerWaitMs: 30, retryIndex: 0,
     });
     recordAgenticLlmAttempt({
       provider: "groq", role: "boss", jobId: "audit-job-b",
       model: "openai/gpt-oss-120b", promptChars: 10, status: 500,
       success: false, promptTokens: 20, completionTokens: 0, totalTokens: 20,
-      latencyMs: 50, retryIndex: 0,
+      latencyMs: 50, providerWaitMs: 7, retryIndex: 0,
     });
     expect(getAgenticLlmTelemetryForJob("audit-job-a")).toEqual({
       attempts: 1, successes: 1, failed: 0, promptTokens: 100,
-      cachedPromptTokens: 0, completionTokens: 40, totalTokens: 140, latencyMs: 250,
+      cachedPromptTokens: 0, completionTokens: 40, totalTokens: 140, latencyMs: 250, providerWaitMs: 30,
     });
     expect(getAgenticLlmTelemetryForJob("audit-job-b")).toEqual({
       attempts: 1, successes: 0, failed: 1, promptTokens: 20,
-      cachedPromptTokens: 0, completionTokens: 0, totalTokens: 20, latencyMs: 50,
+      cachedPromptTokens: 0, completionTokens: 0, totalTokens: 20, latencyMs: 50, providerWaitMs: 7,
     });
   });
 });
