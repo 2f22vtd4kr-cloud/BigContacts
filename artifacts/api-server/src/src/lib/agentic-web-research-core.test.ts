@@ -4869,3 +4869,13 @@ describe("canonical Investigator parse-failure recovery", () => {
     expect(agenticCoreSource).toContain("rationaleIncomplete?: boolean");
   });
 });
+
+describe("canonical terminal audit completeness", () => {
+  it("records action counts, per-job token usage, and actual active-lock release", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("researchActionsExecuted: researchActionsExecutedAtTerminal");
+    expect(canonicalAtlasDiscoverySource).toContain("rationaleIncompleteActions: rationaleIncompleteActionsAtTerminal");
+    expect(canonicalAtlasDiscoverySource).toContain("llmTelemetry: { ...llmTelemetryAtTerminal, accountingScope: \"process_local_job_id\" }");
+    expect(canonicalAtlasDiscoverySource).toContain("terminalSnapshot.activeJobLockReleased = activeJobLockReleased;");
+    expect(canonicalAtlasDiscoverySource).toContain("providerWaitMeasurement: \"not_instrumented\"");
+  });
+});
