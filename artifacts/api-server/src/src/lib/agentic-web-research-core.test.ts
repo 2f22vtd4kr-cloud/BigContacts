@@ -504,7 +504,7 @@ describe("thrown provider error classification", () => {
   });
 });
 
-function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
+function livenessRecord(action: string, execution: AgenticTrajectoryRecord["execution"] = "success"): AgenticTrajectoryRecord {
   return {
     turn: 1,
     model: "test-model",
