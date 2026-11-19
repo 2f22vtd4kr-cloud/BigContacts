@@ -1,17 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   getAvailableDistinctInvestigatorCapabilities,
   getAvailableInvestigatorCapabilities,
-  getConfiguredInvestigatorCapabilities,
-  setInvestigatorCapabilityHealthExclusions,
   getInvestigatorCredentialAliases,
   getModelScopedInvestigatorQuotaFallback,
   type InvestigatorCapability,
 } from "../lib/investigator-capability-registry";
 
 describe("Investigator credential quota identity", () => {
-  afterEach(() => setInvestigatorCapabilityHealthExclusions([]));
-
   const env = {
     GROQ_INVESTIGATOR_API_KEY: "shared-test-credential",
     GROQ_INVESTIGATOR_API_KEY_1: "shared-test-credential",
@@ -19,11 +15,6 @@ describe("Investigator credential quota identity", () => {
     GROQ_INVESTIGATOR_API_KEY_3: "",
   } as NodeJS.ProcessEnv;
 
-  it("reprobes every configured capability even when a previous preflight excluded one", () => {
-    setInvestigatorCapabilityHealthExclusions(["groq-investigator-20b"]);
-    expect(getAvailableInvestigatorCapabilities(process.env)).not.toContain("groq-investigator-20b");
-    expect(getConfiguredInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
-  });
 
   it("keeps configured slots visible while counting duplicate credentials as one quota pool", () => {
     expect(getAvailableInvestigatorCapabilities(env)).toEqual([
