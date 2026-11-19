@@ -4893,6 +4893,8 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
     expect(agenticCoreSource).toContain("for (let sample = 0; sample < 3; sample += 1)");
     expect(agenticCoreSource).toContain("Each independent sample owns its own decision deadline");
+    expect(agenticCoreSource).toContain("Three samples are diagnostic, not an all-three-or-nothing launch gate");
+    expect(agenticCoreSource).toContain("sampleSummary");
     expect(agenticCoreSource).toContain('].join("\\n\\n")');
     expect(agenticCoreSource).toContain("parseAgentAction(result.raw, [\"web_search\"])");
     expect(agenticCoreSource).toContain("do not copy supplied action values");
