@@ -405,7 +405,7 @@ export function buildDiscoveryLeadUtilizationState(
 
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
-type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
+type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider?: "serper" | "tavily" | "exa" | null; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
@@ -530,7 +530,7 @@ export function researchActionResource(action: string, args: Record<string, unkn
         const entry = item as Record<string, unknown>;
         return JSON.stringify([
           query(entry.query),
-          cleanText(entry.provider, 30).toLowerCase(),
+          cleanText(entry.provider, 30).toLowerCase() || "runtime-default",
           query(entry.locale),
           query(entry.market),
         ]);
@@ -1964,14 +1964,15 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || ((item as Record<string, unknown>).registry !== undefined && (item as Record<string, unknown>).registry !== null))) return null;
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
+      const requestedProvider = cleanText(entry.provider, 20).toLowerCase();
       return {
         query: cleanText(entry.query, 300),
-        provider: cleanText(entry.provider, 20) as "serper" | "tavily" | "exa",
+        ...(requestedProvider && ["serper", "tavily", "exa"].includes(requestedProvider) ? { provider: requestedProvider as "serper" | "tavily" | "exa" } : {}),
         locale: typeof entry.locale === "string" && entry.locale.trim().length <= 16 ? cleanText(entry.locale, 16) || undefined : undefined,
         market: typeof entry.market === "string" && entry.market.trim().length <= 16 ? cleanText(entry.market, 16) || undefined : undefined,
         purpose: cleanText(entry.purpose, 500) || undefined,
       };
-    }) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>;
+    }) as Array<{ query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>;
     return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta };
   } if (action === "parallel_registry_search" && Array.isArray(value.searches)) {
     const searches: Array<{ query: string; registry: RegistryId | null; purpose?: string }> = value.searches.map((item) => {
@@ -2702,9 +2703,12 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
-          // HTTP 400 means the provider rejected the request contract. Do not
-          // retry it in another output mode or expose it as a research observation.
-          if (response.status === 400) return { model, raw: "", error: "provider_contract_error" };
+          // Only provider request/schema contract errors fail fast. Groq uses
+          // json_validate_failed for both completion truncation and output-format
+          // validation; those are handled by the bounded recovery policy below.
+          if (response.status === 400 && providerCode !== "json_validate_failed") {
+            return { model, raw: "", error: "provider_contract_error" };
+          }
           const recovery = chooseGroqInvestigatorOutputRecovery({
             status: response.status,
             providerCode,
@@ -6093,6 +6097,26 @@ const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: 
 // Keep this field only for technical provider-availability diagnostics below.
 let scopeFilterSummary: string | null = null;
 if (action.action === "parallel_web_search") {
+  // An omitted/null provider follows the same configured healthy runtime default
+  // as a single web_search. Resolve once, persist the effective provider, and
+  // retain the Investigator-selected query without inventing a new search.
+  const resolvedParallelSearches = action.searches.map((search) => ({
+    ...search,
+    provider: search.provider ?? selectConfiguredSearchProvider(searchProviderFailures),
+  }));
+  if (resolvedParallelSearches.some((search) => !search.provider)) {
+    record.execution = "blocked";
+    record.failureDomain = "tool_execution";
+    record.failureKind = "request_failure";
+    record.observation = "NO_CONFIGURED_SEARCH_PROVIDER: no configured healthy search provider is available; no parallel outbound request was made.";
+    lastObservation = record.observation;
+    await emitSanitizedTrajectoryRecord(record);
+    emit("parallel_web_search", { provider: "multi", status: "blocked", summary: record.observation });
+    continue;
+  }
+  action.searches = resolvedParallelSearches as typeof action.searches;
+  selectedArgs.searches = action.searches;
+  record.args = selectedArgs;
   const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
   if (providerRejectedSearches.length > 0) {
     const proposedSearches = [...action.searches];
