@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
-import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
+import { claimCanonicalJob, fenceStaleCanonicalJob, isCanonicalJobOwner, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { probeGroqInvestigatorCapabilities } from "../../lib/agentic-web-research-core";
@@ -286,16 +286,29 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         finishedAt: new Date().toISOString(),
       });
     } finally {
-      let organizationReconciliation: { status: "succeeded" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = { status: "failed", cards: 0, evidenceRows: 0 };
-      let personReconciliation: { status: "succeeded" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = { status: "failed", cards: 0, evidenceRows: 0 };
+      let reconciliationAuthorityVerified = false;
       try {
+        const reconciliationJob = await getJobStrict(atlasJobId);
+        reconciliationAuthorityVerified = await isCanonicalJobOwner("atlas-run", atlasJobId)
+          || Boolean(reconciliationJob?.type === "atlas-run" && reconciliationJob.cancelRequested !== true
+            && (reconciliationJob.status === "done" || reconciliationJob.status === "failed"));
+      } catch {
+        reconciliationAuthorityVerified = false;
+      }
+      let organizationReconciliation: { status: "succeeded" | "skipped" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = {
+        status: reconciliationAuthorityVerified ? "failed" : "skipped", cards: 0, evidenceRows: 0,
+      };
+      let personReconciliation: { status: "succeeded" | "skipped" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = {
+        status: reconciliationAuthorityVerified ? "failed" : "skipped", cards: 0, evidenceRows: 0,
+      };
+      if (reconciliationAuthorityVerified) try {
         organizationReconciliation = { status: "succeeded", ...(await reconcileOrganizationReviewCardsForJob(atlasJobId)) };
       } catch (error) {
         organizationReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
         logger.warn({ jobId: atlasJobId, errorDigest: organizationReconciliation.errorDigest },
           "Review-only organization card reconciliation failed; durable research trace remains available.");
       }
-      try {
+      if (reconciliationAuthorityVerified) try {
         personReconciliation = { status: "succeeded", ...(await reconcilePersonReviewCardsForJob(atlasJobId)) };
       } catch (error) {
         personReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
@@ -343,6 +356,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           jobId: atlasJobId,
           terminalJobStatus: terminalJob?.status ?? "unknown",
           pipelineOutcome: terminalJob?.outcome ?? "unknown",
+          reconciliationAuthorityVerified,
           organizationReconciliation,
           personReconciliation,
           persistedCardCountReadBack: Number(cardCount?.count ?? 0),
