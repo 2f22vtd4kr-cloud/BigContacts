@@ -8,7 +8,6 @@ import express from "express";
 import { desc, eq } from "drizzle-orm";
 import { resetGroqRateLimitSnapshotsForTests } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "../lib/model-prompt-audit";
 
 const mocks = vi.hoisted(() => ({
   jobStatus: "running" as string,
@@ -579,34 +578,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false";
       process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false";
 
-      const requestId = emitModelPromptAudit({
-        provider: "groq",
-        role: "groq_boss",
-        model: "mock-groq-boss",
-        jobId,
-        requestBody: {
-          model: "mock-groq-boss",
-          messages: [
-            { role: "system", content: "Mock Boss system contract for launch-finalizer integration." },
-            { role: "user", content: "Review the retained-page discovery evidence and terminal state." },
-          ],
-        },
-      });
-      expect(requestId).toBeTruthy();
-      expect(emitModelPromptAuditResponse({
-        requestId,
-        provider: "groq",
-        role: "groq_boss",
-        model: "mock-groq-boss",
-        httpStatus: 200,
-        responseBody: JSON.stringify({
-          id: `mock-response-${runToken}`,
-          model: "mock-groq-boss",
-          choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify({ action: "continue_discovery" }) } }],
-        }),
-        latencyMs: 1,
-      })).toBe(true);
-
+      // The real Investigator wrapper records each of the four model turns below.
+      // Do not seed synthetic audit records: the terminal route must attach the actual
+      // request/response trace produced during this investigation.
       const { default: launchRouter } = await import("../routes/research/canonical-atlas-launch");
       const app = express();
       app.use(express.json());
@@ -667,7 +641,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         reconciliationAuthorityVerified: true,
         organizationReconciliation: { status: "succeeded" },
         personReconciliation: { status: "succeeded" },
-        modelAuditAttachment: { complete: true, requestCount: 1, responseCount: 1, pairedRequestCount: 1 },
+        modelAuditAttachment: { complete: true, requestCount: 4, responseCount: 4, pairedRequestCount: 4 },
         lockReleaseCallReturned: true,
         lockReleasedReadBack: true,
         terminalChecksPassed: true,
