@@ -876,12 +876,23 @@ describe("Groq Investigator runtime contract", () => {
       expect(schema).toBeDefined();
       assertGroqStrictSchemaNode(schema);
       const properties = schema?.properties as Record<string, Record<string, unknown>>;
-      const searchItem = properties.searches?.items as Record<string, unknown>;
-      const findingItem = properties.findings?.items as Record<string, unknown>;
-      expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
-      expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
-      expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
-      expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      const supportsSearchArrays = actions.includes("parallel_web_search") || actions.includes("parallel_registry_search");
+      const supportsFindings = actions.includes("done");
+      expect(Object.keys(properties)).toEqual(expect.arrayContaining(["action", "query", "provider"]));
+      if (supportsSearchArrays) {
+        const searchItem = properties.searches?.items as Record<string, unknown>;
+        expect(searchItem.required).toEqual(Object.keys(searchItem.properties as object));
+        expect((searchItem.properties as Record<string, { type?: unknown }>).provider?.type).toEqual(["string", "null"]);
+      } else {
+        expect(properties).not.toHaveProperty("searches");
+      }
+      if (supportsFindings) {
+        const findingItem = properties.findings?.items as Record<string, unknown>;
+        expect(findingItem.required).toEqual(Object.keys(findingItem.properties as object));
+        expect((findingItem.properties as Record<string, { type?: unknown }>).note?.type).toEqual(["string", "null"]);
+      } else {
+        expect(properties).not.toHaveProperty("findings");
+      }
       expect((properties.provider as { type?: unknown })?.type).toEqual(["string", "null"]);
     }
   });
