@@ -2817,15 +2817,10 @@ async function callGroqJson(
           }
           if (response.status === 401 || response.status === 403) break;
 
-          const modelSpecific400 = response.status === 400 && (
-            providerCode === "model_not_found" ||
-            providerCode === "model_not_supported" ||
-            providerCode === "model_deprecated" ||
-            providerCode === "invalid_model"
-          );
-          if (response.status === 400 && !modelSpecific400) {
-            return { model, raw: "", error: lastProviderError };
-          }
+          // The only 400 allowed past the early contract gate is
+          // json_validate_failed. If its bounded completion/JSON-object
+          // recovery is exhausted, stop as a provider contract failure.
+          if (response.status === 400) return { model, raw: "", error: "provider_contract_error" };
           break;
         }
 
