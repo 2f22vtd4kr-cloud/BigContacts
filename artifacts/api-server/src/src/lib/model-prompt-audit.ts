@@ -162,14 +162,56 @@ export function summarizeModelAuditTrace(contents: string): {
   pairedRequestCount: number;
   complete: boolean;
 } {
-  const requestIds = new Set([...contents.matchAll(/^### Model request (\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
-  const responseIds = new Set([...contents.matchAll(/^### Model response (\S+)/gm)].map((match) => match[1]).filter((value): value is string => Boolean(value)));
-  const pairedRequestCount = [...requestIds].filter((requestId) => responseIds.has(requestId)).length;
+  // Count raw markers rather than unique IDs: Set-based pairing can hide
+  // duplicate or orphan records and falsely report a complete audit.
+  const markers = [...contents.matchAll(/^### Model (request|response) (\S+)\s*$/gm)]
+    .map((match) => ({
+      kind: match[1] as "request" | "response",
+      id: match[2] ?? "",
+      start: match.index ?? -1,
+      end: (match.index ?? 0) + match[0].length,
+    }))
+    .filter((marker) => marker.start >= 0 && marker.id.length > 0);
+  const requests = markers.filter((marker) => marker.kind === "request");
+  const responses = markers.filter((marker) => marker.kind === "response");
+  const requestCounts = new Map<string, number>();
+  const responseCounts = new Map<string, number>();
+  for (const marker of requests) requestCounts.set(marker.id, (requestCounts.get(marker.id) ?? 0) + 1);
+  for (const marker of responses) responseCounts.set(marker.id, (responseCounts.get(marker.id) ?? 0) + 1);
+
+  const validRecord = (marker: typeof markers[number]): boolean => {
+    const nextMarker = markers.find((candidate) => candidate.start > marker.start);
+    const section = contents.slice(marker.end, nextMarker?.start ?? contents.length);
+    const fenceCharacter = String.fromCharCode(96);
+    const fencePattern = "(?:^|\\r?\\n)(" + fenceCharacter + "{3,})json\\r?\\n([\\s\\S]*?)\\r?\\n\\1(?:\\r?\\n|$)";
+    const fencedJson = section.match(new RegExp(fencePattern));
+    if (!fencedJson) return false;
+    try {
+      const payload: unknown = JSON.parse(fencedJson[2] ?? "");
+      return Boolean(payload && typeof payload === "object" && !Array.isArray(payload)
+        && (payload as Record<string, unknown>).event === "atlas_model_" + marker.kind
+        && (payload as Record<string, unknown>).requestId === marker.id);
+    } catch {
+      return false;
+    }
+  };
+
+  const pairedRequestCount = requests.filter((request) => {
+    const matchingResponses = responses.filter((response) => response.id === request.id);
+    return requestCounts.get(request.id) === 1
+      && responseCounts.get(request.id) === 1
+      && matchingResponses.length === 1
+      && request.start < matchingResponses[0]!.start
+      && validRecord(request)
+      && validRecord(matchingResponses[0]!);
+  }).length;
   return {
-    requestCount: requestIds.size,
-    responseCount: responseIds.size,
+    requestCount: requests.length,
+    responseCount: responses.length,
     pairedRequestCount,
-    complete: requestIds.size > 0 && responseIds.size === requestIds.size && pairedRequestCount === requestIds.size,
+    complete: requests.length > 0
+      && responses.length === requests.length
+      && pairedRequestCount === requests.length,
   };
 }
 
