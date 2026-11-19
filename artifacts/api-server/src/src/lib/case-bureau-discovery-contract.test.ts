@@ -107,7 +107,7 @@ describe("source-grounded Boss opening contract", () => {
     expect(prompt).toContain("This is guidance, not a workflow engine.");
     expect(prompt).toContain("Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction.");
     expect(prompt).toContain("Do not invent or imply that any target has been discovered.");
-    expect(prompt).toContain("The Investigator will begin the canonical mixed-source discovery phase under the exact human objective");
+    expect(prompt).toContain("After this capability assignment, the Investigator owns research execution.");
     expect(prompt).toContain("randomized, runtime-callable registry/asset-register catalog");
     expect(prompt).toContain("Do not add geographic scope or a target preference.");
     expect(prompt).not.toContain("Geographic premise");
