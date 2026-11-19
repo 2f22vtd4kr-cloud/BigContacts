@@ -28,7 +28,7 @@ describe("Investigator target and source grounding guardrails", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
-    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
     expect(modelPrompt).toContain("Never use model memory as evidence.");
     expect(modelPrompt).not.toContain("The full objective is represented in Boss-generated memory");
