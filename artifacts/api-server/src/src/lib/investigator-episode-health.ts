@@ -5,7 +5,8 @@ export type InvestigatorEpisodeFailureCode =
   | "investigator_episode_no_action"
   | "investigator_daily_token_budget_exhausted"
   | "investigator_usage_ledger_unavailable"
-  | "investigator_provider_contract_error";
+  | "investigator_provider_contract_error"
+  | "investigator_episode_parse_failure";
 
 export type InvestigatorEpisodeHealthInput = {
   status: string;
@@ -74,7 +75,11 @@ export function classifyInvestigatorEpisodeFailure(
       record.failureDomain === "model_action" &&
       record.failureKind === "invalid_contract",
     );
-    if (hasDurableTerminalParseFailure) return null;
+    if (hasDurableTerminalParseFailure) {
+      return hasExecutedInvestigatorResearchAction(episodeRecords)
+        ? null
+        : { code: "investigator_episode_parse_failure" };
+    }
     return { code: "investigator_episode_error" };
   }
   if (input.status === "unavailable") {
