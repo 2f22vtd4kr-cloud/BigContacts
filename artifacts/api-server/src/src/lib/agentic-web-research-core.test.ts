@@ -4827,6 +4827,30 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
     });
   });
 
+  it("normalizes one searches[] item into the root web_search contract", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: null,
+      searches: [{ query: "model-authored public company search", provider: "exa", locale: "en", market: "GB" }],
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({
+      action: "web_search",
+      query: "model-authored public company search",
+      provider: "exa",
+      locale: "en",
+      market: "GB",
+    });
+  });
+
+  it("does not coerce multi-item or registry-shaped searches into web_search", () => {
+    expect(parseAgentAction(JSON.stringify({
+      action: "web_search", query: null, searches: [{ query: "one" }, { query: "two" }],
+    }), ["web_search"])).toBeNull();
+    expect(parseAgentAction(JSON.stringify({
+      action: "web_search", query: null, searches: [{ query: "one", registry: "sec-edgar" }],
+    }), ["web_search"])).toBeNull();
+  });
+
   it("defaults out-of-range rationale scores without weakening action argument validation", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "web_search",
@@ -4846,6 +4870,8 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
     expect(agenticCoreSource).toContain("for (let sample = 0; sample < 3; sample += 1)");
+    expect(agenticCoreSource).toContain("Each independent sample owns its own decision deadline");
+    expect(agenticCoreSource).toContain('].join("\\n\\n")');
     expect(agenticCoreSource).toContain("parseAgentAction(result.raw, [\"web_search\"])");
     expect(agenticCoreSource).toContain("do not copy supplied action values");
   });
@@ -4854,6 +4880,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
     expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
+    expect(agenticCoreSource).toContain("web_search uses root query and optional root provider");
   });
 });
 
