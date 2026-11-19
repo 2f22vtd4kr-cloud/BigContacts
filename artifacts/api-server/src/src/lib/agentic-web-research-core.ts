@@ -2310,7 +2310,9 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string): string {
   if (model !== "openai/gpt-oss-20b") return prompt;
   const outputAt = prompt.lastIndexOf("OUTPUT CONTRACT:");
-  if (outputAt < 0) throw new Error("Cannot construct a GPT-OSS 20B request without an output contract.");
+  if (outputAt < 0) {
+    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.");
+  }
   return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt));
 }
 
