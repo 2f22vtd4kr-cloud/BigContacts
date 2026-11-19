@@ -401,8 +401,8 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
         const chunks: string[] = [];
         let chunk = "";
         let chunkBytes = 0;
-        // 72 KiB leaves ample room for JSON metadata under the DB's 128 KiB
-        // immutable research-event payload limit, including multibyte UTF-8.
+        // 12 KiB UTF-8 chunks leave ample room for JSON escaping and metadata
+        // under the DB's 128 KiB immutable research-event payload limit.
         for (const character of artifact.text) {
           const characterBytes = Buffer.byteLength(character, "utf8");
           if (chunk && chunkBytes + characterBytes > 12 * 1024) {
