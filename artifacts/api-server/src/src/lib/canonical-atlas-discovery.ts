@@ -3078,7 +3078,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       usageLedgerUnavailable,
       providerContractError,
       actionParseFailure,
-      researchActionsExecuted: null,
+      researchActionsExecuted: actionParseFailure ? 0 : null,
       resumableAfterBudgetReset: dailyTokenBudgetExhausted,
     };
     phaseSummary.terminal = JSON.stringify(failureTerminalSnapshot);
