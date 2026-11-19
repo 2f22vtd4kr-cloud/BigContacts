@@ -4888,3 +4888,13 @@ describe("Groq provider wait telemetry", () => {
   });
 });
 
+
+describe("failed-run terminal audit completeness", () => {
+  it("retains trajectory, token, provider-wait and lock-release telemetry on infrastructure failures", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("const failureTrajectory = terminalAuditTrajectory;");
+    expect(canonicalAtlasDiscoverySource).toContain("researchActionsExecuted: actionParseFailure ? 0 : failureResearchActions");
+    expect(canonicalAtlasDiscoverySource).toContain("providerWaitMs: failureLlmTelemetry.providerWaitMs");
+    expect(canonicalAtlasDiscoverySource).toContain("failureTerminalSnapshot.activeJobLockReleased = terminalAuditLockReleased;");
+    expect(canonicalAtlasDiscoverySource).toContain("await updateJob(atlasJobId, { result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }) });");
+  });
+});
