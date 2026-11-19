@@ -1,0 +1,40 @@
+name: Regenerate temporary Apex Vite lockfile
+
+on:
+  push:
+    branches:
+      - apex-investigator-preflight-failover-2026-11-19
+    paths:
+      - "pnpm-workspace.yaml"
+      - "artifacts/api-server/package.json"
+      - ".github/workflows/regenerate-apex-vite-lock.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: apex-investigator-preflight-failover-2026-11-19
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9.15.9
+      - name: Resolve exact Vite 8 workspace dependency graph
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Commit generated lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: lock Vite 8.3.8 workspace dependency graph"
+          git push origin HEAD:apex-investigator-preflight-failover-2026-11-19
