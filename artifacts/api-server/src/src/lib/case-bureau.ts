@@ -514,7 +514,7 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
   const availableInvestigators = getAvailableInvestigatorCapabilities().filter((capability) => !excluded.has(capability));
   if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
-    ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
+    ? "No configured Investigator capability remains after explicit Boss-directed exclusion of unavailable lanes."
     : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
   const prompt = buildGroqBossDiscoveryPrompt(input, availableInvestigators);
   try {
