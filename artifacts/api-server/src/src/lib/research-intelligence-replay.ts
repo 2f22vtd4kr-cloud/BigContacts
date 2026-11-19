@@ -97,7 +97,7 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
     const sourceBindings = parseSourceBindings(payload.sourceBindings);
     const model = typeof payload.model === "string" ? payload.model : typeof payload.runModel === "string" ? payload.runModel : "durable-replay";
     records.push({
-      turn: records.length + 1, durableEventId: event.id, model, action: payload.action, args: asObject(payload.args) ?? {},
+      turn: records.length + 1, durableEventId: event.id, ...(typeof payload.runId === "string" && payload.runId ? { runId: payload.runId } : {}), model, action: payload.action, args: asObject(payload.args) ?? {},
       ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
       ...(typeof payload.pivotScopeKey === "string" && payload.pivotScopeKey.trim() ? { pivotScopeKey: payload.pivotScopeKey.slice(0, 1_800) } : {}),
       ...(Array.isArray(payload.leadUrls) ? { leadUrls: [...new Set(payload.leadUrls.filter((url): url is string => typeof url === "string"))].slice(0, 24) } : {}),
