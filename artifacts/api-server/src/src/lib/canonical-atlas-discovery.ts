@@ -2325,10 +2325,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           failureKind: record.failureKind,
         })) ?? [],
       }, null, 2) });
-      // Independent review is valuable only after the Investigator has produced
-      // evidence and Boss is considering a consequential stop, candidate admission,
-      // or strategic pivot. It is advisory: it can challenge the decision but cannot
-      // authorize a candidate or override deterministic provenance/security checks.
+      // Independent review covers consequential Boss decisions and bounded
+      // stagnation checkpoints. It is advisory: it can challenge the trajectory but
+      // cannot authorize a candidate or override deterministic provenance/security checks.
       const latestInvestigatorRecord = (discovery.trajectoryRecords ?? []).at(-1);
       const investigatorProposedStop = latestInvestigatorRecord?.action === "done";
       const investigatorProposedCandidate = (latestInvestigatorRecord?.findings ?? []).some((finding) =>
