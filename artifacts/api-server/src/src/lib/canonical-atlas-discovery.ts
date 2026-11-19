@@ -1313,10 +1313,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         throw new Error("Canonical discovery case has unreadable durable Investigator selection.");
       }
       if (storedInvestigator) {
-        if (!getAvailableInvestigatorCapabilities().includes(storedInvestigator)) {
+        const explicitlyPreflightExcluded = (opts.excludedInvestigatorLlm ?? []).includes(storedInvestigator);
+        if (!getAvailableInvestigatorCapabilities().includes(storedInvestigator) && !explicitlyPreflightExcluded) {
           throw new Error(`Previously selected discovery Investigator capability ${storedInvestigator} is unavailable; refusing silent capability rotation.`);
         }
-        if (boss.investigatorLlm !== storedInvestigator) {
+        if (boss.investigatorLlm !== storedInvestigator && !explicitlyPreflightExcluded) {
           throw new Error(`Groq Boss attempted to change the durable discovery Investigator from ${storedInvestigator} to ${boss.investigatorLlm ?? "none"}; refusing silent capability rotation.`);
         }
       }
