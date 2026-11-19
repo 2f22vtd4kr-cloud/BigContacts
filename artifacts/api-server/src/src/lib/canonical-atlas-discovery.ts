@@ -51,6 +51,7 @@ export type CanonicalAtlasOptions = {
   discoveryMotivation?: string;
   discoveryGeography?: string;
   discoveryExclusions?: string[];
+  excludedInvestigatorLlm?: InvestigatorCapability[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
@@ -1297,6 +1298,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Select one available Investigator capability exposed by the runtime registry; do not prescribe a research sequence.",
       ],
       startingLane: "model-selected discovery",
+      excludedInvestigatorLlm: opts.excludedInvestigatorLlm,
     });
     await assertAtlasJobActive(atlasJobId);
 
@@ -1381,6 +1383,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // shared reassignment helper.
     let consecutiveInvestigatorTokenCapacityFailures = 0;
     const allUnavailableInvestigatorCapabilities = () => [...new Set([
+      ...(opts.excludedInvestigatorLlm ?? []),
       ...quotaExhaustedInvestigators,
       ...tokenCapacityUnavailableInvestigators,
     ])];
