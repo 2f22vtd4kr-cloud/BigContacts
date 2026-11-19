@@ -2117,6 +2117,22 @@ export type GroqInvestigatorOutputRecoveryDecision =
   | { action: "retry_json_object" }
   | { action: "fail" };
 
+export function classifyGroqInvestigatorHttp400(input: {
+  status: number;
+  providerCode: string | null;
+  providerErrorType?: string | null;
+  providerParam?: string | null;
+}): "output_validation_recoverable" | "provider_contract_error" | null {
+  if (input.status !== 400) return null;
+  // Groq uses this code for generated-output validation/truncation. It is the
+  // only 400 eligible for the bounded output recovery policy.
+  if (input.providerCode === "json_validate_failed") return "output_validation_recoverable";
+  // invalid_request_error + response_format is an explicit request/schema
+  // rejection. All other 400s are also fail-fast contract errors.
+  if (input.providerErrorType === "invalid_request_error" && input.providerParam === "response_format") return "provider_contract_error";
+  return "provider_contract_error";
+}
+
 /** Retry only output-format/completion failures; never alter strategy or capability. */
 export function chooseGroqInvestigatorOutputRecovery(input: {
   status: number; providerCode: string | null; providerMessage: string;
@@ -2728,7 +2744,18 @@ async function callGroqJson(
           // Only provider request/schema contract errors fail fast. Groq uses
           // json_validate_failed for both completion truncation and output-format
           // validation; those are handled by the bounded recovery policy below.
-          if (response.status === 400 && providerCode !== "json_validate_failed") {
+          const http400Class = classifyGroqInvestigatorHttp400({
+            status: response.status,
+            providerCode,
+            providerErrorType,
+            providerParam: (() => {
+              try {
+                const parsed = JSON.parse(body) as { error?: { param?: unknown } };
+                return typeof parsed.error?.param === "string" ? parsed.error.param : null;
+              } catch { return null; }
+            })(),
+          });
+          if (http400Class === "provider_contract_error") {
             return { model, raw: "", error: "provider_contract_error" };
           }
           const recovery = chooseGroqInvestigatorOutputRecovery({
