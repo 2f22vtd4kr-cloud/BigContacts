@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
@@ -15,6 +16,7 @@ import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorC
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs, isTransientInvestigatorCapacityError, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
+import { attachDurableFetchedPageArtifacts } from "./durable-trajectory-replay";
 import { sanitizeObservableValue } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType, resolveCanonicalSeededTargetEntityType } from "./canonical-seeded-target";
@@ -158,6 +160,8 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: A
       const findings = rawFindings.filter((value): value is AgenticTrajectoryRecord["findings"][number] => Boolean(value && typeof value === "object"));
       const record: AgenticTrajectoryRecord = {
         turn: Number(payload.turn ?? event.iteration ?? 0),
+        ...(typeof payload.runId === "string" && payload.runId ? { runId: payload.runId } : {}),
+        durableEventId: event.id,
         model: typeof payload.model === "string" ? payload.model : "unknown",
         action,
         args: payload.args && typeof payload.args === "object" && !Array.isArray(payload.args) ? payload.args as Record<string, unknown> : {},
@@ -223,7 +227,11 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: A
   // Local action turn numbers restarted at each pre-checkpoint episode in legacy
   // cases. Re-number the recovered case-wide sequence so the next act receives a
   // monotonic prior-turn offset and can use deterministic repeated-action guards.
-  const records = selected.map((item, index) => ({ ...item.record, turn: index + 1 }));
+  const sourceRecords = selected.map((item) => item.record);
+  attachDurableFetchedPageArtifacts(sourceRecords, events.flatMap((event) =>
+    event.status === "page_artifact" && typeof event.payload === "string" ? [{ id: event.id, payload: event.payload }] : [],
+  ));
+  const records = sourceRecords.map((record, index) => ({ ...record, turn: index + 1 }));
   const findings = records.flatMap((record) => record.findings ?? []);
   return { records, findings };
 }
@@ -499,6 +507,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         targetId: target.id,
         controlTurn: actNumber,
         turn: safeRecord.turn,
+        runId: safeRecord.runId ?? null,
         model: safeRecord.model,
         action: safeRecord.action,
         args: safeRecord.args,
@@ -559,6 +568,71 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
             throw new Error(`Target trajectory checkpoint replay mismatch for ${correlationKey}.`);
           }
         }
+        if (safeRecord.pageArtifact) {
+          const artifact = safeRecord.pageArtifact;
+          if (!safeRecord.runId) throw new Error("Target fetched-page artifact is missing its durable run identity.");
+          const artifactSha256 = createHash("sha256").update(artifact.text).digest("hex");
+          if (artifact.sha256 !== artifactSha256) throw new Error(`Target fetched-page artifact hash mismatch at turn ${safeRecord.turn}.`);
+          const chunks: string[] = [];
+          let chunk = "";
+          let chunkBytes = 0;
+          for (const character of artifact.text) {
+            const characterBytes = Buffer.byteLength(character, "utf8");
+            if (chunk && chunkBytes + characterBytes > 12 * 1024) {
+              chunks.push(chunk);
+              chunk = "";
+              chunkBytes = 0;
+            }
+            chunk += character;
+            chunkBytes += characterBytes;
+          }
+          if (chunk || !chunks.length) chunks.push(chunk);
+          if (chunks.length > 8192) throw new Error(`Target fetched-page artifact exceeded the durable chunk-count bound at turn ${safeRecord.turn}.`);
+          for (const [chunkIndex, chunkText] of chunks.entries()) {
+            const artifactKey = `${safeRecord.runId}:turn:${safeRecord.turn}:page-artifact:${chunkIndex}`;
+            const artifactPayload = JSON.stringify({
+              kind: "fetched_page_artifact_chunk",
+              jobId: atlasJobId,
+              runId: safeRecord.runId,
+              turn: safeRecord.turn,
+              action: safeRecord.action,
+              sourceUrl: artifact.sourceUrl,
+              sha256: artifactSha256,
+              sourceVerified: artifact.sourceVerified ?? (safeRecord.execution === "success" && safeRecord.observedUrls.length > 0),
+              retrievedAt: artifact.retrievedAt,
+              chunkIndex,
+              chunkCount: chunks.length,
+              text: chunkText,
+            });
+            if (Buffer.byteLength(artifactPayload, "utf8") > 128 * 1024) {
+              throw new Error(`Target fetched-page artifact chunk exceeded durable event payload bound at turn ${safeRecord.turn}.`);
+            }
+            const [artifactInserted] = await tx.insert(researchCaseEventsTable).values({
+              caseId: caseRow.id,
+              iteration: safeRecord.turn,
+              actorRole: "system",
+              eventType: "observation",
+              status: "page_artifact",
+              summary: `Retained target fetched page artifact ${chunkIndex + 1}/${chunks.length} for Investigator turn ${safeRecord.turn}.`,
+              correlationKey: artifactKey,
+              payload: artifactPayload,
+            }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+            if (!artifactInserted?.id) {
+              const [existingArtifact] = await tx.select({
+                payload: researchCaseEventsTable.payload,
+                actorRole: researchCaseEventsTable.actorRole,
+                eventType: researchCaseEventsTable.eventType,
+                status: researchCaseEventsTable.status,
+              }).from(researchCaseEventsTable)
+                .where(and(eq(researchCaseEventsTable.caseId, caseRow.id), eq(researchCaseEventsTable.correlationKey, artifactKey)))
+                .limit(1);
+              if (!existingArtifact || existingArtifact.payload !== artifactPayload || existingArtifact.actorRole !== "system"
+                || existingArtifact.eventType !== "observation" || existingArtifact.status !== "page_artifact") {
+                throw new Error(`Target fetched-page artifact replay mismatch for ${artifactKey}.`);
+              }
+            }
+          }
+        }
         const projectedCaseFile = {
           ...lockedFile,
           contextDocument: nextContext,
@@ -582,7 +656,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     };
     let quotaRecoveryIterations = 0;
     while (true) {
-      latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, targetType: classifyCanonicalSeededTargetType(target.type), jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, priorTrajectoryRecords: durableTrajectory.records, onTrajectoryRecord: persistTargetActionCheckpoint, oversightMode: "caller", shouldCancel: async () => { if (Date.now() >= deadline) return true; const current = await getJobStrict(atlasJobId); if (!current) throw new Error("Canonical Atlas job record missing during Investigator act."); if (current.status === "cancelled" || current.status === "failed" || current.status !== "running") return true; const ownsLease = await isCanonicalJobOwner("atlas-run", atlasJobId); if (!ownsLease) throw new Error("Canonical Atlas lease was lost during Investigator act."); return false; } });
+      latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, targetType: classifyCanonicalSeededTargetType(target.type), jobId: atlasJobId, runId: `atlas-target:${atlasJobId}:${caseRow.id}`, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, priorTrajectoryRecords: durableTrajectory.records, onTrajectoryRecord: persistTargetActionCheckpoint, oversightMode: "caller", shouldCancel: async () => { if (Date.now() >= deadline) return true; const current = await getJobStrict(atlasJobId); if (!current) throw new Error("Canonical Atlas job record missing during Investigator act."); if (current.status === "cancelled" || current.status === "failed" || current.status !== "running") return true; const ownsLease = await isCanonicalJobOwner("atlas-run", atlasJobId); if (!ownsLease) throw new Error("Canonical Atlas lease was lost during Investigator act."); return false; } });
       if (!isHardQuotaResult(latestResult)) break;
       quotaRecoveryIterations += Math.max(0, latestResult.iterations ?? latestResult.trajectoryRecords.length);
       if (quotaRecoveryIterations >= actIterations) { resourceLimited = true; break; }
