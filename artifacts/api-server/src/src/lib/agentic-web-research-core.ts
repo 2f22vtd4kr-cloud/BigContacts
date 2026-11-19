@@ -27,7 +27,7 @@ import { getAvailableRegistryIds, getAvailableRegistryIdsForPrompt, normalizeReg
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
 import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
 import { inferResearchCognitiveTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
-import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, setInvestigatorCapabilityHealthExclusions, type InvestigatorCapability } from "./investigator-capability-registry";
+import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, getConfiguredInvestigatorCapabilities, investigatorCapabilityKeyName, setInvestigatorCapabilityHealthExclusions, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
 import { buildBrowserFetchProviderTelemetry, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable } from "./browser-fetch-core";
 import {
@@ -3162,7 +3162,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   failedCapability?: InvestigatorCapability;
   error?: string;
 }> {
-  const capabilities = getAvailableInvestigatorCapabilities();
+  const capabilities = getConfiguredInvestigatorCapabilities();
   if (!capabilities.length) {
     setInvestigatorCapabilityHealthExclusions([]);
     return { ok: false, checked: [], excludedCapabilities: [], error: "No configured Groq Investigator capability is available." };
