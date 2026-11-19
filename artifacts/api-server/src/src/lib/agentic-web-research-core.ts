@@ -406,7 +406,7 @@ export function buildDiscoveryLeadUtilizationState(
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider?: "serper" | "tavily" | "exa" | null; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
-type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
+type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[]; rationaleIncomplete?: boolean };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
 export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const PREFERRED_PROVIDER_PROMPT_CHARS = 10_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000; const INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
@@ -1899,8 +1899,7 @@ export function describeAgentActionParseFailure(raw: string, actionAllowlist: re
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
   if (!actionAllowlist.includes(action)) return `unsupported_action action=${action}`;
-  const rationaleFailure = describeActionRationaleFailure(action, value);
-  if (rationaleFailure) return rationaleFailure;
+  // Rationale is telemetry, not an execution prerequisite. Action arguments and safety checks remain strict.
   return describeInvalidActionArguments(action, value) ?? "";
 }
 
@@ -1982,7 +1981,24 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
   const rawDiagnostic = describeAgentActionParseFailure(raw, actionAllowlist);
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
-  const json = extractJsonObject(normalizedRaw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parsePartialFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+  const json = extractJsonObject(normalizedRaw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; const rawInformationGain = value.expectedInformationGain;
+  const parsedInformationGain = typeof rawInformationGain === "number" && Number.isFinite(rawInformationGain)
+    ? rawInformationGain
+    : typeof rawInformationGain === "string" && rawInformationGain.trim() !== "" && Number.isFinite(Number(rawInformationGain))
+      ? Number(rawInformationGain)
+      : null;
+  const rationaleIncomplete = !cleanText(value.hypothesis, 500)
+    || !cleanText(value.purpose, 500)
+    || parsedInformationGain === null
+    || parsedInformationGain < 0
+    || parsedInformationGain > 1;
+  const meta = {
+    hypothesis: cleanText(value.hypothesis, 500) || "Rationale not supplied by model; action retained for execution review.",
+    purpose: cleanText(value.purpose, 500) || "Rationale not supplied by model; execute the otherwise valid requested action.",
+    expectedInformationGain: parsedInformationGain === null ? 0.5 : Math.max(0, Math.min(1, parsedInformationGain)),
+    rationaleIncomplete,
+    partialFindings: parsePartialFindings(value.findings),
+  }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
     if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item) || ((item as Record<string, unknown>).registry !== undefined && (item as Record<string, unknown>).registry !== null))) return null;
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
@@ -3109,12 +3125,12 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   let failedCapability: InvestigatorCapability | undefined;
   let failureReason: string | undefined;
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
-  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. Local parser enforces action-specific values and evidence rules.";
+  const strictContract = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings. Include every key; use null for unused scalar fields and [] for unused arrays. searches[] required keys: query, provider, registry, locale, market, purpose. findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use a concise hypothesis/purpose and 0.5. Local parser enforces action-specific values and evidence rules.";
   const prompt = [
     "PRE-LAUNCH PROVIDER CONTRACT PROBE. This is not a research job. Do not call tools, browse, or claim external observations.",
-    "Return exactly one valid JSON action object for web_search with query=\"Apex Atlas prelaunch contract probe\", provider=\"serper\", thought=\"Verify configured Investigator output contract only.\", hypothesis=\"The model can emit the configured action object.\", purpose=\"Pre-launch response-format compatibility probe.\", expectedInformationGain=0.",
+    "Using the production Investigator action contract, choose one useful public-web search action for this trivial objective: identify a publicly documented example organization. Compose the query and rationale yourself. Return one JSON action only; do not copy a supplied action or field values.",
     strictContract,
-  ].join("\n\n");
+  ].join("\\n\\n");
   for (const capability of capabilities) {
     const routedModel = selectGroqInvestigatorModel({ capability, configuredModel, highReasoningModel: GROQ_DEFAULT_MODEL });
     if (probedModels.has(routedModel)) continue;
@@ -3125,16 +3141,24 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     signal?.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(() => controller.abort(), 45_000);
     try {
-      const result = await withProviderRole("investigator", () => callGroqJson(
-        prompt, controller.signal, "identity_resolution", capability, undefined,
-        null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
-      ));
-      if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
-        failedCapability ??= capability;
-        failureReason ??= result?.error ?? "provider_contract_error";
-        continue;
+      let modelPassed = true;
+      let lastResult: Awaited<ReturnType<typeof callGroqJson>> = null;
+      // Three independently composed samples catch brittle echo-only successes.
+      for (let sample = 0; sample < 3; sample += 1) {
+        const result = await withProviderRole("investigator", () => callGroqJson(
+          prompt, controller.signal, "identity_resolution", capability, undefined,
+          null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
+        ));
+        lastResult = result;
+        if (!result?.raw || !parseAgentAction(result.raw, ["web_search"])) {
+          modelPassed = false;
+          failedCapability ??= capability;
+          failureReason ??= result?.error ?? "provider_contract_error";
+          break;
+        }
       }
-      checked.push({ capability, model: result.model });
+      if (!modelPassed) continue;
+      checked.push({ capability, model: lastResult?.model ?? routedModel });
     } catch (error) {
       failedCapability ??= capability;
       failureReason ??= error instanceof Error ? error.message : "provider_contract_error";
