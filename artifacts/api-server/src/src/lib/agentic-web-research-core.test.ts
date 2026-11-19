@@ -2975,6 +2975,11 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("record.pageArtifact =");
       expect(agenticCoreSource).toContain("pageReadSource: \"retained_fetch_artifact\"");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
+      expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
+      expect(bureauAgenticPassSource).toContain("Buffer.byteLength(artifactPayload, \"utf8\") > 128 * 1024");
+      expect(bureauAgenticPassSource).toContain("record.pageArtifact =");
+      expect(bureauAgenticPassSource).toContain("createHash(\"sha256\").update(text).digest(\"hex\")");
+      expect(bureauAgenticPassSource).toContain("const { pageArtifact: _pageArtifact, ...compactRecord } = record");
     });
 
     it("blocks the same normalized URL and capability when the model only changes its rationale", () => {
