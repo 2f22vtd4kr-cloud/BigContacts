@@ -4879,3 +4879,12 @@ describe("canonical terminal audit completeness", () => {
     expect(canonicalAtlasDiscoverySource).toContain("providerWaitMeasurement: \"not_instrumented\"");
   });
 });
+
+describe("Groq provider wait telemetry", () => {
+  it("records provider-gate wait separately from total inference latency", () => {
+    expect(agenticCoreSource).toContain("providerGateStartedAt = Date.now();");
+    expect(agenticCoreSource).toContain("providerWaitMs = Math.max(0, Date.now() - providerGateStartedAt);");
+    expect(agenticCoreSource).toContain("providerWaitMs,");
+  });
+});
+
