@@ -120,9 +120,13 @@ export function attachDurableFetchedPageArtifacts(
     if (!payload || payload.kind !== "fetched_page_artifact_chunk"
       || typeof payload.runId !== "string" || !payload.runId
       || typeof payload.turn !== "number" || !Number.isSafeInteger(payload.turn)
-      || typeof payload.sourceUrl !== "string" || typeof payload.sha256 !== "string"
+      || typeof payload.sourceUrl !== "string" || !/^https?:\/\//i.test(payload.sourceUrl)
+      || typeof payload.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(payload.sha256)
       || typeof payload.retrievedAt !== "string" || typeof payload.chunkIndex !== "number"
-      || typeof payload.chunkCount !== "number" || typeof payload.text !== "string") continue;
+      || !Number.isSafeInteger(payload.chunkIndex) || payload.chunkIndex < 0
+      || typeof payload.chunkCount !== "number" || !Number.isSafeInteger(payload.chunkCount)
+      || payload.chunkCount < 1 || payload.chunkCount > 8192 || payload.chunkIndex >= payload.chunkCount
+      || typeof payload.text !== "string") continue;
     const sourceVerified = typeof payload.sourceVerified === "boolean" ? payload.sourceVerified : null;
     const key = payload.runId + ":" + payload.turn;
     const entry = chunksByArtifact.get(key) ?? {
