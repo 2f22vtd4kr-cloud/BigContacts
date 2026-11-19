@@ -112,6 +112,21 @@ describe("Investigator credential quota identity", () => {
     expect(getInvestigatorCapabilityRuntimeHealthSnapshot(env).find((lane) => lane.capability === capability)?.status).toBe("healthy");
   });
 
+  it("degrades a lane after repeated nonconsecutive failures without removing or rotating the configured capability", () => {
+    const capability: InvestigatorCapability = "groq-investigator-3";
+    expect(recordInvestigatorCapabilityRuntimeOutcome(capability, {
+      success: false, failureClass: "action_parse_failure",
+    }).status).toBe("healthy");
+    expect(recordInvestigatorCapabilityRuntimeOutcome(capability, { success: true }).status).toBe("healthy");
+    const degraded = recordInvestigatorCapabilityRuntimeOutcome(capability, {
+      success: false, failureClass: "action_parse_failure",
+    });
+    expect(degraded.status).toBe("degraded");
+    expect(degraded.failedActions).toBe(2);
+    expect(degraded.successfulActions).toBe(1);
+    expect(getAvailableInvestigatorCapabilities(env)).toContain(capability);
+  });
+
   it("exposes the 20B endpoint by default and permits explicit disablement", () => {
     expect(getAvailableInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
