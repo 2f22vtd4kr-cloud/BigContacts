@@ -67,6 +67,9 @@ async function buildAll() {
     }
   }
 
+  // Unknown provenance is never eligible for build-cache reuse.
+  if (dirtyState === "unknown") dirty = true;
+
   await esbuild({
     // The imported BigContacts implementation lives under src/src. The
     // top-level src tree is only the minimal scaffold and exposes healthz
@@ -191,7 +194,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     path.join(distDir, "APEX_ATLAS_BUREAU_PLAYBOOK.txt"),
   );
 
-  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt }) + "\n");
+  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, dirtyState, builtAt }) + "\n");
 }
 
 buildAll().catch((err) => {
