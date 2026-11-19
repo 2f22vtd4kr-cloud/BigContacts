@@ -473,9 +473,9 @@ const openingCapabilitySelectionOrientation = [
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
   const soleCapabilityGuidance = input.excludedInvestigatorLlm?.length && availableInvestigators.length === 1
-    ? \`SINGLE-CAPABILITY ASSIGNMENT: \${availableInvestigators[0]} is the only currently permitted Investigator capability. Select exactly this capability in investigatorLlm; never reuse an excluded capability. This selects execution capability only and does not prescribe a target, query, tool, provider or research sequence.\`
+    ? `SINGLE-CAPABILITY ASSIGNMENT: ${availableInvestigators[0]} is the only currently permitted Investigator capability. Select exactly this capability in investigatorLlm; never reuse an excluded capability. This selects execution capability only and does not prescribe a target, query, tool, provider or research sequence.`
     : "";
-  return \`\${openingCapabilitySelectionOrientation}\\n\\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
+  return `${openingCapabilitySelectionOrientation}\\n\\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
@@ -483,14 +483,14 @@ Investigator model economy: prefer groq-investigator-20b for routine discovery a
 
 The Investigator will begin the canonical mixed-source discovery phase under the exact human objective after this assignment. Discovery combines a randomized, runtime-callable registry/asset-register catalog with independent public-web routes when relevant adapters exist; no target, query, provider, or source itinerary is predetermined. This call selects only the execution capability; the opening control pass evaluates the live source catalog and the Investigator chooses the exact hypotheses, target class, sources, queries, tools, pivots, and stopping point from actual returned observations. Do not add geographic scope or a target preference.
 
-Human objective (context only; do not reinterpret or expand it): \${input.objective.trim()}
-Human motivation (context only): \${input.motivation.trim()}
-Available Investigator capabilities: \${JSON.stringify(availableInvestigators)}
-Excluded capabilities (never select): \${JSON.stringify([...excluded])}
-\${soleCapabilityGuidance}
+Human objective (context only; do not reinterpret or expand it): ${input.objective.trim()}
+Human motivation (context only): ${input.motivation.trim()}
+Available Investigator capabilities: ${JSON.stringify(availableInvestigators)}
+Excluded capabilities (never select): ${JSON.stringify([...excluded])}
+${soleCapabilityGuidance}
 
 Return exactly one JSON object with this shape and no additional properties:
-{ "investigatorLlm": "one capability from the available Investigator list" }\`;
+{ "investigatorLlm": "one capability from the available Investigator list" }`;
 }
 
 export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
