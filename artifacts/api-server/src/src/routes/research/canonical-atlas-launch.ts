@@ -217,20 +217,24 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         // Preflight is job work, not synchronous HTTP launch work. The API can
         // return 202 with a durable job ID before any provider probe begins.
         const investigatorProbe = await probeGroqInvestigatorCapabilities();
-        logger.info({
-          jobId: atlasJobId,
+        const preflightReport = {
+          status: investigatorProbe.ok ? "passed" : "failed",
           checkedCapabilities: investigatorProbe.checked,
           excludedCapabilities: investigatorProbe.excludedCapabilities,
           sampleSummary: investigatorProbe.sampleSummary,
-          allCapabilitiesFailed: !investigatorProbe.ok,
-        }, "Apex Investigator preflight completed.");
+          error: investigatorProbe.error ?? null,
+        };
+        logger.info({ jobId: atlasJobId, investigatorPreflight: preflightReport }, "Apex Investigator preflight completed.");
+        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
+        await updateJob(atlasJobId!, {
+          result: JSON.stringify({ investigatorPreflight: preflightReport }),
+          message: investigatorProbe.ok
+            ? `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`
+            : `Investigator preflight failed (${probeReport || "no sample summary"}); excluded capabilities: ${investigatorProbe.excludedCapabilities.join(", ") || "none"}.`,
+        });
         if (!investigatorProbe.ok) {
           throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
         }
-        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
-        await updateJob(atlasJobId!, {
-          message: `Investigator preflight passed (${probeReport || "no sample summary"}). ${investigatorProbe.excludedCapabilities.length ? `Excluded unhealthy capabilities: ${investigatorProbe.excludedCapabilities.join(", ")}.` : "No capability excluded."}`,
-        });
         if (singleTargetId) {
           await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
         } else {
@@ -284,6 +288,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
+    investigatorPreflight: { status: "pending", message: "Provider compatibility is checked in the background before research actions begin; per-model sample results and exclusions are recorded on the job." },
     options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
