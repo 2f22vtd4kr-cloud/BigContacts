@@ -213,6 +213,43 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     }
   });
 
+  it("reports continuation unavailable when the shared HTML/PDF retention budget is exhausted", async () => {
+    const url = "https://example.com/filings/over-budget";
+    const pageText = "BUDGET_START " + "X".repeat(18_000) + " BUDGET_TAIL";
+    const maxChars = 64_000_000;
+    const store: RetainedFetchedPageStore = {
+      pages: new Map([["https://example.com/prior-retained-page", {
+        text: "previous HTML/PDF page already accounted for",
+        nextOffset: 16_000,
+        sourceUrl: "https://example.com/prior-retained-page",
+        artifactTurn: 1,
+        sourceVerified: true,
+      }]]),
+      retainedChars: maxChars - 100,
+      maxChars,
+    };
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    }));
+    try {
+      const result = await toolVisit(url, undefined, store, 2);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(result.observation).toContain("exceeded the run-scoped retention budget");
+      expect(result.observation).toContain("no readable continuation");
+      expect(result.pageHasMore).toBe(false);
+      expect(result.pageText).toBeUndefined();
+      expect(result.pageSha256).toBeUndefined();
+      expect(store.pages.has(url)).toBe(false);
+      expect(store.retainedChars).toBe(maxChars - 100);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
   it("fetches once, restores the persisted cursor, reads the final section, and never refetches an exhausted page", async () => {
     const url = "https://example.com/company/team";
     const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
