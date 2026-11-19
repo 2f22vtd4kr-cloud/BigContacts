@@ -16,7 +16,7 @@ assert(/gatedSafeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search
 assert(/gatedSafeOutboundFetch\(url/.test(core), "Investigator page visits do not use the gated SSRF-safe transport.");
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
 assert(/classifyGroqInvestigatorHttp400/.test(core) && /providerCode === "json_validate_failed"/.test(core), "Groq HTTP 400 handling must distinguish recoverable generated-output validation from provider contract rejection.");
-assert(/callGroqJson\(/.test(transportTest) && /json_validate_failed/.test(transportTest) && /param: "response_format"/.test(transportTest) && /toHaveBeenCalledTimes\(2\)/.test(transportTest) && /toHaveBeenCalledTimes\(1\)/.test(transportTest), "Groq HTTP 400 recovery and schema rejection must be exercised through the real Investigator transport.");
+assert(/callGroqJson\(/.test(transportTest) && /json_validate_failed/.test(transportTest) && /param: "response_format"/.test(transportTest) && /toHaveBeenCalledTimes\(2\)/.test(transportTest) && /toHaveBeenCalledTimes\(1\)/.test(transportTest) && /callTransport\(true\)/.test(transportTest), "Groq HTTP 400 recovery, schema rejection and one-request launch preflight must be exercised through the real Investigator transport.");
 const transportErrorDecisionAt = core.indexOf("const httpErrorDecision = decideGroqInvestigatorHttpError");
 const transportRecoveryAt = core.indexOf("const recovery = httpErrorDecision.recovery", transportErrorDecisionAt);
 const recoveryDecisionHelperAt = core.indexOf("export function decideGroqInvestigatorHttpError");
