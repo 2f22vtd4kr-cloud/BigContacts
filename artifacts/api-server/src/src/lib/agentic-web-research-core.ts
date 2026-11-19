@@ -1158,6 +1158,28 @@ export function selectConfiguredSearchProvider(
   return getConfiguredSearchProviders().find((provider) => !isSearchProviderDisabled(states, provider)) ?? null;
 }
 
+export type ParallelWebSearchRequest = {
+  query: string;
+  provider?: "serper" | "tavily" | "exa";
+  locale?: string;
+  market?: string;
+  purpose?: string;
+};
+
+/** Resolve model-omitted providers using the same healthy default as web_search. */
+export function resolveParallelWebSearchProviders(
+  searches: readonly ParallelWebSearchRequest[],
+  runtimeDefaultProvider: "serper" | "tavily" | "exa" | null,
+): Array<ParallelWebSearchRequest & { provider: "serper" | "tavily" | "exa" }> | null {
+  const resolved: Array<ParallelWebSearchRequest & { provider: "serper" | "tavily" | "exa" }> = [];
+  for (const search of searches) {
+    const provider = search.provider ?? runtimeDefaultProvider;
+    if (!provider) return null;
+    resolved.push({ ...search, provider });
+  }
+  return resolved;
+}
+
 /** RDAP is the free, standards-based technical default; WHOISJSON remains an explicit model option. */
 export function resolveDomainLookupProvider(
   requested?: "rdap" | "whoisjson",
@@ -6211,14 +6233,11 @@ if (action.action === "parallel_web_search") {
   // An omitted/null provider follows the same configured healthy runtime default
   // as a single web_search. Resolve once, persist the effective provider, and
   // retain the Investigator-selected query without inventing a new search.
-  const resolvedParallelSearches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }> = [];
-  let missingParallelSearchDefault = false;
-  for (const search of action.searches) {
-    const provider = search.provider ?? selectConfiguredSearchProvider(searchProviderFailures);
-    if (!provider) missingParallelSearchDefault = true;
-    else resolvedParallelSearches.push({ ...search, provider });
-  }
-  if (missingParallelSearchDefault) {
+  const resolvedParallelSearches = resolveParallelWebSearchProviders(
+    action.searches,
+    selectConfiguredSearchProvider(searchProviderFailures),
+  );
+  if (!resolvedParallelSearches) {
     record.execution = "blocked";
     record.failureDomain = "tool_execution";
     record.failureKind = "request_failure";
