@@ -3246,11 +3246,17 @@ export function groupInvestigatorCapabilitiesByModelAndCredential(
   return [...groups.values()];
 }
 
-export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): Promise<{
+export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jobId?: string | null): Promise<{
   ok: boolean;
   checked: Array<{ capability: InvestigatorCapability; model: string }>;
   excludedCapabilities: InvestigatorCapability[];
-  sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }>;
+  sampleSummary: Array<{
+    model: string;
+    capabilities: InvestigatorCapability[];
+    passedSamples: number;
+    failedSamples: number;
+    samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }>;
+  }>;
   failedCapability?: InvestigatorCapability;
   error?: string;
 }> {
@@ -3262,7 +3268,13 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
   const modelGroups = groupInvestigatorCapabilitiesByModelAndCredential(capabilities, configuredModel);
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const excludedCapabilities: InvestigatorCapability[] = [];
-  const sampleSummary: Array<{ model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number }> = [];
+  const sampleSummary: Array<{
+    model: string;
+    capabilities: InvestigatorCapability[];
+    passedSamples: number;
+    failedSamples: number;
+    samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }>;
+  }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
   for (const { model, capabilities: modelCapabilities } of modelGroups) {
@@ -3283,6 +3295,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
     ].join("\n\n");
     let passedSamples = 0;
     let failureReason = "";
+    const samples: Array<{ sample: number; passed: boolean; classification: string; latencyMs: number; diagnostic: string }> = [];
     // Three samples are diagnostic, not an all-three-or-nothing launch gate.
     // A lane remains usable if at least one independently generated action
     // satisfies the production parser; a lane with zero valid samples is excluded.
@@ -3293,21 +3306,52 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
       signal?.addEventListener("abort", abortParent, { once: true });
       // Each independent sample owns its own decision deadline.
       const timer = setTimeout(() => controller.abort(), 45_000);
+      const sampleStartedAt = Date.now();
+      let samplePassed = false;
+      let classification = "provider_failure";
+      let diagnostic = "provider_unavailable";
       try {
         const result = await withProviderRole("investigator", () => callGroqJson(
           prompt, controller.signal, "identity_resolution", modelCapabilities[0], undefined,
-          null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
+          jobId ?? null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
         ));
         if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
           passedSamples += 1;
+          samplePassed = true;
+          classification = "passed";
+          diagnostic = "valid_action";
         } else {
-          failureReason ||= result?.error ?? "provider_contract_error";
+          const parseDiagnostic = result?.raw
+            ? describeAgentActionParseFailure(result.raw, ["web_search"])
+            : "";
+          const providerDiagnostic = result?.error ?? "provider_contract_error";
+          diagnostic = parseDiagnostic || providerDiagnostic;
+          classification = result?.error
+            ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\\d\\d/i.test(providerDiagnostic)
+              ? "provider_transport_failure"
+              : "provider_failure"
+            : /invalid_action_arguments|unsupported_action|missing_action/.test(parseDiagnostic)
+              ? "action_contract_failure"
+              : "response_parse_failure";
+          failureReason ||= providerDiagnostic;
         }
       } catch (error) {
-        failureReason ||= error instanceof Error ? error.message : "provider_contract_error";
+        const message = error instanceof Error ? error.message : "provider_contract_error";
+        classification = /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\\d\\d/i.test(message)
+          ? "provider_transport_failure"
+          : "provider_failure";
+        diagnostic = classification + ":" + digestDiagnosticText(message);
+        failureReason ||= classification;
       } finally {
         clearTimeout(timer);
         signal?.removeEventListener("abort", abortParent);
+        samples.push({
+          sample: sample + 1,
+          passed: samplePassed,
+          classification,
+          latencyMs: Date.now() - sampleStartedAt,
+          diagnostic,
+        });
       }
     }
     sampleSummary.push({
@@ -3315,8 +3359,12 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal): P
       capabilities: modelCapabilities,
       passedSamples,
       failedSamples: 3 - passedSamples,
+      samples,
     });
-    if (passedSamples > 0) {
+    // A single valid response is insufficient evidence of a healthy lane when
+    // two independent production-contract probes failed. Boss should select a
+    // lane with repeatable contract compatibility, not a one-off success.
+    if (passedSamples >= 2) {
       for (const capability of modelCapabilities) checked.push({ capability, model });
     } else {
       excludedCapabilities.push(...modelCapabilities);
