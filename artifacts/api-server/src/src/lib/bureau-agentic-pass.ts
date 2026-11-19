@@ -405,7 +405,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
         // immutable research-event payload limit, including multibyte UTF-8.
         for (const character of artifact.text) {
           const characterBytes = Buffer.byteLength(character, "utf8");
-          if (chunk && chunkBytes + characterBytes > 72 * 1024) {
+          if (chunk && chunkBytes + characterBytes > 12 * 1024) {
             chunks.push(chunk);
             chunk = "";
             chunkBytes = 0;
