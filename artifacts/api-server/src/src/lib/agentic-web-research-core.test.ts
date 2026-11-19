@@ -2963,7 +2963,7 @@ Choose each next action yourself from the available capabilities and observed ev
     it("allows the Investigator to read the next retained page section without an outbound retry", () => {
       const truncatedVisit = {
         ...successfulVisit,
-        args: { ...successfulVisit.args, pageHasMore: true, pageReadSource: "retained_fetch_artifact" },
+        args: { ...successfulVisit.args, pageHasMore: true, pageArtifactAvailable: true, pageReadSource: "retained_fetch_artifact" },
       };
       expect(redundantResearchActionReason("visit", {
         url: "https://EXAMPLE.com/team#contact",
