@@ -343,9 +343,15 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             ))
           : [{ count: 0 }];
         const cardMetadataRows = await db.select({ metadata: entitiesTable.metadata }).from(entitiesTable)
-          .where(sql`${entitiesTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
+          .where(or(
+            sql`${entitiesTable.metadata} LIKE ${"%" + atlasJobId + "%"}`,
+            ...terminalCases.map((researchCase) => sql`${entitiesTable.metadata} LIKE ${"%" + String(researchCase.id) + "%"}`),
+          ));
         const evidenceMetadataRows = await db.select({ metadata: researchEvidenceTable.metadata }).from(researchEvidenceTable)
-          .where(sql`${researchEvidenceTable.metadata} LIKE ${"%" + atlasJobId + "%"}`);
+          .where(or(
+            sql`${researchEvidenceTable.metadata} LIKE ${"%" + atlasJobId + "%"}`,
+            ...terminalCases.map((researchCase) => sql`${researchEvidenceTable.metadata} LIKE ${"%" + String(researchCase.id) + "%"}`),
+          ));
         const terminalCaseIds = new Set(terminalCases.map((researchCase) => researchCase.id));
         const parseMetadata = (value: unknown): Record<string, unknown> | null => {
           if (typeof value !== "string") return null;
