@@ -6147,7 +6147,11 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     const previousStage = runtimeStage;
     runtimeStage = "trajectory_persistence";
     try {
-      await input.onTrajectoryRecord?.(sanitizeObservableValue(record));
+      const durableRecord = sanitizeObservableValue(record);
+      if (durableRecord.pageArtifact) {
+        durableRecord.pageArtifact.sha256 = createHash("sha256").update(durableRecord.pageArtifact.text).digest("hex");
+      }
+      await input.onTrajectoryRecord?.(durableRecord);
       runtimeStage = previousStage;
     } catch (error) {
       // Leave the failing stage in place for the outer, redacted diagnostic.
