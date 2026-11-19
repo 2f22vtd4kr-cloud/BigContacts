@@ -26,6 +26,72 @@ export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
   ),
 ];
 
+export type InvestigatorCapabilityRuntimeHealth = {
+  capability: InvestigatorCapability;
+  status: "healthy" | "degraded";
+  successfulActions: number;
+  failedActions: number;
+  parseFailures: number;
+  providerFailures: number;
+  consecutiveFailures: number;
+  lastFailureClass: string | null;
+  lastFailureAt: string | null;
+  lastSuccessAt: string | null;
+};
+
+type MutableInvestigatorCapabilityRuntimeHealth = Omit<InvestigatorCapabilityRuntimeHealth, "capability" | "status">;
+const investigatorRuntimeHealth = new Map<InvestigatorCapability, MutableInvestigatorCapabilityRuntimeHealth>();
+
+function emptyInvestigatorRuntimeHealth(): MutableInvestigatorCapabilityRuntimeHealth {
+  return {
+    successfulActions: 0,
+    failedActions: 0,
+    parseFailures: 0,
+    providerFailures: 0,
+    consecutiveFailures: 0,
+    lastFailureClass: null,
+    lastFailureAt: null,
+    lastSuccessAt: null,
+  };
+}
+
+/** Record model-contract/provider outcomes without silently changing Boss's lane selection. */
+export function recordInvestigatorCapabilityRuntimeOutcome(
+  capability: InvestigatorCapability,
+  outcome: { success: true } | { success: false; failureClass: string },
+): InvestigatorCapabilityRuntimeHealth {
+  const current = investigatorRuntimeHealth.get(capability) ?? emptyInvestigatorRuntimeHealth();
+  if (outcome.success) {
+    current.successfulActions += 1;
+    current.consecutiveFailures = 0;
+    current.lastSuccessAt = new Date().toISOString();
+  } else {
+    current.failedActions += 1;
+    current.consecutiveFailures += 1;
+    current.lastFailureClass = outcome.failureClass;
+    current.lastFailureAt = new Date().toISOString();
+    if (outcome.failureClass.includes("parse") || outcome.failureClass.includes("contract")) current.parseFailures += 1;
+    else current.providerFailures += 1;
+  }
+  investigatorRuntimeHealth.set(capability, current);
+  return { capability, status: current.consecutiveFailures >= 2 ? "degraded" : "healthy", ...current };
+}
+
+/** Runtime health is advisory telemetry for Boss/Right-hand, never an automatic lane rotation. */
+export function getInvestigatorCapabilityRuntimeHealthSnapshot(
+  env: NodeJS.ProcessEnv = process.env,
+): InvestigatorCapabilityRuntimeHealth[] {
+  return getAvailableInvestigatorCapabilities(env).map((capability) => {
+    const current = investigatorRuntimeHealth.get(capability) ?? emptyInvestigatorRuntimeHealth();
+    return {
+      capability,
+      status: current.consecutiveFailures >= 2 ? "degraded" : "healthy",
+      ...current,
+    };
+  });
+}
+
+
 function keyIndex(capability: InvestigatorCapability): number | null {
   if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return 1;
   const match = capability.match(/^groq-investigator-(\d+)$/);
