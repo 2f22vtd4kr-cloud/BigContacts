@@ -469,7 +469,8 @@ async function requestSummary(
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
  * semantic reduction uses the dedicated Right-hand credential lane on the 20B model; it never consumes the shared 120B Boss/control bucket. A
  * resource cap protects the provider from pathological input sizes but never
- * substitutes an excerpt for the source.
+ * substitutes a deterministic excerpt for required historical memory. Only
+ * non-semantic observations may use the bounded transport projection.
  */
 const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
 // Production historical-memory compaction supports segmented, model-written
@@ -771,6 +772,12 @@ export async function compactInvestigationContextWithFallback(
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.max(1, Math.min(MAX_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return { text: source, method: "unchanged" };
+  // Below the semantic-compaction activation threshold, retain historical
+  // memory verbatim even when it exceeds the preferred target. Never replace
+  // required case history with a deterministic head/tail or keyword excerpt.
+  if (kind === "historical_memory" && source.length < AI_COMPACTION_MIN_SOURCE_CHARS) {
+    return { text: source, method: "unchanged" };
+  }
 
   const semantic = await summarizeInvestigatorContextWithAiCompactor({
     ...input,
@@ -784,10 +791,13 @@ export async function compactInvestigationContextWithFallback(
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
-  const deterministic = buildDeterministicContextProjection(source, maxChars, kind);
-  return deterministic
-    ? { text: deterministic, method: "deterministic_projection" }
-    : null;
+  // A missing/invalid model-written historical summary is a hard failure:
+  // durable case history remains intact, but no deterministic excerpt is
+  // allowed to masquerade as the working memory needed for the next act.
+  if (kind === "historical_memory") return null;
+
+  const deterministic = buildDeterministicContextProjection(source, maxChars, "observation");
+  return deterministic ? { text: deterministic, method: "deterministic_projection" } : null;
 }
 
 /** Recent observations use the same safe projection, labelled distinctly. */
