@@ -1693,17 +1693,6 @@ function extractJsonObject(raw: string): string | null {
   // a valid prefix and silently ignore trailing prose or a second action.
   return json === candidate ? json : null;
 }
-function describeActionRationaleFailure(action: string, value: Record<string, unknown>): string | null {
-  if (action === "done") return null;
-  if (!cleanText(value.hypothesis, 500)) return "missing_action_rationale action=" + action + " missing=hypothesis";
-  if (!cleanText(value.purpose, 500)) return "missing_action_rationale action=" + action + " missing=purpose";
-  const informationGain = value.expectedInformationGain;
-  if (typeof informationGain !== "number" || !Number.isFinite(informationGain) || informationGain < 0 || informationGain > 1) {
-    return "invalid_action_rationale action=" + action + " expectedInformationGain must be a finite number in [0,1]";
-  }
-
-  return null;
-}
 function describeInvalidActionArguments(action: string, value: Record<string, unknown>): string | null {
   const textField = (name: string, max: number) => cleanText(value[name], max);
   const exceeds = (raw: unknown, max: number) => typeof raw === "string" && raw.trim().length > max;
