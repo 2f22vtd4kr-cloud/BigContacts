@@ -232,7 +232,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             : "Investigator preflight passed; all configured capabilities are available.",
         });
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -240,6 +240,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             targetTimeoutMs,
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
+            excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
           });
         }
       });
