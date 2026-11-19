@@ -193,7 +193,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
     const actInput: RunInput = { ...input, initialConsecutiveActionParseFailures: consecutiveActionParseFailures, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, null), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (input.shouldCancel && await input.shouldCancel()) return true; if (!input.jobId) return false; const job = await getJobStrict(input.jobId); if (!job) throw new Error("Agentic run job record missing; cancellation and ownership cannot be confirmed."); if (job.cancelRequested || job.status === "cancelled") return true; if (job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; const ownsLease = await isCanonicalJobOwner(lockType, input.jobId); if (!ownsLease) throw new Error("Canonical agentic job lease was lost; refusing further research actions."); return false; }, priorContext: buildContinuationState(input.priorContext || ""),
       aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
-      aiCompactedHistoricalThroughTurn, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: undefined };
+      aiCompactedHistoricalThroughTurn, onLiveStep: (step) => input.onLiveStep?.(step), pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord), onTrajectoryRecord: undefined };
     wrapperFailureStage = "core_execution";
     const actResult = await core.runAgenticWebResearch(actInput);
     if (actResult.aiCompactedHistoricalContext) {
@@ -470,6 +470,7 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
            onLiveStep: (step) => input.onLiveStep?.(step),
+           pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord),
            onTrajectoryRecord: undefined,
          };
          targetWrapperFailureStage = "core_execution";
