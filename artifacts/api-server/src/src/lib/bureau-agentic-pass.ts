@@ -1,7 +1,6 @@
 /** Bureau-facing wrapper around the canonical model-owned ReAct Investigator. */
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
@@ -9,7 +8,7 @@ import { buildBureauAgenticPassFailureResult, shouldSkipAlreadyFinalizedTrajecto
 import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration, resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords, hasDurableUrlProjectionOmissions as hasDurableUrlProjectionOmissionsHelper } from "./durable-discovery-projection";
-import { replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
+import { attachDurableFetchedPageArtifacts, replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
 import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsReviewableClaimAcrossObservations } from "./bureau-contact-persist-strict";
@@ -143,64 +142,10 @@ async function loadDurableTrajectoryRecords(caseId: number | null): Promise<Agen
       eq(researchCaseEventsTable.status, "page_artifact"),
     ))
     .orderBy(researchCaseEventsTable.id);
-  const chunksByArtifact = new Map<string, {
-    runId: string; turn: number; sourceUrl: string; sha256: string; retrievedAt: string;
-    sourceVerified: boolean | null; firstEventId: number; chunkCount: number; chunks: Map<number, string>;
-  }>();
-  for (const event of artifactEvents) {
-    if (typeof event.payload !== "string") continue;
-    try {
-      const payload = JSON.parse(event.payload) as Record<string, unknown>;
-      if (payload.kind !== "fetched_page_artifact_chunk"
-        || typeof payload.runId !== "string"
-        || typeof payload.turn !== "number"
-        || typeof payload.sourceUrl !== "string"
-        || typeof payload.sha256 !== "string"
-        || typeof payload.retrievedAt !== "string"
-        || typeof payload.chunkIndex !== "number"
-        || typeof payload.chunkCount !== "number"
-        || typeof payload.text !== "string") continue;
-      const key = payload.runId + ":" + payload.turn;
-      const entry = chunksByArtifact.get(key) ?? {
-        runId: payload.runId,
-        turn: payload.turn,
-        sourceUrl: payload.sourceUrl,
-        sha256: payload.sha256,
-        retrievedAt: payload.retrievedAt,
-        sourceVerified: typeof payload.sourceVerified === "boolean" ? payload.sourceVerified : null,
-        firstEventId: event.id,
-        chunkCount: payload.chunkCount,
-        chunks: new Map<number, string>(),
-      };
-      if (entry.sha256 !== payload.sha256 || entry.chunkCount !== payload.chunkCount
-        || entry.sourceUrl !== payload.sourceUrl || entry.retrievedAt !== payload.retrievedAt
-        || entry.sourceVerified !== (typeof payload.sourceVerified === "boolean" ? payload.sourceVerified : null)) continue;
-      entry.firstEventId = Math.min(entry.firstEventId, event.id);
-      entry.chunks.set(payload.chunkIndex, payload.text);
-      chunksByArtifact.set(key, entry);
-    } catch {
-      // An incomplete or malformed artifact remains unavailable; it is never
-      // silently reconstructed from a partial set of chunks.
-    }
-  }
-  for (const artifact of chunksByArtifact.values()) {
-    if (artifact.chunks.size !== artifact.chunkCount) continue;
-    const ordered = Array.from({ length: artifact.chunkCount }, (_, index) => artifact.chunks.get(index));
-    if (ordered.some((chunk) => typeof chunk !== "string")) continue;
-    const text = (ordered as string[]).join("");
-    if (createHash("sha256").update(text).digest("hex") !== artifact.sha256) continue;
-    const record = records.find((item) => item.runId === artifact.runId && item.turn === artifact.turn
-      && (item.action === "visit" || item.action === "browser_fetch"));
-    if (record) record.pageArtifact = {
-      sourceUrl: artifact.sourceUrl,
-      text,
-      sha256: artifact.sha256,
-      retrievedAt: artifact.retrievedAt,
-      sourceVerified: artifact.sourceVerified ?? (record.execution === "success" && record.observedUrls.length > 0),
-      artifactEventId: artifact.firstEventId,
-    };
-  }
-  return records;
+  return attachDurableFetchedPageArtifacts(
+    records,
+    artifactEvents.filter((event): event is { id: number; payload: string } => typeof event.payload === "string"),
+  );
 }
 
 type MountedCaseContext = { document: string; durableUrlInventory?: string };
