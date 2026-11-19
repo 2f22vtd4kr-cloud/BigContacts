@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readFile, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
@@ -20,12 +20,22 @@ async function buildAll() {
   let dirty = false;
   let dirtyState = "unknown";
   const builtAt = new Date().toISOString();
-  try {
-    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
-    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
-    dirtyState = dirty ? "dirty" : "clean";
-  } catch {
-    // Missing Git metadata is explicitly represented as unknown in the job record.
+  // ZIP imports do not carry .git metadata. The supported Replit import bundle
+  // injects the exact source commit SHA into this root manifest. Prefer it over
+  // a starter Repl's unrelated .git/HEAD, which can otherwise misreport provenance.
+  const manifestRevision = (process.env.APEX_IMPORTED_SOURCE_REVISION
+    || await readFile(path.resolve(rootDir, "APEX_SOURCE_REVISION"), "utf8").catch(() => "")).trim();
+  if (/^[a-f0-9]{40}$/i.test(manifestRevision)) {
+    revision = manifestRevision.toLowerCase();
+    dirtyState = "unknown";
+  } else {
+    try {
+      revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+      dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
+      dirtyState = dirty ? "dirty" : "clean";
+    } catch {
+      // Missing Git metadata and missing import manifest are explicitly unknown.
+    }
   }
 
   await esbuild({

@@ -82,3 +82,22 @@ describe("immutable Investigator trajectory replay", () => {
     expect(records[1].action).toBe("done");
   });
 });
+
+
+  it("replays retained fetched-page text across Investigator continuations", () => {
+    const records = replayInvestigatorTrajectoryEvents([{
+      id: 21,
+      eventType: "tool_observation",
+      payload: JSON.stringify({
+        runId: "run-page", turn: 4, action: "visit", execution: "success",
+        args: { url: "https://example.com/source" },
+        observation: "PAGE https://example.com/source [PAGE TEXT RETAINED FOR READ_PAGE]",
+        observedUrls: ["https://example.com/source"], leadUrls: [], findings: [], sourceBindings: [],
+        pageContent: "section one\nJane Example, Managing Director",
+        pageContentTruncated: false, pageContentCharsOmitted: 0,
+      }),
+    }]);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.pageContent).toContain("Jane Example, Managing Director");
+    expect(records[0]?.pageContentCharsOmitted).toBe(0);
+  });

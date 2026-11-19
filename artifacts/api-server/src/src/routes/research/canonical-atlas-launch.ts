@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
-import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
+import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob, updateTerminalJobAudit } from "../../lib/job-queue";
+import { claimCanonicalJob, fenceStaleCanonicalJob, isCanonicalJobOwner, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { probeGroqInvestigatorCapabilities } from "../../lib/agentic-web-research-core";
@@ -15,6 +15,8 @@ import { withProviderScope } from "../../lib/provider-gate";
 import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
 import { reconcileOrganizationReviewCardsForJob, reconcilePersonReviewCardsForJob } from "../../lib/research-lead-card-reconciliation";
 import { logger } from "../../lib/logger";
+import { getDiscoveryTrace } from "../../lib/investigator-trace";
+import { getAgenticLlmTelemetryForJob } from "../../lib/agentic-llm-telemetry";
 
 const router = Router();
 
@@ -223,7 +225,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
         // Preflight is job work, not synchronous HTTP launch work. The API can
         // return 202 with a durable job ID before any provider probe begins.
-        const investigatorProbe = await probeGroqInvestigatorCapabilities();
+        const investigatorProbe = await probeGroqInvestigatorCapabilities(undefined, atlasJobId);
         const preflightReport = {
           buildProvenance,
           status: investigatorProbe.ok ? "passed" : "failed",
@@ -245,7 +247,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
         }
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities, investigatorLaneHealth: investigatorProbe.sampleSummary });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -254,6 +256,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
             excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
+            investigatorLaneHealth: investigatorProbe.sampleSummary,
           });
         }
       });
@@ -286,22 +289,117 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         finishedAt: new Date().toISOString(),
       });
     } finally {
+      let organizationReconciliation: { cards: number; evidenceRows: number } | null = null;
+      let organizationReconciliationError: string | null = null;
+      let personReconciliation: { cards: number; evidenceRows: number } | null = null;
+      let personReconciliationError: string | null = null;
       try {
-        await reconcileOrganizationReviewCardsForJob(atlasJobId);
+        organizationReconciliation = await reconcileOrganizationReviewCardsForJob(atlasJobId);
       } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only organization card reconciliation deferred; durable research trace remains available.");
+        organizationReconciliationError = error instanceof Error ? error.message : "unknown reconciliation error";
+        logger.warn({ jobId: atlasJobId, error: organizationReconciliationError },
+          "Review-only organization card reconciliation failed; terminal audit will record the failure.");
       }
       try {
-        await reconcilePersonReviewCardsForJob(atlasJobId);
+        personReconciliation = await reconcilePersonReviewCardsForJob(atlasJobId);
       } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only person card reconciliation deferred; durable research trace remains available.");
+        personReconciliationError = error instanceof Error ? error.message : "unknown reconciliation error";
+        logger.warn({ jobId: atlasJobId, error: personReconciliationError },
+          "Review-only person card reconciliation failed; terminal audit will record the failure.");
       }
+
+      let releaseAttempted = false;
       try {
+        releaseAttempted = true;
         await releaseCanonicalJob("atlas-run", atlasJobId);
-      } catch {
-        // Keep the durable TTL lease when release is unavailable; never delete another owner's lock.
+      } catch (error) {
+        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown lock release error" },
+          "Canonical Atlas lock release raised an error; ownership will be checked before terminal audit.");
+      }
+      let lockReleased = false;
+      try { lockReleased = !(await isCanonicalJobOwner("atlas-run", atlasJobId)); } catch { lockReleased = false; }
+
+      let terminalJob = null;
+      try {
+        terminalJob = await getJobStrict(atlasJobId);
+        if (terminalJob && !["done", "failed", "cancelled"].includes(terminalJob.status)) {
+          await updateJob(atlasJobId, {
+            status: "failed",
+            outcome: "incomplete",
+            finishedAt: new Date().toISOString(),
+            message: "Canonical Atlas returned without persisting a terminal job state; marked failed by the launch finalizer.",
+          });
+          terminalJob = await getJobStrict(atlasJobId);
+        }
+      } catch (error) {
+        logger.error({ jobId: atlasJobId, error: error instanceof Error ? error.message : "terminal job state unavailable" },
+          "Canonical Atlas finalizer could not read or enforce terminal job state.");
+      }
+
+      if (terminalJob && ["done", "failed", "cancelled"].includes(terminalJob.status)) {
+        let caseReadback: Array<{ id: number; caseType: string; status: string; currentAction: string | null }> = [];
+        let caseReadbackError: string | null = null;
+        try {
+          caseReadback = await db.select({
+            id: researchCasesTable.id,
+            caseType: researchCasesTable.caseType,
+            status: researchCasesTable.status,
+            currentAction: researchCasesTable.currentAction,
+          }).from(researchCasesTable).where(or(
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+          ));
+        } catch (error) {
+          caseReadbackError = error instanceof Error ? error.message : "case read-back failed";
+        }
+        const trace = await getDiscoveryTrace(atlasJobId);
+        const llmTelemetry = getAgenticLlmTelemetryForJob(atlasJobId);
+        const terminalAudit = {
+          recordedAt: new Date().toISOString(),
+          terminalState: terminalJob.status,
+          outcome: terminalJob.outcome ?? null,
+          finishedAt: terminalJob.finishedAt ?? null,
+          cases: caseReadback,
+          caseReadbackError,
+          cardReconciliation: {
+            organizations: organizationReconciliation,
+            organizationsError: organizationReconciliationError,
+            people: personReconciliation,
+            peopleError: personReconciliationError,
+          },
+          lock: { releaseAttempted, released: lockReleased },
+          llmTelemetry: {
+            attempts: llmTelemetry.attempts,
+            successes: llmTelemetry.successes,
+            failed: llmTelemetry.failed,
+            promptTokens: llmTelemetry.promptTokens,
+            cachedPromptTokens: llmTelemetry.cachedPromptTokens,
+            completionTokens: llmTelemetry.completionTokens,
+            totalTokens: llmTelemetry.totalTokens,
+            latencyMs: llmTelemetry.latencyMs,
+            providerWaitMs: llmTelemetry.providerWaitMs,
+          },
+          investigatorTrace: trace,
+          investigatorTraceAttached: Boolean(trace),
+        };
+        let previousResult: Record<string, unknown> = {};
+        try {
+          const parsed = terminalJob.result ? JSON.parse(terminalJob.result) : {};
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) previousResult = parsed as Record<string, unknown>;
+          else previousResult = { priorResult: parsed };
+        } catch {
+          previousResult = { priorResultText: terminalJob.result ?? null };
+        }
+        const finalResult = JSON.stringify({ ...previousResult, terminalAudit });
+        const finalMessage = `${terminalJob.message} Terminal audit: cases=${caseReadback.length}, organizationCards=${organizationReconciliation?.cards ?? "unknown"}, personCards=${personReconciliation?.cards ?? "unknown"}, traceAttached=${Boolean(trace)}, lockReleased=${lockReleased}, totalTokens=${llmTelemetry.totalTokens}, providerWaitMs=${llmTelemetry.providerWaitMs}.`;
+        const persisted = await updateTerminalJobAudit(atlasJobId, terminalJob.status, { result: finalResult, message: finalMessage });
+        if (!persisted) {
+          logger.error({ jobId: atlasJobId, terminalState: terminalJob.status },
+            "Canonical Atlas terminal audit could not be attached to the immutable terminal job record.");
+        }
+      } else {
+        logger.error({ jobId: atlasJobId, terminalState: terminalJob?.status ?? "missing", lockReleased },
+          "Canonical Atlas finalizer has no durable terminal job state to audit.");
       }
     }
   })();

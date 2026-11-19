@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, readFetchedPageChunk, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -94,7 +94,7 @@ describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
     expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
-    expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
+    expect(agenticCoreSource).toContain("deterministic_observation_projection");
     expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
@@ -4991,5 +4991,33 @@ describe("failed-run terminal audit completeness", () => {
     expect(canonicalAtlasDiscoverySource).toContain("providerWaitMs: failureLlmTelemetry.providerWaitMs");
     expect(canonicalAtlasDiscoverySource).toContain("failureTerminalSnapshot.activeJobLockReleased = terminalAuditLockReleased;");
     expect(canonicalAtlasDiscoverySource).toContain("await updateJob(atlasJobId, { result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }) });");
+  });
+});
+
+
+describe("durable fetched-page continuation", () => {
+  it("reads later source sections in bounded chunks without making another fetch", () => {
+    const page = "first section\n" + "x".repeat(20_000) + "\nNAMED DIRECTOR: Jane Example";
+    const first = readFetchedPageChunk(page, 0, 8_000);
+    const later = readFetchedPageChunk(page, 20_000, 8_000);
+    expect(first.offset).toBe(0);
+    expect(first.charsRemaining).toBeGreaterThan(0);
+    expect(later.text).toContain("NAMED DIRECTOR: Jane Example");
+    expect(later.offset).toBe(20_000);
+    expect(later.end).toBe(page.length);
+  });
+
+  it("caps a requested page segment at the maximum read size", () => {
+    const page = "a".repeat(40_000);
+    const chunk = readFetchedPageChunk(page, 0, 50_000);
+    expect(chunk.text).toHaveLength(12_000);
+    expect(chunk.charsRemaining).toBe(28_000);
+  });
+
+  it("parses read_page as an allowlisted non-network action", () => {
+    const action = parseAgentAction(JSON.stringify({ action: "read_page", url: "https://example.com/source", offset: 8_000, length: 4_000, hypothesis: "Inspect a later source section", purpose: "Find names in the retained source", expectedInformationGain: 0.8 }), ["read_page"]);
+    expect(action).toMatchObject({ action: "read_page", url: "https://example.com/source", offset: 8_000, length: 4_000 });
+    expect(isModelSelectableAgentAction("read_page")).toBe(true);
+    expect(redundantResearchActionReason("read_page", { url: "https://example.com/source", offset: 8_000 }, [{ turn: 1, model: "test", action: "visit", args: { url: "https://example.com/source" }, execution: "success", observation: "PAGE", observedUrls: ["https://example.com/source"], findings: [] }])).toBeNull();
   });
 });

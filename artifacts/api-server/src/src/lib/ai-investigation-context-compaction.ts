@@ -472,7 +472,7 @@ async function requestSummary(
  * substitutes an excerpt for the source.
  */
 const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
-const AI_COMPACTION_MAX_SOURCE_CHARS = 11_000;
+const AI_COMPACTION_MAX_SOURCE_CHARS = 16_000;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;

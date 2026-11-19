@@ -175,6 +175,7 @@ export function supportsReviewableClaimAcrossObservations(
 
 const CLAIM_GRADE_OBSERVATION_ACTIONS = new Set([
   "visit",
+  "read_page",
   "browser_fetch",
   "registry_search",
   "domain_lookup",

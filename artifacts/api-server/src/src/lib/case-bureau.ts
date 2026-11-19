@@ -459,6 +459,7 @@ export type GroqBossDiscoveryInput = {
   startingLane?: string;
   /** Investigator capabilities unavailable for this Boss decision (for example, preflight-incompatible or quota-exhausted lanes). */
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; sampleResults?: readonly { sample: number; passed: boolean; failureCode: string | null; rawOutputClass: string; latencyMs: number }[] }[];
 };
 
 const openingCapabilitySelectionOrientation = [
@@ -475,6 +476,8 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
   const soleCapabilityGuidance = input.excludedInvestigatorLlm?.length && availableInvestigators.length === 1
     ? `SINGLE-CAPABILITY ASSIGNMENT: ${availableInvestigators[0]} is the only currently permitted Investigator capability. Select exactly this capability in investigatorLlm; never reuse an excluded capability. This selects execution capability only and does not prescribe a target, query, tool, provider or research sequence.`
     : "";
+  const laneHealth = (input.investigatorLaneHealth ?? []).map((lane) => ({ model: lane.model, capabilities: lane.capabilities, passedSamples: lane.passedSamples, failedSamples: lane.failedSamples, sampleResults: lane.sampleResults ?? [] }));
+  const laneHealthGuidance = laneHealth.length ? `PREFLIGHT LANE HEALTH (observed provider-contract diagnostics, not research evidence): ${JSON.stringify(laneHealth)}. Consider these measured pass/failure rates when selecting an Investigator capability. A 1/3 lane is available under the current launch policy but is demonstrably less reliable than a 3/3 lane; use your own capability judgment and never select an excluded lane. This does not prescribe a target, source, query, provider or research sequence.` : "";
   return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
@@ -488,6 +491,7 @@ Human motivation (context only): ${input.motivation.trim()}
 Available Investigator capabilities: ${JSON.stringify(availableInvestigators)}
 Excluded capabilities (never select): ${JSON.stringify([...excluded])}
 ${soleCapabilityGuidance}
+${laneHealthGuidance}
 
 Return exactly one JSON object with this shape and no additional properties:
 { "investigatorLlm": "one capability from the available Investigator list" }`;
