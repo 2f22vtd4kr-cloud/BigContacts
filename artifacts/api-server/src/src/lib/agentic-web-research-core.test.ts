@@ -2976,6 +2976,8 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain("pageReadSource: \"retained_fetch_artifact\"");
       expect(agenticCoreSource).toContain("pageArtifactAvailable: page.fromRetainedArtifact");
       expect(agenticCoreSource).toContain("if (!page.fromRetainedArtifact) visits += 1");
+      expect(agenticCoreSource).toContain('failureClass: "action_parse_failure"');
+      expect(agenticCoreSource).toContain("recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true })");
       expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
