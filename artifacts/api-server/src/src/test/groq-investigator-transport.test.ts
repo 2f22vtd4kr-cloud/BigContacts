@@ -61,6 +61,7 @@ describe("Groq Investigator HTTP transport recovery", () => {
     vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "transport-test-key");
     vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "false");
     vi.stubEnv("GROQ_AGENTIC_MODEL", "openai/gpt-oss-120b");
+    vi.stubEnv("APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "0");
     transportMocks.responses = [];
     transportMocks.safeOutboundFetch.mockReset();
     transportMocks.reserveDailyBudget.mockReset();
