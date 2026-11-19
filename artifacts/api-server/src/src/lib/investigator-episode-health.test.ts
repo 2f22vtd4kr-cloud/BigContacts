@@ -49,7 +49,7 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_error" });
   });
 
-  it("hands a durably classified terminal PARSE_FAILURE to model-owned Boss control", () => {
+  it("classifies a terminal PARSE_FAILURE with zero executed research as infrastructure failure", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "error",
       iterations: 4,
@@ -61,6 +61,16 @@ describe("canonical Investigator continuation health", () => {
         failureDomain: "model_action",
         failureKind: "invalid_contract",
       }],
+    })).toEqual({ code: "investigator_episode_parse_failure" });
+  });
+
+  it("allows Boss control after a parse failure only when the same episode executed research", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "error", iterations: 4, stopReason: "PARSE_FAILURE",
+      trajectoryRecords: [
+        { action: "web_search", execution: "success" },
+        { action: "parse_failure", execution: "error", stopReason: "PARSE_FAILURE", failureDomain: "model_action", failureKind: "invalid_contract" },
+      ],
     })).toBeNull();
   });
 
