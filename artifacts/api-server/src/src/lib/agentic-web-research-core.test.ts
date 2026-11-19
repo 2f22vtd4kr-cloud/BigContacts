@@ -217,6 +217,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
+    expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("COMPANY REALISM:");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
