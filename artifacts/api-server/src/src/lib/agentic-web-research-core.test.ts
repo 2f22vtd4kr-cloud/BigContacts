@@ -907,7 +907,7 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
 
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
     expect(prompt).toContain("SPECIALIST OSINT: only freshly attested AVAILABLE ACTIONS.");
-    expect(prompt).toMatch(/AVAILABLE ACTIONS \(this turn\x27s allowlist; use only listed actions\):/);
+    expect(prompt).toMatch(/AVAILABLE ACTIONS: .*this turn's allowlist; use only listed actions/);
     expect(prompt).not.toContain("intentionally not available capabilities");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
@@ -1100,7 +1100,7 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
-    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary|no fixed target, action or tool sequence/i);
   });
 
 describe("discovery lead inventory", () => {
@@ -1636,8 +1636,8 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
-    const actionLine = prompt.split("\n").find((line) => line.includes("AVAILABLE ACTIONS (this turn's allowlist; use only listed actions):")) ?? "";
-    const advertisedActions = actionLine.split("AVAILABLE ACTIONS (this turn's allowlist; use only listed actions): ")[1]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
+    const actionLine = prompt.split("\n").find((line) => line.includes("AVAILABLE ACTIONS:")) ?? "";
+    const advertisedActions = actionLine.split("AVAILABLE ACTIONS: ")[1]?.replace(/\.$/, "").split(" | ").filter(Boolean) ?? [];
     expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
     expect(advertisedActions).toHaveLength(expectedActions.length);
     expect(prompt).not.toContain("footprint_email");
@@ -2477,7 +2477,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("OPEN DISCOVERY: target, sector and jurisdiction emerge from evidence; use web and enabled registries when complementary, with no fixed rotation, forced mix or order.");
+    expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
   });
