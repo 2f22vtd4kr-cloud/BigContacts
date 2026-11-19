@@ -2122,14 +2122,18 @@ export function classifyGroqInvestigatorHttp400(input: {
   providerCode: string | null;
   providerErrorType?: string | null;
   providerParam?: string | null;
+  providerMessage?: string | null;
 }): "output_validation_recoverable" | "provider_contract_error" | null {
   if (input.status !== 400) return null;
+  const schemaRejection = input.providerParam === "response_format"
+    || /(?:response[_ -]?format|json[_ -]?schema|schema (?:validation|mismatch|rejection)|required (?:root )?field|additional propert|invalid enum|expected schema)/i.test(input.providerMessage ?? "");
+  if (schemaRejection) return "provider_contract_error";
   // Groq uses this code for generated-output validation/truncation. It is the
   // only 400 eligible for the bounded output recovery policy.
   if (input.providerCode === "json_validate_failed") return "output_validation_recoverable";
-  // invalid_request_error + response_format is an explicit request/schema
-  // rejection. All other 400s are also fail-fast contract errors.
-  if (input.providerErrorType === "invalid_request_error" && input.providerParam === "response_format") return "provider_contract_error";
+  // invalid_request_error and every other 400 are request/provider contract
+  // failures, not a model-output correction opportunity.
+  if (input.providerErrorType === "invalid_request_error") return "provider_contract_error";
   return "provider_contract_error";
 }
 
@@ -2757,6 +2761,7 @@ async function callGroqJson(
                 return typeof parsed.error?.param === "string" ? parsed.error.param : null;
               } catch { return null; }
             })(),
+            providerMessage,
           });
           if (http400Class === "provider_contract_error" || (strictPreflight && response.status === 400)) {
             return { model, raw: "", error: "provider_contract_error" };
