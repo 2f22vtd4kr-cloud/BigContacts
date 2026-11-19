@@ -157,7 +157,7 @@ describe("AI investigation context compaction", () => {
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls.at(-1)?.[0] ?? "")).toContain("MEMORY SEGMENT 1:");
   });
 
-  it("caches identical historical content and caps model compaction at one request per Investigator turn", async () => {
+  it("caches identical historical content and caps the compaction operation at one per Investigator turn", async () => {
     const source = "HISTORICAL MEMORY\\n" + "Source-bound observation with exact provenance and unresolved questions. ".repeat(130);
     expect(source.length).toBeGreaterThanOrEqual(9_000);
     expect(source.length).toBeLessThanOrEqual(11_000);
