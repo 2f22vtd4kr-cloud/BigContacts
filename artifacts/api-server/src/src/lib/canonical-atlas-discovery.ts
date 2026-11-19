@@ -2407,7 +2407,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             eventType: "observation", status: review.status === "completed" ? "recorded" : "unavailable",
             summary: review.status === "completed"
               ? "Right-hand independently reviewed a consequential Investigator/Boss decision; advice is non-authoritative."
-              : "Right-hand independent review was unavailable; Boss decision is recorded without independent advice.",
+              : "Right-hand independent review unavailable; Boss decision remains recorded without independent advice.",
             correlationKey: `${atlasJobId}:right-hand-consequential:${controlTurns}`,
             payload: JSON.stringify({
               jobId: atlasJobId, controlTurn: controlTurns,
