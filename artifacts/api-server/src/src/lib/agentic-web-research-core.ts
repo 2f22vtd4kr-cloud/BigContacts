@@ -6402,9 +6402,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // Compaction may shorten the page excerpt, but it must never hide the
       // availability of the retained source artifact or its exact read cursor.
       const retainedPageContinuations = promptTrajectoryRecords
-        .filter((record) => record.action === "visit" && record.execution === "success" && record.args?.pageHasMore === true)
+        .filter((record) => (record.action === "visit" || record.action === "browser_fetch") && record.execution === "success" && record.args?.pageHasMore === true)
         .slice(-4)
         .map((record) => ({
+          action: record.action,
           url: typeof record.args?.url === "string" ? record.args.url : record.observedUrls?.[0] ?? "",
           nextOffset: Number(record.args?.pageReadNextOffset ?? MAX_OBS),
         }))
@@ -6413,7 +6414,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = [
           promptLastObservation,
           "RETAINED FETCHED PAGE CONTINUATION (optional, model-directed): " + JSON.stringify(retainedPageContinuations)
-            + ". If more text from one of these sources would help, request visit again with its exact URL. The runtime will read the next section from the durable fetched-page artifact; it will not make another network request. Continue researching or stop if another action is better.",
+            + ". If more text from one of these sources would help, repeat its recorded action with the exact URL. The runtime will read the next section from the durable fetched-page artifact; it will not make another network request. Continue researching or stop if another action is better.",
         ].filter(Boolean).join("\n\n");
       }
       if (livenessAdvisory && !promptLastObservation.includes(livenessAdvisory)) {
@@ -6763,11 +6764,14 @@ const communityObservationSource = isCommunityObservationSourceUrl(observedBrows
 const rawBrowserText = result.html ? stripHtml(result.html) : "";
 const browserText = rawBrowserText.slice(0, MAX_OBS);
 const browserHasMore = rawBrowserText.length > MAX_OBS;
-const browserPageKey = normalizedActionResourceUrl(observedBrowserUrl ?? action.url);
+const browserPageKey = normalizedActionResourceUrl(action.url);
+const browserFinalPageKey = normalizedActionResourceUrl(observedBrowserUrl ?? action.url);
 const browserPageRetained = Boolean(browserHasMore && browserPageKey
   && retainedFetchedPages.retainedChars + rawBrowserText.length <= retainedFetchedPages.maxChars);
 if (browserPageRetained && browserPageKey) {
-  retainedFetchedPages.pages.set(browserPageKey, { text: rawBrowserText, nextOffset: Math.min(rawBrowserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url });
+  const retainedBrowserArtifact = { text: rawBrowserText, nextOffset: Math.min(rawBrowserText.length, MAX_OBS), sourceUrl: observedBrowserUrl ?? action.url };
+  retainedFetchedPages.pages.set(browserPageKey, retainedBrowserArtifact);
+  if (browserFinalPageKey && browserFinalPageKey !== browserPageKey) retainedFetchedPages.pages.set(browserFinalPageKey, retainedBrowserArtifact);
   retainedFetchedPages.retainedChars += rawBrowserText.length;
   record.args = { ...record.args, pageReadOffset: 0, pageReadNextOffset: Math.min(rawBrowserText.length, MAX_OBS), pageHasMore: true, pageReadSource: "retained_fetch_artifact" };
 }
@@ -6781,9 +6785,9 @@ record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "e
 if (!result.html) { record.failureDomain = "external_page_fetch"; record.failureKind = "request_failure"; }
 record.observation = lastObservation;
 record.observedUrls = result.html && observedBrowserUrl ? [observedBrowserUrl] : [];
-if (browserPageRetained && observedBrowserUrl && browserPageKey) {
+if (browserPageRetained && browserPageKey) {
   record.pageArtifact = {
-    sourceUrl: observedBrowserUrl,
+    sourceUrl: observedBrowserUrl ?? action.url,
     text: sanitizeUrlsInText(rawBrowserText),
     sha256: createHash("sha256").update(sanitizeUrlsInText(rawBrowserText)).digest("hex"),
     retrievedAt: new Date().toISOString(),
