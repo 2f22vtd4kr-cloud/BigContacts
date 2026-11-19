@@ -2306,13 +2306,15 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  * Prompt-size targets are advisory: source-backed observations and the schema
  * are never cut by a final character-count reducer.
  */
-export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string): string {
+export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxChars: number, _promptMode: "discovery" | "target" = "discovery", model?: string, actionAllowlistOverride?: readonly string[]): string {
   const normalized = typeof prompt === "string" ? prompt : "";
   const availableActionsMatches = [...normalized.matchAll(/^[ \t]*(?:[-*]\s*)?AVAILABLE ACTIONS:\s*([^\r\n]+)/gm)];
   const availableActionsMatch = availableActionsMatches.at(-1);
-  const actionAllowlist = availableActionsMatch
-    ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
-    : getModelSelectableAgentActions();
+  const actionAllowlist = actionAllowlistOverride?.length
+    ? [...actionAllowlistOverride]
+    : availableActionsMatch
+      ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
+      : getModelSelectableAgentActions();
   if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
@@ -2375,7 +2377,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
   const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist);
-  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model);
+  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
@@ -2628,7 +2630,7 @@ export async function callGroqJson(
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
         const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist);
-        const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model);
+        const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model, actionAllowlist);
         const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
         const promptReductionChars = Math.max(0, originalPromptChars - userPromptChars);
@@ -3127,7 +3129,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
       // the contract-aware reducer that pins active scope, action/schema rules,
       // evidence provenance, and complete URL tokens—not a generic head/tail slice.
       try {
-        boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, promptMode);
+        boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars, promptMode, selectedInvestigatorLlm, actionAllowlist);
       } catch (error) {
         const reason = error instanceof Error ? error.message : "investigator_prompt_budget_exceeded";
         setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
