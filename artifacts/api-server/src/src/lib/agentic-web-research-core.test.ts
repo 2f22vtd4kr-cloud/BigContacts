@@ -34,6 +34,14 @@ const completeInvestigatorProviderPrompt = [
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 describe("Investigator preflight model and credential lanes", () => {
+  it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
+    expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
+    expect(agenticCoreSource).toContain("samples.push({");
+    expect(agenticCoreSource).toContain("classification,");
+    expect(agenticCoreSource).toContain("latencyMs: Date.now() - sampleStartedAt");
+    expect(agenticCoreSource).toContain("jobId ?? null, null, [\"web_search\"]");
+  });
+
   it("keeps shared-key aliases together but tests different credentials and 20B/120B models independently", () => {
     const env: NodeJS.ProcessEnv = {
       GROQ_INVESTIGATOR_API_KEY: "shared-key",
