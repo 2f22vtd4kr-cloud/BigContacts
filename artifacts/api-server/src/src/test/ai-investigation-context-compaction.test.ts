@@ -576,7 +576,10 @@ describe("AI investigation context compaction", () => {
       "CANONICAL ATLAS DISCOVERY CASE",
       "DURABLE CASE MEMORY PROJECTION",
       JSON.stringify({ caseType: "discovery", admittedCandidates: [] }),
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "web_search", execution: "success", urls: [sourceUrl] }),
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
+      "",
       JSON.stringify([{
         turn: 7,
         action: "visit",
