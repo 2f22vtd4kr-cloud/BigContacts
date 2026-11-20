@@ -1034,14 +1034,27 @@ describe("AI investigation context compaction", () => {
       "[]",
       "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(125),
     ].join("\n");
-    const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails: [REDACTED_EMAIL]. No material ownership, equity, or transaction clues were extracted.";
+    const summary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded. Observed contact emails: [REDACTED_EMAIL].",
+      "No material ownership, equity, or transaction clues were extracted.",
+      "Web search succeeded but yielded no concrete evidence; visit succeeded but only provided contact emails.",
+      "No fetched evidence of specific individuals’ wealth or investment activity is present yet.",
+      "No contradictions or negative findings beyond a parse failure earlier.",
+      "Next steps: browse the Forbes Midas list and inspect relevant entries for source-backed evidence of wealth or investment activity.",
+    ].join(" ");
 
-    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-20b",
-      raw: JSON.stringify({ summary }),
-      error: null,
-      attempts: [],
-    });
+    const correctedSummary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
+      "No material ownership, equity, or transaction clues were extracted from the retrieved page.",
+      "The prior parse failure was an operational model-output issue, not a negative finding.",
+      "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
+      "Next step: inspect the Forbes Midas entries and retrieve source-specific profiles.",
+    ].join(" ");
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source,
@@ -1050,8 +1063,9 @@ describe("AI investigation context compaction", () => {
       jobId: "job-durable-recent-actions",
       caseId: 106,
       turn: 1,
-    })).resolves.toBe(summary);
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    })).resolves.toBe(correctedSummary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("summary_treats_parse_failure_as_negative_finding");
   });
 
   it("retries a turn-scoped summary once with the exact validation issue", async () => {
