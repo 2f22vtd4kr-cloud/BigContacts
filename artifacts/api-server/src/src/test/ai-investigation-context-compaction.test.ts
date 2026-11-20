@@ -559,7 +559,7 @@ describe("AI investigation context compaction", () => {
     const sourceUrl = "https://registry.example.test/company/14943848";
     const source = [
       "CANONICAL ATLAS DISCOVERY CASE",
-      "DURABLE CASE MEMORY PROJECTION:",
+      "DURABLE CASE MEMORY PROJECTION",
       JSON.stringify({ caseType: "discovery", admittedCandidates: [] }),
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
       JSON.stringify([{

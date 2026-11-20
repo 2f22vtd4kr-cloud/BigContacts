@@ -135,10 +135,16 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
     }
   }
 
-  const memoryProjectionIndex = lines.findIndex((line) => line.trim() === "DURABLE CASE MEMORY PROJECTION:");
-  if (memoryProjectionIndex >= 0 && lines[memoryProjectionIndex + 1]) {
-    const candidate = lines[memoryProjectionIndex + 1]!.trim();
-    if (candidate.startsWith("{") && candidate.endsWith("}")) {
+  const memoryProjectionIndex = lines.findIndex((line) =>
+    line.trim().replace(/^#+\\s*/, "").replace(/:$/, "").trim() === "DURABLE CASE MEMORY PROJECTION");
+  if (memoryProjectionIndex >= 0) {
+    // Accept both the plain-text heading used by durable case memory and its
+    // Markdown/colon variants. The projection may be compact or pretty JSON.
+    let candidate = "";
+    for (const line of lines.slice(memoryProjectionIndex + 1, memoryProjectionIndex + 257)) {
+      if (!candidate && !line.trim()) continue;
+      candidate += (candidate ? "\\n" : "") + line;
+      if (candidate.length > 256_000) break;
       try {
         const projection = JSON.parse(candidate) as Record<string, unknown>;
         const evidenceState = projection.evidenceState && typeof projection.evidenceState === "object"
@@ -148,9 +154,11 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
           ? evidenceState.recentActions
           : [];
         candidates.push(JSON.stringify(recentActions));
+        break;
       } catch {
-        // A malformed projection cannot authorize a page retrieval claim.
+        // Continue only while the next lines can complete this JSON projection.
       }
+      if (candidate.trimEnd().endsWith("}") || candidate.trimEnd().endsWith("]")) break;
     }
   }
 
