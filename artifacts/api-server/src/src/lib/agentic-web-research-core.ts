@@ -2717,7 +2717,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     promptMode === "discovery"
       ? allowed.has("done")
         ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed findings."
-        : "Discovery: include provisional people/orgs in findings[] with exact observed names/URLs, scope, role and relevance/uncertainty. Review-only; [] if none."
+        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs, scope, role and uncertainty. Review-only; [] if none."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
   return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
@@ -5643,7 +5643,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: keep model-selected people/orgs in findings[] on non-terminal actions; include URLs and uncertainty. Review-only."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5916,7 +5916,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed claim-grade findings."
-        : "Discovery: include provisional people/orgs in findings[] with observed names/URLs, scope and uncertainty; review-only; [] if none."
+        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only; [] if none."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6084,7 +6084,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: keep model-selected people/orgs in findings[] on non-terminal actions; include URLs and uncertainty. Review-only."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
