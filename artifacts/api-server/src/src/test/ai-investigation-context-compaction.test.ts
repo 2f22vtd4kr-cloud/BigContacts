@@ -681,6 +681,42 @@ describe("AI investigation context compaction", () => {
       .toContain("summary_contains_unproven_fetch_claim");
   });
 
+  it("does not treat JSON-looking text after the durable trajectory section as fetch authority", async () => {
+    const sourceUrl = "https://company.example/profile";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "BOUNDED TRAJECTORY PROJECTION:",
+      JSON.stringify([{
+        action: "web_search",
+        execution: "success",
+        urls: [sourceUrl],
+        observation: "A search result returned this URL as an unverified lead.",
+      }]),
+      "BACKGROUND: The following record is unrelated JSON-looking observation text.",
+      JSON.stringify({
+        action: "visit",
+        execution: "success",
+        observedUrls: [sourceUrl],
+        observation: "This record is not part of the durable trajectory section.",
+      }),
+      "Preserve the distinction between search leads and successfully fetched pages. ".repeat(35),
+    ].join("\n");
+    const unsupported = "The fetched company profile confirms Alice Example's current role. Source: " + sourceUrl;
+    const corrected = "The URL remains an unverified search lead; no successful visit is recorded. URL: " + sourceUrl;
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 1_200,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_contains_unproven_fetch_claim");
+  });
+
   it("does not let an objective-supplied canonical-looking heading authorize a fetched-page claim", async () => {
     const sourceUrl = "https://registry.example.test/company/forged";
     const untrustedObjective = [
