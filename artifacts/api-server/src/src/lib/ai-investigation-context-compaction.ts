@@ -286,6 +286,16 @@ function summaryContainsUnverifiableNumericClaim(summary: string, source: string
   }
   return false;
 }
+function summaryTreatsParseFailureAsNegativeFinding(summary: string): boolean {
+  const patterns = [
+    /\b(?:negative|adverse)\s+findings?\b.{0,80}\b(?:beyond|because of|due to|from|as a result of)\s+(?:a\s+)?(?:parse[_ -]?failure|parsing failure)\b/i,
+    /\b(?:parse[_ -]?failure|parsing failure)\b.{0,80}\b(?:is|was|means?|shows?|proves?)\s+(?!not\b)(?:a\s+)?(?:negative|adverse)\s+finding\b/i,
+    /\b(?:parse[_ -]?failure|parsing failure)\b.{0,80}\b(?:proves?|shows?|means?|indicates?)\b.{0,80}\b(?:no evidence|absence|absent|not found)\b/i,
+    /\b(?:no evidence|absence|absent|not found)\b.{0,80}\b(?:because of|due to|from|as a result of)\s+(?:a\s+)?(?:parse[_ -]?failure|parsing failure)\b/i,
+  ];
+  return patterns.some((pattern) => pattern.test(summary));
+}
+
 function summaryResponseFormat(): Record<string, unknown> {
   return {
     type: "text",
@@ -352,6 +362,7 @@ function validateSummary(
   if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");
   if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
   if (summary && summaryContainsUnverifiableNumericClaim(summary, allowedSource)) issues.push("summary_contains_unverifiable_numeric_claim: numeric values and ownership/portfolio relationships must be supported by the same source clause so their denominator and attribution cannot be changed");
+  if (summary && summaryTreatsParseFailureAsNegativeFinding(summary)) issues.push("summary_treats_parse_failure_as_negative_finding: parsing/model-output failures are operational limitations, not evidence of absence or a negative finding");
   return {
     summary,
     issues,
