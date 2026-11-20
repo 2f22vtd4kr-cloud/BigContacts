@@ -616,6 +616,7 @@ describe("AI investigation context compaction", () => {
               pageArtifactDurable: false,
             },
             urls: [],
+            observation: "The fetched page observation contains public contact emails only; it does not record ownership, equity, or transaction evidence.",
           }],
         },
       }, null, 2),
@@ -1013,17 +1014,28 @@ describe("AI investigation context compaction", () => {
     const projection = {
       caseType: "discovery",
       evidenceState: {
-        recentActions: [{
-          turn: 1,
-          action: "visit",
-          execution: "success",
-          args: {
-            url: sourceUrl,
-            observedPageIdentity: { sourceUrl },
-            pageArtifactDurable: false,
+        recentActions: [
+          {
+            turn: 1,
+            action: "web_search",
+            execution: "success",
+            args: { query: "Forbes Midas list investors" },
+            urls: [sourceUrl],
+            observation: "The search returned several lead URLs, including " + sourceUrl + "; results remain unverified until visited.",
           },
-          urls: [],
-        }],
+          {
+            turn: 2,
+            action: "visit",
+            execution: "success",
+            args: {
+              url: sourceUrl,
+              observedPageIdentity: { sourceUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [],
+            observation: "The fetched page observation contains public contact emails [REDACTED_EMAIL] only; no material ownership, equity, or transaction evidence is recorded in the observation.",
+          },
+        ],
       },
     };
     const source = [
@@ -1047,10 +1059,10 @@ describe("AI investigation context compaction", () => {
     const correctedSummary = [
       "Web search (serper) returned several URLs, including " + sourceUrl + ".",
       "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
-      "No material ownership, equity, or transaction clues were extracted from the retrieved page.",
+      "The retained visit observation records contact emails but no ownership, equity, or transaction evidence.",
       "The prior parse failure was an operational model-output issue, not a negative finding.",
       "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
-      "Next step: inspect the Forbes Midas entries and retrieve source-specific profiles.",
+      "Open question: which Forbes Midas entries, if any, contain source-backed evidence relevant to the objective?",
     ].join(" ");
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
@@ -1099,6 +1111,7 @@ describe("AI investigation context compaction", () => {
           execution: "success",
           args: { url: sourceUrl, observedPageIdentity: { sourceUrl }, pageArtifactDurable: false },
           urls: [],
+          observation: "The fetched page observation yielded contact information only.",
         }],
       },
     };
