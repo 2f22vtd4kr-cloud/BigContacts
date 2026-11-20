@@ -329,6 +329,21 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
+  it("instructs memory compaction not to turn action parse failures into negative research findings", async () => {
+    const source = "DURABLE TRAJECTORY: action_parse_failure execution=error. " + "Preserve all source-stage distinctions and unresolved questions. ".repeat(30);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "A model-output contract failure occurred; the research state remains unresolved." }),
+      error: null,
+      attempts: [],
+    });
+
+    await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(prompt).toContain("PARSE FAILURE IS NOT EVIDENCE");
+    expect(prompt).toContain("Never infer that a person, company, relationship, or evidence is absent");
+  });
+
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
     const source = "COMPLETE SOURCE MEMORY\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
     const summary = "S".repeat(1_005);
@@ -559,9 +574,12 @@ describe("AI investigation context compaction", () => {
     const sourceUrl = "https://registry.example.test/company/14943848";
     const source = [
       "CANONICAL ATLAS DISCOVERY CASE",
-      "DURABLE CASE MEMORY PROJECTION:",
+      "DURABLE CASE MEMORY PROJECTION",
       JSON.stringify({ caseType: "discovery", admittedCandidates: [] }),
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "web_search", execution: "success", urls: [sourceUrl] }),
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
+      "",
       JSON.stringify([{
         turn: 7,
         action: "visit",
@@ -582,6 +600,124 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(summary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognizes a successful visit in a pretty-printed durable memory projection when the page artifact is not retained", async () => {
+    const sourceUrl = "https://www.forbes.com/lists/midas/";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION",
+      JSON.stringify({
+        caseType: "discovery",
+        evidenceState: {
+          recentActions: [{
+            action: "visit",
+            execution: "success",
+            args: {
+              url: sourceUrl,
+              observedPageIdentity: { sourceUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [],
+            observation: "The fetched page observation contains public contact emails only; it does not record ownership, equity, or transaction evidence.",
+          }],
+        },
+      }, null, 2),
+      "BACKGROUND: " + "The durable memory preserves source-stage distinctions and the latest action records. ".repeat(120),
+    ].join("\n");
+    const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails were present, but no ownership or investment evidence was extracted.";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "mock-right-hand-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("grounds a successful visit to the observed final URL, not an unverified requested URL", async () => {
+    const requestedUrl = "https://short.example/redirect";
+    const observedFinalUrl = "https://www.forbes.com/lists/midas/";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION:",
+      JSON.stringify({
+        caseType: "discovery",
+        evidenceState: {
+          recentActions: [{
+            action: "visit",
+            execution: "success",
+            args: {
+              url: requestedUrl,
+              observedPageIdentity: { sourceUrl: observedFinalUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [requestedUrl],
+            observation: "The observed final page contains public contact information.",
+          }],
+        },
+      }),
+      "BACKGROUND: " + "Preserve exact source identity and retrieval state. ".repeat(35),
+    ].join("\n");
+    const unsupported = "Visit to " + requestedUrl + " succeeded; the page contained public contact information.";
+    const corrected = "Visit to " + observedFinalUrl + " succeeded; the page contained public contact information.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    const initialPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(initialPrompt).toContain("args.observedPageIdentity.sourceUrl");
+    expect(initialPrompt).toContain("Never treat requested args.url or record.urls as proof");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_contains_unproven_fetch_claim");
+  });
+
+  it("does not treat JSON-looking text after the durable trajectory section as fetch authority", async () => {
+    const sourceUrl = "https://company.example/profile";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "BOUNDED TRAJECTORY PROJECTION:",
+      JSON.stringify([{
+        action: "web_search",
+        execution: "success",
+        urls: [sourceUrl],
+        observation: "A search result returned this URL as an unverified lead.",
+      }]),
+      "BACKGROUND: The following record is unrelated JSON-looking observation text.",
+      JSON.stringify({
+        action: "visit",
+        execution: "success",
+        observedUrls: [sourceUrl],
+        observation: "This record is not part of the durable trajectory section.",
+      }),
+      "Preserve the distinction between search leads and successfully fetched pages. ".repeat(35),
+    ].join("\n");
+    const unsupported = "The fetched company profile confirms Alice Example's current role. Source: " + sourceUrl;
+    const corrected = "The URL remains an unverified search lead; no successful visit is recorded. URL: " + sourceUrl;
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 1_200,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_contains_unproven_fetch_claim");
   });
 
   it("does not let an objective-supplied canonical-looking heading authorize a fetched-page claim", async () => {
@@ -633,7 +769,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
-    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("Never treat requested args.url or record.urls as proof");
   });
 
   it("keeps a separately labelled search lead distinct beside a fetched-page claim", async () => {
@@ -695,7 +831,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) => call[5]?.preferredModel === "openai/gpt-oss-20b")).toBe(true);
   });
 
-  it("keeps turn-scoped AI compaction on 20B and uses deterministic projection on provider throttle", async () => {
+  it("keeps turn-scoped AI compaction on 20B and preserves historical memory verbatim on provider throttle", async () => {
     const source = [
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: the exact objective remains authoritative.",
       "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "preserve source-linked state and uncertainty. ".repeat(180),
@@ -716,7 +852,9 @@ describe("AI investigation context compaction", () => {
       turn: 1,
     }, "historical_memory");
 
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text.startsWith(source)).toBe(true);
+    expect(result?.text).toContain("Omissions unknown.");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
       preferredModel: "openai/gpt-oss-20b",
@@ -918,8 +1056,11 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-fidelity", caseId: 91 });
-    expect(result).toBeNull();
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("summary_contains_unverifiable_numeric_claim");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalled();
   });
 
@@ -932,7 +1073,9 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-denominator", caseId: 92 });
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
   });
 
   it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
@@ -944,6 +1087,149 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-words", caseId: 93 });
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
   });
+  it("recognizes successful visits in the durable case memory recentActions projection", async () => {
+    const sourceUrl = "https://www.forbes.com/lists/midas/";
+    const projection = {
+      caseType: "discovery",
+      evidenceState: {
+        recentActions: [
+          {
+            turn: 1,
+            action: "web_search",
+            execution: "success",
+            args: { query: "Forbes Midas list investors" },
+            urls: [sourceUrl, "https://www.forbes.com/profile/lead-one/", "https://www.forbes.com/profile/lead-two/"],
+            observation: "The search returned several lead URLs, including " + sourceUrl + "; results remain unverified until visited.",
+          },
+          {
+            turn: 2,
+            action: "visit",
+            execution: "success",
+            args: {
+              url: sourceUrl,
+              observedPageIdentity: { sourceUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [],
+            observation: "The fetched page observation contains public contact emails [REDACTED_EMAIL] only; no material ownership, equity, or transaction evidence is recorded in the observation.",
+          },
+          {
+            turn: 3,
+            action: "parse_failure",
+            execution: "error",
+            args: {},
+            observation: "The Investigator model output did not match the required action contract; no research tool was executed.",
+          },
+        ],
+      },
+    };
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION:",
+      JSON.stringify(projection),
+      "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
+      "[]",
+      "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(190),
+    ].join("\n");
+    const summary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded. Observed contact emails: [REDACTED_EMAIL].",
+      "No material ownership, equity, or transaction clues were extracted.",
+      "Web search succeeded but yielded no concrete evidence; visit succeeded but only provided contact emails.",
+      "No fetched evidence of specific individuals’ wealth or investment activity is present yet.",
+      "No contradictions or negative findings beyond a parse failure earlier.",
+      "Next steps: browse the Forbes Midas list and inspect relevant entries for source-backed evidence of wealth or investment activity.",
+    ].join(" ");
+
+    const correctedSummary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
+      "The retained visit observation records contact emails but no ownership, equity, or transaction evidence.",
+      "The prior parse failure was an operational model-output issue, not a negative finding.",
+      "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
+      "Open question: which Forbes Midas entries, if any, contain source-backed evidence relevant to the objective?",
+    ].join(" ");
+    const secondChunkSummary = "The remaining durable context retains unresolved research questions and follow-up tasks; it adds no separate source-backed ownership, equity, or transaction finding.";
+    const finalSummary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
+      "The retained visit observation records contact emails but no ownership, equity, or transaction evidence.",
+      "The earlier parse failure was an operational model-output issue, not a negative finding.",
+      "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
+      "Open question: which Forbes Midas entries, if any, contain source-backed evidence relevant to the objective?",
+    ].join(" ");
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 7_000,
+      jobId: "job-durable-recent-actions",
+      caseId: 106,
+      turn: 1,
+    })).resolves.toBe(finalSummary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(4);
+    const firstPartialPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const parseFailureRetryPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
+    const finalSynthesisPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[3]?.[0] ?? "");
+    expect(firstPartialPrompt).toContain("hard limit of 1600 characters");
+    expect(firstPartialPrompt).toContain("Aim at or below 1040 characters");
+    expect(parseFailureRetryPrompt).toContain("summary_treats_parse_failure_as_negative_finding");
+    expect(finalSynthesisPrompt).toContain("hard limit of 7000 characters");
+    expect(finalSynthesisPrompt).toContain("Aim at or below 4550 characters");
+  });
+
+
+  it("retries a turn-scoped summary once with the exact validation issue", async () => {
+    const sourceUrl = "https://www.forbes.com/lists/midas/";
+    const projection = {
+      evidenceState: {
+        recentActions: [{
+          action: "visit",
+          execution: "success",
+          args: { url: sourceUrl, observedPageIdentity: { sourceUrl }, pageArtifactDurable: false },
+          urls: [],
+          observation: "The fetched page observation yielded contact information only.",
+        }],
+      },
+    };
+    const source = [
+      "DURABLE CASE MEMORY PROJECTION:",
+      JSON.stringify(projection),
+      "BOUNDED TRAJECTORY PROJECTION:",
+      "[]",
+      "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(150),
+    ].join("\n");
+    const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
+    const corrected = "Visit to " + sourceUrl + " succeeded; the page yielded contact information only.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 1_800,
+      jobId: "job-turn-repair",
+      caseId: 107,
+      turn: 1,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "")).toContain("hard limit of 1800 characters");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "")).toContain("Aim at or below 1170 characters");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_contains_unproven_fetch_claim");
+    expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) =>
+      call[5]?.preferredModel === "openai/gpt-oss-20b" && call[5]?.allowModelFallback === false
+    )).toBe(true);
+  });
+
 });

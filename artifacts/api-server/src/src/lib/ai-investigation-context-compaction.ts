@@ -20,6 +20,7 @@ export type AiInvestigationContextCompactionInput = {
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
+/** Whole-case historical-memory cap; turn-scoped callers may request smaller limits. */
 const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
 const OBJECTIVE_OMISSION_MARKER = /\[(?:OBJECTIVE|CASE OBJECTIVE)\s+MIDDLE OMITTED\b|\[(?:MIDDLE OF )?OBJECTIVE(?: MIDDLE)? OMITTED\b/i;
@@ -117,23 +118,68 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
  * successful visit/browser_fetch action can authorize page-level retrieval claims.
  */
 function sourceSuccessfulFetchUrls(source: string): Set<string> {
-  // Only parse JSON records under runtime-authored trajectory metadata headings.
-  // Canonical case files serialize the bounded projection as one JSON array line;
-  // older context shapes may contain one JSON record per line.
-  // Arbitrary observation text and JSON-looking prompt injection cannot authorize a fetch.
+  // Fetch authority is derived only from the separately supplied, persisted case
+  // document. In addition to trajectory records, canonical discovery persists a
+  // compact memory projection whose evidenceState.recentActions is authoritative.
+  // Do not scan arbitrary prose or JSON-looking observation text for actions.
   const lines = source.split("\n");
-  const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
-  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS|BOUNDED TRAJECTORY PROJECTION)/.test(line));
   const candidates: string[] = [];
+  const metadataIndex = lines.findIndex((line) => line.startsWith("LATEST ACTION METADATA (preserve turn/action/result distinction):"));
   if (metadataIndex >= 0 && lines[metadataIndex + 1]) candidates.push(lines[metadataIndex + 1]!.trim());
+
+  const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS|BOUNDED TRAJECTORY PROJECTION)/.test(line));
   if (durableIndex >= 0) {
+    // The trajectory projection is a bounded section, not permission to scan
+    // every later JSON-looking line in the case document. Accept contiguous
+    // JSON records immediately after its heading and stop at the next prose or
+    // section boundary so observation text cannot forge fetch authority.
     for (const line of lines.slice(durableIndex + 1)) {
       const candidate = line.trim();
+      if (!candidate) continue;
       if ((candidate.startsWith("{") && candidate.endsWith("}"))
-        || (candidate.startsWith("[") && candidate.endsWith("]"))) candidates.push(candidate);
+        || (candidate.startsWith("[") && candidate.endsWith("]"))) {
+        candidates.push(candidate);
+        continue;
+      }
+      break;
     }
   }
+
+  const memoryProjectionIndex = lines.findIndex((line) =>
+    line.trim().replace(/^#+\s*/, "").replace(/:$/, "").trim() === "DURABLE CASE MEMORY PROJECTION");
+  if (memoryProjectionIndex >= 0) {
+    // Accept both the plain-text heading used by durable case memory and its
+    // Markdown/colon variants. The projection may be compact or pretty JSON.
+    let candidate = "";
+    for (const line of lines.slice(memoryProjectionIndex + 1, memoryProjectionIndex + 257)) {
+      if (!candidate && !line.trim()) continue;
+      candidate += (candidate ? "\n" : "") + line;
+      if (candidate.length > 256_000) break;
+      try {
+        const projection = JSON.parse(candidate) as Record<string, unknown>;
+        const evidenceState = projection.evidenceState && typeof projection.evidenceState === "object"
+          ? projection.evidenceState as Record<string, unknown>
+          : null;
+        const recentActions = evidenceState && Array.isArray(evidenceState.recentActions)
+          ? evidenceState.recentActions
+          : [];
+        candidates.push(JSON.stringify(recentActions));
+        break;
+      } catch {
+        // Continue only while the next lines can complete this JSON projection.
+      }
+    }
+  }
+
   const fetchedUrls = new Set<string>();
+  const addUrl = (value: unknown) => {
+    if (typeof value !== "string" || !value.trim()) return;
+    for (const url of extractAiContextUrls(value)) fetchedUrls.add(url);
+  };
+  const addUrlArray = (value: unknown) => {
+    if (Array.isArray(value)) for (const item of value) addUrl(item);
+  };
+
   for (const candidate of candidates) {
     if (!((candidate.startsWith("{") && candidate.endsWith("}"))
       || (candidate.startsWith("[") && candidate.endsWith("]")))) continue;
@@ -144,12 +190,27 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
         if (!value || typeof value !== "object" || Array.isArray(value)) continue;
         const record = value as Record<string, unknown>;
         const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
-        if (!fetchedAction || record.execution !== "success" || !Array.isArray(record.observedUrls)) continue;
-        for (const rawUrl of record.observedUrls) {
-          if (typeof rawUrl === "string" && rawUrl.trim()) {
-            for (const url of extractAiContextUrls(rawUrl)) fetchedUrls.add(url);
-          }
-        }
+        if (!fetchedAction || record.execution !== "success") continue;
+        addUrlArray(record.observedUrls);
+
+        const args = record.args && typeof record.args === "object" && !Array.isArray(record.args)
+          ? record.args as Record<string, unknown>
+          : {};
+        // The canonical memory projection stores the observed final page
+        // identity under args even when the page body is not durable. The
+        // requested args.url alone is not fetch authority: redirects may change
+        // the actual page URL, and record.urls may still be unverified leads.
+        const observedIdentity = args.observedPageIdentity && typeof args.observedPageIdentity === "object"
+          ? args.observedPageIdentity as Record<string, unknown>
+          : {};
+        addUrl(observedIdentity.sourceUrl);
+        const pageArtifact = args.pageArtifact && typeof args.pageArtifact === "object"
+          ? args.pageArtifact as Record<string, unknown>
+          : record.pageArtifact && typeof record.pageArtifact === "object"
+            ? record.pageArtifact as Record<string, unknown>
+            : {};
+        addUrl(pageArtifact.sourceUrl);
+        addUrl(record.sourceUrl);
       }
     } catch {
       // Malformed or untrusted JSON cannot authorize fetched-page claims.
@@ -174,7 +235,7 @@ function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUr
 }
 
 function summaryClaimsFetchedEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
-  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
+  const retrievalClaim = /\b(?:fetched|visited|read|reviewed|verified|confirmed)\b.{0,100}\b(?:page|pages|site|website|filing|profile|record|document|source)\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,100}\b(?:was|were|has been|have been|is|are)\s+(?:successfully\s+)?(?:fetched|visited|read|reviewed|verified|confirmed)\b|\b(?:visit|browser_fetch)\s+(?:to\s+)?https?:\/\/[^\s"'<>]{1,500}.{0,50}\b(?:succeeded|successful|completed)\b|\b(?:successfully\s+)?(?:visited|fetched)\s+https?:\/\/[^\s"'<>]{1,500}\b|\b(?:page|pages|site|website|filing|profile|record|document|source)\b.{0,80}\b(?:confirms|shows|states|documents|identifies|lists|reports|indicates)\b|\baccording to\b.{0,80}\b(?:page|website|filing|profile|record|source)\b/i;
   const negativeRetrieval = /\b(?:no|not|never|without|failed to|wasn't|weren't|hasn't been|haven't been)\b.{0,60}\b(?:fetched|visited|read|reviewed|verified|confirmed)\b/i;
   // Keep a trailing Source:/URL: label attached to the claim immediately
   // before it. Split other clauses so a negative statement cannot mask a
@@ -234,6 +295,16 @@ function summaryContainsUnverifiableNumericClaim(summary: string, source: string
   }
   return false;
 }
+function summaryTreatsParseFailureAsNegativeFinding(summary: string): boolean {
+  const patterns = [
+    /\b(?:negative|adverse)\s+findings?\b.{0,80}\b(?:beyond|because of|due to|from|as a result of)\s+(?:a\s+)?(?:parse[_ -]?failure|parsing failure)\b/i,
+    /\b(?:parse[_ -]?failure|parsing failure)\b.{0,80}\b(?:is|was|means?|shows?|proves?)\s+(?!not\b)(?:a\s+)?(?:negative|adverse)\s+finding\b/i,
+    /\b(?:parse[_ -]?failure|parsing failure)\b.{0,80}\b(?:proves?|shows?|means?|indicates?)\b.{0,80}\b(?:no evidence|absence|absent|not found)\b/i,
+    /\b(?:no evidence|absence|absent|not found)\b.{0,80}\b(?:because of|due to|from|as a result of)\s+(?:a\s+)?(?:parse[_ -]?failure|parsing failure)\b/i,
+  ];
+  return patterns.some((pattern) => pattern.test(summary));
+}
+
 function summaryResponseFormat(): Record<string, unknown> {
   return {
     type: "text",
@@ -262,10 +333,11 @@ function buildSummaryPrompt(source: string, maxChars: number, revisionIssue?: st
     "2. Exact named entities and their stated roles; source-bound findings and the exact URLs that substantiate them; preserve URL tokens verbatim and only if present in the source.",
     "3. Material ownership/control/equity/investment or transaction clues, dates/amounts when stated, contradictions, uncertainty, and distinctions between search-only leads, fetched observations, and claim-grade evidence.",
     "4. Which actions succeeded, failed, were blocked, or were not attempted; unresolved questions and already-exhausted avenues that should not be repeated without new evidence.",
+    "PARSE FAILURE IS NOT EVIDENCE: an action_parse_failure or PARSE_FAILURE record is a runtime/model-output contract failure, not a source observation or negative research finding. Never infer that a person, company, relationship, or evidence is absent, or that discovery is exhausted, from a parse failure.",
     "For a long search-only result list, do not enumerate every name or URL: raw results remain in the durable trajectory. Preserve the result count when known, the search/fetch success or failure state, the fact that results are unverified leads, and at most two illustrative names or exact URLs when they materially help the next Investigator. Omit examples rather than exceed the character limit.",
     "For social/comment sections, omit commenter names and profile URLs unless a person is directly identified as the investigation target and the source states their relevant role. Full raw observations remain in durable case history.",
     "Include at most two exact URL tokens. Prefer the primary successfully fetched source URL; include one additional lead URL only when necessary. Omit optional profile/comment URLs and tracking links. Never shorten or normalize a URL.",
-    "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. Any page-level retrieval claim must be tied to an exact URL in the successful visit/browser_fetch observedUrls metadata; a successful fetch of one URL never authorizes claims about another lead URL. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
+    "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. Any page-level retrieval claim must be tied to the observed final URL recorded by a successful visit/browser_fetch action: observedUrls entries, args.observedPageIdentity.sourceUrl, args.pageArtifact.sourceUrl, pageArtifact.sourceUrl, or record.sourceUrl. Never treat requested args.url or record.urls as proof of a successful fetch; they may be redirect requests or unverified leads. A successful fetch of one URL never authorizes claims about another lead URL. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
     "State open questions only; do not prescribe a tool, query, or fixed next-step sequence. The Investigator will choose its next action from retained evidence.",
     "Output one JSON object only: {\"summary\":\"...\"}. The summary has a hard limit of " + maxChars + " characters including spaces. Aim at or below " + safeTargetChars + " characters to leave room for model variance. If needed, omit lower-priority names, URLs, and chronology rather than approach the hard limit. Never exceed it.",
     "Every URL in the summary must be an exact URL token copied from the source. Never make up, normalize, shorten, or complete a URL.",
@@ -299,6 +371,7 @@ function validateSummary(
   if (summary && summaryClaimsFetchedEvidence(summary, successfulFetchUrls)) issues.push("summary_contains_unproven_fetch_claim: a fetched-page claim has no matching successful visit/browser_fetch URL");
   if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
   if (summary && summaryContainsUnverifiableNumericClaim(summary, allowedSource)) issues.push("summary_contains_unverifiable_numeric_claim: numeric values and ownership/portfolio relationships must be supported by the same source clause so their denominator and attribution cannot be changed");
+  if (summary && summaryTreatsParseFailureAsNegativeFinding(summary)) issues.push("summary_treats_parse_failure_as_negative_finding: parsing/model-output failures are operational limitations, not evidence of absence or a negative finding");
   return {
     summary,
     issues,
@@ -444,15 +517,35 @@ async function requestSummary(
     }
 
     // Compaction is a non-decision transformation on the dedicated Right-hand
-    // 20B lane. Never spend the shared 120B Boss/control budget on memory
-    // formatting; an empty/invalid response is a cache miss and uses projection.
+    // 20B lane. Never spend the shared 120B Boss/control budget on memory formatting.
     const primary = await requestRightHandSummary(prompt, {
       ...input,
       allowRecoveryModel: false,
     }, "openai/gpt-oss-20b", 1);
-    const validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
+    let validation = validateSummary(primary.raw, allowedSource, maxChars, successfulFetchUrls);
     if (!validation.issues.length) return validation.summary;
     logSummaryValidationFailure(input, "primary", primary.model, maxChars, validation);
+
+    // Validation failures get one corrective attempt using the complete original
+    // segment and the exact deterministic issue codes. Provider unavailability
+    // is not misrepresented as a validation failure and does not trigger a retry.
+    if (!retryableSummaryResponse(primary)) return null;
+    const repairPrompt = buildSummaryPrompt(
+      "ORIGINAL SOURCE MEMORY:\n" + source,
+      maxChars,
+      validation.issues.join("; "),
+    );
+    if (repairPrompt.length > maximumPromptChars) {
+      logPromptBudgetFailure(input, "repair", source.length, repairPrompt.length, maximumPromptChars);
+      return null;
+    }
+    const repair = await requestRightHandSummary(repairPrompt, {
+      ...input,
+      allowRecoveryModel: false,
+    }, "openai/gpt-oss-20b", 1);
+    validation = validateSummary(repair.raw, allowedSource, maxChars, successfulFetchUrls);
+    if (!validation.issues.length) return validation.summary;
+    logSummaryValidationFailure(input, "repair", repair.model, maxChars, validation);
     return null;
   } catch (error) {
     logger.warn({
@@ -748,7 +841,7 @@ export async function summarizeInvestigatorContextWithAiCompactor(
 }
 
 
-export type InvestigationContextCompactionMethod = "unchanged" | "ai_semantic" | "deterministic_projection";
+export type InvestigationContextCompactionMethod = "unchanged" | "ai_semantic" | "deterministic_projection" | "verbatim_fallback";
 export type InvestigationContextCompactionResult = {
   text: string;
   method: InvestigationContextCompactionMethod;
@@ -757,9 +850,10 @@ export type RecentObservationCompactionResult = InvestigationContextCompactionRe
 
 /**
  * Historical memory is either included verbatim below the semantic-compaction
- * threshold or reduced by one bounded 20B model-written summary. If that required
- * summary is unavailable or invalid, fail closed; never substitute a deterministic
- * excerpt. Non-semantic observation transport may still use a URL-safe projection.
+ * threshold or reduced by one bounded 20B model-written summary. If that summary
+ * is unavailable or invalid, preserve the complete source verbatim and mark
+ * omissions unknown; never substitute a deterministic excerpt for case history.
+ * Non-semantic observation transport may still use a URL-safe projection.
  * This never consumes the shared 120B Boss/control budget or simulates oversight.
  */
 export async function compactInvestigationContextWithFallback(
@@ -792,10 +886,24 @@ export async function compactInvestigationContextWithFallback(
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
-  // A missing/invalid model-written historical summary is a hard failure:
-  // durable case history remains intact, but no deterministic excerpt is
-  // allowed to masquerade as the working memory needed for the next act.
-  if (kind === "historical_memory") return null;
+  // A rejected/unavailable summary must not erase working memory or turn a
+  // compaction failure into OVERSIGHT_UNAVAILABLE. Preserve the exact persisted
+  // memory projection and its newest trajectory records; make incompleteness
+  // explicit instead of silently substituting an excerpt or claiming completeness.
+  if (kind === "historical_memory") {
+    const fallbackText = source
+      + (source.endsWith("\n") ? "" : "\n\n")
+      + "[MEMORY COMPACTION FALLBACK: the previous memory and latest durable records above are preserved verbatim. Omissions unknown. A compaction or parsing failure is not negative evidence.]";
+    logger.warn({
+      role: "apex_memory_compaction",
+      phase: "verbatim_fallback",
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      sourceChars: source.length,
+      maxChars,
+    }, "AI memory compaction was unavailable or rejected; preserving the durable source verbatim with omissions marked unknown");
+    return { text: fallbackText, method: "verbatim_fallback" };
+  }
 
   const deterministic = buildDeterministicContextProjection(source, maxChars, "observation");
   return deterministic ? { text: deterministic, method: "deterministic_projection" } : null;
