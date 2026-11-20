@@ -113,3 +113,54 @@ jobs:
             /opt/venvs/theharvester/bin/theHarvester --help >/dev/null
             cd /opt/tools/spiderfoot && /opt/venvs/spiderfoot/bin/python -c "import sf"
           '
+
+  publish-images:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [contract-tests, node-contract-tests, container-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Confirm Buildx is available
+        run: docker buildx version
+      - name: Authenticate to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish isolated OSINT worker image
+        id: worker
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/apex-python-osint-worker"
+          docker buildx build --platform linux/amd64 --pull --push \
+            --tag "$image:$GITHUB_SHA" \
+            --metadata-file /tmp/apex-worker-metadata.json \
+            -f services/apex-python-osint-worker/Dockerfile .
+          digest="$(jq -r '."containerimage.digest"' /tmp/apex-worker-metadata.json)"
+          test "$digest" != "null" && [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Apex OSINT worker image::$image@$digest"
+      - name: Publish restricted-egress proxy image
+        id: proxy
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/apex-osint-egress-proxy"
+          docker buildx build --platform linux/amd64 --pull --push \
+            --tag "$image:$GITHUB_SHA" \
+            --metadata-file /tmp/apex-proxy-metadata.json \
+            -f services/apex-python-osint-worker/proxy.Dockerfile .
+          digest="$(jq -r '."containerimage.digest"' /tmp/apex-proxy-metadata.json)"
+          test "$digest" != "null" && [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Apex OSINT proxy image::$image@$digest"
+      - name: Publish immutable deployment references
+        run: |
+          {
+            echo "APEX_PYTHON_OSINT_WORKER_IMAGE=${{ steps.worker.outputs.image }}@${{ steps.worker.outputs.digest }}"
+            echo "APEX_PYTHON_OSINT_PROXY_IMAGE=${{ steps.proxy.outputs.image }}@${{ steps.proxy.outputs.digest }}"
+            echo "APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST=${{ steps.worker.outputs.digest }}"
+            echo "APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST=${{ steps.proxy.outputs.digest }}"
+          } | tee apex-python-osint-image-digests.env
