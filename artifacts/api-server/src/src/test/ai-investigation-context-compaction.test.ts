@@ -769,7 +769,7 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, trustedSourceContext: source, maxChars: 900 })).resolves.toBe(correctedSummary);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
-    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("a successful fetch of one URL never authorizes claims about another lead URL");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("Never treat requested args.url or record.urls as proof");
   });
 
   it("keeps a separately labelled search lead distinct beside a fetched-page claim", async () => {
