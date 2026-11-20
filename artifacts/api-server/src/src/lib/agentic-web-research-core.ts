@@ -2671,7 +2671,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     : availableActionsMatch
       ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
       : getModelSelectableAgentActions();
-  if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
+  if (model && structuredActionResponseFormat(model, actionAllowlist, _promptMode).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
@@ -2680,7 +2680,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     return normalized;
   }
   const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
-  const supportsFindings = actionAllowlist.includes("done");
+  const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
   const requiredFindingFields = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] : [];
@@ -2703,28 +2703,30 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
 const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
 
 /** Models without provider-enforced strict schema use a reduced action-specific contract and local validation. */
-export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[]): string {
-  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
+export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
+  if (structuredActionResponseFormat(model, actionAllowlist, promptMode).type === "json_schema") return strictContract;
   const allowed = new Set(actionAllowlist ?? getModelSelectableAgentActions());
   const shapes = [
     allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
-    allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
+    promptMode === "discovery"
+      ? "For every discovery action, include findings[] with any useful Investigator-selected provisional person or organization leads from observations so far; do not wait for done. Use exact observed names, exact associated public HTTPS sourceUrls, candidate/organization scope, role or null, and a concise relevance/uncertainty note. These are review-only leads, not verified claims or promotion decisions; use [] when no useful lead is present."
+      : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " findings[] item fields: vectorType, value, personName, role, scope, sourceUrls, note; optional claim fields may be null. For a person lead, value and personName are the exact observed full name and scope is candidate; for an organization lead, value is the exact observed name and scope is organization. Do not infer an identity, role, wealth, ownership or relationship." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
-export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
-  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return prompt;
+export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
+  if (structuredActionResponseFormat(model, actionAllowlist, promptMode).type === "json_schema") return prompt;
   const standaloneOutputAt = Math.max(
     prompt.lastIndexOf("\nOUTPUT CONTRACT:"),
     prompt.startsWith("OUTPUT CONTRACT:") ? 0 : -1,
   );
   const outputAt = standaloneOutputAt < 0 ? -1 : standaloneOutputAt + (standaloneOutputAt > 0 ? 1 : 0);
   if (outputAt < 0) {
-    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist);
+    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist, promptMode);
   }
-  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist);
+  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist, promptMode);
 }
 
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
@@ -2732,11 +2734,11 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
-  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist);
+  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist, inferredMode);
   const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
-  const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
@@ -2988,10 +2990,10 @@ export async function callGroqJson(
         estimatedOriginalMessagePromptTokens: groqPromptTokenEstimate(defaultOriginalPromptChars + systemPromptCharsBeforeRequest),
       };
       try {
-        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
+        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist, promptMode);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
-        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist);
+        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist, promptMode);
         const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model, actionAllowlist);
         const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
@@ -3815,7 +3817,7 @@ export function strictifyGroqJsonSchema(schema: Record<string, unknown>): Record
   return strictifyGroqJsonSchemaNode(schema, true);
 }
 
-export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
+export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): Record<string, unknown> {
   // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
   // with json_validate_failed, including after the JSON-object compatibility retry.
   // Omit provider-side format enforcement for this one fallback model and keep the
@@ -3846,7 +3848,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     },
   };
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
-  const supportsFindings = availableActions.includes("done");
+  const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
   if (!supportsSearchArrays) delete schemaProperties.searches;
   if (!supportsFindings) delete schemaProperties.findings;
   const schema = { ...AGENTIC_STRUCTURED_SCHEMA, properties: schemaProperties };
@@ -5612,7 +5614,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization leads as review-only cards with exact names, associated URLs, objective relevance and uncertainty. Include findings[] on every action after any observation that names a useful lead; do not wait for done. Search-result leads remain unverified; fetched evidence improves verification but does not itself establish wealth, ownership or promotion."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5876,13 +5878,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
-  const supportsFindings = availableActions.includes("done");
+  const supportsFindings = input.mode === "discovery" || availableActions.includes("done");
   const topLevelFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const actionShapeGuidance = [
     availableActions.includes("web_search") ? (availableActions.includes("parallel_web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; parallel_web_search uses searches[] items." : "For web_search, put one query in the root query field and an optional provider in the root provider field.") : "",
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
-    supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
+    input.mode === "discovery"
+      ? "For every discovery action, include findings[] with any useful Investigator-selected provisional person or organization leads from observations so far; do not wait for done. Use exact observed names, exact associated public HTTPS sourceUrls, candidate/organization scope, role or null, and a concise relevance/uncertainty note. These are review-only leads, not verified claims or promotion decisions; use [] when no useful lead is present."
+      : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
     + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
@@ -6044,7 +6048,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization leads as review-only cards with exact names, associated URLs, objective relevance and uncertainty. Include findings[] on every action after any observation that names a useful lead; do not wait for done. Search-result leads remain unverified; fetched evidence improves verification but does not itself establish wealth, ownership or promotion."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
