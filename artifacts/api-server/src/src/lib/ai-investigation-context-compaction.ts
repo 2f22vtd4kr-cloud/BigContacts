@@ -850,9 +850,10 @@ export type RecentObservationCompactionResult = InvestigationContextCompactionRe
 
 /**
  * Historical memory is either included verbatim below the semantic-compaction
- * threshold or reduced by one bounded 20B model-written summary. If that required
- * summary is unavailable or invalid, fail closed; never substitute a deterministic
- * excerpt. Non-semantic observation transport may still use a URL-safe projection.
+ * threshold or reduced by one bounded 20B model-written summary. If that summary
+ * is unavailable or invalid, preserve the complete source verbatim and mark
+ * omissions unknown; never substitute a deterministic excerpt for case history.
+ * Non-semantic observation transport may still use a URL-safe projection.
  * This never consumes the shared 120B Boss/control budget or simulates oversight.
  */
 export async function compactInvestigationContextWithFallback(
