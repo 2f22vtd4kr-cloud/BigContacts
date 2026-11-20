@@ -6451,7 +6451,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       throw error;
     }
   }
-  const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.(sanitizeObservableValue({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null })); } catch {} }; const completePriorTrajectoryRecords = [...(input.priorTrajectoryRecords ?? [])]; const priorTrajectoryRecords = completePriorTrajectoryRecords.slice(-MAX_TRAJECTORY_RECORDS); let aiCompactedHistoricalContext = input.aiCompactedHistoricalContext?.trim() ?? ""; let aiCompactedHistoricalThroughTurn = Number.isFinite(input.aiCompactedHistoricalThroughTurn) ? Math.max(0, Math.floor(input.aiCompactedHistoricalThroughTurn!)) : 0; const aiCompactedObservationBySource = new Map<string, string>();
+  const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.(sanitizeObservableValue({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null })); } catch {} }; const completePriorTrajectoryRecords = [...(input.priorTrajectoryRecords ?? [])]; const priorTrajectoryRecords = completePriorTrajectoryRecords.slice(-MAX_TRAJECTORY_RECORDS); let aiCompactedHistoricalContext = input.aiCompactedHistoricalContext?.trim() ?? ""; let aiCompactedHistoricalThroughTurn = Number.isFinite(input.aiCompactedHistoricalThroughTurn) ? Math.max(0, Math.floor(input.aiCompactedHistoricalThroughTurn!)) : 0; let historicalMemoryDegradationNote: string | null = null; const aiCompactedObservationBySource = new Map<string, string>();
   const retainedFetchedPages = restoreRetainedFetchedPageStore(completePriorTrajectoryRecords);
   const priorTurnOffset = Math.max(0, ...priorTrajectoryRecords.map((record) => record.turn), ...(input.priorIntelligenceContext?.recentActions.map((action) => action.turn) ?? []));
   const intelligence = new ResearchIntelligenceEngine({ caseId: input.priorIntelligenceContext?.caseId ?? null, executionId: input.priorIntelligenceContext?.executionId || input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
@@ -6470,7 +6470,14 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         getModelSelectableAgentActions().filter((action) => action !== "browser_fetch" || turnBrowserProviders.length > 0),
       ); const canFinishDiscovery = input.mode !== "discovery"
         || hasUsableDiscoveryExternalObservation([...priorTrajectoryRecords, ...records]);
-      const actionAllowlistForTurn = canFinishDiscovery ? actionsForTurn : actionsForTurn.filter((action) => action !== "done"); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
+      const actionAllowlistForTurn = canFinishDiscovery ? actionsForTurn : actionsForTurn.filter((action) => action !== "done"); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const intelligenceContextForPrompt = (stateUnavailable = false): string => {
+        const base = stateUnavailable
+          ? "RESEARCH INTELLIGENCE STATE is unavailable for this turn. Use only the stated objective and visible observations; do not infer omitted evidence or treat missing context as a negative finding."
+          : aiCompactedHistoricalContext
+            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
+            : renderIntelligenceContext(intelligenceState);
+        return [base, historicalMemoryDegradationNote].filter(Boolean).join("\n\n");
+      }; const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
       const allPromptRecords = sanitizeObservableValue(
         [...priorTrajectoryRecords, ...records]
           .map((record) => {
@@ -6543,18 +6550,25 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           turn: priorTurnOffset + i + 1,
         }, "historical_memory");
         if (!compactedMemory?.text) {
-          const message = "Historical research context could not be preserved verbatim or summarized by AI within the bounded Investigator prompt; the full case history remains durable.";
-          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
-        }
-        aiCompactedHistoricalContext = compactedMemory.text;
-        if (compactedMemory.method === "ai_semantic") {
-          const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
-          aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
+          historicalMemoryDegradationNote = "Historical memory compaction was unavailable for this turn. The complete case history remains durable; omitted history is unknown, not negative evidence. Use the active objective, current structured intelligence, latest observations and source inventory.";
+          emit("ai_context_compaction_degraded", { status: "partial", summary: historicalMemoryDegradationNote });
         } else {
-          // Unchanged memory below the AI-compaction threshold remains complete
-          // and verbatim; it is not a semantic summary and advances no turn marker.
-          aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
+          aiCompactedHistoricalContext = compactedMemory.text;
+          if (compactedMemory.method === "ai_semantic") {
+            historicalMemoryDegradationNote = null;
+            const summarizedThroughTurn = historicalRecords.at(-1)?.turn ?? aiCompactedHistoricalThroughTurn;
+            aiCompactedHistoricalThroughTurn = Math.max(aiCompactedHistoricalThroughTurn, summarizedThroughTurn);
+          } else {
+            // Unchanged or verbatim-fallback memory is not a semantic summary
+            // and therefore advances no summarized-through-turn marker.
+            aiCompactedHistoricalThroughTurn = previouslySemanticallyCompactedThroughTurn;
+            historicalMemoryDegradationNote = compactedMemory.method === "verbatim_fallback"
+              ? "AI semantic compaction was unavailable; the complete historical source is retained verbatim for this turn. No omitted facts are inferred."
+              : null;
+            if (historicalMemoryDegradationNote) {
+              emit("ai_context_compaction_degraded", { status: "partial", summary: historicalMemoryDegradationNote });
+            }
+          }
         }
       }
       // The newest action is the most important working observation. If it is
@@ -6613,9 +6627,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           });
           compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
-            const message = "Recent observation could not be safely projected into the bounded Investigator context; the full observation remains durable.";
-            emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+            compactedObservation = "[OBSERVATION PROJECTION UNAVAILABLE: the complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence. Action metadata and source URLs remain separately preserved.]";
+            emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "A non-semantic observation projection was unavailable; retained durable action metadata and marked omitted text unknown." });
           }
           if (compacted?.method === "deterministic_projection") {
             emit("nonsemantic_observation_projection", {
@@ -6651,9 +6664,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           });
           compactedObservation = compacted?.text ?? "";
           if (!compactedObservation) {
-            const message = "Current observation could not be safely projected into the bounded Investigator context; the full observation remains durable.";
-            emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+            compactedObservation = "[CURRENT OBSERVATION PROJECTION UNAVAILABLE: the complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence. Do not infer a research result from this omission.]";
+            emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "A current observation projection was unavailable; the durable observation remains authoritative and omitted text is unknown." });
           }
           if (compacted?.method === "deterministic_projection") {
             emit("nonsemantic_observation_projection", {
@@ -6714,9 +6726,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           findings: sanitizeObservableValue(findings),
           priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
           durableUrlInventory: input.durableUrlInventory,
-          intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
-            : renderIntelligenceContext(intelligenceState),
+          intelligenceContext: intelligenceContextForPrompt(),
           mode: input.mode,
           actionAllowlist: actionAllowlistForTurn,
           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
@@ -6729,11 +6739,11 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         emit("prompt_context_recovery", { status: "error", summary: message });
         return resultBase("error", i, "UNEXPECTED_ERROR", message);
       }
-      // Historical memory is required working context, not optional padding. If an
-      // emergency prompt tier dropped it, request one bounded AI semantic reduction
-      // and rebuild once. Never substitute a deterministic historical excerpt.
-      // If the complete/AI-compacted memory cannot fit beside the action/schema
-      // contracts, stop this turn rather than silently lose prior research.
+      // Prefer one bounded AI reduction when historical memory does not fit.
+      // If semantic compaction is unavailable or the result still cannot fit,
+      // omit that optional historical projection for this model turn with an
+      // explicit unknown/omission marker. The objective, action contract,
+      // current structured intelligence and durable event ledger remain intact.
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
         const shorterMemory = await compactInvestigationContextWithFallback({
           rawContext: aiCompactedHistoricalContext,
@@ -6742,12 +6752,13 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           caseId: input.caseId,
           turn: priorTurnOffset + i + 1,
         }, "historical_memory");
-        if (!shorterMemory?.text || shorterMemory.text === aiCompactedHistoricalContext) {
-          const message = "Historical research context could not be shortened enough to fit the complete Investigator prompt without removing required schema/action contracts.";
-          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+        if (!shorterMemory?.text || shorterMemory.text === aiCompactedHistoricalContext || shorterMemory.text.length > 900) {
+          historicalMemoryDegradationNote = "Historical memory was omitted from this model turn because a bounded summary could not be produced within the remaining prompt budget. The complete source history remains durable; omissions are unknown, not negative evidence. Continue from the active objective, current structured intelligence, latest observations and source inventory.";
+          aiCompactedHistoricalContext = "";
+          emit("ai_context_compaction_degraded", { status: "partial", summary: historicalMemoryDegradationNote });
+        } else {
+          aiCompactedHistoricalContext = shorterMemory.text;
         }
-        aiCompactedHistoricalContext = shorterMemory.text;
         try {
           prompt = usedPromptRecoveryFallback
             ? buildStepPrompt({
@@ -6760,7 +6771,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 findings: [],
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
                 durableUrlInventory: undefined,
-                intelligenceContext: "RESEARCH INTELLIGENCE STATE is unavailable for this turn. Use only the stated objective and visible observations; do not infer omitted evidence or treat missing context as a negative finding.",
+                intelligenceContext: intelligenceContextForPrompt(true),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
@@ -6777,9 +6788,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 findings: sanitizeObservableValue(findings),
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
                 durableUrlInventory: input.durableUrlInventory,
-                intelligenceContext: aiCompactedHistoricalContext
-            ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
-            : renderIntelligenceContext(intelligenceState),
+                intelligenceContext: intelligenceContextForPrompt(),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
@@ -6791,10 +6800,51 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);
         }
-        if (!prompt.includes(aiCompactedHistoricalContext)) {
-          const message = "Compacted historical context still did not fit in the full Investigator prompt after bounded projection. No action was sent with required history silently omitted.";
-          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
-          return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);
+        if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
+          historicalMemoryDegradationNote = "Historical memory was omitted from this model turn because even the bounded summary could not fit beside the mandatory objective and action contract. The complete source history remains durable; omissions are unknown, not negative evidence.";
+          aiCompactedHistoricalContext = "";
+          emit("ai_context_compaction_degraded", { status: "partial", summary: historicalMemoryDegradationNote });
+          try {
+            prompt = usedPromptRecoveryFallback
+              ? buildStepPrompt({
+                  targetName: name || "",
+                  companyName: input.companyName,
+                  objective,
+                  history: history.slice(-3).map((entry) => String(entry).slice(0, 900)),
+                  trajectoryRecords: [],
+                  lastObservation: promptLastObservation,
+                  findings: [],
+                  priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
+                  durableUrlInventory: undefined,
+                  intelligenceContext: intelligenceContextForPrompt(true),
+                  mode: input.mode,
+                  actionAllowlist: actionAllowlistForTurn,
+                  aiCompactedHistoricalContext: undefined,
+                  aiCompactedHistoricalThroughTurn,
+                  onPromptMeasurement: capturePromptMeasurement,
+                })
+              : buildStepPrompt({
+                  targetName: name || "",
+                  companyName: input.companyName,
+                  objective,
+                  history,
+                  trajectoryRecords: promptTrajectoryRecords,
+                  lastObservation: promptLastObservation,
+                  findings: sanitizeObservableValue(findings),
+                  priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
+                  durableUrlInventory: input.durableUrlInventory,
+                  intelligenceContext: intelligenceContextForPrompt(),
+                  mode: input.mode,
+                  actionAllowlist: actionAllowlistForTurn,
+                  aiCompactedHistoricalContext: undefined,
+                  aiCompactedHistoricalThroughTurn,
+                  onPromptMeasurement: capturePromptMeasurement,
+                });
+          } catch {
+            const message = "Investigator prompt could not be rebuilt after omitting optional historical memory; no action was sent.";
+            emit("prompt_context_recovery", { status: "error", summary: message });
+            return resultBase("error", i, "UNEXPECTED_ERROR", message);
+          }
         }
       }
       runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) {

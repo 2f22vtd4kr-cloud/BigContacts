@@ -35,6 +35,19 @@ export function shouldRequireExplicitBossContinueDirection(input: {
   if (input.action !== "continue_discovery" || input.episodeExecutedResearch) return false;
   return !(input.direction === null && input.recoverableModelFailure && !input.recoveryRetryAlreadyGranted);
 }
+/** A wrapper runtime exception is an execution failure, never a research observation. */
+export function hasUnexpectedInvestigatorRuntimeFailure(
+  records: readonly { action?: string | null; execution?: string | null; failureKind?: string | null }[],
+): boolean {
+  // The durable runtime_error action is itself the authoritative classification.
+  // Do not require a secondary failureKind field to be present: older or
+  // partially serialized records must still stop before Boss control.
+  return records.some((record) =>
+    record.action === "runtime_error"
+    && record.execution === "error",
+  );
+}
+
 export function hasExecutedInvestigatorResearchAction(
   records: readonly { action?: string | null; execution?: string | null }[],
 ): boolean {

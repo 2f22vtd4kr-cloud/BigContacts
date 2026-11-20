@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   jobId: "" as string,
   activeJobId: null as string | null,
   jobUpdates: [] as Array<Record<string, unknown>>,
-  scenario: "model-stops" as "model-stops" | "operator-cap",
+  scenario: "model-stops" as "model-stops" | "operator-cap" | "runtime-error-opening",
   targetCalls: [] as number[],
   controlCalls: 0,
   generateGroqBossText: vi.fn(),
@@ -38,6 +38,32 @@ const mocks = vi.hoisted(() => ({
   pageUrl: "",
   runTargetContactAgent: vi.fn(),
 }));
+
+vi.mock("../lib/bureau-agentic-pass", async () => {
+  const actual = await vi.importActual<typeof import("../lib/bureau-agentic-pass")>("../lib/bureau-agentic-pass");
+  return {
+    ...actual,
+    runBureauAgenticWebPass: vi.fn(async (input: any) => {
+      if (mocks.scenario !== "runtime-error-opening") return actual.runBureauAgenticWebPass(input);
+      const record = {
+        turn: 1, model: input.investigatorLlm ?? "mock-investigator",
+        action: "runtime_error", args: { stage: "continuation_preparation" },
+        execution: "error", observation: "unexpected_exception stage=continuation_preparation type=Error digest=mock-runtime",
+        observedUrls: [], findings: [], providerFallback: [],
+        failureDomain: "unexpected_programming_error", failureKind: "unexpected_exception",
+        stopReason: "UNEXPECTED_ERROR",
+      };
+      return {
+        status: "error", model: input.investigatorLlm ?? "mock-investigator",
+        iterations: 1, searches: 0, visits: 0, findings: [], partialFindings: [],
+        modelFindings: [], contactEvidence: [],
+        trajectory: ["step1: runtime_error execution=error stage=continuation_preparation"],
+        trajectoryRecords: [record], runId: input.runId,
+        stopReason: "UNEXPECTED_ERROR", error: "mock continuation-preparation runtime failure",
+      };
+    }),
+  };
+});
 
 vi.mock("../lib/job-queue", async () => {
   const actual = await vi.importActual<typeof import("../lib/job-queue")>("../lib/job-queue");
@@ -387,18 +413,22 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     if (pool) await pool.end();
   }, 30_000);
 
-  async function runScenario(scenario: "model-stops" | "operator-cap") {
+  async function runScenario(scenario: "model-stops" | "operator-cap" | "runtime-error-opening") {
     mocks.scenario = scenario;
     const jobId = `offline-atlas-${scenario}-${runToken}`;
     // Keep the fixture objective below the Right-hand semantic-compaction
     // threshold. Objective compaction is a separate model workflow; this test
     // isolates terminal oversight and must not accidentally invoke an unmocked
     // memory-compactor provider path.
-    await pipeline(jobId, {
-      targetCount: 1,
-      researchDepth: "standard",
-      targetTimeoutMs: 60_000,
-    });
+    try {
+      await pipeline(jobId, {
+        targetCount: 1,
+        researchDepth: "standard",
+        targetTimeoutMs: 60_000,
+      });
+    } catch (error) {
+      if (scenario !== "runtime-error-opening") throw error;
+    }
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
     const cases = await db.select().from(tables.researchCasesTable)
       .where(eq(tables.researchCasesTable.caseType, "discovery"));
@@ -532,6 +562,16 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       operatorTargetSpendingCapReached: false,
       finalControlAction: "stop",
     });
+  });
+
+  it("stops an opening runtime_error before any post-research Boss control decision", async () => {
+    const outcome = await runScenario("runtime-error-opening");
+    // One opening Boss decision is expected; a runtime exception must not
+    // trigger a second Boss call that pretends research returned zero results.
+    expect(mocks.controlCalls).toBe(1);
+    expect(mocks.runTargetContactAgent).not.toHaveBeenCalled();
+    expect(mocks.jobStatus).toBe("failed");
+    expect(outcome.controlDecisions).toHaveLength(1);
   });
 
   it("records an operator cap as an incomplete resource outcome, never as a model stop", async () => {
