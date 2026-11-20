@@ -5916,7 +5916,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed claim-grade findings."
-        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only; [] if none."
+        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
