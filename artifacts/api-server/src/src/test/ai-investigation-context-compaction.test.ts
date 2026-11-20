@@ -604,7 +604,8 @@ describe("AI investigation context compaction", () => {
           }],
         },
       }, null, 2),
-    ].join("\\n");
+      "BACKGROUND: " + "The durable memory preserves source-stage distinctions and the latest action records. ".repeat(120),
+    ].join("\n");
     const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails were present, but no ownership or investment evidence was extracted.";
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-right-hand-model",
@@ -960,7 +961,8 @@ describe("AI investigation context compaction", () => {
     expect(result?.method).toBe("verbatim_fallback");
     expect(result?.text).toContain(sourceFact);
     expect(result?.text).toContain("Omissions unknown.");
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("summary_contains_unverifiable_numeric_claim");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalled();
   });
 
@@ -1054,7 +1056,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify(projection),
       "BOUNDED TRAJECTORY PROJECTION:",
       "[]",
-      "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(125),
+      "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(150),
     ].join("\n");
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const corrected = "Visit to " + sourceUrl + " succeeded; the page yielded contact information only.";
