@@ -2716,7 +2716,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
       ? allowed.has("done")
-        ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed findings."
+        ? "Non-terminal discovery actions carry provisional people/orgs in findings[] with observed names/URLs; done uses source-backed findings."
         : "Discovery: put provisional person/org leads in findings[] with observed names/URLs, scope, role and uncertainty. Review-only; [] if none."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
@@ -5915,7 +5915,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed claim-grade findings."
+        ? "Non-terminal discovery actions carry provisional people/orgs in findings[] with observed names/URLs and relevance/uncertainty; done uses source-backed claims."
         : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
