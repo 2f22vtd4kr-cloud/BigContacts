@@ -452,15 +452,16 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
 });
 
 describe("Investigator preflight model and credential lanes", () => {
-  it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
-    expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
+  it("uses one successful sample per model/credential lane and caches it for 30 minutes", () => {
+    expect(agenticCoreSource).toContain("GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS = 30 * 60 * 1_000");
+    expect(agenticCoreSource).toContain('const cacheKey = model + ":" + digestDiagnosticText(credential)');
+    expect(agenticCoreSource).toContain("if (samplePassed)");
+    expect(agenticCoreSource).toContain("cacheHit: true");
     expect(agenticCoreSource).toContain("rawOutputClass");
     expect(agenticCoreSource).toContain("samples.push({");
     expect(agenticCoreSource).toContain("classification,");
     expect(agenticCoreSource).toContain("latencyMs: Date.now() - sampleStartedAt");
-    expect(agenticCoreSource).toContain("jobId ?? null, null, [\"web_search\"]");
   });
-
   it("keeps shared-key aliases together but tests different credentials and 20B/120B models independently", () => {
     const env: NodeJS.ProcessEnv = {
       GROQ_INVESTIGATOR_API_KEY: "shared-key",
@@ -5517,18 +5518,16 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(properties).not.toHaveProperty("findings");
   });
 
-  it("composes a model-authored trivial objective and samples three independently generated actions", () => {
+  it("composes a model-authored trivial objective and samples one action per lane", () => {
     expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
-    expect(agenticCoreSource).toContain("for (let sample = 0; sample < 3; sample += 1)");
-    expect(agenticCoreSource).toContain("Each independent sample owns its own decision deadline");
-    expect(agenticCoreSource).toContain("Three samples are diagnostic, not an all-three-or-nothing launch gate");
+    expect(agenticCoreSource).toContain("sample: 1");
+    expect(agenticCoreSource).toContain("cacheHit: false");
+    expect(agenticCoreSource).toContain("cacheHit: true");
     expect(agenticCoreSource).toContain("sampleSummary");
-    expect(agenticCoreSource).toContain('].join("\\n\\n")');
-    expect(agenticCoreSource).toContain("parseAgentAction(result.raw, [\"web_search\"])");
+    expect(agenticCoreSource).toContain('parseAgentAction(result.raw, ["web_search"])');
     expect(agenticCoreSource).toContain("do not copy supplied action values");
   });
-
   it("states the rationale contract required by the local parser in the non-strict model prompt", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");

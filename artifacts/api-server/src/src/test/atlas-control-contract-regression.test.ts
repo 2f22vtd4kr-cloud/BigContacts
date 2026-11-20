@@ -989,16 +989,15 @@ describe("Boss-adjudicated opening direction", () => {
     });
   });
 
-  it("allows Boss to continue the human base objective without adopting an initial direction", () => {
+  it("rejects a directionless Boss opening continuation", () => {
     expect(resolveBossAdjudicatedOpeningDirection({
       bossAction: "continue_discovery",
       bossDirection: null,
       initialBossDirection: null,
-    })).toEqual({
-      status: "base_scope",
-      direction: null,
-      source: "base_objective",
-      reason: null,
+    })).toMatchObject({
+      status: "invalid",
+      source: "invalid_boss_decision",
+      reason: "Groq Boss selected continue_discovery without supplying a concrete opening research direction.",
     });
   });
 

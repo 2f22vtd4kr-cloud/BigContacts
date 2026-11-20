@@ -10,6 +10,9 @@ import {
   buildAtlasBossControlPrompt,
   buildAtlasPinnedControlState,
   validateAtlasRightHandControl,
+  validateAtlasBossControl,
+  validateAtlasOpeningBossControl,
+  diagnoseAtlasBossControlContract,
   normalizeAtlasRightHandControl,
   normalizeAtlasRightHandControlResponse,
   buildAtlasRightHandControlPrompt,
@@ -444,11 +447,22 @@ describe("Atlas control-plane lead continuity", () => {
     }
   });
 
-  it("restricts the opening Boss response to start or stop with no target or direction", () => {
+  it("requires a concrete Boss research question when opening discovery continues", () => {
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.action.enum).toEqual(["continue_discovery", "stop"]);
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateName.type).toBe("null");
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateType.type).toBe("null");
-    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.type).toBe("null");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.type).toEqual(["string", "null"]);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.minLength).toBe(24);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBe(1_200);
+    const continuing = { action: "continue_discovery", candidateName: null, candidateType: null, direction: "Identify the first source-backed ownership relationship relevant to the stated mission.", reason: "A bounded first research question can test the mission.", confidence: 0.8 };
+    expect(validateAtlasOpeningBossControl(continuing)).toBe(true);
+    expect(validateAtlasOpeningBossControl({ ...continuing, direction: null })).toBe(false);
+    expect(validateAtlasOpeningBossControl({ ...continuing, direction: "Use Groq to search Serper." })).toBe(false);
+    expect(validateAtlasOpeningBossControl({ ...continuing, candidateName: "Unobserved Person" })).toBe(false);
+    expect(diagnoseAtlasBossControlContract(JSON.stringify({ ...continuing, direction: null }), { ...continuing, direction: null }, true).invalidFields).toContain("direction");
+    expect(validateAtlasOpeningBossControl({ action: "stop", candidateName: null, candidateType: null, direction: null, reason: "No justified opening action.", confidence: 0.8 })).toBe(true);
+    expect(validateAtlasOpeningBossControl({ action: "stop", candidateName: null, candidateType: null, direction: "ignored", reason: "Stop.", confidence: 0.8 })).toBe(false);
+    expect(validateAtlasBossControl({ ...continuing, direction: null })).toBe(true);
   });
 
   it("fits the full opening objective without duplicating it in pinned control state", () => {
@@ -485,6 +499,8 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).not.toContain("Verify the named person's role and ownership");
     expect(prompt).not.toContain("HUMAN OBJECTIVE: The complete current human objective is in COMPLETE DISCOVERY STATE");
     expect(prompt).toContain("Choose only continue_discovery or stop.");
+    expect(prompt).toContain("concrete, objective-aligned opening research question");
+    expect(prompt).toContain("direction must be a concise, concrete, objective-aligned research question (24–1200 characters)");
     expect(prompt).toContain("RIGHT-HAND ADVICE");
     expect(prompt).toContain("RUNTIME SOURCE/REGISTRY FEASIBILITY");
     expect(prompt).toContain("RUNTIME-CALLABLE REGISTRY IDS (randomized)");

@@ -3521,9 +3521,9 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
 }
 
 /**
- * Probe each distinct configured Investigator model/credential lane after
- * the canonical job is accepted. Each lane receives three independent
- * production-contract samples with per-sample deadlines; no research tool executes.
+ * Group configured Investigator capabilities by model and credential identity.
+ * Launch preflight samples each resulting lane once and caches successful
+ * compatibility results for 30 minutes; no research tool executes.
  */
 export function groupInvestigatorCapabilitiesByModelAndCredential(
   capabilities: readonly InvestigatorCapability[],
@@ -3544,145 +3544,133 @@ export function groupInvestigatorCapabilitiesByModelAndCredential(
   return [...groups.values()];
 }
 
+export const GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS = 30 * 60 * 1_000;
+type InvestigatorProbeSample = {
+  sample: number;
+  passed: boolean;
+  classification: string;
+  rawOutputClass: string;
+  latencyMs: number;
+  diagnostic: string;
+};
+type InvestigatorProbeCacheEntry = { expiresAt: number; sample: InvestigatorProbeSample };
+const investigatorProbeCache = new Map<string, InvestigatorProbeCacheEntry>();
+export function resetGroqInvestigatorProbeCacheForTests(): void { investigatorProbeCache.clear(); }
+
 export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jobId?: string | null): Promise<{
   ok: boolean;
   checked: Array<{ capability: InvestigatorCapability; model: string }>;
   excludedCapabilities: InvestigatorCapability[];
   sampleSummary: Array<{
-    model: string;
-    capabilities: InvestigatorCapability[];
-    passedSamples: number;
-    failedSamples: number;
-    samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }>;
+    model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number;
+    cacheHit: boolean; samples: InvestigatorProbeSample[];
   }>;
   failedCapability?: InvestigatorCapability;
   error?: string;
 }> {
   const capabilities = getAvailableInvestigatorCapabilities();
-  if (!capabilities.length) {
-    return { ok: false, checked: [], excludedCapabilities: [], sampleSummary: [], error: "No configured Groq Investigator capability is available." };
-  }
+  if (!capabilities.length) return { ok: false, checked: [], excludedCapabilities: [], sampleSummary: [], error: "No configured Groq Investigator capability is available." };
+  const now = Date.now();
+  for (const [key, entry] of investigatorProbeCache) if (entry.expiresAt <= now) investigatorProbeCache.delete(key);
   const configuredModel = process.env.GROQ_AGENTIC_MODEL?.trim() || process.env.GROQ_MODEL?.trim() || process.env.GROQ_CHAT_MODEL?.trim() || null;
   const modelGroups = groupInvestigatorCapabilitiesByModelAndCredential(capabilities, configuredModel);
   const checked: Array<{ capability: InvestigatorCapability; model: string }> = [];
   const excludedCapabilities: InvestigatorCapability[] = [];
   const sampleSummary: Array<{
-    model: string;
-    capabilities: InvestigatorCapability[];
-    passedSamples: number;
-    failedSamples: number;
-    samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }>;
+    model: string; capabilities: InvestigatorCapability[]; passedSamples: number; failedSamples: number;
+    cacheHit: boolean; samples: InvestigatorProbeSample[];
   }> = [];
   let firstFailure: { capability: InvestigatorCapability; error: string } | undefined;
 
   for (const { model, capabilities: modelCapabilities } of modelGroups) {
     if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+    const firstCapability = modelCapabilities[0];
+    const keyName = firstCapability ? investigatorCapabilityKeyName(firstCapability) : null;
+    const credential = keyName ? process.env[keyName]?.trim() : "";
+    if (!firstCapability || !credential) {
+      excludedCapabilities.push(...modelCapabilities);
+      if (firstCapability) firstFailure ??= { capability: firstCapability, error: "investigator_credential_unavailable" };
+      continue;
+    }
+    const cacheKey = model + ":" + digestDiagnosticText(credential);
+    const cached = investigatorProbeCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      checked.push(...modelCapabilities.map((capability) => ({ capability, model })));
+      sampleSummary.push({
+        model, capabilities: modelCapabilities, passedSamples: 1, failedSamples: 0, cacheHit: true,
+        samples: [{ ...cached.sample, sample: 1, diagnostic: "cache_hit:" + cached.sample.diagnostic }],
+      });
+      continue;
+    }
+
     const productionPrompt = buildStepPrompt({
-      targetName: "",
-      objective: "Identify one publicly documented example organization.",
-      history: [],
+      targetName: "", objective: "Identify one publicly documented example organization.", history: [],
       trajectoryRecords: [],
       lastObservation: "Provider compatibility probe only. No research action has executed and no external observation may be claimed.",
-      findings: [],
-      mode: "discovery",
-      actionAllowlist: ["web_search"],
+      findings: [], mode: "discovery", actionAllowlist: ["web_search"],
     });
     const prompt = [
       productionPrompt,
       "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
     ].join("\n\n");
-    let passedSamples = 0;
+    const samples: InvestigatorProbeSample[] = [];
+    const controller = new AbortController();
+    const abortParent = () => controller.abort();
+    signal?.addEventListener("abort", abortParent, { once: true });
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    const sampleStartedAt = Date.now();
+    let samplePassed = false;
+    let classification = "provider_failure";
+    let diagnostic = "provider_unavailable";
+    let rawOutputClass = "no_raw_output";
     let failureReason = "";
-    const samples: Array<{ sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }> = [];
-    // Three samples are diagnostic, not an all-three-or-nothing launch gate.
-    // A lane needs at least two independently generated valid actions to be
-    // considered repeatably compatible; one success out of three is not healthy.
-    for (let sample = 0; sample < 3; sample += 1) {
-      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
-      const controller = new AbortController();
-      const abortParent = () => controller.abort();
-      signal?.addEventListener("abort", abortParent, { once: true });
-      // Each independent sample owns its own decision deadline.
-      const timer = setTimeout(() => controller.abort(), 45_000);
-      const sampleStartedAt = Date.now();
-      let samplePassed = false;
-      let classification = "provider_failure";
-      let diagnostic = "provider_unavailable";
-      let rawOutputClass = "no_raw_output";
-      try {
-        const result = await withProviderRole("investigator", () => callGroqJson(
-          prompt, controller.signal, "identity_resolution", modelCapabilities[0], undefined,
-          jobId ?? null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
-        ));
-        if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
-          passedSamples += 1;
-          samplePassed = true;
-          classification = "passed";
-          diagnostic = "valid_action";
-          rawOutputClass = "valid_action_object";
-        } else {
-          const parseDiagnostic = result?.raw
-            ? describeAgentActionParseFailure(result.raw, ["web_search"])
-            : "";
-          const providerDiagnostic = result?.error ?? "provider_contract_error";
-          rawOutputClass = result?.raw ? (parseDiagnostic || "invalid_raw_output") : "missing_raw_output";
-          classification = result?.error
-            ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic)
-              ? "provider_transport_failure"
-              : "provider_failure"
-            : /invalid_action_arguments|unsupported_action|missing_action/.test(parseDiagnostic)
-              ? "action_contract_failure"
-              : "response_parse_failure";
-          diagnostic = parseDiagnostic || classification + ":" + digestDiagnosticText(providerDiagnostic);
-          failureReason ||= classification + ":" + digestDiagnosticText(providerDiagnostic);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "provider_contract_error";
-        classification = /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(message)
-          ? "provider_transport_failure"
-          : "provider_failure";
-        diagnostic = classification + ":" + digestDiagnosticText(message);
-        rawOutputClass = "provider_no_raw_output";
-        failureReason ||= classification;
-      } finally {
-        clearTimeout(timer);
-        signal?.removeEventListener("abort", abortParent);
-        samples.push({
-          sample: sample + 1,
-          passed: samplePassed,
-          classification,
-          rawOutputClass,
-          latencyMs: Date.now() - sampleStartedAt,
-          diagnostic,
-        });
+    try {
+      const result = await withProviderRole("investigator", () => callGroqJson(
+        prompt, controller.signal, "identity_resolution", firstCapability, undefined,
+        jobId ?? null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
+      ));
+      if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
+        samplePassed = true; classification = "passed"; diagnostic = "valid_action"; rawOutputClass = "valid_action_object";
+      } else {
+        const parseDiagnostic = result?.raw ? describeAgentActionParseFailure(result.raw, ["web_search"]) : "";
+        const providerDiagnostic = result?.error ?? "provider_contract_error";
+        rawOutputClass = result?.raw ? (parseDiagnostic || "invalid_raw_output") : "missing_raw_output";
+        classification = result?.error
+          ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic) ? "provider_transport_failure" : "provider_failure"
+          : /invalid_action_arguments|unsupported_action|missing_action|invalid_tool_argument_envelope/.test(parseDiagnostic) ? "action_contract_failure" : "response_parse_failure";
+        diagnostic = parseDiagnostic || classification + ":" + digestDiagnosticText(providerDiagnostic);
+        failureReason = classification + ":" + digestDiagnosticText(providerDiagnostic);
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "provider_contract_error";
+      classification = /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(message) ? "provider_transport_failure" : "provider_failure";
+      diagnostic = classification + ":" + digestDiagnosticText(message);
+      rawOutputClass = "provider_no_raw_output";
+      failureReason = classification;
+    } finally {
+      clearTimeout(timer); signal?.removeEventListener("abort", abortParent);
+      samples.push({ sample: 1, passed: samplePassed, classification, rawOutputClass, latencyMs: Date.now() - sampleStartedAt, diagnostic });
     }
+    if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
     sampleSummary.push({
-      model,
-      capabilities: modelCapabilities,
-      passedSamples,
-      failedSamples: 3 - passedSamples,
-      samples,
+      model, capabilities: modelCapabilities, passedSamples: samplePassed ? 1 : 0,
+      failedSamples: samplePassed ? 0 : 1, cacheHit: false, samples,
     });
-    // A single valid response is insufficient evidence of a healthy lane when
-    // two independent production-contract probes failed. Boss should select a
-    // lane with repeatable contract compatibility, not a one-off success.
-    if (passedSamples >= 2) {
-      for (const capability of modelCapabilities) checked.push({ capability, model });
+    if (samplePassed) {
+      checked.push(...modelCapabilities.map((capability) => ({ capability, model })));
+      investigatorProbeCache.set(cacheKey, { expiresAt: Date.now() + GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS, sample: samples[0]! });
+      while (investigatorProbeCache.size > 128) {
+        const oldest = investigatorProbeCache.keys().next().value;
+        if (oldest === undefined) break;
+        investigatorProbeCache.delete(oldest);
+      }
     } else {
       excludedCapabilities.push(...modelCapabilities);
-      firstFailure ??= { capability: modelCapabilities[0]!, error: failureReason || "provider_contract_error" };
+      firstFailure ??= { capability: firstCapability, error: failureReason || "provider_contract_error" };
+      // Do not cache failures: transport and generation errors may be transient.
     }
   }
-  // Unhealthy model lanes are excluded from later Boss assignments; healthy
-  // lanes continue. A launch is blocked only when no lane passed.
-  return {
-    ok: checked.length > 0,
-    checked,
-    excludedCapabilities,
-    sampleSummary,
-    ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}),
-  };
+  return { ok: checked.length > 0, checked, excludedCapabilities, sampleSummary, ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}) };
 }
 
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {

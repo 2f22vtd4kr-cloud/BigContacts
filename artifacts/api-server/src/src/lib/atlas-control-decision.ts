@@ -6,6 +6,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 import { compactInvestigationContext, compactPromptSectionPreservingUrlTokens, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
+import { validateResearchObjective } from "./research-objective";
 import { describeThrownProviderError, safeThrownErrorMessagePreview } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { getAvailableRegistryIdsForPrompt } from "./registry-client";
@@ -304,6 +305,16 @@ export function validateAtlasBossControl(value: Record<string, unknown> | null):
     && isAtlasConfidenceScore(value.confidence);
 }
 
+export function validateAtlasOpeningBossControl(value: Record<string, unknown> | null): boolean {
+  if (!value || !validateAtlasBossControl(value) || value.candidateName !== null || value.candidateType !== null) return false;
+  const action = normalizeAtlasControlAction(value.action);
+  if (action === "continue_discovery") {
+    const direction = typeof value.direction === "string" ? value.direction.trim() : "";
+    return direction.length >= 24 && direction.length <= 1_200 && validateResearchObjective(direction).valid;
+  }
+  return action === "stop" && value.direction === null;
+}
+
 export type AtlasBossControlContractDiagnostic = {
   parseStatus: "missing" | "malformed_json" | "object";
   contentChars: number;
@@ -314,7 +325,7 @@ export type AtlasBossControlContractDiagnostic = {
 
 const ATLAS_BOSS_CONTROL_FIELDS = ["action", "candidateName", "candidateType", "direction", "reason", "confidence"] as const;
 
-export function diagnoseAtlasBossControlContract(raw: string | null | undefined, value: Record<string, unknown> | null): AtlasBossControlContractDiagnostic {
+export function diagnoseAtlasBossControlContract(raw: string | null | undefined, value: Record<string, unknown> | null, opening = false): AtlasBossControlContractDiagnostic {
   const content = typeof raw === "string" ? raw.trim() : "";
   if (!content) {
     return { parseStatus: "missing", contentChars: 0, missingFields: [...ATLAS_BOSS_CONTROL_FIELDS], unexpectedFields: [], invalidFields: [] };
@@ -332,6 +343,11 @@ export function diagnoseAtlasBossControlContract(raw: string | null | undefined,
   const targetAction = action === "research_candidate" || action === "revisit_candidate";
   if (targetAction ? !(value.candidateType === "person" || value.candidateType === "organization") : value.candidateType !== null) invalidFields.push("candidateType");
   if (!(typeof value.direction === "string" || value.direction === null)) invalidFields.push("direction");
+  const openingDirection = typeof value.direction === "string" ? value.direction.trim() : "";
+  if (opening && action === "continue_discovery" && !(openingDirection.length >= 24 && openingDirection.length <= 1_200 && validateResearchObjective(openingDirection).valid)) invalidFields.push("direction");
+  if (opening && action === "stop" && value.direction !== null) invalidFields.push("direction");
+  if (opening && value.candidateName !== null) invalidFields.push("candidateName");
+  if (opening && value.candidateType !== null) invalidFields.push("candidateType");
   if (!(typeof value.reason === "string" || value.reason === null)) invalidFields.push("reason");
   if (!isAtlasConfidenceScore(value.confidence)) invalidFields.push("confidence");
   return { parseStatus: "object", contentChars: content.length, missingFields, unexpectedFields, invalidFields: [...new Set(invalidFields)].sort() };
@@ -412,7 +428,7 @@ export const ATLAS_BOSS_CONTROL_RESPONSE_FORMAT = {
   },
 } as const;
 
-/** Opening Boss may only start discovery or stop; no target/direction exists yet. */
+/** Opening Boss may only start discovery with a concrete research question, or stop; no target/tool is selected. */
 export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
   type: "text",
   mime_type: "application/json",
@@ -422,7 +438,7 @@ export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
       action: { type: "string", enum: ["continue_discovery", "stop"] },
       candidateName: { type: "null" },
       candidateType: { type: "null" },
-      direction: { type: "null" },
+      direction: { type: ["string", "null"], minLength: 24, maxLength: 1_200 },
       reason: { type: "string" },
       confidence: { type: "number" },
     },
@@ -708,17 +724,17 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
     };
     const prompt = [
       "APEX ATLAS — OPENING CONTROL DECISION",
-      "You are Groq Boss. This is the first control decision, before any Investigator action. Choose only continue_discovery or stop. Candidate selection, target research, pivots, and source selection are not available at this stage. After launch, the Investigator chooses exact targets, routes, tools, hypotheses and next actions.",
+      "You are Groq Boss. This is the first control decision, before any Investigator action. Choose only continue_discovery or stop. If continuing, supply one concrete, objective-aligned opening research question that identifies what evidence should be established first. Do not name an unobserved target or prescribe a provider, registry, tool, search query, source family, fixed action sequence, or geography absent from the human objective. After launch, the Investigator chooses exact targets, routes, tools, hypotheses and next actions.",
       "HUMAN OBJECTIVE (complete and authoritative; do not shorten, reinterpret, add geography, or add a source preference):",
       humanObjective,
-      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery under the exact human objective. Do not compare strategies, sectors, or geographies.",
+      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery and state a concrete first research question strictly within the exact human objective. Do not compare strategies, sectors, or geographies.",
       "RUNTIME SOURCE/REGISTRY FEASIBILITY (inform the start/stop decision only; do not prescribe a route or order):",
       atlasRegistryFeasibilityLaw(),
       "SOURCE-NEUTRALITY: after this decision, the Investigator selects one useful company, person, or asset from any enabled registry/asset register or public-web result. All enabled registries and public-web search are equal, neutral options. One observed target is enough.",
       "EVIDENCE BOUNDARY: Boss and Right-hand output, hypotheses, confidence, and rationale are not source evidence. Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.",
       "RIGHT-HAND ADVICE (advisory only; no free-form rationale or focus lanes are passed as evidence):",
       JSON.stringify(advice),
-      "Return exactly one JSON object. action must be continue_discovery or stop. candidateName, candidateType, and direction must all be null. reason must explain only the start/stop decision; confidence must be a number from 0 to 1.",
+      "Return exactly one JSON object. action must be continue_discovery or stop. candidateName and candidateType must be null. For continue_discovery, direction must be a concise, concrete, objective-aligned research question (24–1200 characters); for stop, direction must be null. reason must explain the start/stop decision; confidence must be a number from 0 to 1.",
     ].join("\n\n");
     if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
       throw new Error("Atlas opening Boss prompt cannot fit while preserving the complete human objective and opening control contract.");
@@ -1110,5 +1126,5 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
       const failure = formatAtlasBossGenerationFailure(generated);
       return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss generation failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: failure });
     }
-    const parsed = parseObject(generated.raw); const contractDiagnostic = diagnoseAtlasBossControlContract(generated.raw, parsed); const requestedAction = normalizeAtlasControlAction(parsed?.action); const requestedConfidence = clampConfidence(parsed?.confidence); const bossContractValid = validateAtlasBossControl(parsed); if (!bossContractValid || !requestedAction) { const detail = `parse=${contractDiagnostic.parseStatus}; contentChars=${contractDiagnostic.contentChars}; missing=${contractDiagnostic.missingFields.join(",") || "none"}; unexpected=${contractDiagnostic.unexpectedFields.join(",") || "none"}; invalid=${contractDiagnostic.invalidFields.join(",") || "none"}`; const providerAttempts = generated.attempts.length > 0 ? `; attempts=${formatBossAttemptDiagnostics(generated.attempts)}` : ""; const failureCategory = classifyAtlasBossContractFailure(generated.raw, parsed); return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss control contract failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: `stage=groq_boss; provider=groq; model=${generated.model}; category=${failureCategory}; httpStatus=none; providerCode=none; diagnostic=${detail}${providerAttempts}` }); } const requestedCandidate = typeof parsed?.candidateName === "string" ? parsed.candidateName.trim() : ""; const requestedCandidateType = parsed?.candidateType === "person" || parsed?.candidateType === "organization" ? parsed.candidateType : null; const selectedTarget = matchAtlasAdmittedTarget(candidateTargets, requestedCandidate, requestedCandidateType); const candidateName = selectedTarget?.name ?? null; if ((requestedAction === "research_candidate" || requestedAction === "revisit_candidate") && !selectedTarget) return finalize({ status: "unavailable", action: "stop", candidateName: null, candidateType: null, direction: null, reason: "Groq selected a target outside the admitted name/type set; fail-closed.", confidence: null, rightHand, bossModel: generated.model, error: "Invalid candidate selection." }); return finalize({ status: "completed", action: requestedAction, candidateName, candidateType: selectedTarget ? (selectedTarget.targetType ?? "person") : null, direction: typeof parsed?.direction === "string" ? parsed.direction : null, reason: typeof parsed?.reason === "string" ? parsed.reason : null, confidence: requestedConfidence, rightHand, bossModel: generated.model, error: null }); } catch (error) { return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq control decision failed; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: selection.model, error: safeControlError(error, "Groq control decision failed.") }); }
+    const parsed = parseObject(generated.raw); const contractDiagnostic = diagnoseAtlasBossControlContract(generated.raw, parsed, input.opening === true); const requestedAction = normalizeAtlasControlAction(parsed?.action); const requestedConfidence = clampConfidence(parsed?.confidence); const bossContractValid = input.opening ? validateAtlasOpeningBossControl(parsed) : validateAtlasBossControl(parsed); if (!bossContractValid || !requestedAction) { const detail = `parse=${contractDiagnostic.parseStatus}; contentChars=${contractDiagnostic.contentChars}; missing=${contractDiagnostic.missingFields.join(",") || "none"}; unexpected=${contractDiagnostic.unexpectedFields.join(",") || "none"}; invalid=${contractDiagnostic.invalidFields.join(",") || "none"}`; const providerAttempts = generated.attempts.length > 0 ? `; attempts=${formatBossAttemptDiagnostics(generated.attempts)}` : ""; const failureCategory = classifyAtlasBossContractFailure(generated.raw, parsed); return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss control contract failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: `stage=groq_boss; provider=groq; model=${generated.model}; category=${failureCategory}; httpStatus=none; providerCode=none; diagnostic=${detail}${providerAttempts}` }); } const requestedCandidate = typeof parsed?.candidateName === "string" ? parsed.candidateName.trim() : ""; const requestedCandidateType = parsed?.candidateType === "person" || parsed?.candidateType === "organization" ? parsed.candidateType : null; const selectedTarget = matchAtlasAdmittedTarget(candidateTargets, requestedCandidate, requestedCandidateType); const candidateName = selectedTarget?.name ?? null; if ((requestedAction === "research_candidate" || requestedAction === "revisit_candidate") && !selectedTarget) return finalize({ status: "unavailable", action: "stop", candidateName: null, candidateType: null, direction: null, reason: "Groq selected a target outside the admitted name/type set; fail-closed.", confidence: null, rightHand, bossModel: generated.model, error: "Invalid candidate selection." }); return finalize({ status: "completed", action: requestedAction, candidateName, candidateType: selectedTarget ? (selectedTarget.targetType ?? "person") : null, direction: typeof parsed?.direction === "string" ? parsed.direction : null, reason: typeof parsed?.reason === "string" ? parsed.reason : null, confidence: requestedConfidence, rightHand, bossModel: generated.model, error: null }); } catch (error) { return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq control decision failed; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: selection.model, error: safeControlError(error, "Groq control decision failed.") }); }
 }

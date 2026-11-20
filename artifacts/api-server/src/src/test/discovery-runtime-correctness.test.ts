@@ -42,7 +42,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
     expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: null");
+    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
     expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
     expect(canonicalDiscoverySource).toContain('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"');
     expect(canonicalDiscoverySource).not.toContain("approvedOpeningDirection");
