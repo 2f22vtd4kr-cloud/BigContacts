@@ -5636,7 +5636,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: preserve useful model-selected provisional people/organizations in findings[] on non-terminal actions; use observed names/URLs and note relevance/uncertainty. Review-only, not verified or promoted."
+      ? "DISCOVERY LEAD HANDOFF: preserve model-selected people in findings[] on non-terminal actions; note source URLs, relevance and uncertainty. Review-only."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5909,7 +5909,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed claim-grade findings."
-        : "On each discovery action, include useful provisional people/organizations in findings[]; use exact observed names/URLs, scope, known role, relevance and uncertainty. Review-only; [] if none."
+        : "On each discovery action, include provisional people/organizations in findings[] with observed names/URLs, scope, role and uncertainty; review-only; [] if none."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -5921,7 +5921,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
     + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
     + (supportsSearchArrays ? " searches[] required keys: query, provider, registry, locale, market, purpose." : "")
-    + (supportsFindings ? " findings[] required keys: " + requiredFindingFieldNames.join(", ") + "; null for unused optional nested values." : "")
+    + (supportsFindings ? " findings[] required keys: " + requiredFindingFieldNames.join(", ") + "; null for unused fields." : "")
     + " Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. "
     + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
   const requiredFieldNames = topLevelFields;
@@ -6077,7 +6077,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: preserve useful model-selected provisional people/organizations in findings[] on non-terminal actions; use observed names/URLs and note relevance/uncertainty. Review-only, not verified or promoted."
+      ? "DISCOVERY LEAD HANDOFF: preserve model-selected people in findings[] on non-terminal actions; note source URLs, relevance and uncertainty. Review-only."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
