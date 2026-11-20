@@ -57,7 +57,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: worker
-          image: ghcr.io/2f22vtd4kr-cloud/apex-python-osint-worker@sha256:replace-before-apply
+          image: ghcr.io/2f22vtd4kr-cloud/apex-python-osint-worker@sha256:397aaecb4fa67df40b41a7197bbba465679c2931de24d3edf3d93bfbe2a1efe2
           imagePullPolicy: IfNotPresent
           ports:
             - name: api
@@ -81,9 +81,9 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: APEX_PYTHON_WORKER_IMAGE_DIGEST
-              value: "sha256:replace-before-apply"
+              value: "sha256:397aaecb4fa67df40b41a7197bbba465679c2931de24d3edf3d93bfbe2a1efe2"
             - name: APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST
-              value: "sha256:replace-before-apply"
+              value: "sha256:4be7af4b8944c2dcfa165b42612599d67d4e49fb9441143c835dd0df1774801f"
             - name: HTTP_PROXY
               value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
             - name: HTTPS_PROXY
