@@ -2710,10 +2710,10 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
-      ? "On every discovery action, include findings[] for useful provisional person/organization leads already observed; do not wait for done. Use exact names and associated HTTPS URLs, scope, known role or null, and relevance/uncertainty. Review-only, not verified or promoted; use [] if none."
+      ? "On each discovery action, include useful provisional people/organizations in findings[]; use exact observed names/URLs, scope, known role, relevance and uncertainty. Review-only; [] if none."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " findings[] item fields: vectorType, value, personName, role, scope, sourceUrls, note; optional claim fields may be null. For a person lead, value and personName are the exact observed full name and scope is candidate; for an organization lead, value is the exact observed name and scope is organization. Do not infer an identity, role, wealth, ownership or relationship." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
@@ -5614,7 +5614,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: carry useful model-selected person/organization leads in findings[] on each action. Use exact observed names/URLs, scope, known role, relevance and uncertainty. Review-only; do not claim verification or promotion."
+      ? "DISCOVERY LEADS: include useful model-selected people/organizations in findings[] on each action; use observed names/URLs and note relevance/uncertainty. Review-only, not verified or promoted."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5885,7 +5885,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
-      ? "On every discovery action, include findings[] for useful provisional person/organization leads already observed; do not wait for done. Use exact names and associated HTTPS URLs, scope, known role or null, and relevance/uncertainty. Review-only, not verified or promoted; use [] if none."
+      ? "On each discovery action, include useful provisional people/organizations in findings[]; use exact observed names/URLs, scope, known role, relevance and uncertainty. Review-only; [] if none."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
@@ -6048,7 +6048,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: carry useful model-selected person/organization leads in findings[] on each action. Use exact observed names/URLs, scope, known role, relevance and uncertainty. Review-only; do not claim verification or promotion."
+      ? "DISCOVERY LEADS: include useful model-selected people/organizations in findings[] on each action; use observed names/URLs and note relevance/uncertainty. Review-only, not verified or promoted."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
