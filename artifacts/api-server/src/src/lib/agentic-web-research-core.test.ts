@@ -86,6 +86,64 @@ describe("retained fetched-page continuation", () => {
   });
 });
 
+
+describe("deterministic main-content extraction", () => {
+  it("keeps Forbes Midas primary list content and removes navigation, advertising, and footer boilerplate", async () => {
+    const url = "https://www.forbes.com/lists/midas/";
+    const html = `<!doctype html>
+      <html><head><title>Forbes Midas List</title><script>TRACKING_SENTINEL</script></head>
+      <body>
+        <header>FORBES_HEADER_SENTINEL</header>
+        <nav>FORBES_NAV_SENTINEL Markets Subscribe Sign In</nav>
+        <div class="cookie-consent">COOKIE_BANNER_SENTINEL</div>
+        <aside>SPONSORED_SIDEBAR_SENTINEL</aside>
+        <main>
+          <h1>Forbes Midas List</h1>
+          <p>The Midas List ranks leading technology investors.</p>
+          <article>
+            <h2>2026 Midas List</h2>
+            <p>Primary list content names investors and their firms.</p>
+            <table><tr><th>Investor</th><th>Firm</th></tr>
+              <tr><td>Alex Example</td><td>Example Capital</td></tr>
+              <tr><td>Sam Sample</td><td>Sample Ventures</td></tr>
+            </table>
+            <p>FORBES_MIDAS_LAST_ROW_SENTINEL</p>
+          </article>
+        </main>
+        <footer>FORBES_FOOTER_SENTINEL Terms Privacy</footer>
+      </body></html>`;
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(html, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    }));
+    try {
+      const result = await toolVisit(url, undefined, { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 }, 1);
+      expect(result.status).toBe("success");
+      expect(result.observedUrl).toBe(url);
+      expect(result.observation).toContain("Forbes Midas List");
+      expect(result.observation).toContain("Alex Example");
+      expect(result.observation).toContain("Sample Ventures");
+      expect(result.observation).toContain("FORBES_MIDAS_LAST_ROW_SENTINEL");
+      expect(result.observation).not.toContain("FORBES_HEADER_SENTINEL");
+      expect(result.observation).not.toContain("FORBES_NAV_SENTINEL");
+      expect(result.observation).not.toContain("COOKIE_BANNER_SENTINEL");
+      expect(result.observation).not.toContain("SPONSORED_SIDEBAR_SENTINEL");
+      expect(result.observation).not.toContain("FORBES_FOOTER_SENTINEL");
+      expect(result.observation).not.toContain("TRACKING_SENTINEL");
+      // This small page is fully present in the immutable observation event.
+      // pageArtifactDurable=false is therefore not data loss: no continuation
+      // artifact is required because the entire extracted text fit in one window.
+      expect(result.pageHasMore).toBe(false);
+      expect(result.pageText).toBeUndefined();
+      expect(result.observation).toContain("FORBES_MIDAS_LAST_ROW_SENTINEL");
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+});
+
 function syntheticTextPdf(text: string): Uint8Array {
   const escapedText = text.replace(/[\\()]/g, "\\$&");
   const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
@@ -3341,14 +3399,14 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(agenticCoreSource).toContain('failureClass: "action_parse_failure"');
       expect(agenticCoreSource).toContain("recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true })");
       expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
-      expect(agenticCoreSource).toContain("const body = sanitizeObservableValue(stripHtml(raw))");
+      expect(agenticCoreSource).toContain("const body = sanitizeObservableValue(extractDeterministicMainContent(raw))");
       expect(agenticCoreSource).toContain("sourceVerified: Boolean(observedBrowserUrl)");
       expect(agenticCoreSource).toContain("record.execution = sourceVerified ?");
       expect(agenticCoreSource).toContain("priorRecord.durableEventId > retained.artifactEventId");
       expect(agenticCoreSource).toContain("RESEARCH CONTINUITY ADVISORY (diagnostic only; not an ordered route)");
       expect(bureauAgenticPassSource).toContain("initialResearchAdvisory:input.initialResearchAdvisory");
       expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords");
-      expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeObservableValue(stripHtml(result.html)) : \"\";");
+      expect(agenticCoreSource).toContain("extractDeterministicMainContent(result.html)");
       expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
       expect(agenticCoreSource).toContain("for (const record of completePromptRecords)");
       expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
