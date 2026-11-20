@@ -920,7 +920,9 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-fidelity", caseId: 91 });
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalled();
   });
@@ -934,7 +936,9 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-denominator", caseId: 92 });
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
   });
 
   it("rejects spelled-out numeric paraphrases that alter a source denominator", async () => {
@@ -946,7 +950,9 @@ describe("AI investigation context compaction", () => {
       error: null,
     });
     const result = await compactInvestigationContextWithFallback({ rawContext: source, maxChars: 1_200, jobId: "job-numeric-words", caseId: 93 });
-    expect(result).toBeNull();
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(sourceFact);
+    expect(result?.text).toContain("Omissions unknown.");
   });
   it("recognizes successful visits in the durable case memory recentActions projection", async () => {
     const sourceUrl = "https://www.forbes.com/lists/midas/";
@@ -972,7 +978,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify(projection),
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
       "[]",
-      "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(150),
+      "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(125),
     ].join("\n");
     const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails: [REDACTED_EMAIL]. No material ownership, equity, or transaction clues were extracted.";
 
@@ -1011,7 +1017,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify(projection),
       "BOUNDED TRAJECTORY PROJECTION:",
       "[]",
-      "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(150),
+      "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(125),
     ].join("\n");
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const corrected = "Visit to " + sourceUrl + " succeeded; the page yielded contact information only.";
