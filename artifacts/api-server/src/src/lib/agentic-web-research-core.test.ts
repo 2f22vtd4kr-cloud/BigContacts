@@ -753,7 +753,8 @@ describe("discovery provisional review-lead output contract", () => {
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
-    expect(discoveryFormat.json_schema?.schema?.properties?.findings).toBeDefined();
+    const discoveryFindingProperties = (discoveryFormat.json_schema?.schema?.properties?.findings as { items?: { properties?: Record<string, unknown> } } | undefined)?.items?.properties ?? {};
+    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
     const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
