@@ -734,6 +734,61 @@ describe("canonical Atlas discovery path isolation", () => {
   });
 });
 
+describe("discovery provisional review-lead output contract", () => {
+  it("keeps findings available on discovery actions before done is eligible", () => {
+    const actionAllowlist = ["web_search", "visit"];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover objective-fit people and organizations from public evidence.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Fetched source names Jane Doe as an investor.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist,
+    });
+    expect(prompt).toContain("For every discovery action, include findings[]");
+    expect(prompt).toContain("do not wait for done");
+    expect(prompt).toContain("findings[] required keys:");
+    const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    expect(discoveryFormat.json_schema?.schema?.properties?.findings).toBeDefined();
+    const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    expect(targetFormat.json_schema?.schema?.properties?.findings).toBeUndefined();
+  });
+
+  it("parses Investigator-selected provisional people from a non-terminal discovery action", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "public investor profile",
+      provider: null,
+      thought: "The source may contain an objective-fit person.",
+      hypothesis: "The named person may be relevant to the approved objective.",
+      purpose: "Preserve a provisional lead while evaluating other evidence.",
+      expectedInformationGain: 0.7,
+      findings: [{
+        vectorType: "other",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: null,
+        scope: "candidate",
+        sourceUrls: ["https://example.com/investors"],
+        note: "Named in the observed source; role and relevance require verification.",
+      }],
+    }), ["web_search"]);
+    expect(parsed?.partialFindings).toHaveLength(1);
+    expect(parsed?.partialFindings[0]).toMatchObject({
+      personName: "Jane Doe",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.com/investors"],
+    });
+  });
+});
+
 describe("review and claim finding separation", () => {
   it("does not merge a provisional review lead into a claim-grade finding with the same identity", () => {
     expect(agenticCoreSource).toContain('f.reviewOnly === true ? "review" : "claim"');
