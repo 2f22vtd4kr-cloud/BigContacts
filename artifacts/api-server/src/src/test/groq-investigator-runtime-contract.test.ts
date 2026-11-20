@@ -862,15 +862,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.required).toEqual(Object.keys(schema?.properties ?? {}));
   });
 
-  it("keeps the actual provider-bound prompt and strict schema limited to allowed action shapes", () => {
+  it("keeps target-mode provider prompts and strict schemas limited to allowed action shapes", () => {
     const prompt = buildStepPrompt({
-      targetName: "",
-      objective: "Identify one publicly documented example organization.",
+      targetName: "Example Organization",
+      objective: "Evaluate one publicly documented example organization.",
       history: [],
       trajectoryRecords: [],
       lastObservation: "Provider contract probe only.",
       findings: [],
-      mode: "discovery",
+      mode: "target",
       actionAllowlist: ["web_search"],
     });
     const strictBody = buildGroqInvestigatorRequestBody({
@@ -878,6 +878,7 @@ describe("Groq Investigator runtime contract", () => {
       prompt,
       cognitiveTask: "discovery",
       actionAllowlist: ["web_search"],
+      promptMode: "target",
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).not.toContain("searches[]");
@@ -891,10 +892,45 @@ describe("Groq Investigator runtime contract", () => {
       prompt,
       cognitiveTask: "discovery",
       actionAllowlist: ["web_search"],
+      promptMode: "target",
     });
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(twentyBUser).not.toContain("searches[]");
     expect(twentyBUser).not.toContain("findings[]");
+  });
+
+  it("exposes provisional findings on non-terminal discovery actions through both provider contracts", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover objective-fit people and organizations from public evidence.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Fetched source names Jane Doe as an investor.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    const strictBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["web_search"],
+      promptMode: "discovery",
+    });
+    const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(strictUser).toContain("For every discovery action, include findings[]");
+    const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
+    expect(strictSchema).toHaveProperty("findings");
+
+    const twentyBBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["web_search"],
+      promptMode: "discovery",
+    });
+    const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(twentyBUser).toContain("For every discovery action, include findings[]");
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
