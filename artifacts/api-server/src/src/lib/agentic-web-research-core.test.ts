@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, estimateGroqInvestigatorDailyReservationTokens, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -482,6 +482,18 @@ describe("Investigator preflight model and credential lanes", () => {
     ]);
     expect(groups[0].model).not.toBe(groups[1].model);
     expect(groups[1].model).toBe(groups[2].model);
+  });
+});
+
+describe("Investigator daily token reservation estimate", () => {
+  it("reserves the estimated full request (system, user, schema) plus the completion allowance exactly once", () => {
+    expect(estimateGroqInvestigatorDailyReservationTokens(3_400, 1_024)).toBe(2_024);
+    expect(estimateGroqInvestigatorDailyReservationTokens(3_401, 1_024)).toBe(2_025);
+  });
+
+  it("treats invalid or negative estimates conservatively as zero rather than reserving negative capacity", () => {
+    expect(estimateGroqInvestigatorDailyReservationTokens(-10, -20)).toBe(0);
+    expect(estimateGroqInvestigatorDailyReservationTokens(Number.NaN, Number.POSITIVE_INFINITY)).toBe(0);
   });
 });
 
@@ -5358,6 +5370,87 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
       locale: "en",
       market: "GB",
     });
+  });
+
+
+  it("normalizes args, arguments, and parameters envelopes before action validation", () => {
+    const cases = [
+      { action: "web_search", args: { query: "company founder ownership", provider: "serper" } },
+      { name: "web_search", arguments: JSON.stringify({ query: "company founder ownership", provider: "exa" }) },
+      { tool: "web_search", parameters: { query: "company founder ownership", provider: "tavily" } },
+      { action: "tool_call", function: { name: "web_search", arguments: JSON.stringify({ query: "company founder ownership", provider: "serper" }) } },
+      { tool_calls: [{ type: "function", function: { name: "web_search", arguments: JSON.stringify({ query: "company founder ownership", provider: "exa" }) } }] },
+    ];
+    const providers = ["serper", "exa", "tavily", "serper", "exa"];
+    for (let index = 0; index < cases.length; index += 1) {
+      expect(parseAgentAction(JSON.stringify(cases[index]), ["web_search"])).toMatchObject({
+        action: "web_search",
+        query: "company founder ownership",
+        provider: providers[index],
+      });
+    }
+  });
+
+  it("normalizes a one-item searches[] array inside parameters without losing its query or provider", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      name: "web_search",
+      parameters: {
+        query: null,
+        searches: [{ query: "single source-backed company search", provider: "exa", locale: "en", market: "GB" }],
+      },
+    }), ["web_search"]);
+    expect(parsed).toMatchObject({
+      action: "web_search",
+      query: "single source-backed company search",
+      provider: "exa",
+      locale: "en",
+      market: "GB",
+    });
+  });
+
+  it("rejects conflicting root and nested tool arguments instead of silently choosing one", () => {
+    expect(parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "root query",
+      args: { query: "different nested query" },
+    }), ["web_search"])).toBeNull();
+    const raw = JSON.stringify({
+      action: "web_search",
+      query: "root query",
+      args: { query: "different nested query" },
+    });
+    expect(describeAgentActionParseFailure(raw, ["web_search"])).toContain("invalid_tool_argument_envelope conflicting_field=query");
+  });
+
+  it("gives exact model correction feedback for conflicting wrapped tool arguments", () => {
+    const feedback = buildActionParseFailureObservation("invalid_tool_argument_envelope conflicting_field=query");
+    expect(feedback).toContain("no tool ran");
+    expect(feedback).toContain('root and nested "query" values conflict');
+    expect(feedback).toContain("one flat JSON action object");
+    expect(feedback).toContain("The next permitted research action remains your decision");
+  });
+
+  it("rejects mismatched root and function-envelope action names", () => {
+    const raw = JSON.stringify({
+      action: "web_search",
+      function: { name: "visit", arguments: JSON.stringify({ url: "https://example.com" }) },
+    });
+    expect(parseAgentAction(raw, ["web_search", "visit"])).toBeNull();
+    expect(describeAgentActionParseFailure(raw, ["web_search", "visit"])).toContain("conflicting_function_action");
+  });
+
+  it("rejects mismatched or unsupported tool_calls function names", () => {
+    const mismatched = JSON.stringify({
+      action: "web_search",
+      tool_calls: [{ type: "function", function: { name: "visit", arguments: JSON.stringify({ url: "https://example.com" }) } }],
+    });
+    const unsupported = JSON.stringify({
+      tool_calls: [{ type: "function", function: { name: "not_a_runtime_tool", arguments: "{}" } }],
+    });
+    expect(parseAgentAction(mismatched, ["web_search", "visit"])).toBeNull();
+    expect(describeAgentActionParseFailure(mismatched, ["web_search", "visit"])).toContain("conflicting_tool_call_action");
+    expect(parseAgentAction(unsupported, ["web_search"])).toBeNull();
+    expect(describeAgentActionParseFailure(unsupported, ["web_search"])).toContain("unsupported_tool_function");
   });
 
   it("normalizes multiple searches into parallel_web_search only when that action is allowed", () => {

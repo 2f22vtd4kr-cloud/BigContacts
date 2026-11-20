@@ -1051,6 +1051,12 @@ describe("Groq Investigator runtime contract", () => {
 
   });
 
+  it("keeps strict 120B as the default and the schema-relaxed 20B lane as explicit overflow", () => {
+    expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");
+    expect(structuredActionResponseFormat("openai/gpt-oss-120b").type).toBe("json_schema");
+    expect(structuredActionResponseFormat("openai/gpt-oss-20b").type).toBe("none");
+  });
+
   it("routes by the Boss-selected capability without silently rotating models", () => {
     expect(selectGroqInvestigatorModel({ capability: "groq-investigator-20b" })).toBe("openai/gpt-oss-20b");
     expect(selectGroqInvestigatorModel({ capability: "groq-investigator-1" })).toBe("openai/gpt-oss-120b");

@@ -2065,6 +2065,13 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
   const rationaleContract = "Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain finite [0,1]. Action-specific required values remain mandatory.";
+  if (/invalid_tool_argument_envelope/.test(failure)) {
+    const conflictingField = failure.match(/conflicting_field=([a-zA-Z0-9_.-]+)/)?.[1];
+    const detail = conflictingField
+      ? `The root and nested "${conflictingField}" values conflict; include that field only once with one consistent value.`
+      : "Do not wrap the action in args, arguments, parameters, function, or tool_calls. Put the selected action and all of its fields in one flat JSON object.";
+    return `The previous model response was not a usable action object (${failure}); no tool ran. ${detail} Return exactly one flat JSON action object, do not include multiple tool calls, and do not silently omit required action fields. The next permitted research action remains your decision. ${rationaleContract} Follow the active model output contract and return JSON only, with no prose.`;
+  }
   if (/action=parallel_registry_search/.test(failure)) {
     const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 1–4 objects. Each item requires a non-empty "query" and a supported "registry" ID explicitly selected from the configured choices [${configuredRegistryIds}]. Optional purpose hints may be omitted when unused. A missing, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. ${rationaleContract} Follow the active model output contract. Return exactly one JSON object and no prose.`;
@@ -2112,8 +2119,9 @@ export function isModelSelectableAgentAction(action: unknown): boolean {
 export function describeAgentActionParseFailure(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): string {
   const trimmed = raw.trim();
   if (!trimmed) return "empty_response";
-  const candidate = unwrapOptionalJsonFence(raw);
-  const json = extractJsonObject(raw);
+  const normalizedRaw = normalizeRecoverableToolArgumentShape(raw, actionAllowlist);
+  const candidate = unwrapOptionalJsonFence(normalizedRaw);
+  const json = extractJsonObject(normalizedRaw);
   if (!json) {
     const first = extractBalancedJsonObject(candidate);
     if (first) {
@@ -2128,6 +2136,9 @@ export function describeAgentActionParseFailure(raw: string, actionAllowlist: re
   let value: Record<string, unknown>;
   try { value = JSON.parse(json) as Record<string, unknown>; }
   catch { return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`; }
+  if (typeof value.__normalizationError === "string") {
+    return "invalid_tool_argument_envelope " + cleanText(value.__normalizationError, 80);
+  }
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
   if (!actionAllowlist.includes(action)) return `unsupported_action action=${action}`;
@@ -2189,6 +2200,93 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
   }
   return findings;
 }
+function normalizeRecoverableToolArgumentShape(raw: string, actionAllowlist: readonly string[]): string {
+  const json = extractJsonObject(raw);
+  if (!json) return raw;
+  try {
+    const value = JSON.parse(json) as Record<string, unknown>;
+    const nestedArguments: Record<string, unknown>[] = [];
+    const invalidEnvelope = (reason: string) => JSON.stringify({
+      action: "__invalid_argument_envelope__",
+      __normalizationError: reason,
+    });
+    const addArguments = (candidate: unknown): boolean => {
+      if (candidate == null) return true;
+      let parsed: unknown = candidate;
+      if (typeof candidate === "string") {
+        try { parsed = JSON.parse(candidate); } catch { return false; }
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+      nestedArguments.push(parsed as Record<string, unknown>);
+      return true;
+    };
+
+    const functionEnvelope = value.function && typeof value.function === "object" && !Array.isArray(value.function)
+      ? value.function as Record<string, unknown>
+      : null;
+    let action = cleanText(value.action, 40).toLowerCase();
+    const declaredFunctionAction = cleanText(functionEnvelope?.name, 40).toLowerCase();
+    if (actionAllowlist.includes(action) && declaredFunctionAction && declaredFunctionAction !== action) {
+      return invalidEnvelope("conflicting_function_action");
+    }
+    if (!actionAllowlist.includes(action)) {
+      const candidates = [
+        value.name,
+        value.tool,
+        declaredFunctionAction,
+      ].map((candidate) => cleanText(candidate, 40).toLowerCase());
+      action = candidates.find((candidate) => actionAllowlist.includes(candidate)) ?? "";
+    }
+
+    for (const key of ["args", "arguments", "parameters"] as const) {
+      if (Object.prototype.hasOwnProperty.call(value, key) && !addArguments(value[key])) return invalidEnvelope("malformed_" + key);
+    }
+    if (functionEnvelope && Object.prototype.hasOwnProperty.call(functionEnvelope, "arguments")
+      && !addArguments(functionEnvelope.arguments)) return invalidEnvelope("malformed_function_arguments");
+
+    // Also accept a single standard function tool-call envelope. Multiple calls
+    // are deliberately rejected: the Investigator contract executes one action
+    // per decision and must not silently discard or reorder additional calls.
+    if (Array.isArray(value.tool_calls)) {
+      if (value.tool_calls.length !== 1) return invalidEnvelope("multiple_tool_calls");
+      const onlyCall = value.tool_calls[0];
+      if (!onlyCall || typeof onlyCall !== "object" || Array.isArray(onlyCall)) return invalidEnvelope("malformed_tool_call");
+      const call = onlyCall as Record<string, unknown>;
+      const fn = call.function && typeof call.function === "object" && !Array.isArray(call.function)
+        ? call.function as Record<string, unknown>
+        : null;
+      if (!fn) return invalidEnvelope("missing_tool_function");
+      const callName = cleanText(fn.name, 40).toLowerCase();
+      if (!actionAllowlist.includes(callName)) return invalidEnvelope("unsupported_tool_function");
+      if (action && actionAllowlist.includes(action) && action !== callName) return invalidEnvelope("conflicting_tool_call_action");
+      if (!action) action = callName;
+      if (!addArguments(fn.arguments)) return invalidEnvelope("malformed_tool_call_arguments");
+    }
+
+    if (!action || !actionAllowlist.includes(action)) return raw;
+    const normalized: Record<string, unknown> = { ...value, action };
+    delete normalized.args;
+    delete normalized.arguments;
+    delete normalized.parameters;
+    delete normalized.function;
+    delete normalized.tool_calls;
+    for (const nested of nestedArguments) {
+      for (const [key, candidate] of Object.entries(nested)) {
+        if (key === "action" || key === "name" || key === "tool") continue;
+        const current = normalized[key];
+        if (current == null || current === "") {
+          normalized[key] = candidate;
+          continue;
+        }
+        if (JSON.stringify(current) !== JSON.stringify(candidate)) return invalidEnvelope("conflicting_field=" + key);
+      }
+    }
+    return JSON.stringify(normalized);
+  } catch {
+    return raw;
+  }
+}
+
 function normalizeRecoverableBrowserFetchAction(raw: string): string {
   const json = extractJsonObject(raw);
   if (!json) return raw;
@@ -2252,7 +2350,8 @@ function normalizeRecoverableSingleWebSearchShape(raw: string, actionAllowlist: 
 }
 
 function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null {
-  const normalizedRaw = normalizeRecoverableBrowserFetchAction(normalizeRecoverableSingleWebSearchShape(raw, actionAllowlist));
+  const normalizedArguments = normalizeRecoverableToolArgumentShape(raw, actionAllowlist);
+  const normalizedRaw = normalizeRecoverableBrowserFetchAction(normalizeRecoverableSingleWebSearchShape(normalizedArguments, actionAllowlist));
   const rawDiagnostic = describeAgentActionParseFailure(raw, actionAllowlist);
   if (normalizedRaw === raw && rawDiagnostic) return null;
   if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
@@ -2707,6 +2806,12 @@ function captureGroqRateLimitSnapshot(quotaAccount: string, model: string, respo
   return snapshot;
 }
 
+export function estimateGroqInvestigatorDailyReservationTokens(promptChars: number, completionBudget: number): number {
+  const promptTokens = groqPromptTokenEstimate(Number.isFinite(promptChars) ? Math.max(0, promptChars) : 0);
+  const completionTokens = Number.isFinite(completionBudget) ? Math.max(0, Math.floor(completionBudget)) : 0;
+  return promptTokens + completionTokens;
+}
+
 function groqPromptTokenEstimate(promptChars: number): number {
   return Math.ceil(Math.max(0, promptChars) / 3.4);
 }
@@ -2737,7 +2842,7 @@ export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal
 async function waitForKnownGroqTokenWindow(quotaAccount: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
   const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(quotaAccount, model));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
-  const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
+  const estimated = estimateGroqInvestigatorDailyReservationTokens(promptChars, completionBudget);
   if (snapshot.remainingTokens >= estimated) return "ready";
   const resetMs = Math.max(0, snapshot.resetTokensMs - (Date.now() - snapshot.observedAt));
   if (resetMs > Math.max(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS)) return "token_window_wait_exceeded";
@@ -2919,7 +3024,7 @@ export async function callGroqJson(
           return { model, raw: "", error: lastProviderError };
         }
         const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
-        dailyEstimatedTokens = promptMeasurement.estimatedPromptTokens + completionBudgetForReservation;
+        dailyEstimatedTokens = estimateGroqInvestigatorDailyReservationTokens(totalRequestChars, completionBudgetForReservation);
         const reservation = await reserveAgenticLlmDailyBudget({
           provider: "groq",
           model,
