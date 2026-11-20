@@ -674,6 +674,9 @@ describe("AI investigation context compaction", () => {
       maxChars: 900,
     })).resolves.toBe(corrected);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    const initialPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(initialPrompt).toContain("args.observedPageIdentity.sourceUrl");
+    expect(initialPrompt).toContain("Never treat requested args.url or record.urls as proof");
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
       .toContain("summary_contains_unproven_fetch_claim");
   });
