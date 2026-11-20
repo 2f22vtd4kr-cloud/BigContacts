@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
   ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT,
+  ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
@@ -628,6 +629,14 @@ describe("Atlas control-plane lead continuity", () => {
 
 });
 
+
+describe("Boss opening response budget", () => {
+  it("reserves enough bounded completion tokens for a concrete structured opening direction", () => {
+    expect(ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS).toBe(1_024);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.required).toContain("direction");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBeGreaterThan(500);
+  });
+});
 
 describe("Boss control prompt budget recovery", () => {
   it("keeps mandatory pinned state while shedding oversized optional history and route samples", () => {
