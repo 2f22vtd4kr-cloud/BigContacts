@@ -129,10 +129,22 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 
   const durableIndex = lines.findIndex((line) => /(?:HISTORICAL DURABLE TRAJECTORY|NEWLY AGED DURABLE TRAJECTORY RECORDS|BOUNDED TRAJECTORY PROJECTION)/.test(line));
   if (durableIndex >= 0) {
+    // The trajectory projection is a bounded section, not permission to scan
+    // every later JSON-looking line in the case document. Accept contiguous
+    // JSON records immediately after its heading and stop at the next prose or
+    // section boundary so observation text cannot forge fetch authority.
     for (const line of lines.slice(durableIndex + 1)) {
       const candidate = line.trim();
+      if (!candidate) {
+        if (candidates.length) break;
+        continue;
+      }
       if ((candidate.startsWith("{") && candidate.endsWith("}"))
-        || (candidate.startsWith("[") && candidate.endsWith("]"))) candidates.push(candidate);
+        || (candidate.startsWith("[") && candidate.endsWith("]"))) {
+        candidates.push(candidate);
+        continue;
+      }
+      break;
     }
   }
 
