@@ -973,7 +973,7 @@ describe("AI investigation context compaction", () => {
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
       "[]",
       "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(150),
-    ].join("\\n");
+    ].join("\n");
     const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails: [REDACTED_EMAIL]. No material ownership, equity, or transaction clues were extracted.";
 
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
@@ -1012,7 +1012,7 @@ describe("AI investigation context compaction", () => {
       "BOUNDED TRAJECTORY PROJECTION:",
       "[]",
       "BACKGROUND: " + "Retain durable source-stage distinctions and unresolved questions. ".repeat(150),
-    ].join("\\n");
+    ].join("\n");
     const invalid = "A leadership page was fetched and confirms a current executive without any fetched URL.";
     const corrected = "Visit to " + sourceUrl + " succeeded; the page yielded contact information only.";
     rightHandMocks.runGroqRightHandFreeJson
