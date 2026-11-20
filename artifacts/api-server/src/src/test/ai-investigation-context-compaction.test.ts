@@ -792,7 +792,7 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) => call[5]?.preferredModel === "openai/gpt-oss-20b")).toBe(true);
   });
 
-  it("keeps turn-scoped AI compaction on 20B and uses deterministic projection on provider throttle", async () => {
+  it("keeps turn-scoped AI compaction on 20B and preserves historical memory verbatim on provider throttle", async () => {
     const source = [
       "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE: the exact objective remains authoritative.",
       "COMPLETE STRUCTURED INTELLIGENCE STATE: " + "preserve source-linked state and uncertainty. ".repeat(180),
