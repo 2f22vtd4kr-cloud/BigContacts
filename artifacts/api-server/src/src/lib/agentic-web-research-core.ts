@@ -938,7 +938,65 @@ export function bindModelFindingsToObservedSources(
 
 function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): AgenticFinding[] { const map = new Map<string, AgenticFinding>(); const key = (f: AgenticFinding) => `${f.reviewOnly === true ? "review" : "claim"}|${f.vectorType}|${f.scope}|${(f.personName ?? "").trim().toLowerCase()}|${f.value.toLowerCase()}`; for (const f of existing) map.set(key(f), f); for (const f of incoming) { const k = key(f), previous = map.get(k); if (!previous) map.set(k, f); else map.set(k, { ...previous, ...f, sourceUrls: [...new Set([...(previous.sourceUrls || []), ...(f.sourceUrls || [])])] }); } return [...map.values()]; }
 function extractContactFactsFromHtml(html: string): string[] { const facts: string[] = []; for (const m of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) facts.push(`EMAIL: ${m[1]!.toLowerCase()}`); for (const m of html.matchAll(/href=["']tel:([^"']+)/gi)) facts.push(`PHONE: ${m[1]!.trim()}`); for (const m of html.matchAll(/href=["']((?:https?:\/\/)?(?:www\.)?(?:linkedin\.com\/in\/|linkedin\.com\/company\/|twitter\.com\/|x\.com\/|instagram\.com\/)[^"'\s<>]+)/gi)) facts.push(`SOCIAL_URL: ${m[1]!.startsWith("http") ? m[1]! : `https://${m[1]!}`}`); for (const m of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) facts.push(`EMAIL: ${m[1]!.toLowerCase()}`); return [...new Set(facts)]; }
-function stripHtml(html: string): string { return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); }
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<template[\s\S]*?<\/template>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_match, raw: string) => {
+      const codePoint = Number(raw);
+      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : " ";
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_match, raw: string) => {
+      const codePoint = Number.parseInt(raw, 16);
+      return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : " ";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Deterministic HTML content extraction. Prefer semantic main/article content,
+ * remove common page chrome before scoring, and fall back to the cleaned body
+ * when a site does not expose semantic content containers. No external parser,
+ * model call, or source-specific selector is required.
+ */
+function extractDeterministicMainContent(html: string): string {
+  const withoutChrome = html
+    .replace(/<(script|style|noscript|svg|iframe|template|nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<(div|section|ul|ol)\b(?=[^>]*(?:id|class)\s*=\s*["'][^"']*(?:cookie|consent|advert|sidebar|promo|newsletter|social|share|related|recommendation|comments|breadcrumb|navigation|site-header|site-footer)[^"']*["'])[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
+
+  const semanticBlocks = [...withoutChrome.matchAll(/<(main|article)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi)]
+    .map((match) => ({
+      tag: (match[1] ?? "").toLowerCase(),
+      html: match[2] ?? "",
+      text: stripHtml((match[2] ?? "").replace(/<\/(?:p|div|li|h[1-6]|tr|td|th|section|article|main|ul|ol|table)\s*>/gi, "\n")),
+    }))
+    .filter((block) => block.text.length > 0);
+
+  const mainBlocks = semanticBlocks.filter((block) => block.tag === "main");
+  const candidates = mainBlocks.length ? mainBlocks : semanticBlocks.filter((block) => block.tag === "article");
+  const selected = candidates.sort((left, right) => right.text.length - left.text.length)[0];
+  const fallbackHtml = withoutChrome.replace(/<\/(?:p|div|li|h[1-6]|tr|td|th|section|article|main|ul|ol|table)\s*>/gi, "\n");
+  const fallback = stripHtml(fallbackHtml);
+  // Tiny/empty semantic wrappers are not useful content. Prefer the complete
+  // cleaned body rather than returning an empty or near-empty main element.
+  return selected && selected.text.length >= Math.min(240, Math.floor(fallback.length * 0.15))
+    ? selected.text
+    : fallback;
+}
 
 export type ObservedOrganizationIdentity = {
   name: string;
@@ -1805,7 +1863,7 @@ export async function toolVisit(url: string, signal?: AbortSignal, pageStore?: R
     const facts = extractContactFactsFromHtml(raw);
     // Sanitize the complete retained text before calculating cursors. Durable
     // continuation offsets must refer to the exact text restored after restart.
-    const body = sanitizeObservableValue(stripHtml(raw));
+    const body = sanitizeObservableValue(extractDeterministicMainContent(raw));
     const pageReadOffset = 0;
     const pageReadNextOffset = Math.min(body.length, MAX_OBS);
     const pageHasMore = body.length > MAX_OBS;
@@ -6821,6 +6879,10 @@ runtimeStage = "external_page_fetch";
 const page = await toolVisit(canonical, runController.signal, retainedFetchedPages, record.turn);
 if (!page.fromRetainedArtifact) visits += 1;
 const communityObservationSource = isCommunityObservationSourceUrl(page.observedUrl ?? canonical);
+// pageArtifactDurable describes the separately retained continuation artifact,
+ // not whether this successful observation is recoverable. A complete page that
+ // fits in its first observation window is already preserved verbatim in the
+ // immutable tool_observation event, so no separate page artifact is needed.
 record.args = {
   ...record.args,
   observedPageIdentity: communityObservationSource ? null : page.pageIdentity ?? null,
@@ -6912,7 +6974,7 @@ if (retainedBrowserPage) {
 if (isPdfPageResponse(action.url, null)) { record.execution = "blocked"; record.failureDomain = "external_page_fetch"; record.failureKind = "pdf_unsupported"; lastObservation = `failureDomain=external_page_fetch failureKind=pdf_unsupported; PDF URL detected at ${sanitizeUrlForEvidence(action.url)}; browser_fetch does not extract PDF text, so no browser provider request was made and content is unobserved. Use visit for bounded text extraction; if it reports no extractable text, find another readable public source. Search snippets remain unverified leads.`; record.observation = lastObservation; record.observedUrls = []; pushHistory(`step${i + 1}: browser_fetch ${sanitizeUrlForEvidence(action.url)} execution=blocked reason=pdf_text_extraction_unsupported`); await emitSanitizedTrajectoryRecord(record); emit("browser_fetch", { url: sanitizeUrlForEvidence(action.url), provider: "browser", status: "blocked", summary: "PDF not fetched; text extraction unsupported." }); continue; } try { const { browserFetchHtml } = await import("./browser-fetch"); if (!isBrowserFetchProviderAvailable(action.provider)) { record.execution = "blocked"; record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; lastObservation = "BROWSER_PROVIDER_UNAVAILABLE provider=" + action.provider + "; available_providers=" + (getAvailableBrowserFetchProviders().join("|") || "none") + "; no outbound request attempted. Choose any other available capability; the runtime does not prescribe a next action."; record.observation = lastObservation; } else { runtimeStage = "external_page_fetch"; const result = await browserFetchHtml(action.url, { provider: action.provider, signal: runController.signal }); const providerTelemetry = buildBrowserFetchProviderTelemetry(action.provider, result.provider); record.providerFallback = providerTelemetry.providerFallback; record.args = { ...record.args, requestedProvider: providerTelemetry.requestedProvider, actualProvider: providerTelemetry.actualProvider }; visits += result.html ? 1 : 0; const observedBrowserUrl = result.observedUrl ? normalizedUrl(result.observedUrl) : null;
 record.args = { ...record.args, sourceVerificationStatus: observedBrowserUrl ? "verified_final_url" : "unverified_final_url" };
 const communityObservationSource = isCommunityObservationSourceUrl(observedBrowserUrl ?? action.url);
-const browserText = result.html ? sanitizeObservableValue(stripHtml(result.html)) : "";
+const browserText = result.html ? sanitizeObservableValue(extractDeterministicMainContent(result.html)) : "";
 const retainedBrowserText = communityObservationSource ? sanitizeCommunityObservationText(browserText) : browserText;
 const browserObservationText = retainedBrowserText.slice(0, MAX_OBS);
 const browserHasMore = retainedBrowserText.length > MAX_OBS;
