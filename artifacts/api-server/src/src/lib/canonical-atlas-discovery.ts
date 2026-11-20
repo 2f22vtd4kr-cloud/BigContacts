@@ -240,7 +240,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   // Persist provisional review cards before attempting stricter target admission.
   // A later ownership/corroboration admission error must not erase an already
   // observed person/company lead from this discovery checkpoint.
-  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryRunId: input.discoveryRunId, discoveryCaseId: input.discoveryCaseId });
   materialized += partialPeople.materialized;
   evidenceRows += partialPeople.evidenceRows;
   const partialOrganizations = await materializePartialOrganizationLeadCards({
@@ -518,6 +518,7 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 async function materializePartialPersonLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
+  discoveryRunId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }> }> {
   // The Investigator's structured finding is the card-worthiness decision.
@@ -558,9 +559,9 @@ async function materializePartialPersonLeadCards(input: {
     try {
       const payload = JSON.parse(event.payload) as {
         jobId?: string | null; action?: string; execution?: string;
-        observedUrls?: unknown[]; leadUrls?: unknown[]; observation?: string;
+        observedUrls?: unknown[]; leadUrls?: unknown[]; observation?: string; runId?: string;
       };
-      if (payload.jobId !== input.atlasJobId) return [];
+      if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId) return [];
       const action = payload.action ?? "";
       const fetched = action === "visit" || action === "browser_fetch";
       const searched = action === "web_search" || action === "parallel_web_search"

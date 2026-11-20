@@ -734,6 +734,62 @@ describe("canonical Atlas discovery path isolation", () => {
   });
 });
 
+describe("discovery provisional review-lead output contract", () => {
+  it("keeps findings available on discovery actions before done is eligible", () => {
+    const actionAllowlist = ["web_search", "visit"];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover objective-fit people and organizations from public evidence.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Fetched source names Jane Doe as an investor.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist,
+    });
+    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(prompt.toLowerCase()).toContain("review-only");
+    expect(prompt).toContain("findings[] required keys:");
+    const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    const discoveryFindingProperties = (discoveryFormat.json_schema?.schema?.properties?.findings as { items?: { properties?: Record<string, unknown> } } | undefined)?.items?.properties ?? {};
+    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
+    const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
+      json_schema?: { schema?: { properties?: Record<string, unknown> } };
+    };
+    expect(targetFormat.json_schema?.schema?.properties?.findings).toBeUndefined();
+  });
+
+  it("parses Investigator-selected provisional people from a non-terminal discovery action", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "public investor profile",
+      provider: null,
+      thought: "The source may contain an objective-fit person.",
+      hypothesis: "The named person may be relevant to the approved objective.",
+      purpose: "Preserve a provisional lead while evaluating other evidence.",
+      expectedInformationGain: 0.7,
+      findings: [{
+        vectorType: "other",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: null,
+        scope: "candidate",
+        sourceUrls: ["https://example.com/investors"],
+        note: "Named in the observed source; role and relevance require verification.",
+      }],
+    }), ["web_search"]);
+    expect(parsed?.partialFindings).toHaveLength(1);
+    expect(parsed?.partialFindings[0]).toMatchObject({
+      personName: "Jane Doe",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.com/investors"],
+    });
+  });
+});
+
 describe("review and claim finding separation", () => {
   it("does not merge a provisional review lead into a claim-grade finding with the same identity", () => {
     expect(agenticCoreSource).toContain('f.reviewOnly === true ? "review" : "claim"');
@@ -5502,7 +5558,7 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
 
 
 describe("Investigator preflight uses production prompt composition", () => {
-  it("omits searches[] and findings[] from the production prompt and strict schema when those actions are unavailable", () => {
+  it("keeps provisional findings available to the discovery preflight before done is eligible", () => {
     const prompt = buildStepPrompt({
       targetName: "",
       objective: "Identify one publicly documented example organization.",
@@ -5513,15 +5569,15 @@ describe("Investigator preflight uses production prompt composition", () => {
       mode: "discovery",
       actionAllowlist: ["web_search"],
     });
-    const contract = prompt.slice(prompt.lastIndexOf("OUTPUT CONTRACT:"));
-    expect(contract).not.toContain("searches[]");
-    expect(contract).not.toContain("findings[]");
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"]) as {
+    expect(prompt).not.toContain("searches[] required keys:");
+    expect(prompt).toContain("findings[] required keys:");
+    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
     const properties = responseFormat.json_schema?.schema?.properties ?? {};
     expect(properties).not.toHaveProperty("searches");
-    expect(properties).not.toHaveProperty("findings");
+    expect(properties).toHaveProperty("findings");
   });
 
   it("composes a model-authored trivial objective and samples three actions per model/credential lane", () => {

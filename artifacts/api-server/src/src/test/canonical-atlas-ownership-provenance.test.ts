@@ -96,6 +96,13 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(discovery).toContain("supportingEventId: support.eventId");
   });
 
+  it("binds provisional person lead evidence to the exact discovery run", () => {
+    const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
+    expect(discovery).toContain("discoveryRunId: string;");
+    expect(discovery).toContain("payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId");
+    expect(discovery).toContain("discoveryRunId: input.discoveryRunId, discoveryCaseId: input.discoveryCaseId");
+  });
+
   it("admits a review-only ownership lead from one fetched exact identity/role source without weakening provenance", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
     const policy = read("src/src/lib/candidate-source-url-union.ts");

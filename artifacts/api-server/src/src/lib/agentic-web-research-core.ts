@@ -2671,7 +2671,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     : availableActionsMatch
       ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
       : getModelSelectableAgentActions();
-  if (model && structuredActionResponseFormat(model, actionAllowlist).type !== "json_schema") {
+  if (model && structuredActionResponseFormat(model, actionAllowlist, _promptMode).type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
@@ -2680,10 +2680,15 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     return normalized;
   }
   const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
-  const supportsFindings = actionAllowlist.includes("done");
+  const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
-  const requiredFindingFields = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] : [];
+  const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+  const requiredFindingFields = supportsFindings
+    ? reviewLeadOnlyFindings
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+    : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
@@ -2703,28 +2708,32 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
 const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT): Be concise; preserve the human objective, Boss scope, exact source evidence and latest decision context.";
 
 /** Models without provider-enforced strict schema use a reduced action-specific contract and local validation. */
-export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[]): string {
-  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return strictContract;
+export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
+  if (structuredActionResponseFormat(model, actionAllowlist, promptMode).type === "json_schema") return strictContract;
   const allowed = new Set(actionAllowlist ?? getModelSelectableAgentActions());
   const shapes = [
     allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
-    allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
+    promptMode === "discovery"
+      ? allowed.has("done")
+        ? "Non-terminal discovery actions carry provisional people/orgs in findings[] with observed names/URLs; done uses source-backed findings."
+        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs, scope, role and uncertainty. Review-only; [] if none."
+      : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
-export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[]): string {
-  if (structuredActionResponseFormat(model, actionAllowlist).type === "json_schema") return prompt;
+export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
+  if (structuredActionResponseFormat(model, actionAllowlist, promptMode).type === "json_schema") return prompt;
   const standaloneOutputAt = Math.max(
     prompt.lastIndexOf("\nOUTPUT CONTRACT:"),
     prompt.startsWith("OUTPUT CONTRACT:") ? 0 : -1,
   );
   const outputAt = standaloneOutputAt < 0 ? -1 : standaloneOutputAt + (standaloneOutputAt > 0 ? 1 : 0);
   if (outputAt < 0) {
-    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist);
+    return prompt + "\n\n" + buildInvestigatorOutputContractForModel(model, "OUTPUT CONTRACT: JSON object only.", actionAllowlist, promptMode);
   }
-  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist);
+  return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist, promptMode);
 }
 
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
@@ -2732,11 +2741,11 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
-  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist);
+  const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist, inferredMode);
   const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
-  const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
@@ -2988,10 +2997,10 @@ export async function callGroqJson(
         estimatedOriginalMessagePromptTokens: groqPromptTokenEstimate(defaultOriginalPromptChars + systemPromptCharsBeforeRequest),
       };
       try {
-        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
+        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist, promptMode);
         const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
         const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
-        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist);
+        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist, promptMode);
         const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model, actionAllowlist);
         const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
@@ -3815,7 +3824,7 @@ export function strictifyGroqJsonSchema(schema: Record<string, unknown>): Record
   return strictifyGroqJsonSchemaNode(schema, true);
 }
 
-export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
+export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): Record<string, unknown> {
   // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
   // with json_validate_failed, including after the JSON-object compatibility retry.
   // Omit provider-side format enforcement for this one fallback model and keep the
@@ -3831,6 +3840,13 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   const availableRegistryEnum: string[] = [...getAvailableRegistryIdsForPrompt()];
   const schemaProperties: Record<string, unknown> = {
     ...AGENTIC_STRUCTURED_SCHEMA.properties,
+    findings: {
+      ...AGENTIC_STRUCTURED_SCHEMA.properties.findings,
+      items: {
+        ...AGENTIC_STRUCTURED_SCHEMA.properties.findings.items,
+        properties: Object.fromEntries(Object.entries(AGENTIC_STRUCTURED_SCHEMA.properties.findings.items.properties).map(([key, value]) => [key, value && typeof value === "object" ? { ...(value as Record<string, unknown>) } : value])),
+      },
+    },
     action: { type: "string", enum: availableActions },
     provider: { type: "string", enum: providerEnum },
     registry: { type: "string", enum: availableRegistryEnum },
@@ -3846,7 +3862,22 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     },
   };
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
-  const supportsFindings = availableActions.includes("done");
+  const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
+  const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
+  if (reviewLeadOnlyFindings) {
+    const findingSchema = schemaProperties.findings as { description?: string; items?: { description?: string; properties?: Record<string, unknown> } };
+    const findingItems = findingSchema.items;
+    const reviewLeadFields = new Set(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]);
+    delete findingSchema.description;
+    if (findingItems) delete findingItems.description;
+    for (const field of Object.keys(findingItems?.properties ?? {})) {
+      if (!reviewLeadFields.has(field)) delete findingItems!.properties![field];
+      else {
+        const property = findingItems!.properties![field];
+        if (property && typeof property === "object" && !Array.isArray(property)) delete (property as Record<string, unknown>).description;
+      }
+    }
+  }
   if (!supportsSearchArrays) delete schemaProperties.searches;
   if (!supportsFindings) delete schemaProperties.findings;
   const schema = { ...AGENTIC_STRUCTURED_SCHEMA, properties: schemaProperties };
@@ -5612,7 +5643,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; review-only."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5876,23 +5907,32 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     latestObservationBoundaryMarkers.join(" "),
   ].filter(Boolean).join("\n");
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
-  const supportsFindings = availableActions.includes("done");
+  const supportsFindings = input.mode === "discovery" || availableActions.includes("done");
   const topLevelFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const actionShapeGuidance = [
     availableActions.includes("web_search") ? (availableActions.includes("parallel_web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; parallel_web_search uses searches[] items." : "For web_search, put one query in the root query field and an optional provider in the root provider field.") : "",
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
-    supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
+    input.mode === "discovery"
+      ? availableActions.includes("done")
+        ? "Non-terminal discovery actions carry provisional people/orgs in findings[] with observed names/URLs and relevance/uncertainty; done uses source-backed claims."
+        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only."
+      : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
+  const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
+  const requiredFindingFieldNames = supportsFindings
+    ? reviewLeadOnlyFindings
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"] as const
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const
+    : [] as const;
   const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
     + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
     + (supportsSearchArrays ? " searches[] required keys: query, provider, registry, locale, market, purpose." : "")
-    + (supportsFindings ? " findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values." : "")
+    + (supportsFindings ? " findings[] required keys: " + requiredFindingFieldNames.join(", ") + "; null for unused fields." : "")
     + " Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. "
     + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
   const requiredFieldNames = topLevelFields;
   const requiredSearchFieldNames = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] as const : [] as const;
-  const requiredFindingFieldNames = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const : [] as const;
   const hasCompleteSchema = (value: string): boolean => {
     const marker = "ALL REQUIRED TOP-LEVEL FIELDS";
     let markerIndex = value.indexOf(marker);
@@ -6044,7 +6084,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: retain model-selected person/organization/asset leads as review-only cards with exact names, URLs and uncertainty. Snippets/registry hits are leads; promotion requires attributable same-case fetched evidence."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
