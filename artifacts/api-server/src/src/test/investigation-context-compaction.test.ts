@@ -173,6 +173,43 @@ describe("investigator context compaction", () => {
       .toThrow("objective-omission marker");
   });
 
+  it("stops the legacy Boss direction at the canonical opening-question boundary", () => {
+    const humanObjective = "Discover lesser-known people with credible wealth potential. "
+      + "The complete objective and exclusions remain authoritative. ".repeat(18);
+    const approvedDirection = "Test a source-backed hypothesis about a potentially relevant person or organization. "
+      + "Choose the next research action independently. ".repeat(5);
+    const openingMetadata = [
+      "BOSS-APPROVED OPENING RESEARCH QUESTION: " + approvedDirection,
+      "BOSS FINAL OPENING DECISION: autonomous discovery is authorized.",
+      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + "advisory rationale ".repeat(45),
+      "RIGHT-HAND STATUS (advisory only): review deferred.",
+      "OPENING RESEARCH CHOICE: select a useful first action.",
+      "No source observations or admitted candidates exist yet.",
+      "Do not compare sectors or geographies, broaden or invent jurisdiction.",
+      "Only actual same-run Investigator tool observations may establish findings.",
+    ].join("\n");
+    const legacyComposite = [
+      "PRIMARY CASE OBJECTIVE:",
+      humanObjective,
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      approvedDirection,
+      openingMetadata,
+    ].join("\n");
+
+    const bounded = buildBoundedInvestigatorObjective({
+      base: legacyComposite,
+      maxChars: 4_000,
+    });
+
+    expect(bounded.length).toBeLessThanOrEqual(4_000);
+    expect(bounded).toContain(humanObjective.trim());
+    expect(bounded).toContain(approvedDirection.trim());
+    expect(bounded).not.toContain("BOSS-APPROVED OPENING RESEARCH QUESTION:");
+    expect(bounded).not.toContain("BOSS SOURCE-MIX RATIONALE");
+    expect(bounded).not.toContain("RIGHT-HAND STATUS");
+    expect(bounded).not.toContain("OPENING RESEARCH CHOICE:");
+  });
+
   it("preserves the complete primary objective and Boss direction without middle omission", () => {
     const primaryObjective = "PRIMARY OPERATOR OBJECTIVE BEGIN "
       + "Every objective clause, evidence requirement, and exclusion remains authoritative. ".repeat(24)
