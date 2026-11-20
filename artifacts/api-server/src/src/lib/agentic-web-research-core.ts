@@ -3844,7 +3844,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
       ...AGENTIC_STRUCTURED_SCHEMA.properties.findings,
       items: {
         ...AGENTIC_STRUCTURED_SCHEMA.properties.findings.items,
-        properties: { ...AGENTIC_STRUCTURED_SCHEMA.properties.findings.items.properties },
+        properties: Object.fromEntries(Object.entries(AGENTIC_STRUCTURED_SCHEMA.properties.findings.items.properties).map(([key, value]) => [key, value && typeof value === "object" ? { ...(value as Record<string, unknown>) } : value])),
       },
     },
     action: { type: "string", enum: availableActions },
@@ -3865,10 +3865,17 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
   const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
   if (reviewLeadOnlyFindings) {
-    const findingItems = (schemaProperties.findings as { items?: { properties?: Record<string, unknown> } }).items;
+    const findingSchema = schemaProperties.findings as { description?: string; items?: { description?: string; properties?: Record<string, unknown> } };
+    const findingItems = findingSchema.items;
     const reviewLeadFields = new Set(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]);
+    delete findingSchema.description;
+    if (findingItems) delete findingItems.description;
     for (const field of Object.keys(findingItems?.properties ?? {})) {
       if (!reviewLeadFields.has(field)) delete findingItems!.properties![field];
+      else {
+        const property = findingItems!.properties![field];
+        if (property && typeof property === "object" && !Array.isArray(property)) delete (property as Record<string, unknown>).description;
+      }
     }
   }
   if (!supportsSearchArrays) delete schemaProperties.searches;
