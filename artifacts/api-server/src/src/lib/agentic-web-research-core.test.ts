@@ -5557,7 +5557,7 @@ describe("Investigator action rationale is non-blocking telemetry", () => {
 
 
 describe("Investigator preflight uses production prompt composition", () => {
-  it("omits searches[] and findings[] from the production prompt and strict schema when those actions are unavailable", () => {
+  it("keeps provisional findings available to the discovery preflight before done is eligible", () => {
     const prompt = buildStepPrompt({
       targetName: "",
       objective: "Identify one publicly documented example organization.",
@@ -5570,13 +5570,14 @@ describe("Investigator preflight uses production prompt composition", () => {
     });
     const contract = prompt.slice(prompt.lastIndexOf("OUTPUT CONTRACT:"));
     expect(contract).not.toContain("searches[]");
-    expect(contract).not.toContain("findings[]");
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"]) as {
+    expect(contract).toContain("findings[]");
+    expect(contract).toContain("do not wait for done");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
     const properties = responseFormat.json_schema?.schema?.properties ?? {};
     expect(properties).not.toHaveProperty("searches");
-    expect(properties).not.toHaveProperty("findings");
+    expect(properties).toHaveProperty("findings");
   });
 
   it("composes a model-authored trivial objective and samples three actions per model/credential lane", () => {
