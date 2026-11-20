@@ -8,6 +8,7 @@ import { buildGroqBossDiscoveryPrompt, parseBossDiscoveryResponse } from "../lib
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText, runGroqBossMemoryCompaction } from "../lib/groq-boss";
 import { ProviderQuotaError } from "../lib/provider-gate";
+import { ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS, ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT } from "../lib/atlas-control-decision";
 
 describe("Groq Boss discovery prompt grounding", () => {
   it("keeps internal case-memory wording from becoming a false research anchor", () => {
@@ -39,6 +40,66 @@ describe("Groq Boss discovery prompt grounding", () => {
   it("uses medium reasoning for the opening discovery assignment", () => {
     expect(caseBureauSource).toContain('maxOutputTokens: 2048,\n      thinkingLevel: "medium"');
     expect(caseBureauSource).not.toContain('maxOutputTokens: 2048,\n      thinkingLevel: "low"');
+  });
+});
+
+describe("Groq Boss opening structured-output recovery", () => {
+  it("retries json_validate_failed once as JSON-object on the same model with the full opening budget", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-opening-control-key";
+    const requests: Array<{ model: string; max_completion_tokens: number; response_format?: { type?: string } }> = [];
+    const direction = "Test whether public business disclosures identify a person with a documented role relevant to credible wealth potential.";
+    const openingDecision = {
+      action: "continue_discovery",
+      candidateName: null,
+      candidateType: null,
+      direction,
+      reason: "A concrete, testable public-source question is available for the Investigator to pursue.",
+      confidence: 0.93,
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as typeof requests[number];
+      requests.push(body);
+      if (requests.length === 1) {
+        return new Response(JSON.stringify({
+          error: { message: "The generated output did not satisfy the JSON schema.", type: "invalid_request_error", code: "json_validate_failed" },
+        }), { status: 400 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify(openingDecision) } }],
+      }), { status: 200 });
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["openai/gpt-oss-120b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Opening control: select a concrete, objective-aligned research question.",
+      {
+        cognitiveTask: "control_decision",
+        thinkingLevel: "medium",
+        maxOutputTokens: ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS,
+        responseFormat: {
+          type: "json_schema",
+          json_schema: {
+            name: "apex_atlas_opening_control",
+            strict: true,
+            schema: ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema,
+          },
+        },
+      },
+    );
+
+    expect(result.error).toBeNull();
+    expect(JSON.parse(result.raw ?? "{}")).toEqual(openingDecision);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requests.map((request) => request.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
+    expect(requests.map((request) => request.response_format?.type)).toEqual(["json_schema", "json_object"]);
+    expect(requests.map((request) => request.max_completion_tokens)).toEqual([1_024, 1_024]);
   });
 });
 
