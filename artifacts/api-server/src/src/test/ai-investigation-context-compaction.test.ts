@@ -329,6 +329,21 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[4]).toMatchObject({ jobId: null, caseId: null });
   });
 
+  it("instructs memory compaction not to turn action parse failures into negative research findings", async () => {
+    const source = "DURABLE TRAJECTORY: action_parse_failure execution=error. " + "Preserve all source-stage distinctions and unresolved questions. ".repeat(30);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "A model-output contract failure occurred; the research state remains unresolved." }),
+      error: null,
+      attempts: [],
+    });
+
+    await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(prompt).toContain("PARSE FAILURE IS NOT EVIDENCE");
+    expect(prompt).toContain("Never infer that a person, company, relationship, or evidence is absent");
+  });
+
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
     const source = "COMPLETE SOURCE MEMORY\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
     const summary = "S".repeat(1_005);
