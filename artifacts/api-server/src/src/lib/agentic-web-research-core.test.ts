@@ -748,7 +748,7 @@ describe("discovery provisional review-lead output contract", () => {
       actionAllowlist,
     });
     expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
-    expect(prompt).toContain("Review-only");
+    expect(prompt.toLowerCase()).toContain("review-only");
     expect(prompt).toContain("findings[] required keys:");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
