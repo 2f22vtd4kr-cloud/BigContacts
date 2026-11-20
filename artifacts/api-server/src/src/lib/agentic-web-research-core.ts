@@ -5636,7 +5636,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: preserve model-selected people in findings[] on non-terminal actions; note source URLs, relevance and uncertainty. Review-only."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected people/orgs in findings[] on non-terminal actions; include URLs and uncertainty. Review-only."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5909,7 +5909,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "On non-terminal discovery actions, include provisional people/organizations in findings[] with observed names/URLs and relevance/uncertainty; for done, include only source-backed claim-grade findings."
-        : "On each discovery action, include provisional people/organizations in findings[] with observed names/URLs, scope, role and uncertainty; review-only; [] if none."
+        : "Discovery: include provisional people/orgs in findings[] with observed names/URLs, scope and uncertainty; review-only; [] if none."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6077,7 +6077,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: preserve model-selected people in findings[] on non-terminal actions; note source URLs, relevance and uncertainty. Review-only."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected people/orgs in findings[] on non-terminal actions; include URLs and uncertainty. Review-only."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
