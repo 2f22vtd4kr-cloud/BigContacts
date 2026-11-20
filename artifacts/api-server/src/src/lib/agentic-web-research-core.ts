@@ -3681,7 +3681,7 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
       };
     }
   }
-  return { ok: checked.length > 0, checked, excludedCapabilities, sampleSummary, ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}) };
+  return { ok: checked.length > 0, checked, excludedCapabilities, sampleSummary, ...(firstFailure && checked.length === 0 ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}) };
 }
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars, promptMode));
