@@ -2683,7 +2683,12 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
-  const requiredFindingFields = supportsFindings ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] : [];
+  const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+  const requiredFindingFields = supportsFindings
+    ? reviewLeadOnlyFindings
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+    : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
   const fieldsAt = outputSection.indexOf("ALL REQUIRED TOP-LEVEL FIELDS:");
