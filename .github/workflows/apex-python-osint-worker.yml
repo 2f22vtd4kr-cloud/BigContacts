@@ -103,7 +103,11 @@ jobs:
               raise SystemExit("worker deployment digest env does not match its immutable image reference")
           if worker_env.get("APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST") != proxy_digest:
               raise SystemExit("worker deployment proxy digest env does not match the immutable proxy image reference")
-          print("worker and proxy images are immutably pinned; worker digest env values match")
+          if worker["spec"]["template"]["spec"].get("nodeSelector", {}).get("kubernetes.io/arch") != "amd64":
+              raise SystemExit("worker deployment must target the linux/amd64 image architecture")
+          if proxy["spec"]["template"]["spec"].get("nodeSelector", {}).get("kubernetes.io/arch") != "amd64":
+              raise SystemExit("proxy deployment must target the linux/amd64 image architecture")
+          print("worker/proxy images are digest-pinned, digest env values match, and scheduling targets linux/amd64")
           PY
       - name: Verify canonical capability and sandbox boundaries
         run: |
