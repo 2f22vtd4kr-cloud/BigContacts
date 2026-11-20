@@ -452,13 +452,15 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
 });
 
 describe("Investigator preflight model and credential lanes", () => {
-  it("uses one successful sample per model/credential lane and caches it for 30 minutes", () => {
+  it("requires two valid samples out of three per model/credential lane and caches the complete sample set for 30 minutes", () => {
     expect(agenticCoreSource).toContain("GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS = 30 * 60 * 1_000");
+    expect(agenticCoreSource).toContain("GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT = 3");
     expect(agenticCoreSource).toContain('const cacheKey = model + ":" + digestDiagnosticText(credential)');
-    expect(agenticCoreSource).toContain("if (samplePassed)");
+    expect(agenticCoreSource).toContain("passedSamples >= 2");
+    expect(agenticCoreSource).toContain("cached.samples");
     expect(agenticCoreSource).toContain("cacheHit: true");
     expect(agenticCoreSource).toContain("rawOutputClass");
-    expect(agenticCoreSource).toContain("samples.push({");
+    expect(agenticCoreSource).toContain("samples.push({ sample: sampleNumber");
     expect(agenticCoreSource).toContain("classification,");
     expect(agenticCoreSource).toContain("latencyMs: Date.now() - sampleStartedAt");
   });
@@ -5522,10 +5524,11 @@ describe("Investigator preflight uses production prompt composition", () => {
     expect(properties).not.toHaveProperty("findings");
   });
 
-  it("composes a model-authored trivial objective and samples one action per lane", () => {
+  it("composes a model-authored trivial objective and samples three actions per model/credential lane", () => {
     expect(agenticCoreSource).toContain("const productionPrompt = buildStepPrompt({");
     expect(agenticCoreSource).toContain('objective: "Identify one publicly documented example organization."');
-    expect(agenticCoreSource).toContain("sample: 1");
+    expect(agenticCoreSource).toContain("sample: sampleNumber");
+    expect(agenticCoreSource).toContain("GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT = 3");
     expect(agenticCoreSource).toContain("cacheHit: false");
     expect(agenticCoreSource).toContain("cacheHit: true");
     expect(agenticCoreSource).toContain("sampleSummary");

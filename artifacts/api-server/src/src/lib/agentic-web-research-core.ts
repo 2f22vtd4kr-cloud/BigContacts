@@ -3545,6 +3545,7 @@ export function groupInvestigatorCapabilitiesByModelAndCredential(
 }
 
 export const GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS = 30 * 60 * 1_000;
+export const GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT = 3;
 type InvestigatorProbeSample = {
   sample: number;
   passed: boolean;
@@ -3553,7 +3554,7 @@ type InvestigatorProbeSample = {
   latencyMs: number;
   diagnostic: string;
 };
-type InvestigatorProbeCacheEntry = { expiresAt: number; sample: InvestigatorProbeSample };
+type InvestigatorProbeCacheEntry = { expiresAt: number; samples: InvestigatorProbeSample[] };
 const investigatorProbeCache = new Map<string, InvestigatorProbeCacheEntry>();
 export function resetGroqInvestigatorProbeCacheForTests(): void { investigatorProbeCache.clear(); }
 
@@ -3595,12 +3596,19 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
     const cacheKey = model + ":" + digestDiagnosticText(credential);
     const cached = investigatorProbeCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      checked.push(...modelCapabilities.map((capability) => ({ capability, model })));
-      sampleSummary.push({
-        model, capabilities: modelCapabilities, passedSamples: 1, failedSamples: 0, cacheHit: true,
-        samples: [{ ...cached.sample, sample: 1, diagnostic: "cache_hit:" + cached.sample.diagnostic }],
-      });
-      continue;
+      const cachedSamples = cached.samples.map((sample, index) => ({
+        ...sample,
+        sample: index + 1,
+        diagnostic: "cache_hit:" + sample.diagnostic,
+      }));
+      const passedSamples = cachedSamples.filter((sample) => sample.passed).length;
+      const failedSamples = cachedSamples.length - passedSamples;
+      if (cachedSamples.length === GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT && passedSamples >= 2) {
+        checked.push(...modelCapabilities.map((capability) => ({ capability, model })));
+        sampleSummary.push({ model, capabilities: modelCapabilities, passedSamples, failedSamples, cacheHit: true, samples: cachedSamples });
+        continue;
+      }
+      investigatorProbeCache.delete(cacheKey);
     }
 
     const productionPrompt = buildStepPrompt({
@@ -3609,56 +3617,57 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
       lastObservation: "Provider compatibility probe only. No research action has executed and no external observation may be claimed.",
       findings: [], mode: "discovery", actionAllowlist: ["web_search"],
     });
-    const prompt = [
-      productionPrompt,
-      "PRE-LAUNCH CONTRACT PROBE: this is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.",
-    ].join("\n\n");
     const samples: InvestigatorProbeSample[] = [];
-    const controller = new AbortController();
-    const abortParent = () => controller.abort();
-    signal?.addEventListener("abort", abortParent, { once: true });
-    const timer = setTimeout(() => controller.abort(), 45_000);
-    const sampleStartedAt = Date.now();
-    let samplePassed = false;
-    let classification = "provider_failure";
-    let diagnostic = "provider_unavailable";
-    let rawOutputClass = "no_raw_output";
-    let failureReason = "";
-    try {
-      const result = await withProviderRole("investigator", () => callGroqJson(
-        prompt, controller.signal, "identity_resolution", firstCapability, undefined,
-        jobId ?? null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
-      ));
-      if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
-        samplePassed = true; classification = "passed"; diagnostic = "valid_action"; rawOutputClass = "valid_action_object";
-      } else {
-        const parseDiagnostic = result?.raw ? describeAgentActionParseFailure(result.raw, ["web_search"]) : "";
-        const providerDiagnostic = result?.error ?? "provider_contract_error";
-        rawOutputClass = result?.raw ? (parseDiagnostic || "invalid_raw_output") : "missing_raw_output";
-        classification = result?.error
-          ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic) ? "provider_transport_failure" : "provider_failure"
-          : /invalid_action_arguments|unsupported_action|missing_action|invalid_tool_argument_envelope/.test(parseDiagnostic) ? "action_contract_failure" : "response_parse_failure";
-        diagnostic = parseDiagnostic || classification + ":" + digestDiagnosticText(providerDiagnostic);
-        failureReason = classification + ":" + digestDiagnosticText(providerDiagnostic);
+    for (let sampleNumber = 1; sampleNumber <= GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT; sampleNumber += 1) {
+      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
+      const prompt = [
+        productionPrompt,
+        `PRE-LAUNCH CONTRACT PROBE: replicate ${sampleNumber} of ${GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT}. This is not a research job. Do not call tools, browse, or claim external observations. Choose one useful public-web search action for the trivial objective above. Compose the query and rationale yourself; do not copy supplied action values. Return exactly one JSON action object.`,
+      ].join("\n\n");
+      const controller = new AbortController();
+      const abortParent = () => controller.abort();
+      signal?.addEventListener("abort", abortParent, { once: true });
+      const timer = setTimeout(() => controller.abort(), 45_000);
+      const sampleStartedAt = Date.now();
+      let samplePassed = false;
+      let classification = "provider_failure";
+      let diagnostic = "provider_unavailable";
+      let rawOutputClass = "no_raw_output";
+      try {
+        const result = await withProviderRole("investigator", () => callGroqJson(
+          prompt, controller.signal, "identity_resolution", firstCapability, undefined,
+          jobId ?? null, null, ["web_search"], null, undefined, prompt.length, "discovery", true,
+        ));
+        if (result?.raw && parseAgentAction(result.raw, ["web_search"])) {
+          samplePassed = true; classification = "passed"; diagnostic = "valid_action"; rawOutputClass = "valid_action_object";
+        } else {
+          const parseDiagnostic = result?.raw ? describeAgentActionParseFailure(result.raw, ["web_search"]) : "";
+          const providerDiagnostic = result?.error ?? "provider_contract_error";
+          rawOutputClass = result?.raw ? (parseDiagnostic || "invalid_raw_output") : "missing_raw_output";
+          classification = result?.error
+            ? /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(providerDiagnostic) ? "provider_transport_failure" : "provider_failure"
+            : /invalid_action_arguments|unsupported_action|missing_action|invalid_tool_argument_envelope/.test(parseDiagnostic) ? "action_contract_failure" : "response_parse_failure";
+          diagnostic = parseDiagnostic || classification + ":" + digestDiagnosticText(providerDiagnostic);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "provider_contract_error";
+        classification = /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(message) ? "provider_transport_failure" : "provider_failure";
+        diagnostic = classification + ":" + digestDiagnosticText(message);
+        rawOutputClass = "provider_no_raw_output";
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abortParent);
+        samples.push({ sample: sampleNumber, passed: samplePassed, classification, rawOutputClass, latencyMs: Date.now() - sampleStartedAt, diagnostic });
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "provider_contract_error";
-      classification = /timeout|deadline|ECONN|ENOTFOUND|fetch failed|network|429|5\d\d/i.test(message) ? "provider_transport_failure" : "provider_failure";
-      diagnostic = classification + ":" + digestDiagnosticText(message);
-      rawOutputClass = "provider_no_raw_output";
-      failureReason = classification;
-    } finally {
-      clearTimeout(timer); signal?.removeEventListener("abort", abortParent);
-      samples.push({ sample: 1, passed: samplePassed, classification, rawOutputClass, latencyMs: Date.now() - sampleStartedAt, diagnostic });
+      if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
     }
-    if (signal?.aborted) return { ok: false, checked, excludedCapabilities, sampleSummary, failedCapability: firstFailure?.capability, error: "Pre-launch Investigator contract probe was cancelled." };
-    sampleSummary.push({
-      model, capabilities: modelCapabilities, passedSamples: samplePassed ? 1 : 0,
-      failedSamples: samplePassed ? 0 : 1, cacheHit: false, samples,
-    });
-    if (samplePassed) {
+
+    const passedSamples = samples.filter((sample) => sample.passed).length;
+    const failedSamples = samples.length - passedSamples;
+    sampleSummary.push({ model, capabilities: modelCapabilities, passedSamples, failedSamples, cacheHit: false, samples });
+    if (samples.length === GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT && passedSamples >= 2) {
       checked.push(...modelCapabilities.map((capability) => ({ capability, model })));
-      investigatorProbeCache.set(cacheKey, { expiresAt: Date.now() + GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS, sample: samples[0]! });
+      investigatorProbeCache.set(cacheKey, { expiresAt: Date.now() + GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS, samples: samples.map((sample) => ({ ...sample })) });
       while (investigatorProbeCache.size > 128) {
         const oldest = investigatorProbeCache.keys().next().value;
         if (oldest === undefined) break;
@@ -3666,13 +3675,14 @@ export async function probeGroqInvestigatorCapabilities(signal?: AbortSignal, jo
       }
     } else {
       excludedCapabilities.push(...modelCapabilities);
-      firstFailure ??= { capability: firstCapability, error: failureReason || "provider_contract_error" };
-      // Do not cache failures: transport and generation errors may be transient.
+      firstFailure ??= {
+        capability: firstCapability,
+        error: `investigator_preflight_insufficient_valid_samples:${passedSamples}/${GROQ_INVESTIGATOR_PROBE_SAMPLE_COUNT}`,
+      };
     }
   }
   return { ok: checked.length > 0, checked, excludedCapabilities, sampleSummary, ...(firstFailure ? { failedCapability: firstFailure.capability, error: firstFailure.error } : {}) };
 }
-
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number, originalPromptChars?: number, promptMode: "discovery" | "target" = "target"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars, promptMode));
 }

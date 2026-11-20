@@ -102,7 +102,8 @@ describe("source-grounded Boss opening contract", () => {
       motivation: "Identify useful private-company leads.",
     }, [investigator]);
     expect(prompt).toContain("select an available Investigator execution capability");
-    expect(prompt).toContain("Investigator model economy: prefer groq-investigator-20b for routine discovery and action selection");
+    expect(prompt).toContain("GPT-OSS 120B is the default and preferred execution lane");
+    expect(prompt).not.toContain("prefer groq-investigator-20b");
     expect(prompt).toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
     expect(prompt).toContain("This is guidance, not a workflow engine.");
     expect(prompt).toContain("Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction.");

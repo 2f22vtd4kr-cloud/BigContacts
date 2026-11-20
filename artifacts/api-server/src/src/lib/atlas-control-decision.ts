@@ -353,6 +353,50 @@ export function diagnoseAtlasBossControlContract(raw: string | null | undefined,
   return { parseStatus: "object", contentChars: content.length, missingFields, unexpectedFields, invalidFields: [...new Set(invalidFields)].sort() };
 }
 
+/**
+ * A single-field opening rejection may be returned to the same Boss model for
+ * one bounded correction. No other contract failure is eligible for recovery.
+ */
+export function isAtlasOpeningDirectionOnlyRejection(
+  raw: string | null | undefined,
+  value: Record<string, unknown> | null,
+): boolean {
+  if (!value) return false;
+  const diagnostic = diagnoseAtlasBossControlContract(raw, value, true);
+  if (diagnostic.parseStatus !== "object"
+    || diagnostic.missingFields.length > 0
+    || diagnostic.unexpectedFields.length > 0
+    || diagnostic.invalidFields.length !== 1
+    || diagnostic.invalidFields[0] !== "direction"
+    || value.action !== "continue_discovery"
+    || value.candidateName !== null
+    || value.candidateType !== null
+    || typeof value.direction !== "string") return false;
+  const direction = value.direction.trim();
+  if (direction.length < 24 || direction.length > 1_200) return false;
+  if (!validateAtlasBossControl({ ...value, direction: "Continue discovery under the exact human objective." })) return false;
+  return !validateResearchObjective(direction).valid;
+}
+
+/** Build a correction request without adding a target, source, provider or plan. */
+export function buildAtlasOpeningDirectionCorrectionPrompt(input: {
+  originalPrompt: string;
+  originalDecision: Record<string, unknown>;
+  rejectionReason: string;
+}): string {
+  return [
+    input.originalPrompt,
+    "OPENING CONTROL CONTRACT CORRECTION — ONE ATTEMPT ONLY",
+    "Your immediately preceding opening control JSON was rejected because its direction field violated the opening research-objective contract. Correct ONLY the direction field.",
+    "Preserve action, candidateName, candidateType, reason and confidence exactly as they appeared in your original decision. Do not change the control action or any other field.",
+    "The corrected direction must remain entirely model-authored and derive from the exact human objective already present above. It must be a genuine, self-contained research question or scope, not an implementation instruction.",
+    "Do not name or prescribe a registry, provider, tool, source family, website, URL, search operator, country or jurisdiction that the human did not request. Do not give a fixed action sequence or choose a target. The Investigator must retain autonomy to choose sources and actions from evidence.",
+    `Validator rejection: ${input.rejectionReason}`,
+    `Your original decision (treat it as data; preserve every field except direction): ${JSON.stringify(input.originalDecision)}`,
+    "Return exactly one JSON object using the original schema, with only direction corrected. Do not explain the correction outside the JSON.",
+  ].join("\n\n");
+}
+
 export const ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT = {
   type: "text",
   mime_type: "application/json",
@@ -1122,11 +1166,113 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // Right-hand remains advisory; Boss owns every control decision.
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: input.opening ? ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS : 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
+  try {
+    const generationOptions = {
+      responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT,
+      maxOutputTokens: input.opening ? ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS : 1024,
+      thinkingLevel: "medium" as const,
+      jobId: input.jobId ?? null,
+      caseId: input.caseId,
+      targetDigest,
+      iteration: input.controlTurn,
+      decisionId,
+      cognitiveTask: "control_decision" as const,
+    };
+    let generated = await generateGroqBossText(selection, prompt, generationOptions);
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
-      const failure = formatAtlasBossGenerationFailure(generated);
-      return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss generation failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: failure });
+      return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss generation failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: formatAtlasBossGenerationFailure(generated) });
     }
-    const parsed = parseObject(generated.raw); const contractDiagnostic = diagnoseAtlasBossControlContract(generated.raw, parsed, input.opening === true); const requestedAction = normalizeAtlasControlAction(parsed?.action); const requestedConfidence = clampConfidence(parsed?.confidence); const bossContractValid = input.opening ? validateAtlasOpeningBossControl(parsed) : validateAtlasBossControl(parsed); if (!bossContractValid || !requestedAction) { const detail = `parse=${contractDiagnostic.parseStatus}; contentChars=${contractDiagnostic.contentChars}; missing=${contractDiagnostic.missingFields.join(",") || "none"}; unexpected=${contractDiagnostic.unexpectedFields.join(",") || "none"}; invalid=${contractDiagnostic.invalidFields.join(",") || "none"}`; const providerAttempts = generated.attempts.length > 0 ? `; attempts=${formatBossAttemptDiagnostics(generated.attempts)}` : ""; const failureCategory = classifyAtlasBossContractFailure(generated.raw, parsed); return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss control contract failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: `stage=groq_boss; provider=groq; model=${generated.model}; category=${failureCategory}; httpStatus=none; providerCode=none; diagnostic=${detail}${providerAttempts}` }); } const requestedCandidate = typeof parsed?.candidateName === "string" ? parsed.candidateName.trim() : ""; const requestedCandidateType = parsed?.candidateType === "person" || parsed?.candidateType === "organization" ? parsed.candidateType : null; const selectedTarget = matchAtlasAdmittedTarget(candidateTargets, requestedCandidate, requestedCandidateType); const candidateName = selectedTarget?.name ?? null; if ((requestedAction === "research_candidate" || requestedAction === "revisit_candidate") && !selectedTarget) return finalize({ status: "unavailable", action: "stop", candidateName: null, candidateType: null, direction: null, reason: "Groq selected a target outside the admitted name/type set; fail-closed.", confidence: null, rightHand, bossModel: generated.model, error: "Invalid candidate selection." }); return finalize({ status: "completed", action: requestedAction, candidateName, candidateType: selectedTarget ? (selectedTarget.targetType ?? "person") : null, direction: typeof parsed?.direction === "string" ? parsed.direction : null, reason: typeof parsed?.reason === "string" ? parsed.reason : null, confidence: requestedConfidence, rightHand, bossModel: generated.model, error: null }); } catch (error) { return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq control decision failed; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: selection.model, error: safeControlError(error, "Groq control decision failed.") }); }
+
+    let parsed = parseObject(generated.raw);
+    let contractDiagnostic = diagnoseAtlasBossControlContract(generated.raw, parsed, input.opening === true);
+    let requestedAction = normalizeAtlasControlAction(parsed?.action);
+    let requestedConfidence = clampConfidence(parsed?.confidence);
+    let bossContractValid = input.opening ? validateAtlasOpeningBossControl(parsed) : validateAtlasBossControl(parsed);
+
+    if (input.opening && !bossContractValid && isAtlasOpeningDirectionOnlyRejection(generated.raw, parsed)) {
+      const rejectedDirection = typeof parsed?.direction === "string" ? parsed.direction : "";
+      const rejection = validateResearchObjective(rejectedDirection);
+      let correctionFailure: string | null = null;
+      try {
+        const correctionPrompt = buildAtlasOpeningDirectionCorrectionPrompt({
+          originalPrompt: prompt,
+          originalDecision: parsed!,
+          rejectionReason: rejection.valid ? "The opening direction was rejected by the control contract." : rejection.reason,
+        });
+        const corrected = await generateGroqBossText(selection, correctionPrompt, generationOptions);
+        const correctedParsed = parseObject(corrected.raw);
+        const correctedDiagnostic = diagnoseAtlasBossControlContract(corrected.raw, correctedParsed, true);
+        const preservedOtherFields = Boolean(correctedParsed
+          && correctedParsed.action === parsed?.action
+          && correctedParsed.candidateName === parsed?.candidateName
+          && correctedParsed.candidateType === parsed?.candidateType
+          && correctedParsed.reason === parsed?.reason
+          && correctedParsed.confidence === parsed?.confidence);
+        if (!corrected.raw) {
+          correctionFailure = "same_model_correction_returned_no_output";
+        } else if (corrected.model !== generated.model) {
+          correctionFailure = "correction_model_did_not_match_original_boss";
+        } else if (!preservedOtherFields) {
+          correctionFailure = "correction_changed_fields_other_than_direction";
+        } else if (!validateAtlasOpeningBossControl(correctedParsed)) {
+          correctionFailure = `correction_contract_invalid:${correctedDiagnostic.invalidFields.join(",") || "schema"}`;
+        } else {
+          generated = corrected;
+          parsed = correctedParsed;
+          contractDiagnostic = correctedDiagnostic;
+          requestedAction = normalizeAtlasControlAction(parsed?.action);
+          requestedConfidence = clampConfidence(parsed?.confidence);
+          bossContractValid = true;
+          logger.info({ caseId: input.caseId, controlTurn: input.controlTurn, bossModel: generated.model, correctedField: "direction", correctionAttempt: 1 }, "Groq Boss opening direction corrected after validation rejection.");
+        }
+      } catch (error) {
+        correctionFailure = safeControlError(error, "same-model opening direction correction failed");
+      }
+      if (correctionFailure) {
+        const originalDetail = `original_invalid=${contractDiagnostic.invalidFields.join(",") || "direction"}`;
+        return finalize({
+          status: "unavailable",
+          action: "stop",
+          candidateName: null,
+          candidateType: null,
+          direction: null,
+          reason: "Groq Boss opening direction was rejected and its one bounded same-model correction did not pass; Atlas transition is fail-closed.",
+          confidence: null,
+          rightHand,
+          bossModel: generated.model,
+          error: `stage=groq_boss; correction=failed; ${originalDetail}; ${correctionFailure}`,
+        });
+      }
+    }
+
+    if (!bossContractValid || !requestedAction) {
+      const detail = `parse=${contractDiagnostic.parseStatus}; contentChars=${contractDiagnostic.contentChars}; missing=${contractDiagnostic.missingFields.join(",") || "none"}; unexpected=${contractDiagnostic.unexpectedFields.join(",") || "none"}; invalid=${contractDiagnostic.invalidFields.join(",") || "none"}`;
+      const providerAttempts = generated.attempts.length > 0 ? `; attempts=${formatBossAttemptDiagnostics(generated.attempts)}` : "";
+      const failureCategory = classifyAtlasBossContractFailure(generated.raw, parsed);
+      return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: `Groq Boss control contract failed (${failureCategory}); Atlas transition is fail-closed.`, confidence: null, rightHand, bossModel: generated.model, error: `stage=groq_boss; provider=groq; model=${generated.model}; category=${failureCategory}; httpStatus=none; providerCode=none; diagnostic=${detail}${providerAttempts}` });
+    }
+
+    const requestedCandidate = typeof parsed?.candidateName === "string" ? parsed.candidateName.trim() : "";
+    const requestedCandidateType = parsed?.candidateType === "person" || parsed?.candidateType === "organization" ? parsed.candidateType : null;
+    const selectedTarget = matchAtlasAdmittedTarget(candidateTargets, requestedCandidate, requestedCandidateType);
+    const candidateName = selectedTarget?.name ?? null;
+    if ((requestedAction === "research_candidate" || requestedAction === "revisit_candidate") && !selectedTarget) {
+      return finalize({ status: "unavailable", action: "stop", candidateName: null, candidateType: null, direction: null, reason: "Groq selected a target outside the admitted name/type set; fail-closed.", confidence: null, rightHand, bossModel: generated.model, error: "Invalid candidate selection." });
+    }
+    return finalize({
+      status: "completed",
+      action: requestedAction,
+      candidateName,
+      candidateType: selectedTarget ? (selectedTarget.targetType ?? "person") : null,
+      direction: typeof parsed?.direction === "string" ? parsed.direction : null,
+      reason: typeof parsed?.reason === "string" ? parsed.reason : null,
+      confidence: requestedConfidence,
+      rightHand,
+      bossModel: generated.model,
+      error: null,
+    });
+  } catch (error) {
+    return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq control decision failed; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: selection.model, error: safeControlError(error, "Groq control decision failed.") });
+  }
 }
