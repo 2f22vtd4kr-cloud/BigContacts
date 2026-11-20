@@ -918,7 +918,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(strictUser).toContain("For every discovery action, include findings[]");
+    expect(strictUser).toContain("On every discovery action, include findings[]");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
 
@@ -930,7 +930,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(twentyBUser).toContain("For every discovery action, include findings[]");
+    expect(twentyBUser).toContain("On every discovery action, include findings[]");
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
