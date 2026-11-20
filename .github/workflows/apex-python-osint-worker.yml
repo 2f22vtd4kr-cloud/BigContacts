@@ -73,6 +73,37 @@ jobs:
                   raise SystemExit(f"{path}: empty or invalid Kubernetes document")
               docs += len(loaded)
           print(f"validated {docs} Kubernetes documents across {len(list(root.glob('*.yaml')))} files")
+
+          import re
+          def deployment(path, name):
+              matches = [item for item in yaml.safe_load_all(path.read_text(encoding="utf-8"))
+                         if isinstance(item, dict) and item.get("kind") == "Deployment"
+                         and item.get("metadata", {}).get("name") == name]
+              if len(matches) != 1:
+                  raise SystemExit(f"{path}: expected exactly one Deployment named {name}")
+              return matches[0]
+
+          worker = deployment(root / "worker-deployment.yaml", "apex-python-osint-worker")
+          proxy = deployment(root / "proxy-deployment.yaml", "apex-osint-egress-proxy")
+          worker_container = next((c for c in worker["spec"]["template"]["spec"]["containers"] if c.get("name") == "worker"), None)
+          proxy_container = next((c for c in proxy["spec"]["template"]["spec"]["containers"] if c.get("name") == "squid"), None)
+          if worker_container is None or proxy_container is None:
+              raise SystemExit("worker/proxy deployment container is missing")
+          digest_pattern = re.compile(r"^sha256:[0-9a-f]{64}$")
+          worker_image = worker_container.get("image", "")
+          proxy_image = proxy_container.get("image", "")
+          worker_digest = worker_image.rsplit("@", 1)[-1] if "@" in worker_image else ""
+          proxy_digest = proxy_image.rsplit("@", 1)[-1] if "@" in proxy_image else ""
+          if not worker_digest or not digest_pattern.fullmatch(worker_digest):
+              raise SystemExit("worker image must be pinned to an immutable sha256 digest")
+          if not proxy_digest or not digest_pattern.fullmatch(proxy_digest):
+              raise SystemExit("proxy image must be pinned to an immutable sha256 digest")
+          worker_env = {item.get("name"): item.get("value") for item in worker_container.get("env", [])}
+          if worker_env.get("APEX_PYTHON_WORKER_IMAGE_DIGEST") != worker_digest:
+              raise SystemExit("worker deployment digest env does not match its immutable image reference")
+          if worker_env.get("APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST") != proxy_digest:
+              raise SystemExit("worker deployment proxy digest env does not match the immutable proxy image reference")
+          print("worker and proxy images are immutably pinned; worker digest env values match")
           PY
       - name: Verify canonical capability and sandbox boundaries
         run: |
