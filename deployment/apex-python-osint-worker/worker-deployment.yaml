@@ -44,6 +44,8 @@ spec:
         app: apex-python-osint-worker
         app.kubernetes.io/part-of: apex-atlas
     spec:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       imagePullSecrets:
         - name: ghcr-pull-secret
       automountServiceAccountToken: false
