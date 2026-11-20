@@ -1020,7 +1020,7 @@ describe("AI investigation context compaction", () => {
             action: "web_search",
             execution: "success",
             args: { query: "Forbes Midas list investors" },
-            urls: [sourceUrl],
+            urls: [sourceUrl, "https://www.forbes.com/profile/lead-one/", "https://www.forbes.com/profile/lead-two/"],
             observation: "The search returned several lead URLs, including " + sourceUrl + "; results remain unverified until visited.",
           },
           {
