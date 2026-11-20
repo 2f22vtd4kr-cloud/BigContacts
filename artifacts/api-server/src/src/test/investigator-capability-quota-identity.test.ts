@@ -15,6 +15,7 @@ describe("Investigator credential quota identity", () => {
     GROQ_INVESTIGATOR_API_KEY_1: "shared-test-credential",
     GROQ_INVESTIGATOR_API_KEY_2: "independent-test-credential",
     GROQ_INVESTIGATOR_API_KEY_3: "",
+    APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true",
   } as NodeJS.ProcessEnv;
 
 
@@ -83,6 +84,7 @@ describe("Investigator credential quota identity", () => {
       GROQ_INVESTIGATOR_API_KEY_5: "credential-5",
       GROQ_INVESTIGATOR_API_KEY_6: "credential-6",
       GROQ_INVESTIGATOR_API_KEY_7: "credential-7",
+      APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true",
     } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(expanded)).toEqual([
       "groq-investigator-20b",
@@ -128,7 +130,11 @@ describe("Investigator credential quota identity", () => {
     expect(recordInvestigatorCapabilityRuntimeOutcome(capability, { success: true }).status).toBe("healthy");
   });
 
-  it("exposes the 20B endpoint by default and permits explicit disablement", () => {
+  it("keeps the 20B lane excluded by default and requires explicit operator opt-in", () => {
+    const defaultEnv = { ...env };
+    delete defaultEnv.APEX_ENABLE_GROQ_INVESTIGATOR_20B;
+    expect(getAvailableInvestigatorCapabilities(defaultEnv)).not.toContain("groq-investigator-20b");
+    expect(getAvailableDistinctInvestigatorCapabilities(defaultEnv)).not.toContain("groq-investigator-20b");
     expect(getAvailableInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toContain("groq-investigator-20b");
     const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
@@ -136,7 +142,7 @@ describe("Investigator credential quota identity", () => {
     expect(getAvailableDistinctInvestigatorCapabilities(disabled)).not.toContain("groq-investigator-20b");
   });
 
-  it("permits 20B model-scoped quota recovery by default and supports explicit disablement", () => {
+  it("permits 20B model-scoped quota recovery only after explicit opt-in", () => {
     const singleCredential = {
       GROQ_INVESTIGATOR_API_KEY: "one-credential",
       GROQ_INVESTIGATOR_API_KEY_1: "",
@@ -144,6 +150,7 @@ describe("Investigator credential quota identity", () => {
       GROQ_INVESTIGATOR_API_KEY_3: "",
       GROQ_INVESTIGATOR_API_KEY_4: "",
       GROQ_INVESTIGATOR_API_KEY_5: "",
+      APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true",
     } as NodeJS.ProcessEnv;
 
     expect(getModelScopedInvestigatorQuotaFallback(

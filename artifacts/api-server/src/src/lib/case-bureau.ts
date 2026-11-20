@@ -468,8 +468,42 @@ const openingCapabilitySelectionOrientation = [
   "Follow the exact human objective and Boss-approved scope; do not impose wealth, ownership, sector or geography requirements the objective did not request.",
   "Boss cannot browse or execute research tools. This call selects only an available Investigator capability; it must not choose a target, source, provider, country, jurisdiction, query, URL, contact route or research sequence.",
   "Select only from the supplied available capabilities and never select an excluded or unavailable capability.",
-  "MODEL ROUTING: When listed, groq-investigator-20b runs GPT-OSS 20B on the first Investigator credential and is the economical choice for ordinary public-source discovery and action selection. Standard groq-investigator-N capabilities use the configured canonical Investigator model (GPT-OSS 120B by default). Prefer 20B for a routine discovery mission; choose a standard capability when the objective genuinely needs the stronger model. This is an execution-cost decision, not a research sequence. The runtime never silently rotates models after failure.",
+  "MODEL ROUTING: The canonical Investigator lane is GPT-OSS 120B through a standard groq-investigator-N capability. The 20B capability is excluded by default and may appear only after explicit operator opt-in. Never prefer or invent a 20B capability. Boss selects only among capabilities that the runtime has already marked eligible; the runtime never silently rotates models after failure.",
 ].join("\n");
+
+/**
+ * Resolve the model's choice set before asking Boss. When preflight telemetry is
+ * present, a capability must have at least two valid structured-action samples
+ * out of three. Boss sees only eligible capabilities, never a contradictory
+ * list plus a prose-only exclusion rule.
+ */
+export function resolveBossEligibleInvestigatorCapabilities(input: {
+  configuredCapabilities: readonly InvestigatorCapability[];
+  excludedCapabilities?: readonly InvestigatorCapability[];
+  laneHealth?: NonNullable<GroqBossDiscoveryInput["investigatorLaneHealth"]>;
+}): { available: InvestigatorCapability[]; excluded: InvestigatorCapability[] } {
+  const explicitExcluded = new Set(input.excludedCapabilities ?? []);
+  const laneHealth = input.laneHealth ?? [];
+  const hasPreflight = laneHealth.length > 0;
+  const available = input.configuredCapabilities.filter((capability) => {
+    if (explicitExcluded.has(capability)) return false;
+    if (!hasPreflight) return true;
+    const lane = laneHealth.find((candidate) => candidate.capabilities.includes(capability));
+    if (!lane) return false;
+    const samples = lane.samples ?? [];
+    const totalSamples = samples.length > 0 ? samples.length : lane.passedSamples + lane.failedSamples;
+    const passedSamples = samples.length > 0
+      ? samples.filter((sample) => sample.passed).length
+      : lane.passedSamples;
+    return totalSamples >= 3 && passedSamples >= 2;
+  });
+  const availableSet = new Set(available);
+  const excluded = [...new Set([
+    ...(input.excludedCapabilities ?? []),
+    ...input.configuredCapabilities.filter((capability) => !availableSet.has(capability)),
+  ])];
+  return { available, excluded };
+}
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
@@ -484,13 +518,13 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
     samples: lane.samples ?? [],
   }));
   const laneHealthGuidance = laneHealth.length
-    ? `PREFLIGHT LANE HEALTH (measured provider-contract diagnostics, not research evidence): ${JSON.stringify(laneHealth)}. Use the observed sample reliability when choosing among available capabilities. The runtime excludes lanes with fewer than two valid samples out of three; never select an excluded capability.`
+    ? `PREFLIGHT LANE HEALTH (measured provider-contract diagnostics, not research evidence): ${JSON.stringify(laneHealth)}. Use the observed sample reliability when choosing among available capabilities. Eligibility has already been computed by the runtime: only capabilities with at least two valid structured-action samples out of three appear in the available list. Never select an excluded or unavailable capability.`
     : "";
   return `${openingCapabilitySelectionOrientation}\n\nYou are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
 You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
 
-Investigator model economy: prefer groq-investigator-20b for routine discovery and action selection because the reduced action contract is designed for this economical model. Choose a 120B Investigator capability only when the objective is unusually complex or high-stakes and the expected reasoning benefit justifies its larger token cost. This is a capability choice, not a research itinerary; the Investigator still decides every research action. Boss strategic control and independent Right-hand review remain on their separate control/review model lanes.
+Investigator model routing: GPT-OSS 120B is the default and preferred execution lane. The 20B capability is not eligible unless explicitly enabled by operator configuration and included in the runtime-provided available list; never choose it merely to reduce cost. This is a capability choice, not a research itinerary; the Investigator still decides every research action. Boss strategic control and independent Right-hand review remain on their separate control/review model lanes.
 
 After this capability assignment, the Investigator owns research execution. No source family, registry, provider, query, geography, target class, or research sequence is required in advance. The Investigator and subsequent Boss/Right-hand control turns choose research directions from the human objective and actual returned observations. Do not add geographic scope or a target preference.
 
@@ -523,12 +557,29 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
     };
   }
 
-  const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  const availableInvestigators = getAvailableInvestigatorCapabilities().filter((capability) => !excluded.has(capability));
-  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
-    ? "No configured Investigator capability remains after explicit Boss-directed exclusion of unavailable lanes."
-    : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
-  const prompt = buildGroqBossDiscoveryPrompt(input, availableInvestigators);
+  const eligibility = resolveBossEligibleInvestigatorCapabilities({
+    configuredCapabilities: getAvailableInvestigatorCapabilities(),
+    excludedCapabilities: input.excludedInvestigatorLlm ?? [],
+    laneHealth: input.investigatorLaneHealth,
+  });
+  const availableInvestigators = eligibility.available;
+  if (!availableInvestigators.length) return {
+    status: "unavailable",
+    model: selection.model,
+    investigatorLlm: null,
+    report: null,
+    candidates: [],
+    citations: [],
+    nextDirections: [],
+    uncertainties: [],
+    error: input.investigatorLaneHealth?.length
+      ? `No configured Investigator capability passed preflight eligibility (requires at least 2 valid structured-action samples out of 3; excluded=${eligibility.excluded.join(",") || "none"}).`
+      : eligibility.excluded.length
+        ? `No configured Investigator capability remains after explicit exclusions (excluded=${eligibility.excluded.join(",")}).`
+        : "No Investigator capability is currently available; refusing an unselected or deterministic substitute.",
+  };
+  const promptInput = { ...input, excludedInvestigatorLlm: eligibility.excluded };
+  const prompt = buildGroqBossDiscoveryPrompt(promptInput, availableInvestigators);
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),

@@ -26,7 +26,8 @@ describe("Groq Boss discovery prompt grounding", () => {
       motivation: "Identify source-backed ownership, assets, and approach paths.",
     }, ["groq-investigator-1"]);
     expect(prompt).toContain("select an available Investigator execution capability");
-    expect(prompt).toContain("prefer groq-investigator-20b for routine discovery");
+    expect(prompt).toContain("GPT-OSS 120B is the default and preferred execution lane");
+    expect(prompt).not.toContain("prefer groq-investigator-20b");
     expect(prompt).toContain("After this capability assignment, the Investigator owns research execution.");
     expect(prompt).toContain("Do not compare sectors, geographies, or strategies.");
     expect(prompt).toContain("Do not add geographic scope or a target preference.");

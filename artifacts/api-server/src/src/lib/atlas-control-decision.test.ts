@@ -14,6 +14,8 @@ import {
   validateAtlasBossControl,
   validateAtlasOpeningBossControl,
   diagnoseAtlasBossControlContract,
+  isAtlasOpeningDirectionOnlyRejection,
+  buildAtlasOpeningDirectionCorrectionPrompt,
   normalizeAtlasRightHandControl,
   normalizeAtlasRightHandControlResponse,
   buildAtlasRightHandControlPrompt,
@@ -69,6 +71,37 @@ function reportWithUnfetchedLead(): string {
     }],
   });
 }
+
+describe("bounded same-Boss opening direction correction", () => {
+  const invalidDirection = "Which individuals appearing in the enabled registries (e.g., Companies House, SEC Edgar, GLEIF, or national business registers) have disclosed personal holdings, board memberships, or executive roles indicating credible wealth potential and relevance as potential investors for the founder's objective?";
+  const validShape = { action: "continue_discovery", candidateName: null, candidateType: null, direction: invalidDirection, reason: null, confidence: 0.8 };
+  it("permits recovery only when direction is the sole semantic opening rejection", () => {
+    expect(isAtlasOpeningDirectionOnlyRejection(JSON.stringify(validShape), validShape)).toBe(true);
+    const invalidReason = { ...validShape, reason: "R".repeat(1_300) };
+    expect(isAtlasOpeningDirectionOnlyRejection(JSON.stringify(invalidReason), invalidReason)).toBe(false);
+    const invalidConfidence = { ...validShape, confidence: 2 };
+    expect(isAtlasOpeningDirectionOnlyRejection(JSON.stringify(invalidConfidence), invalidConfidence)).toBe(false);
+    const extraField = { ...validShape, extra: true };
+    expect(isAtlasOpeningDirectionOnlyRejection(JSON.stringify(extraField), extraField)).toBe(false);
+    const stop = { ...validShape, action: "stop" };
+    expect(isAtlasOpeningDirectionOnlyRejection(JSON.stringify(stop), stop)).toBe(false);
+  });
+  it("asks the same Boss to correct only direction without prescribing research", () => {
+    const prompt = buildAtlasOpeningDirectionCorrectionPrompt({ originalPrompt: "Human objective: discover objective-relevant people and organizations.", originalDecision: validShape, rejectionReason: "Research redirect attempted to prescribe a registry or tool." });
+    expect(prompt).toContain("Correct ONLY the direction field");
+    expect(prompt).toContain("Preserve action, candidateName, candidateType, reason and confidence exactly");
+    expect(prompt).toContain("Investigator must retain autonomy");
+    expect(prompt).toContain("Return exactly one JSON object");
+  });
+  it("retries only a direction-only rejection on the original Boss selection and fails closed on a bad correction", () => {
+    const source = readFileSync(new URL("./atlas-control-decision.ts", import.meta.url), "utf8");
+    expect(source).toContain("generateGroqBossText(selection, correctionPrompt, generationOptions)");
+    expect(source).toContain("corrected.model !== generated.model");
+    expect(source).toContain("correction_changed_fields_other_than_direction");
+    expect(source).toContain("one bounded same-model correction did not pass");
+    expect(source).toContain("isAtlasOpeningDirectionOnlyRejection(generated.raw, parsed)");
+  });
+});
 
 describe("Atlas control-plane lead continuity", () => {
   it("states the exact GLEIF ownership boundary for advisory roles", () => {

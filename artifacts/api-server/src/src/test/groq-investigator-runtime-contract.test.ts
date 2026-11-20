@@ -979,22 +979,25 @@ describe("Groq Investigator runtime contract", () => {
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
-    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2", APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" })).toEqual(["groq-investigator-20b", "groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
     expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
     expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
     expect(investigatorCapabilityKeyName("groq-investigator-20b")).toBe("GROQ_INVESTIGATOR_API_KEY");
   });
 
-  it("exposes the economical 20B capability by default and permits explicit disablement", () => {
+  it("excludes the 20B capability by default and permits explicit operator opt-in", () => {
     const env = { GROQ_INVESTIGATOR_API_KEY: "configured" } as NodeJS.ProcessEnv;
-    expect(getAvailableInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual(["groq-investigator-1"]);
+    const enabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(enabled)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
     const disabled = { ...env, APEX_ENABLE_GROQ_INVESTIGATOR_20B: "false" } as NodeJS.ProcessEnv;
     expect(getAvailableInvestigatorCapabilities(disabled)).toEqual(["groq-investigator-1"]);
   });
 
-  it("keeps the default 20B model lane independently selectable from its shared 120B credential", () => {
-    const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential" } as NodeJS.ProcessEnv;
+  it("keeps the explicitly enabled 20B model lane independently selectable from its shared 120B credential", () => {
+    const env = { GROQ_INVESTIGATOR_API_KEY: "shared-groq-credential", APEX_ENABLE_GROQ_INVESTIGATOR_20B: "true" } as NodeJS.ProcessEnv;
     expect(getAvailableDistinctInvestigatorCapabilities(env)).toEqual(["groq-investigator-20b", "groq-investigator-1"]);
     expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-1"])).toEqual(["groq-investigator-20b"]);
     expect(getAvailableDistinctInvestigatorCapabilities(env, ["groq-investigator-20b"])).toEqual(["groq-investigator-1"]);
