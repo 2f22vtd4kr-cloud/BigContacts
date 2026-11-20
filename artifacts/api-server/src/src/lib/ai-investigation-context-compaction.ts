@@ -20,6 +20,7 @@ export type AiInvestigationContextCompactionInput = {
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
+/** Whole-case historical-memory cap; turn-scoped callers may request smaller limits. */
 const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
 const OBJECTIVE_OMISSION_MARKER = /\[(?:OBJECTIVE|CASE OBJECTIVE)\s+MIDDLE OMITTED\b|\[(?:MIDDLE OF )?OBJECTIVE(?: MIDDLE)? OMITTED\b/i;
