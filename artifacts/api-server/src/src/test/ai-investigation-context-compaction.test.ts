@@ -1068,6 +1068,28 @@ describe("AI investigation context compaction", () => {
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("summary_treats_parse_failure_as_negative_finding");
   });
 
+  it("keeps the whole-case 7,000-character limit consistent through the prompt and validator", async () => {
+    const source = "durable historical memory ".repeat(400);
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "A concise summary of the preserved historical memory." }),
+      error: null,
+      attempts: [],
+    });
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 7_000,
+      jobId: "job-whole-case-limit",
+      caseId: 108,
+      turn: 1,
+    }, "historical_memory");
+    expect(result?.method).toBe("ai_semantic");
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(prompt).toContain("hard limit of 7000 characters");
+    expect(prompt).toContain("Aim at or below 4550 characters");
+  });
+
   it("retries a turn-scoped summary once with the exact validation issue", async () => {
     const sourceUrl = "https://www.forbes.com/lists/midas/";
     const projection = {
@@ -1102,6 +1124,8 @@ describe("AI investigation context compaction", () => {
       turn: 1,
     })).resolves.toBe(corrected);
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "")).toContain("hard limit of 1800 characters");
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "")).toContain("Aim at or below 1170 characters");
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
       .toContain("summary_contains_unproven_fetch_claim");
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls.every((call) =>
