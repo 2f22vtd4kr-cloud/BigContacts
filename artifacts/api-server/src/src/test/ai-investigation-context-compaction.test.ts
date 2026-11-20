@@ -1044,7 +1044,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify(projection),
       "BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",
       "[]",
-      "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(125),
+      "BACKGROUND: " + "The durable memory retains source-stage distinctions and unresolved questions. ".repeat(190),
     ].join("\n");
     const summary = [
       "Web search (serper) returned several URLs, including " + sourceUrl + ".",
@@ -1064,43 +1064,40 @@ describe("AI investigation context compaction", () => {
       "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
       "Open question: which Forbes Midas entries, if any, contain source-backed evidence relevant to the objective?",
     ].join(" ");
+    const secondChunkSummary = "The remaining durable context retains unresolved research questions and follow-up tasks; it adds no separate source-backed ownership, equity, or transaction finding.";
+    const finalSummary = [
+      "Web search (serper) returned several URLs, including " + sourceUrl + ".",
+      "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
+      "No material ownership, equity, or transaction clues were extracted from the retrieved page.",
+      "The earlier parse failure was an operational model-output issue, not a negative finding.",
+      "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
+      "Next step: inspect the Forbes Midas entries and retrieve source-specific profiles.",
+    ].join(" ");
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
-      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] });
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: correctedSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
 
     await expect(summarizeInvestigatorContextWithAiCompactor({
       rawContext: source,
       trustedSourceContext: source,
-      maxChars: 1_800,
+      maxChars: 7_000,
       jobId: "job-durable-recent-actions",
       caseId: 106,
       turn: 1,
-    })).resolves.toBe(correctedSummary);
-    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
-    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "")).toContain("summary_treats_parse_failure_as_negative_finding");
+    })).resolves.toBe(finalSummary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(4);
+    const firstPartialPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const parseFailureRetryPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? "");
+    const finalSynthesisPrompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[3]?.[0] ?? "");
+    expect(firstPartialPrompt).toContain("hard limit of 1600 characters");
+    expect(firstPartialPrompt).toContain("Aim at or below 1040 characters");
+    expect(parseFailureRetryPrompt).toContain("summary_treats_parse_failure_as_negative_finding");
+    expect(finalSynthesisPrompt).toContain("hard limit of 7000 characters");
+    expect(finalSynthesisPrompt).toContain("Aim at or below 4550 characters");
   });
 
-  it("keeps the whole-case 7,000-character limit consistent through the prompt and validator", async () => {
-    const source = "durable historical memory ".repeat(400);
-    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
-      model: "openai/gpt-oss-20b",
-      raw: JSON.stringify({ summary: "A concise summary of the preserved historical memory." }),
-      error: null,
-      attempts: [],
-    });
-    const result = await compactInvestigationContextWithFallback({
-      rawContext: source,
-      trustedSourceContext: source,
-      maxChars: 7_000,
-      jobId: "job-whole-case-limit",
-      caseId: 108,
-      turn: 1,
-    }, "historical_memory");
-    expect(result?.method).toBe("ai_semantic");
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
-    expect(prompt).toContain("hard limit of 7000 characters");
-    expect(prompt).toContain("Aim at or below 4550 characters");
-  });
 
   it("retries a turn-scoped summary once with the exact validation issue", async () => {
     const sourceUrl = "https://www.forbes.com/lists/midas/";
