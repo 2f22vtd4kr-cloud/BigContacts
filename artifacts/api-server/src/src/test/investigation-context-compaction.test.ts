@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "../lib/atlas-launch-defaults";
 import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, buildDeterministicObservationFallback, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
@@ -174,14 +175,13 @@ describe("investigator context compaction", () => {
   });
 
   it("stops the legacy Boss direction at the canonical opening-question boundary", () => {
-    const humanObjective = "Discover lesser-known people with credible wealth potential. "
-      + "The complete objective and exclusions remain authoritative. ".repeat(18);
+    const humanObjective = DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
     const approvedDirection = "Test a source-backed hypothesis about a potentially relevant person or organization. "
       + "Choose the next research action independently. ".repeat(5);
     const openingMetadata = [
       "BOSS-APPROVED OPENING RESEARCH QUESTION: " + approvedDirection,
       "BOSS FINAL OPENING DECISION: autonomous discovery is authorized.",
-      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + "advisory rationale ".repeat(45),
+      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + "advisory rationale ".repeat(120),
       "RIGHT-HAND STATUS (advisory only): review deferred.",
       "OPENING RESEARCH CHOICE: select a useful first action.",
       "No source observations or admitted candidates exist yet.",
