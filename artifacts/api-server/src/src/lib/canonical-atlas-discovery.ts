@@ -27,7 +27,7 @@ import {
 } from "./canonical-investigator-provider-recovery";
 import { isInvestigatorAuthoredResearchEvent, lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
-import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, hasUnexpectedInvestigatorRuntimeFailure, shouldRequireExplicitBossContinueDirection, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
@@ -2106,6 +2106,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
     if (providerContractFailure) throw new Error("investigator_provider_contract_error");
+    // The opening Investigator pass is followed by Boss control outside the
+    // continuation loop below. A wrapper runtime exception must terminate here:
+    // Boss must never be asked to reinterpret prompt assembly/programming failure
+    // as a zero-result research episode. Any earlier source-backed admissions
+    // have already been preserved above.
+    if (hasUnexpectedInvestigatorRuntimeFailure(discovery.trajectoryRecords ?? [])) {
+      const runtimeFailure = [...(discovery.trajectoryRecords ?? [])].reverse()
+        .find((record) => record.action === "runtime_error" && record.execution === "error");
+      const stage = typeof runtimeFailure?.args?.stage === "string" ? runtimeFailure.args.stage : "unknown";
+      failureStage = "investigator_episode";
+      throw new Error(`investigator_runtime_error_before_boss_control stage=${stage}`);
+    }
     // Give one terminal zero-research parse failure a second model-authored
     // episode within the remaining global budget. If the same capability fails
     // again, runDiscoveryWithQuotaRecovery excludes it and asks Boss to select

@@ -130,6 +130,25 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves historical memory verbatim when the compaction provider throws", async () => {
+    const source = "HISTORICAL MEMORY START\\n" + "Source-backed observations, exact URLs and unresolved questions remain durable. ".repeat(260);
+    expect(source.length).toBeGreaterThan(12_000);
+    rightHandMocks.runGroqRightHandFreeJson.mockRejectedValueOnce(new Error("mock compaction transport failure"));
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      maxChars: 900,
+      jobId: "job-thrown-compaction-fallback",
+      caseId: 47,
+      turn: 3,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text.startsWith(source)).toBe(true);
+    expect(result?.text).toContain("Omissions unknown");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("uses bounded hierarchical AI summaries for historical memory well beyond the former 11k window", async () => {
     const source = Array.from({ length: 600 }, (_, index) =>
       `RECORD ${index}: source-backed observation remains durable; unresolved questions stay open.`,

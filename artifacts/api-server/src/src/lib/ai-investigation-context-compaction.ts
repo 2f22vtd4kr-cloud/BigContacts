@@ -874,16 +874,32 @@ export async function compactInvestigationContextWithFallback(
     return { text: source, method: "unchanged" };
   }
 
-  const semantic = await summarizeInvestigatorContextWithAiCompactor({
-    ...input,
-    // A missing caller turn must not silently enter the legacy multi-chunk path.
-    // Treat it as one conservative per-job turn; production callers pass their
-    // actual Investigator/control turn explicitly.
-    turn: Number.isFinite(input.turn) ? input.turn : 0,
-    maxChars,
-    compactionKind: kind,
-    allowRecoveryModel: false,
-  });
+  let semantic: string | null = null;
+  try {
+    semantic = await summarizeInvestigatorContextWithAiCompactor({
+      ...input,
+      // A missing caller turn must not silently enter the legacy multi-chunk path.
+      // Treat it as one conservative per-job turn; production callers pass their
+      // actual Investigator/control turn explicitly.
+      turn: Number.isFinite(input.turn) ? input.turn : 0,
+      maxChars,
+      compactionKind: kind,
+      allowRecoveryModel: false,
+    });
+  } catch (error) {
+    // Provider/transport exceptions are compaction misses, not a reason to
+    // discard an otherwise recoverable Investigator or Right-hand episode.
+    // Historical memory falls back verbatim below; observations use the
+    // deterministic non-semantic projection below.
+    logger.warn({
+      role: "apex_memory_compaction",
+      phase: "semantic_compaction_exception",
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      sourceChars: source.length,
+      errorType: error instanceof Error ? error.name : typeof error,
+    }, "AI context compaction threw; applying the bounded non-AI fallback");
+  }
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
   // A rejected/unavailable summary must not erase working memory or turn a

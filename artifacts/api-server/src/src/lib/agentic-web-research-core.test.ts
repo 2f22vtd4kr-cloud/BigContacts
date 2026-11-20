@@ -536,7 +536,7 @@ describe("recent observation compaction recovery", () => {
     expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
     expect(agenticCoreSource).toContain("nonsemantic_observation_projection");
     expect(agenticCoreSource).not.toContain("deterministic_historical_memory_projection");
-    expect(agenticCoreSource).toContain("Unchanged memory below the AI-compaction threshold remains complete");
+    expect(agenticCoreSource).toContain("Unchanged or verbatim-fallback memory is not a semantic summary");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
     expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
@@ -708,9 +708,13 @@ const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "s
 const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
 
 describe("AI memory-compaction failure attribution", () => {
-  it("classifies Right-hand compaction failures separately from Investigator provider outages", () => {
-    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);');
-    expect(agenticCoreSource).toContain('return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);');
+  it("degrades optional memory and observation compaction failures without treating them as oversight outages", () => {
+    expect(agenticCoreSource).toContain("ai_context_compaction_degraded");
+    expect(agenticCoreSource).toContain("ai_recent_observation_compaction_degraded");
+    expect(agenticCoreSource).toContain("Historical memory was omitted from this model turn");
+    expect(agenticCoreSource).toContain("complete raw observation remains in immutable case events");
+    expect(agenticCoreSource).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
+    expect(agenticCoreSource).not.toContain('return resultBase("unavailable", i, "OVERSIGHT_UNAVAILABLE", message);');
   });
 });
 
@@ -4956,7 +4960,7 @@ describe("prompt composition recovery integrity", () => {
 
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
     const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
-    const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
+    const end = agenticCoreSource.indexOf("// Prefer one bounded AI reduction when historical memory does not fit.", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);

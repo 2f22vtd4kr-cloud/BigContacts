@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyInvestigatorEpisodeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, hasUnexpectedInvestigatorRuntimeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import type { TargetContactAgentResult } from "./target-contact-agent";
 
 describe("canonical Investigator continuation health", () => {
@@ -38,6 +38,21 @@ describe("canonical Investigator continuation health", () => {
         failureKind: "invalid_contract",
       }],
     })).toEqual({ code: "investigator_provider_contract_error" });
+  });
+
+  it("recognizes a durable runtime_error record as an infrastructure failure", () => {
+    expect(hasUnexpectedInvestigatorRuntimeFailure([
+      { action: "runtime_error", execution: "error", failureKind: "unexpected_exception" },
+    ])).toBe(true);
+    // The action/execution pair is authoritative even when an older record
+    // lacks the supplemental failureKind field.
+    expect(hasUnexpectedInvestigatorRuntimeFailure([
+      { action: "runtime_error", execution: "error" },
+    ])).toBe(true);
+    expect(hasUnexpectedInvestigatorRuntimeFailure([
+      { action: "web_search", execution: "error", failureKind: "unexpected_exception" },
+      { action: "runtime_error", execution: "success", failureKind: "unexpected_exception" },
+    ])).toBe(false);
   });
 
   it("fails closed when the pass wrapper reports an unexpected error with no persisted acts", () => {
