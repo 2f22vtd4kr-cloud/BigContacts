@@ -133,15 +133,17 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
     // every later JSON-looking line in the case document. Accept contiguous
     // JSON records immediately after its heading and stop at the next prose or
     // section boundary so observation text cannot forge fetch authority.
+    let startedTrajectoryRecords = false;
     for (const line of lines.slice(durableIndex + 1)) {
       const candidate = line.trim();
       if (!candidate) {
-        if (candidates.length) break;
+        if (startedTrajectoryRecords) break;
         continue;
       }
       if ((candidate.startsWith("{") && candidate.endsWith("}"))
         || (candidate.startsWith("[") && candidate.endsWith("]"))) {
         candidates.push(candidate);
+        startedTrajectoryRecords = true;
         continue;
       }
       break;
