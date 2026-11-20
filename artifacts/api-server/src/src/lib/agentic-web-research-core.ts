@@ -5643,7 +5643,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
+      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; review-only."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
