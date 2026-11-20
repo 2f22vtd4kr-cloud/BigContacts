@@ -747,7 +747,7 @@ describe("discovery provisional review-lead output contract", () => {
       mode: "discovery",
       actionAllowlist,
     });
-    expect(prompt).toContain("On each discovery action, include useful provisional people/organizations in findings[]");
+    expect(prompt).toContain("On each discovery action, include provisional people/organizations in findings[]");
     expect(prompt).toContain("Review-only");
     expect(prompt).toContain("findings[] required keys:");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
@@ -5571,7 +5571,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     });
     expect(prompt).not.toContain("searches[] required keys:");
     expect(prompt).toContain("findings[] required keys:");
-    expect(prompt).toContain("On each discovery action, include useful provisional people/organizations in findings[]");
+    expect(prompt).toContain("On each discovery action, include provisional people/organizations in findings[]");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
