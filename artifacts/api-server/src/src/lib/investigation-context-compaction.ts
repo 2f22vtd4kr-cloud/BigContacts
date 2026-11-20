@@ -376,7 +376,7 @@ export function compactCanonicalDiscoveryContinuationContext(
 function extractEmbeddedBossDirection(raw: string, start: number): string {
   const remainder = raw.slice(start);
   const boundary = remainder.search(
-    /\n(?:BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:|Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue\.)/i,
+    /\n(?:BOSS-APPROVED OPENING RESEARCH QUESTION:|BOSS FINAL OPENING DECISION:|BOSS SOURCE-MIX RATIONALE(?: \([^)]*\))?:|RIGHT-HAND STATUS(?: \([^)]*\))?:|OPENING RESEARCH CHOICE:|No source observations or admitted candidates exist yet\.|Do not compare sectors or geographies,|Only actual same-run Investigator tool observations|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:|Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue\.)/i,
   );
   return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
 }

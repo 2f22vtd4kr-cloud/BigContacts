@@ -429,6 +429,8 @@ export const ATLAS_BOSS_CONTROL_RESPONSE_FORMAT = {
 } as const;
 
 /** Opening Boss may only start discovery with a concrete research question, or stop; no target/tool is selected. */
+export const ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS = 1_024;
+
 export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
   type: "text",
   mime_type: "application/json",
@@ -439,7 +441,7 @@ export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
       candidateName: { type: "null" },
       candidateType: { type: "null" },
       direction: { type: ["string", "null"], minLength: 24, maxLength: 1_200 },
-      reason: { type: "string" },
+      reason: { type: "string", minLength: 1, maxLength: 800 },
       confidence: { type: "number" },
     },
     required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"],
@@ -1120,7 +1122,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // Right-hand remains advisory; Boss owns every control decision.
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: input.opening ? 384 : 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
+  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: input.opening ? ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS : 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
       const failure = formatAtlasBossGenerationFailure(generated);

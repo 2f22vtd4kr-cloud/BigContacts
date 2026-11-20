@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "../lib/atlas-launch-defaults";
 import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, buildDeterministicObservationFallback, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
@@ -171,6 +172,42 @@ describe("investigator context compaction", () => {
       .toThrow("objective-omission marker");
     expect(() => buildBoundedInvestigatorObjective({ base: incompleteObjective, maxChars: 8_000 }))
       .toThrow("objective-omission marker");
+  });
+
+  it("stops the legacy Boss direction at the canonical opening-question boundary", () => {
+    const humanObjective = DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
+    const approvedDirection = "Test a source-backed hypothesis about a potentially relevant person or organization. "
+      + "Choose the next research action independently. ".repeat(5);
+    const openingMetadata = [
+      "BOSS-APPROVED OPENING RESEARCH QUESTION: " + approvedDirection,
+      "BOSS FINAL OPENING DECISION: autonomous discovery is authorized.",
+      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + "advisory rationale ".repeat(120),
+      "RIGHT-HAND STATUS (advisory only): review deferred.",
+      "OPENING RESEARCH CHOICE: select a useful first action.",
+      "No source observations or admitted candidates exist yet.",
+      "Do not compare sectors or geographies, broaden or invent jurisdiction.",
+      "Only actual same-run Investigator tool observations may establish findings.",
+    ].join("\n");
+    const legacyComposite = [
+      "PRIMARY CASE OBJECTIVE:",
+      humanObjective,
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      approvedDirection,
+      openingMetadata,
+    ].join("\n");
+
+    const bounded = buildBoundedInvestigatorObjective({
+      base: legacyComposite,
+      maxChars: 4_000,
+    });
+
+    expect(bounded.length).toBeLessThanOrEqual(4_000);
+    expect(bounded).toContain(humanObjective.trim());
+    expect(bounded).toContain(approvedDirection.trim());
+    expect(bounded).not.toContain("BOSS-APPROVED OPENING RESEARCH QUESTION:");
+    expect(bounded).not.toContain("BOSS SOURCE-MIX RATIONALE");
+    expect(bounded).not.toContain("RIGHT-HAND STATUS");
+    expect(bounded).not.toContain("OPENING RESEARCH CHOICE:");
   });
 
   it("preserves the complete primary objective and Boss direction without middle omission", () => {

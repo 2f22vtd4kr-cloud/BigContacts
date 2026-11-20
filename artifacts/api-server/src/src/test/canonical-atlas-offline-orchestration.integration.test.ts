@@ -8,6 +8,7 @@ import express from "express";
 import { desc, eq } from "drizzle-orm";
 import { resetGroqRateLimitSnapshotsForTests } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE } from "../lib/atlas-launch-defaults";
 
 const mocks = vi.hoisted(() => ({
   jobStatus: "running" as string,
@@ -339,7 +340,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       else if (call === 1) { action = "research_candidate"; candidateName = firstName; candidateType = "person"; }
       else if (mocks.scenario === "operator-cap") { action = "research_candidate"; candidateName = secondName; candidateType = "person"; }
       else action = "stop";
-      const direction = action === "continue_discovery" ? "Establish the first source-backed relationship that would verify the human objective." : null;
+      const direction = action === "continue_discovery" ? "Test whether public business disclosures can identify a person whose documented role and business interests may be relevant to credible wealth potential; verify any candidate from fetched source material." : null;
       return { model: "mock-groq-boss", raw: JSON.stringify({ action, candidateName, candidateType, direction, reason: "Mock provider response: Boss makes the control decision.", confidence: 0.9 }), error: null, attempts: [] };
     });
 
@@ -397,7 +398,6 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       targetCount: 1,
       researchDepth: "standard",
       targetTimeoutMs: 60_000,
-      discoveryObjective: "Verify the current leadership of Apex Offline Holdings and the exact professional roles of the named people using fetched public sources.",
     });
     const [jobUpdate] = mocks.jobUpdates.filter((entry) => entry.status === "done" || entry.status === "failed").slice(-1);
     const cases = await db.select().from(tables.researchCasesTable)
@@ -434,6 +434,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   it("executes multi-turn discovery, target Investigator act, independent oversight, and terminal gating through the canonical pipeline", async () => {
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
+    expect(outcome.ownedCase.objective).toBe(DEFAULT_ATLAS_DISCOVERY_OBJECTIVE);
     const investigatorCalls = mocks.outboundUrls.filter((url) => url.endsWith("/chat/completions")).length;
     expect(investigatorCalls).toBe(4);
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
