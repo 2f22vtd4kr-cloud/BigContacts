@@ -930,7 +930,8 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(twentyBUser).toContain("On each discovery action, include useful provisional people/organizations in findings[]");
+    expect(twentyBUser).toContain("On each discovery action, include provisional people/organizations in findings[]");
+    expect(twentyBUser).toContain("sourceUrls");
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
