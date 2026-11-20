@@ -441,7 +441,7 @@ export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
       candidateName: { type: "null" },
       candidateType: { type: "null" },
       direction: { type: ["string", "null"], minLength: 24, maxLength: 1_200 },
-      reason: { type: "string" },
+      reason: { type: "string", minLength: 1, maxLength: 800 },
       confidence: { type: "number" },
     },
     required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"],
