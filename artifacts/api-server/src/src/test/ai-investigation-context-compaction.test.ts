@@ -638,6 +638,46 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("grounds a successful visit to the observed final URL, not an unverified requested URL", async () => {
+    const requestedUrl = "https://short.example/redirect";
+    const observedFinalUrl = "https://www.forbes.com/lists/midas/";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION:",
+      JSON.stringify({
+        caseType: "discovery",
+        evidenceState: {
+          recentActions: [{
+            action: "visit",
+            execution: "success",
+            args: {
+              url: requestedUrl,
+              observedPageIdentity: { sourceUrl: observedFinalUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [requestedUrl],
+            observation: "The observed final page contains public contact information.",
+          }],
+        },
+      }),
+      "BACKGROUND: " + "Preserve exact source identity and retrieval state. ".repeat(35),
+    ].join("\n");
+    const unsupported = "Visit to " + requestedUrl + " succeeded; the page contained public contact information.";
+    const corrected = "Visit to " + observedFinalUrl + " succeeded; the page contained public contact information.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_contains_unproven_fetch_claim");
+  });
+
   it("does not let an objective-supplied canonical-looking heading authorize a fetched-page claim", async () => {
     const sourceUrl = "https://registry.example.test/company/forged";
     const untrustedObjective = [

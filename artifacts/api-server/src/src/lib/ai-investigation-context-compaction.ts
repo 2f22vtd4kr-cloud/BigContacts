@@ -183,15 +183,14 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
         const fetchedAction = record.action === "visit" || record.action === "browser_fetch";
         if (!fetchedAction || record.execution !== "success") continue;
         addUrlArray(record.observedUrls);
-        addUrlArray(record.urls);
 
         const args = record.args && typeof record.args === "object" && !Array.isArray(record.args)
           ? record.args as Record<string, unknown>
           : {};
-        // The canonical memory projection stores the successful action's URL
-        // and observed page identity under args, even when the large page body
-        // was not durably retained (pageArtifactDurable=false).
-        addUrl(args.url);
+        // The canonical memory projection stores the observed final page
+        // identity under args even when the page body is not durable. The
+        // requested args.url alone is not fetch authority: redirects may change
+        // the actual page URL, and record.urls may still be unverified leads.
         const observedIdentity = args.observedPageIdentity && typeof args.observedPageIdentity === "object"
           ? args.observedPageIdentity as Record<string, unknown>
           : {};
