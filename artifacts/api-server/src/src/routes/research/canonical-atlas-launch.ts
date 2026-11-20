@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { db, researchCasesTable } from "@workspace/db";
-import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
+import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob, updateTerminalJobAudit } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -15,6 +15,8 @@ import { withProviderScope } from "../../lib/provider-gate";
 import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
 import { reconcileOrganizationReviewCardsForJob, reconcilePersonReviewCardsForJob } from "../../lib/research-lead-card-reconciliation";
 import { logger } from "../../lib/logger";
+import { resolveModelAuditAttachmentForJob } from "../../lib/model-prompt-audit";
+import { getAgenticLlmTelemetryForJob } from "../../lib/agentic-llm-telemetry";
 
 const router = Router();
 
@@ -223,7 +225,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
         // Preflight is job work, not synchronous HTTP launch work. The API can
         // return 202 with a durable job ID before any provider probe begins.
-        const investigatorProbe = await probeGroqInvestigatorCapabilities();
+        const investigatorProbe = await probeGroqInvestigatorCapabilities(undefined, atlasJobId);
         const preflightReport = {
           buildProvenance,
           status: investigatorProbe.ok ? "passed" : "failed",
@@ -245,7 +247,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
           throw new Error(`No Investigator capability passed provider preflight (excluded=${investigatorProbe.excludedCapabilities.join(",") || "none"}; reason=${investigatorProbe.error ?? "provider_contract_error"}).`);
         }
         if (singleTargetId) {
-          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities });
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs, excludedInvestigatorLlm: investigatorProbe.excludedCapabilities, investigatorLaneHealth: investigatorProbe.sampleSummary });
         } else {
           await runCanonicalAtlasPipeline(atlasJobId!, {
             targetCount,
@@ -254,6 +256,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
             excludedInvestigatorLlm: investigatorProbe.excludedCapabilities,
+            investigatorLaneHealth: investigatorProbe.sampleSummary,
           });
         }
       });
@@ -286,22 +289,232 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         finishedAt: new Date().toISOString(),
       });
     } finally {
+      let reconciliationAuthorityVerified = false;
       try {
-        await reconcileOrganizationReviewCardsForJob(atlasJobId);
-      } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only organization card reconciliation deferred; durable research trace remains available.");
-      }
-      try {
-        await reconcilePersonReviewCardsForJob(atlasJobId);
-      } catch (error) {
-        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-          "Review-only person card reconciliation deferred; durable research trace remains available.");
-      }
-      try {
-        await releaseCanonicalJob("atlas-run", atlasJobId);
+        const reconciliationJob = await getJobStrict(atlasJobId);
+        reconciliationAuthorityVerified = Boolean(reconciliationJob?.type === "atlas-run"
+          && reconciliationJob.cancelRequested !== true
+          && (reconciliationJob.status === "done" || reconciliationJob.status === "failed"));
       } catch {
-        // Keep the durable TTL lease when release is unavailable; never delete another owner's lock.
+        reconciliationAuthorityVerified = false;
+      }
+      let organizationReconciliation: { status: "succeeded" | "skipped" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = {
+        status: reconciliationAuthorityVerified ? "failed" : "skipped", cards: 0, evidenceRows: 0,
+      };
+      let personReconciliation: { status: "succeeded" | "skipped" | "failed"; cards: number; evidenceRows: number; errorDigest?: string } = {
+        status: reconciliationAuthorityVerified ? "failed" : "skipped", cards: 0, evidenceRows: 0,
+      };
+      if (reconciliationAuthorityVerified) try {
+        organizationReconciliation = { status: "succeeded", ...(await reconcileOrganizationReviewCardsForJob(atlasJobId)) };
+      } catch (error) {
+        organizationReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
+        logger.warn({ jobId: atlasJobId, errorDigest: organizationReconciliation.errorDigest }, "Review-only organization card reconciliation failed; durable research trace remains available.");
+      }
+      if (reconciliationAuthorityVerified) try {
+        personReconciliation = { status: "succeeded", ...(await reconcilePersonReviewCardsForJob(atlasJobId)) };
+      } catch (error) {
+        personReconciliation.errorDigest = describeThrownProviderError(error).messageDigest ?? "unknown";
+        logger.warn({ jobId: atlasJobId, errorDigest: personReconciliation.errorDigest }, "Review-only person card reconciliation failed; durable research trace remains available.");
+      }
+
+      let releaseCallReturned: boolean | null = null;
+      let lockReleased: boolean | null = null;
+      try {
+        releaseCallReturned = await releaseCanonicalJob("atlas-run", atlasJobId);
+        lockReleased = (await getActiveJobStrict("atlas-run")) !== atlasJobId;
+      } catch (error) {
+        logger.warn({ jobId: atlasJobId, errorDigest: describeThrownProviderError(error).messageDigest ?? "unknown" }, "Canonical Atlas lock release could not be verified; the durable TTL lease is preserved.");
+      }
+
+      try {
+        let terminalJob = await getJobStrict(atlasJobId);
+        const terminalCases = await db.select({ id: researchCasesTable.id, iteration: researchCasesTable.iteration })
+          .from(researchCasesTable).where(or(
+            sql`${researchCasesTable.caseFile}::jsonb ->> ${"atlasJobId"} = ${atlasJobId}`,
+            sql`${researchCasesTable.caseFile}::jsonb ->> ${"jobId"} = ${atlasJobId}`,
+          ));
+        const [traceCount] = terminalCases.length
+          ? await db.select({ count: sql<number>`count(*)::int`.as("count") }).from(researchCaseEventsTable).where(and(
+              inArray(researchCaseEventsTable.caseId, terminalCases.map((researchCase) => researchCase.id)),
+              or(
+                sql`${researchCaseEventsTable.payload}::jsonb ->> ${"jobId"} = ${atlasJobId}`,
+                sql`${researchCaseEventsTable.payload}::jsonb ->> ${"atlasJobId"} = ${atlasJobId}`,
+              ),
+            ))
+          : [{ count: 0 }];
+        const cardMetadataRows = await db.select({ metadata: entitiesTable.metadata }).from(entitiesTable)
+          .where(or(
+            sql`${entitiesTable.metadata} LIKE ${"%" + atlasJobId + "%"}`,
+            ...terminalCases.map((researchCase) => sql`${entitiesTable.metadata} LIKE ${"%" + String(researchCase.id) + "%"}`),
+          ));
+        const evidenceMetadataRows = await db.select({ metadata: researchEvidenceTable.metadata }).from(researchEvidenceTable)
+          .where(or(
+            sql`${researchEvidenceTable.metadata} LIKE ${"%" + atlasJobId + "%"}`,
+            ...terminalCases.map((researchCase) => sql`${researchEvidenceTable.metadata} LIKE ${"%" + String(researchCase.id) + "%"}`),
+          ));
+        const terminalCaseIds = new Set(terminalCases.map((researchCase) => researchCase.id));
+        const parseMetadata = (value: unknown): Record<string, unknown> | null => {
+          if (typeof value !== "string") return null;
+          try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
+        };
+        const metadataBelongsToJob = (value: unknown): boolean => parseMetadata(value)?.atlasJobId === atlasJobId;
+        const metadataBelongsToJobOrCase = (value: unknown): boolean => {
+          const parsed = parseMetadata(value);
+          return parsed?.atlasJobId === atlasJobId || terminalCaseIds.has(Number(parsed?.discoveryCaseId));
+        };
+        const persistedCardCountByJobReadBack = cardMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const persistedEvidenceCountByJobReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJob(row.metadata)).length;
+        const persistedCardCountReadBack = cardMetadataRows.filter((row) => metadataBelongsToJobOrCase(row.metadata)).length;
+        const persistedEvidenceCountReadBack = evidenceMetadataRows.filter((row) => metadataBelongsToJobOrCase(row.metadata)).length;
+        const findingEventRows = terminalCases.length ? await db.select({
+          actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload,
+        }).from(researchCaseEventsTable).where(and(
+          inArray(researchCaseEventsTable.caseId, terminalCases.map((researchCase) => researchCase.id)),
+          eq(researchCaseEventsTable.actorRole, "head_investigator"),
+          inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"]),
+          or(
+            sql`${researchCaseEventsTable.payload}::jsonb ->> ${"jobId"} = ${atlasJobId}`,
+            sql`${researchCaseEventsTable.payload}::jsonb ->> ${"atlasJobId"} = ${atlasJobId}`,
+          ),
+        )) : [];
+        const sourceBackedFindingKeys = new Set<string>();
+        const verifiedSourceObservations = new Map<string, string[]>();
+        const candidateFindings: Record<string, unknown>[] = [];
+        const normalizeEvidenceUrl = (raw: string): string => {
+          try { const url = new URL(raw); url.hash = ""; return url.href.replace(/\/$/, ""); } catch { return raw.trim(); }
+        };
+        const normalizeEvidenceText = (raw: string): string => raw.replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
+        for (const row of findingEventRows) {
+          if (typeof row.payload !== "string") continue;
+          let payload: Record<string, unknown>;
+          try { payload = JSON.parse(row.payload) as Record<string, unknown>; } catch { continue; }
+          if ((payload.action === "visit" || payload.action === "browser_fetch") && payload.execution === "success"
+            && typeof payload.observation === "string" && Array.isArray(payload.observedUrls)) {
+            for (const rawUrl of payload.observedUrls) {
+              if (typeof rawUrl !== "string" || !/^https?:\/\//i.test(rawUrl)) continue;
+              const key = normalizeEvidenceUrl(rawUrl);
+              const observations = verifiedSourceObservations.get(key) ?? [];
+              observations.push(payload.observation);
+              verifiedSourceObservations.set(key, observations);
+            }
+          }
+          if (Array.isArray(payload.findings)) for (const rawFinding of payload.findings) {
+            if (rawFinding && typeof rawFinding === "object" && !Array.isArray(rawFinding)) candidateFindings.push(rawFinding as Record<string, unknown>);
+          }
+        }
+        for (const finding of candidateFindings) {
+          const scope = finding.scope === "candidate" || finding.scope === "organization" ? String(finding.scope) : "";
+          const name = typeof finding.personName === "string" && finding.personName.trim() ? finding.personName.trim() : typeof finding.value === "string" ? finding.value.trim() : "";
+          const quote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
+          const urls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)) : [];
+          if (!scope || !name || !quote || !urls.length || finding.promotionDecision === "reject") continue;
+          const normalizedName = normalizeEvidenceText(name);
+          const normalizedQuote = normalizeEvidenceText(quote);
+          const verifiedSourceUrl = urls.find((url) => {
+            // A single fetched page may be exposed to the model in several retained
+            // continuation sections. Verify the name and exact quotation against
+            // the complete set of successful observations for that same URL.
+            const normalizedObservation = normalizeEvidenceText(
+              (verifiedSourceObservations.get(normalizeEvidenceUrl(url)) ?? []).join("\n"),
+            );
+            return normalizedObservation.includes(normalizedQuote) && normalizedObservation.includes(normalizedName);
+          });
+          if (!verifiedSourceUrl) continue;
+          sourceBackedFindingKeys.add(scope + ":" + normalizedName + ":" + normalizedQuote + ":" + normalizeEvidenceUrl(verifiedSourceUrl));
+        }
+        const sourceBackedNamedFindingCountReadBack = sourceBackedFindingKeys.size;
+        const expectedNewCardCount = organizationReconciliation.cards + personReconciliation.cards;
+        const expectedNewEvidenceRowCount = organizationReconciliation.evidenceRows + personReconciliation.evidenceRows;
+        const modelAuditAttachment = resolveModelAuditAttachmentForJob(atlasJobId);
+        const llmTelemetry = getAgenticLlmTelemetryForJob(atlasJobId);
+        const isDiscoveryRun = !singleTargetId;
+        const terminalStatusVerified = Boolean(terminalJob?.type === "atlas-run" && terminalJob.finishedAt
+          && (terminalJob.status === "done" || terminalJob.status === "failed"));
+        const pipelineOutcomeVerified = terminalJob?.status === "done" && terminalJob.outcome === "complete";
+        const reconciliationVerified = !isDiscoveryRun || (reconciliationAuthorityVerified && organizationReconciliation.status === "succeeded" && personReconciliation.status === "succeeded");
+        const persistedCountsVerified = !isDiscoveryRun || (persistedCardCountReadBack >= expectedNewCardCount && persistedEvidenceCountReadBack >= expectedNewEvidenceRowCount);
+        const sourceEvidenceVerified = !isDiscoveryRun || (sourceBackedNamedFindingCountReadBack > 0 && persistedCardCountReadBack > 0 && persistedEvidenceCountReadBack > 0);
+        const traceAttachmentVerified = Boolean(modelAuditAttachment && modelAuditAttachment.bytes > 0 && modelAuditAttachment.complete && modelAuditAttachment.requestCount > 0);
+        const durableTraceVerified = Number(traceCount?.count ?? 0) > 0;
+        const lockReleaseVerified = lockReleased === true;
+        const checks = { terminalStatusVerified, pipelineOutcomeVerified, reconciliationVerified, persistedCountsVerified, sourceEvidenceVerified, traceAttachmentVerified, durableTraceVerified, lockReleaseVerified };
+        const reasons = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
+        let terminalChecksPassed = Object.values(checks).every(Boolean);
+        if (!terminalStatusVerified) {
+          const message = "Canonical Atlas did not persist a verifiable terminal job state before reconciliation.";
+          if (terminalJob && ["done", "failed", "cancelled"].includes(terminalJob.status)) {
+            const updated = await updateTerminalJobAudit(atlasJobId, terminalJob.status, {
+              outcome: "incomplete", message, finishedAt: terminalJob.finishedAt ?? new Date().toISOString(),
+            });
+            if (!updated) throw new Error("Terminal job state could not be safely annotated with the missing final timestamp.");
+          } else {
+            await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+          }
+        } else if (!terminalChecksPassed && terminalJob && ["done", "failed", "cancelled"].includes(terminalJob.status)
+          && terminalJob.outcome === "complete") {
+          const updated = await updateTerminalJobAudit(atlasJobId, terminalJob.status, {
+            outcome: "incomplete",
+            message: "Canonical Atlas ended, but terminal verification is incomplete: " + reasons.join(", ") + ". The job is not launch-ready.",
+          });
+          if (!updated) throw new Error("Terminal job outcome could not be safely downgraded after failed read-back verification.");
+        }
+        terminalJob = await getJobStrict(atlasJobId);
+        const finalChecks = {
+          ...checks,
+          terminalStatusVerified: Boolean(terminalJob?.type === "atlas-run" && terminalJob.finishedAt && (terminalJob.status === "done" || terminalJob.status === "failed")),
+          pipelineOutcomeVerified: terminalJob?.status === "done" && terminalJob.outcome === "complete",
+        };
+        terminalChecksPassed = Object.values(finalChecks).every(Boolean);
+        const terminalAudit = {
+          jobId: atlasJobId, terminalJobStatus: terminalJob?.status ?? "unknown", pipelineOutcome: terminalJob?.outcome ?? "unknown",
+          buildProvenance, sourceRevision: buildProvenance.commitSha, reconciliationAuthorityVerified,
+          organizationReconciliation, personReconciliation, expectedNewCardCount, expectedNewEvidenceRowCount,
+          persistedCardCountReadBack, persistedEvidenceCountReadBack, persistedCardCountByJobReadBack, persistedEvidenceCountByJobReadBack, sourceBackedNamedFindingCountReadBack,
+          durableTraceEventCountReadBack: Number(traceCount?.count ?? 0), modelAuditAttachment, llmTelemetry,
+          lockReleaseCallReturned: releaseCallReturned, lockReleasedReadBack: lockReleased,
+          terminalChecks: finalChecks, terminalChecksPassed, recordedAt: String(terminalJob?.finishedAt ?? new Date().toISOString()),
+        };
+        if (!terminalCases.length) throw new Error("No job-bound durable case was available for the terminal audit.");
+        for (const researchCase of terminalCases) {
+          const [latestEvent] = await db.select({ iteration: sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration") })
+            .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, researchCase.id));
+          const correlationKey: string = atlasJobId + ":terminal-reconciliation:" + (terminalChecksPassed ? "verified" : "incomplete");
+          const [inserted] = await db.insert(researchCaseEventsTable).values({
+            caseId: researchCase.id, iteration: Number(latestEvent?.iteration ?? researchCase.iteration ?? 0) + 1,
+            actorRole: "system", eventType: "status", status: "recorded",
+            summary: "Canonical Atlas terminal reconciliation audit with source, count, trace, and lock read-back.",
+            correlationKey, payload: JSON.stringify(terminalAudit),
+          }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+          if (!inserted?.id) {
+            const [existing] = await db.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
+              .from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, researchCase.id), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+            if (!existing?.id || typeof existing.payload !== "string") throw new Error("Terminal audit replay could not be read back.");
+            const existingAudit = JSON.parse(existing.payload) as Record<string, unknown>;
+            if (existingAudit.jobId !== atlasJobId || existingAudit.terminalChecksPassed !== terminalAudit.terminalChecksPassed
+              || existingAudit.terminalJobStatus !== terminalAudit.terminalJobStatus
+              || existingAudit.pipelineOutcome !== terminalAudit.pipelineOutcome
+              || existingAudit.lockReleasedReadBack !== terminalAudit.lockReleasedReadBack) throw new Error("Terminal audit replay did not match the current durable verification state.");
+          }
+          const readBackRows = await db.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
+            .from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, researchCase.id), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+          const readBack: { id: number; payload: string | null } | undefined = readBackRows[0];
+          if (!readBack?.id || typeof readBack.payload !== "string" || (JSON.parse(readBack.payload) as Record<string, unknown>).jobId !== atlasJobId) throw new Error("Terminal audit event did not pass durable read-back verification.");
+        }
+        logger.info({ jobId: atlasJobId, terminalAudit }, "Canonical Atlas terminal reconciliation audit persisted and read back.");
+      } catch (error) {
+        logger.error({ jobId: atlasJobId, errorDigest: describeThrownProviderError(error).messageDigest ?? "unknown" }, "Canonical Atlas terminal reconciliation audit could not be persisted and verified.");
+        const currentJob = await getJobStrict(atlasJobId).catch(() => null);
+        if (currentJob && ["done", "failed", "cancelled"].includes(currentJob.status)) {
+          await updateTerminalJobAudit(atlasJobId, currentJob.status, {
+            outcome: "incomplete", message: "Canonical Atlas terminal audit persistence/read-back failed; the job is not launch-ready.",
+          }).catch(() => false);
+        } else {
+          await updateJob(atlasJobId, {
+            status: "failed", outcome: "incomplete",
+            message: "Canonical Atlas terminal audit persistence/read-back failed; the job is not launch-ready.",
+            finishedAt: new Date().toISOString(),
+          }).catch(() => undefined);
+        }
       }
     }
   })();

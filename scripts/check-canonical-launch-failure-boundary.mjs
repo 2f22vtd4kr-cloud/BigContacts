@@ -11,8 +11,8 @@ const outerBoundary = outerTryStart >= 0 && outerCatchStart > outerTryStart ? so
 pass("canonical launch has an outer failure boundary", outerTryStart >= 0 && outerCatchStart > outerTryStart);
 pass("Redis initialization is inside the boundary", outerBoundary.includes("await enablePermanentRedis();"));
 pass("job creation is inside the boundary", /await createJob\("atlas-run"\)/.test(source));
-pass("Investigator provider preflight runs inside accepted background job work", /void \(async \(\) => \{[\s\S]*?await withProviderScope\([\s\S]*?await probeGroqInvestigatorCapabilities\(\)/.test(source) && source.indexOf("await probeGroqInvestigatorCapabilities()") > source.indexOf('await createJob("atlas-run")'));
-pass("launch returns an accepted job while preflight runs in its detached worker", /void \(async \(\) => \{[\s\S]*?await probeGroqInvestigatorCapabilities\(\)/.test(source) && /res\.status\(202\)\.json/.test(source));
+pass("Investigator provider preflight runs inside accepted background job work", /void \(async \(\) => \{[\s\S]*?await withProviderScope\([\s\S]*?await probeGroqInvestigatorCapabilities\([^)]*\)/.test(source) && source.indexOf("await probeGroqInvestigatorCapabilities(") > source.indexOf('await createJob("atlas-run")'));
+pass("launch returns an accepted job while preflight runs in its detached worker", /void \(async \(\) => \{[\s\S]*?await probeGroqInvestigatorCapabilities\([^)]*\)/.test(source) && /res\.status\(202\)\.json/.test(source));
 pass("preflight permits healthy lanes and fails research only when no capability passes", source.includes("if (!investigatorProbe.ok)") && source.includes("excludedCapabilities") && !source.includes("INVESTIGATOR_PROVIDER_CONTRACT_PREFLIGHT_FAILED"));
 pass("canonical lock claim is inside the boundary", /await claimCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,800}updateJob\(atlasJobId, \{[\s\S]{0,100}status: "failed"/.test(source));

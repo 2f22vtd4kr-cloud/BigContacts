@@ -1,19 +1,35 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import { existsSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import express from "express";
 import { desc, eq } from "drizzle-orm";
 import { resetGroqRateLimitSnapshotsForTests } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 const mocks = vi.hoisted(() => ({
   jobStatus: "running" as string,
+  jobState: {} as Record<string, unknown>,
+  jobId: "" as string,
+  activeJobId: null as string | null,
   jobUpdates: [] as Array<Record<string, unknown>>,
   scenario: "model-stops" as "model-stops" | "operator-cap",
   targetCalls: [] as number[],
   controlCalls: 0,
   generateGroqBossText: vi.fn(),
   getJobStrict: vi.fn(),
+  getActiveJobStrict: vi.fn(),
+  createJob: vi.fn(),
   updateJob: vi.fn(),
+  updateTerminalJobAudit: vi.fn(),
   clearActiveJobIfOwned: vi.fn(),
+  claimCanonicalJob: vi.fn(),
+  releaseCanonicalJob: vi.fn(),
+  fenceStaleCanonicalJob: vi.fn(),
+  enablePermanentRedis: vi.fn(),
+  probeGroqInvestigatorCapabilities: vi.fn(),
   runGroqBossDiscovery: vi.fn(),
   runGroqRightHandFreeJson: vi.fn(),
   safeOutboundFetch: vi.fn(),
@@ -27,17 +43,34 @@ vi.mock("../lib/job-queue", async () => {
   return {
     ...actual,
     getJobStrict: mocks.getJobStrict,
+    getActiveJobStrict: mocks.getActiveJobStrict,
+    createJob: mocks.createJob,
     updateJob: mocks.updateJob,
+    updateTerminalJobAudit: mocks.updateTerminalJobAudit,
     clearActiveJobIfOwned: mocks.clearActiveJobIfOwned,
   };
 });
 vi.mock("../lib/canonical-job-lock", async () => {
   const actual = await vi.importActual<typeof import("../lib/canonical-job-lock")>("../lib/canonical-job-lock");
-  return { ...actual, isCanonicalJobOwner: vi.fn(async () => true) };
+  return {
+    ...actual,
+    isCanonicalJobOwner: vi.fn(async () => true),
+    claimCanonicalJob: mocks.claimCanonicalJob,
+    releaseCanonicalJob: mocks.releaseCanonicalJob,
+    fenceStaleCanonicalJob: mocks.fenceStaleCanonicalJob,
+  };
 });
 vi.mock("../lib/redis", async () => {
   const actual = await vi.importActual<typeof import("../lib/redis")>("../lib/redis");
-  return { ...actual, delCachePattern: vi.fn(async () => undefined) };
+  return {
+    ...actual,
+    delCachePattern: vi.fn(async () => undefined),
+    enablePermanentRedis: mocks.enablePermanentRedis,
+  };
+});
+vi.mock("../lib/agentic-web-research-core", async () => {
+  const actual = await vi.importActual<typeof import("../lib/agentic-web-research-core")>("../lib/agentic-web-research-core");
+  return { ...actual, probeGroqInvestigatorCapabilities: mocks.probeGroqInvestigatorCapabilities };
 });
 vi.mock("../lib/case-bureau", async () => {
   const actual = await vi.importActual<typeof import("../lib/case-bureau")>("../lib/case-bureau");
@@ -90,6 +123,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
   const sourceUrl = `https://www.sec.gov/Archives/edgar/data/0000320193/offline-${runToken}`;
   const firstName = `Jane Offline ${runToken.slice(0, 8)}`;
   const secondName = `John Offline ${runToken.slice(0, 8)}`;
+  const middleName = `Alex Middle ${runToken.slice(0, 8)}`;
+  const directorName = `Morgan Late ${runToken.slice(0, 8)}`;
+  const distinctiveTailQuote = `FINAL PAGE QUOTATION: The board appointed ${directorName} as Managing Director effective 18 November 2026.`;
 
   beforeAll(async () => {
     const dbModule = await import("@workspace/db");
@@ -111,6 +147,9 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
   beforeEach(() => {
     mocks.jobStatus = "running";
+    mocks.jobState = { status: "running" };
+    mocks.jobId = `offline-route-${runToken}`;
+    mocks.activeJobId = null;
     mocks.jobUpdates.length = 0;
     mocks.targetCalls.length = 0;
     mocks.controlCalls = 0;
@@ -122,14 +161,45 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
 
     mocks.getJobStrict.mockImplementation(async (jobId: string) => ({
       id: jobId,
+      jobId,
+      type: "atlas-run",
       status: mocks.jobStatus,
       errors: 0,
-      result: null,
+      result: mocks.jobState.result ?? null,
+      outcome: mocks.jobState.outcome,
+      finishedAt: mocks.jobState.finishedAt,
+      cancelRequested: false,
     }));
+    mocks.getActiveJobStrict.mockImplementation(async () => mocks.activeJobId);
+    mocks.createJob.mockImplementation(async () => mocks.jobId);
     mocks.updateJob.mockImplementation(async (_jobId: string, patch: Record<string, unknown>) => {
       mocks.jobUpdates.push(patch);
+      mocks.jobState = { ...mocks.jobState, ...patch };
       if (typeof patch.status === "string") mocks.jobStatus = patch.status;
       return true;
+    });
+    mocks.updateTerminalJobAudit.mockImplementation(async (_jobId: string, status: string, patch: Record<string, unknown>) => {
+      if (mocks.jobStatus !== status) return false;
+      mocks.jobState = { ...mocks.jobState, ...patch };
+      return true;
+    });
+    mocks.claimCanonicalJob.mockImplementation(async (_type: string, jobId: string) => {
+      mocks.activeJobId = jobId;
+      return true;
+    });
+    mocks.releaseCanonicalJob.mockImplementation(async (_type: string, jobId: string) => {
+      if (mocks.activeJobId !== jobId) return false;
+      mocks.activeJobId = null;
+      return true;
+    });
+    mocks.fenceStaleCanonicalJob.mockResolvedValue("missing");
+    mocks.enablePermanentRedis.mockResolvedValue(undefined);
+    mocks.probeGroqInvestigatorCapabilities.mockResolvedValue({
+      ok: true,
+      checked: [],
+      excludedCapabilities: [],
+      sampleSummary: [],
+      error: null,
     });
     mocks.clearActiveJobIfOwned.mockResolvedValue(true);
 
@@ -162,6 +232,25 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       { vectorType: "other", value: "Chief Executive Officer", personName: firstName, role: "Chief Executive Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${firstName} is Chief Executive Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
       { vectorType: "other", value: "Chief Financial Officer", personName: secondName, role: "Chief Financial Officer", scope: "candidate", sourceUrls: [sourceUrl], note: "Investigator-selected provisional person lead.", contactAttribution: "person_specific", exactQuote: `${secondName} is Chief Financial Officer.`, identityAssessment: "same_person", identityRationale: "The fetched source names this exact person in the stated executive role.", hypothesisRelation: "supports", hypothesisRationale: "The fetched source directly supports the person and professional role.", relationshipType: "professional_role", temporalStatus: "current", interpretationConfidence: 0.95, ambiguityNotes: "", promotionDecision: "promote", promotionReason: "The fetched source directly binds the person name and current executive role." },
     ];
+    const middleFinding = {
+      ...findings[0]!,
+      value: "Chief Operating Officer",
+      personName: middleName,
+      role: "Chief Operating Officer",
+      note: "Investigator-selected person lead observed in the middle section of the fetched page.",
+      exactQuote: `${middleName} is Chief Operating Officer.`,
+      promotionReason: "The fetched page directly attributes the current operating role to this named person.",
+    };
+    const directorFinding = {
+      ...findings[0]!,
+      value: "Managing Director",
+      personName: directorName,
+      role: "Managing Director",
+      note: "Investigator-selected director lead observed only in the final retained page section.",
+      exactQuote: distinctiveTailQuote,
+      promotionReason: "The exact final-page quotation directly attributes the Managing Director role to this person.",
+    };
+    const allFindings = [...findings, middleFinding, directorFinding];
     const actions = [
       {
         action: "web_search",
@@ -177,20 +266,30 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
         action: "visit",
         query: null,
         url: sourceUrl,
-        thought: "Fetch the discovered page to inspect the named people and roles.",
-        hypothesis: "The fetched company page may bind both names to their roles.",
-        purpose: "Verify the exact names and roles in observed page text.",
+        thought: "Fetch the discovered page and inspect the names and roles available in its opening and middle sections.",
+        hypothesis: "The fetched company page may bind several people to their roles.",
+        purpose: "Verify source-backed leadership names while preserving any unread remainder.",
         expectedInformationGain: 0.9,
-        findings,
+        findings: [...findings, middleFinding],
+      },
+      {
+        action: "visit",
+        query: null,
+        url: sourceUrl,
+        thought: "Read the remaining section of the same source to inspect its final director entry and quotation.",
+        hypothesis: "The retained remainder may contain another relevant director and an exact role quotation.",
+        purpose: "Inspect the unread tail of the already fetched source without issuing another network request.",
+        expectedInformationGain: 0.95,
+        findings: [directorFinding],
       },
       {
         action: "done",
         query: null,
-        thought: "The fetched source directly attributes both professional roles to the named people.",
-        hypothesis: "The page identifies the named people in their current executive roles.",
-        purpose: "Return the source-backed findings and model-owned interpretation for Boss adjudication.",
-        expectedInformationGain: 0.9,
-        findings,
+        thought: "The opening, middle, and final sections of the same fetched source support the identified leadership roles.",
+        hypothesis: "The page attributes the named people to their stated current executive roles.",
+        purpose: "Return the source-backed findings and exact final-page quotation for independent Boss adjudication.",
+        expectedInformationGain: 0.95,
+        findings: allFindings,
       },
     ];
     mocks.safeOutboundFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -206,7 +305,15 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       }
       if (url === "https://google.serper.dev/search") return new Response(JSON.stringify({ organic: [{ title: "Apex Offline Holdings — Leadership", link: sourceUrl, snippet: `${firstName} is Chief Executive Officer; ${secondName} is Chief Financial Officer.` }] }), { status: 200, headers: { "content-type": "application/json" } });
       if (url === sourceUrl) {
-        const response = new Response(`<html><body><h1>Apex Offline Holdings</h1><p>${firstName} is Chief Executive Officer.</p><p>${secondName} is Chief Financial Officer.</p></body></html>`, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+        const pageHtml = [
+          "<html><body><h1>Apex Offline Holdings</h1>",
+          `<p>${firstName} is Chief Executive Officer.</p>`,
+          `<p>${"Historical public filing narrative with no additional named officers. ".repeat(82)} ${secondName} is Chief Financial Officer.</p>`,
+          `<p>${"Corporate governance directory entries and filing history. ".repeat(82)} ${middleName} is Chief Operating Officer.</p>`,
+          `<p>${"Additional annual-report narrative and board-history text. ".repeat(145)} ${distinctiveTailQuote}</p>`,
+          "</body></html>",
+        ].join("");
+        const response = new Response(pageHtml, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
         Object.defineProperty(response, "url", { value: sourceUrl });
         return response;
       }
@@ -327,13 +434,49 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const outcome = await runScenario("model-stops");
     expect(mocks.runGroqBossDiscovery).toHaveBeenCalledTimes(2);
     const investigatorCalls = mocks.outboundUrls.filter((url) => url.endsWith("/chat/completions")).length;
-    expect(investigatorCalls).toBe(3);
+    expect(investigatorCalls).toBe(4);
     expect(mocks.outboundUrls).toContain("https://google.serper.dev/search");
-    expect(mocks.outboundUrls.some((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toBe(true);
-    const visitEvent = outcome.events.find((event: any) => { try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; } });
-    expect(visitEvent?.actorRole).toBe("head_investigator");
-    expect(visitEvent?.eventType).toBe("tool_observation");
-    expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ jobId: outcome.jobId, action: "visit", execution: "success", observedUrls: expect.arrayContaining([mocks.pageUrl]), observation: expect.stringContaining(firstName), findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", reviewOnly: true, personName: firstName, sourceUrls: expect.arrayContaining([mocks.pageUrl]) })]) })]));
+    expect(mocks.outboundUrls.filter((url) => url === mocks.pageUrl || url.startsWith(mocks.pageUrl + "?"))).toHaveLength(1);
+    const visitEvents = outcome.events.filter((event: any) => {
+      if (event.eventType !== "tool_observation") return false;
+      try { return JSON.parse(event.payload ?? "{}").action === "visit"; } catch { return false; }
+    });
+    expect(visitEvents).toHaveLength(2);
+    expect(visitEvents.every((event: any) => event.actorRole === "head_investigator" && event.eventType === "tool_observation")).toBe(true);
+    const visitPayloads = visitEvents.map((event: any) => JSON.parse(event.payload ?? "{}"));
+    expect(visitPayloads[0]).toMatchObject({
+      execution: "success",
+      observedUrls: [mocks.pageUrl],
+      args: { pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+    });
+    expect(visitPayloads[0].observation).toContain(firstName);
+    expect(visitPayloads[1]).toMatchObject({
+      execution: "success",
+      observedUrls: [mocks.pageUrl],
+      args: { pageReadSource: "retained_fetch_artifact", pageHasMore: false },
+    });
+    expect(visitPayloads[1].args.pageReadOffset).toBeGreaterThan(0);
+    expect(visitPayloads[1].observation).toContain(directorName);
+    expect(visitPayloads[1].observation).toContain(distinctiveTailQuote);
+    const pageArtifactChunks = outcome.events
+      .filter((event: any) => event.status === "page_artifact")
+      .map((event: any) => JSON.parse(event.payload ?? "{}"));
+    expect(pageArtifactChunks.length).toBeGreaterThan(1);
+    expect(pageArtifactChunks.every((chunk: any) => chunk.kind === "fetched_page_artifact_chunk"
+      && chunk.sourceUrl === mocks.pageUrl && chunk.sourceVerified === true)).toBe(true);
+    expect(new Set(pageArtifactChunks.map((chunk: any) => chunk.sha256)).size).toBe(1);
+    expect(pageArtifactChunks).toHaveLength(pageArtifactChunks[0].chunkCount);
+    const lateDirectorClaim = outcome.events
+      .filter((event: any) => event.eventType === "claim")
+      .map((event: any) => { try { return JSON.parse(event.payload ?? "{}"); } catch { return {}; } })
+      .find((payload: any) => payload.claim?.personName === directorName);
+    expect(lateDirectorClaim?.claim).toMatchObject({
+      personName: directorName,
+      role: "Managing Director",
+      exactQuote: distinctiveTailQuote,
+      sourceUrls: [mocks.pageUrl],
+    });
+    expect(lateDirectorClaim?.observationEventIds?.length).toBeGreaterThan(0);
     expect(JSON.parse(outcome.ownedCase.caseFile).jobId).toBe(outcome.jobId);
     expect(outcome.eventPayloads).toEqual(expect.arrayContaining([expect.objectContaining({ action: "done", execution: "success", findings: expect.arrayContaining([expect.objectContaining({ scope: "candidate", promotionDecision: "promote" })]) })]));
     const rawDiagnosticResult = (outcome.jobUpdate as any)?.result;
@@ -346,7 +489,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       currentAction: outcome.ownedCase.currentAction,
       targetCalls: mocks.targetCalls,
       outboundUrls: mocks.outboundUrls,
-    })).toHaveLength(2);
+    })).toHaveLength(4);
+    expect(outcome.admittedEntities.map((entity: any) => entity.name)).toContain(directorName);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
     expect(mocks.targetCalls).toHaveLength(1);
@@ -405,4 +549,142 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     });
     expect(mocks.jobStatus).toBe("failed");
   });
+
+  it("runs the actual Atlas launch finalizer through PostgreSQL reconciliation, model-trace read-back, terminal audit, and lock release", async () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const jobId = `offline-launch-finalizer-${runToken}`;
+    mocks.jobId = jobId;
+    mocks.scenario = "model-stops";
+
+    const auditKeys = [
+      "NODE_ENV",
+      "APEX_CAPTURE_MODEL_PROMPTS",
+      "APEX_CAPTURE_MODEL_PROMPTS_IN_TEST",
+      "APEX_MODEL_AUDIT_FILE",
+      "APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA",
+      "APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE",
+      "APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA",
+    ];
+    const priorAuditEnvironment = new Map(auditKeys.map((key) => [key, process.env[key]]));
+    const auditPath = resolve(workspaceRoot, `private-audits/apex-atlas-run-${jobId}.md`);
+    let server: ReturnType<typeof createServer> | null = null;
+
+    try {
+      process.env.NODE_ENV = "test";
+      process.env.APEX_CAPTURE_MODEL_PROMPTS = "true";
+      process.env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "true";
+      process.env.APEX_MODEL_AUDIT_FILE = "private-audits/apex-atlas-run-{jobId}.md";
+      process.env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false";
+      process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false";
+      process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false";
+
+      // The real Investigator wrapper records each of the four model turns below.
+      // Do not seed synthetic audit records: the terminal route must attach the actual
+      // request/response trace produced during this investigation.
+      const { default: launchRouter } = await import("../routes/research/canonical-atlas-launch");
+      const app = express();
+      app.use(express.json());
+      app.use(launchRouter);
+      server = createServer(app);
+      await new Promise<void>((resolveListen, rejectListen) => {
+        server!.once("error", rejectListen);
+        server!.listen(0, "127.0.0.1", resolveListen);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Could not resolve the ephemeral Atlas test server port.");
+
+      const response = await fetch(`http://127.0.0.1:${address.port}/ingest/atlas-run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          targetCount: 1,
+          researchDepth: "standard",
+          targetTimeoutMs: 60_000,
+          discoveryObjective: "Verify current named leadership with exact quotations from the fetched public source.",
+        }),
+      });
+      const launchBody = await response.json() as Record<string, unknown>;
+      expect(response.status).toBe(202);
+      expect(launchBody.jobId).toBe(jobId);
+
+      let terminalAudit: Record<string, any> | null = null;
+      const verifiedCorrelation = `${jobId}:terminal-reconciliation:verified`;
+      const incompleteCorrelation = `${jobId}:terminal-reconciliation:incomplete`;
+      for (let attempt = 0; attempt < 240; attempt += 1) {
+        const rows = await db.select({
+          id: tables.researchCaseEventsTable.id,
+          payload: tables.researchCaseEventsTable.payload,
+          correlationKey: tables.researchCaseEventsTable.correlationKey,
+        }).from(tables.researchCaseEventsTable)
+          .where(eq(tables.researchCaseEventsTable.correlationKey, verifiedCorrelation));
+        const failedRows = rows.length ? [] : await db.select({
+          id: tables.researchCaseEventsTable.id,
+          payload: tables.researchCaseEventsTable.payload,
+          correlationKey: tables.researchCaseEventsTable.correlationKey,
+        }).from(tables.researchCaseEventsTable)
+          .where(eq(tables.researchCaseEventsTable.correlationKey, incompleteCorrelation));
+        const auditRows = rows.length ? rows : failedRows;
+        if (auditRows.length) {
+          const payload = auditRows[0]?.payload;
+          terminalAudit = typeof payload === "string" ? JSON.parse(payload) as Record<string, any> : null;
+          break;
+        }
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
+      }
+
+      expect(terminalAudit, "The route's finally block must persist and read back its terminal reconciliation audit").toBeTruthy();
+      if (!terminalAudit) throw new Error("Atlas launch finalizer did not persist a terminal reconciliation audit.");
+      expect(terminalAudit).toMatchObject({
+        jobId,
+        terminalJobStatus: "done",
+        pipelineOutcome: "complete",
+        reconciliationAuthorityVerified: true,
+        organizationReconciliation: { status: "succeeded" },
+        personReconciliation: { status: "succeeded" },
+        modelAuditAttachment: { complete: true, requestCount: 4, responseCount: 4, pairedRequestCount: 4 },
+        lockReleaseCallReturned: true,
+        lockReleasedReadBack: true,
+        terminalChecksPassed: true,
+        terminalChecks: {
+          terminalStatusVerified: true,
+          pipelineOutcomeVerified: true,
+          reconciliationVerified: true,
+          persistedCountsVerified: true,
+          sourceEvidenceVerified: true,
+          traceAttachmentVerified: true,
+          durableTraceVerified: true,
+          lockReleaseVerified: true,
+        },
+      });
+      expect(Number(terminalAudit.durableTraceEventCountReadBack)).toBeGreaterThan(0);
+      expect(Number(terminalAudit.sourceBackedNamedFindingCountReadBack)).toBeGreaterThan(0);
+      expect(Number(terminalAudit.persistedCardCountReadBack)).toBeGreaterThanOrEqual(Number(terminalAudit.expectedNewCardCount));
+      expect(Number(terminalAudit.persistedEvidenceCountReadBack)).toBeGreaterThanOrEqual(Number(terminalAudit.expectedNewEvidenceRowCount));
+      expect(mocks.releaseCanonicalJob).toHaveBeenCalledWith("atlas-run", jobId);
+      expect(mocks.activeJobId).toBeNull();
+
+      const [readBack] = await db.select({
+        id: tables.researchCaseEventsTable.id,
+        payload: tables.researchCaseEventsTable.payload,
+      }).from(tables.researchCaseEventsTable)
+        .where(eq(tables.researchCaseEventsTable.correlationKey, verifiedCorrelation)).limit(1);
+      expect(readBack?.id).toBeTruthy();
+      expect(JSON.parse(String(readBack?.payload ?? "{}"))).toMatchObject({
+        jobId,
+        terminalChecksPassed: true,
+        lockReleasedReadBack: true,
+      });
+    } finally {
+      if (server) {
+        await new Promise<void>((resolveClose) => server!.close(() => resolveClose()));
+      }
+      for (const key of auditKeys) {
+        const previous = priorAuditEnvironment.get(key);
+        if (previous === undefined) delete process.env[key];
+        else process.env[key] = previous;
+      }
+      if (existsSync(auditPath)) unlinkSync(auditPath);
+    }
+  }, 30_000);
+
 });

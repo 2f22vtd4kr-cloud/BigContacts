@@ -80,6 +80,7 @@ function parseFinding(value: unknown): AgenticFinding | null {
 export function investigatorRecordsFromEvents(events: readonly DurableInvestigatorEvent[]): AgenticTrajectoryRecord[] {
   const ordered = [...events].sort((a, b) => a.id - b.id);
   const records: AgenticTrajectoryRecord[] = [];
+  const seenRunTurns = new Set<string>();
   for (const event of ordered) {
     if (event.actorRole !== "head_investigator" || !["tool_observation", "provider_error", "decision"].includes(event.eventType)) continue;
     let parsed: unknown;
@@ -96,8 +97,13 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
     const findings = Array.isArray(payload.findings) ? payload.findings.map(parseFinding).filter((item): item is AgenticFinding => item !== null) : [];
     const sourceBindings = parseSourceBindings(payload.sourceBindings);
     const model = typeof payload.model === "string" ? payload.model : typeof payload.runModel === "string" ? payload.runModel : "durable-replay";
+    const runId = typeof payload.runId === "string" && payload.runId ? payload.runId : null;
+    const sourceTurn = Number.isSafeInteger(payload.turn) && Number(payload.turn) > 0 ? Number(payload.turn) : records.length + 1;
+    const replayKey = runId ? runId + ":" + sourceTurn : "legacy-event:" + event.id;
+    if (seenRunTurns.has(replayKey)) continue;
+    seenRunTurns.add(replayKey);
     records.push({
-      turn: records.length + 1, durableEventId: event.id, model, action: payload.action, args: asObject(payload.args) ?? {},
+      turn: sourceTurn, durableEventId: event.id, ...(runId ? { runId } : {}), model, action: payload.action, args: asObject(payload.args) ?? {},
       ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
       ...(typeof payload.pivotScopeKey === "string" && payload.pivotScopeKey.trim() ? { pivotScopeKey: payload.pivotScopeKey.slice(0, 1_800) } : {}),
       ...(Array.isArray(payload.leadUrls) ? { leadUrls: [...new Set(payload.leadUrls.filter((url): url is string => typeof url === "string"))].slice(0, 24) } : {}),

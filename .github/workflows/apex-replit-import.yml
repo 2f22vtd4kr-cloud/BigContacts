@@ -1,0 +1,33 @@
+name: Apex Replit import bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Package source with immutable revision manifest
+        run: |
+          set -euo pipefail
+          staging="$RUNNER_TEMP/apex-replit-import"
+          mkdir -p "$staging"
+          git archive "$GITHUB_SHA" | tar -x -C "$staging"
+          printf '%s\n' "$GITHUB_SHA" > "$staging/APEX_SOURCE_REVISION"
+          (cd "$staging" && zip -qr "$GITHUB_WORKSPACE/apex-replit-import.zip" .)
+      - name: Publish Replit import artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apex-replit-import-${{ github.sha }}
+          path: apex-replit-import.zip
+          if-no-files-found: error
+          retention-days: 30

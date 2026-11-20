@@ -469,10 +469,15 @@ async function requestSummary(
  * Summarize long case memory in model-owned layers. Transport chunking is lossless;
  * semantic reduction uses the dedicated Right-hand credential lane on the 20B model; it never consumes the shared 120B Boss/control bucket. A
  * resource cap protects the provider from pathological input sizes but never
- * substitutes an excerpt for the source.
+ * substitutes a deterministic excerpt for required historical memory. Only
+ * non-semantic observations may use the bounded transport projection.
  */
 const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
-const AI_COMPACTION_MAX_SOURCE_CHARS = 11_000;
+// Production historical-memory compaction supports segmented, model-written
+// summaries up to a bounded 80k source. It no longer has an 11k upper window.
+const AI_COMPACTION_MAX_SOURCE_CHARS = 80_000;
+const AI_COMPACTION_MAX_SOURCE_CHUNKS = 8;
+const AI_COMPACTION_MAX_REQUESTS_PER_TURN = 12;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
@@ -596,8 +601,8 @@ async function summarizeInvestigatorContextWithAiCompactorLegacy(
 export async function summarizeInvestigatorContextWithAiCompactor(
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
-  // Compatibility for older non-turn-scoped callers. Every production Investigator
-  // call site supplies turn; that path below is capped to one model request/turn.
+  // Compatibility for older non-turn-scoped callers. Production callers pass
+  // their actual Investigator turn and use the bounded path below.
   if (input.turn == null && input.compactionKind !== "observation") {
     return summarizeInvestigatorContextWithAiCompactorLegacy(input);
   }
@@ -626,18 +631,11 @@ export async function summarizeInvestigatorContextWithAiCompactor(
   } catch {
     return null;
   }
-  const prompt = buildSummaryPrompt(historicalSource, maxChars);
-  if (prompt.length > maximumPromptChars) {
-    logPromptBudgetFailure(input, "primary", historicalSource.length, prompt.length, maximumPromptChars);
-    return null;
-  }
 
   const owner = compactionOwnerKey(input);
   const turn = Number.isFinite(input.turn) ? Math.max(0, Math.floor(input.turn!)) : 0;
   const contentHash = createHash("sha256").update(historicalSource).digest("hex");
   const trustedFetchUrls = sourceSuccessfulFetchUrls(input.trustedSourceContext ?? "");
-  // Per-job content cache: unchanged text is never summarized twice. A cached
-  // summary is revalidated against the current fetched-source authority before reuse.
   const cacheKey = owner + ":" + (input.compactionKind ?? "historical_memory") + ":" + contentHash;
   if (aiCompactionCache.has(cacheKey)) {
     const cached = aiCompactionCache.get(cacheKey);
@@ -654,11 +652,92 @@ export async function summarizeInvestigatorContextWithAiCompactor(
     if (oldest) aiCompactionAttemptsByTurn.delete(oldest);
   }
 
-  const summary = await requestSummary(historicalSource, historicalSource, maxChars, input, trustedFetchUrls);
-  // Cache failures as misses too: an unchanged segment is never retried on a later turn.
-  // Keep the cache bounded for both successful summaries and repeated provider failures.
-  // The cache stores the validated summary as the same JSON envelope consumed by parseSummary.
-  // Storing the plain text here would make every cache hit look like a parse failure.
+  // Lossless source segmentation -> model-written segment memories -> AI
+  // consolidation. All requests stay on the dedicated Right-hand 20B lane,
+  // execute sequentially, and share one strict per-turn request budget.
+  let requestsUsed = 0;
+  const summarizeBounded = async (
+    segmentSource: string,
+    targetChars: number,
+    allowedUrls: ReadonlySet<string>,
+  ): Promise<string | null> => {
+    if (requestsUsed >= AI_COMPACTION_MAX_REQUESTS_PER_TURN) return null;
+    requestsUsed += 1;
+    return requestSummary(segmentSource, segmentSource, targetChars, input, allowedUrls);
+  };
+
+  const promptInputBudget = Math.max(2_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
+  const chunkLimit = Math.min(12_000, Math.max(4_000, maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
+  const sourceChunks = splitAiContextIntoChunks(historicalSource, chunkLimit);
+  let summary: string | null = null;
+
+  if (!sourceChunks.length || sourceChunks.length > AI_COMPACTION_MAX_SOURCE_CHUNKS) {
+    logger.warn({
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
+      sourceChars: historicalSource.length,
+      chunkCount: sourceChunks.length,
+      maxChunks: AI_COMPACTION_MAX_SOURCE_CHUNKS,
+    }, "[AI compaction] Historical memory exceeds the bounded source-segmentation budget; full source remains durable.");
+  } else if (sourceChunks.length === 1) {
+    summary = await summarizeBounded(historicalSource, maxChars, trustedFetchUrls);
+  } else {
+    const partialTarget = Math.min(1_600, Math.max(500, Math.floor((promptInputBudget * 0.6) / sourceChunks.length)));
+    const partialSummaries: string[] = [];
+    const successfulFetchUrls = new Set<string>();
+    for (const chunk of sourceChunks) {
+      const chunkUrls = new Set([...trustedFetchUrls].filter((url) => extractAiContextUrls(chunk).includes(url)));
+      for (const url of chunkUrls) successfulFetchUrls.add(url);
+      const partial = await summarizeBounded(chunk, partialTarget, chunkUrls);
+      if (!partial) break;
+      partialSummaries.push(partial);
+    }
+
+    if (partialSummaries.length === sourceChunks.length) {
+      const combine = (segments: string[]) => segments
+        .map((segment, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + segment)
+        .join("\n\n");
+      let segments = partialSummaries;
+      for (let depth = 0; depth < 4; depth += 1) {
+        const combined = combine(segments);
+        if (combined.length <= promptInputBudget) {
+          summary = await summarizeBounded(combined, maxChars, successfulFetchUrls);
+          break;
+        }
+
+        const batches: string[][] = [];
+        let pending: string[] = [];
+        for (const segment of segments) {
+          const candidate = combine([...pending, segment]);
+          if (pending.length && candidate.length > promptInputBudget) {
+            batches.push(pending);
+            pending = [segment];
+          } else {
+            pending.push(segment);
+          }
+        }
+        if (pending.length) batches.push(pending);
+        if (batches.length >= segments.length
+          || requestsUsed + batches.length + 1 > AI_COMPACTION_MAX_REQUESTS_PER_TURN) break;
+
+        const nextTarget = Math.min(maxChars, Math.max(500, Math.floor((promptInputBudget * 0.6) / batches.length)));
+        const reduced: string[] = [];
+        for (const batch of batches) {
+          const reducedSummary = await summarizeBounded(combine(batch), nextTarget, successfulFetchUrls);
+          if (!reducedSummary) {
+            reduced.length = 0;
+            break;
+          }
+          reduced.push(reducedSummary);
+        }
+        if (!reduced.length) break;
+        segments = reduced;
+      }
+    }
+  }
+
+  // Cache failures as misses too: unchanged content is never retried on a later
+  // turn. The cache stores the validated summary envelope consumed by parseSummary.
   aiCompactionCache.set(cacheKey, summary ? JSON.stringify({ summary }) : null);
   while (aiCompactionCache.size > AI_COMPACTION_CACHE_LIMIT) {
     const oldest = aiCompactionCache.keys().next().value;
@@ -677,22 +756,29 @@ export type InvestigationContextCompactionResult = {
 export type RecentObservationCompactionResult = InvestigationContextCompactionResult;
 
 /**
- * A non-authoritative context transformation may try one bounded 20B semantic
- * compaction request for genuinely long historical memory. It never consumes the
- * shared 120B Boss/control budget. If the semantic attempt is unavailable, preserve
- * a bounded, URL-safe deterministic projection instead; the complete source remains
- * durable and omissions are explicitly unknown. This does not replace or simulate
- * any oversight decision.
+ * Historical memory is either included verbatim below the semantic-compaction
+ * threshold or reduced by one bounded 20B model-written summary. If that required
+ * summary is unavailable or invalid, fail closed; never substitute a deterministic
+ * excerpt. Non-semantic observation transport may still use a URL-safe projection.
+ * This never consumes the shared 120B Boss/control budget or simulates oversight.
  */
 export async function compactInvestigationContextWithFallback(
   input: AiInvestigationContextCompactionInput,
   kind: "observation" | "historical_memory" = "historical_memory",
 ): Promise<InvestigationContextCompactionResult | null> {
-  const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
-  if (!source) return { text: "", method: "unchanged" };
+  const rawSource = typeof input.rawContext === "string" ? input.rawContext : "";
+  // Historical memory is an evidence-bearing record: below the AI threshold,
+  // preserve every character exactly, including boundary whitespace. Only
+  // observation transport projections may normalize surrounding whitespace.
+  const source = kind === "historical_memory" ? rawSource : rawSource.trim();
+  if (!source.trim()) return { text: source, method: "unchanged" };
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.max(1, Math.min(MAX_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return { text: source, method: "unchanged" };
+  // Below the semantic-compaction activation threshold, retain historical memory verbatim even when it exceeds the preferred target. Never replace required case history with a deterministic head/tail or keyword excerpt.
+  if (kind === "historical_memory" && source.length < AI_COMPACTION_MIN_SOURCE_CHARS) {
+    return { text: source, method: "unchanged" };
+  }
 
   const semantic = await summarizeInvestigatorContextWithAiCompactor({
     ...input,
@@ -706,10 +792,13 @@ export async function compactInvestigationContextWithFallback(
   });
   if (semantic) return { text: semantic, method: "ai_semantic" };
 
-  const deterministic = buildDeterministicContextProjection(source, maxChars, kind);
-  return deterministic
-    ? { text: deterministic, method: "deterministic_projection" }
-    : null;
+  // A missing/invalid model-written historical summary is a hard failure:
+  // durable case history remains intact, but no deterministic excerpt is
+  // allowed to masquerade as the working memory needed for the next act.
+  if (kind === "historical_memory") return null;
+
+  const deterministic = buildDeterministicContextProjection(source, maxChars, "observation");
+  return deterministic ? { text: deterministic, method: "deterministic_projection" } : null;
 }
 
 /** Recent observations use the same safe projection, labelled distinctly. */

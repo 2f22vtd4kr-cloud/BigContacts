@@ -217,16 +217,16 @@ export function compactPromptSectionPreservingUrlTokens(
 
 
 /**
- * Non-semantic bounded projection used only when an AI compaction request is
- * unavailable. The authoritative objective, evidence, and complete trajectory
- * remain in the durable case state/event ledger; this is only a model-facing
- * working-context projection. URLs are kept whole or omitted whole, and
- * omissions are explicitly unknown rather than negative evidence.
+ * Observation-only non-semantic bounded transport projection. Historical
+ * research memory must be preserved verbatim or summarized by AI; it never uses
+ * this deterministic excerpt. The complete observation remains in the durable
+ * case event ledger. URLs are kept whole or omitted whole, and omissions are
+ * explicitly unknown rather than negative evidence.
  */
 export function buildDeterministicContextProjection(
   value: string,
   maxChars: number,
-  kind: "observation" | "historical_memory" = "historical_memory",
+  _kind: "observation" = "observation",
 ): string {
   const source = typeof value === "string" ? value.trim() : "";
   const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
@@ -234,50 +234,17 @@ export function buildDeterministicContextProjection(
   if (!source || limit === 0) return "";
   if (source.length <= limit) return source;
 
-  const fullMarker = kind === "observation"
-    ? "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic excerpt; complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]"
-    : "[DETERMINISTIC HISTORICAL MEMORY PROJECTION: non-semantic excerpt; source observations, evidence and control decisions remain in durable case events/state; omitted context is unknown, not negative evidence; exact URLs are preserved separately]";
-  const shortMarker = kind === "observation"
-    ? "[DETERMINISTIC OBSERVATION EXCERPT; full observation remains durable; omitted content is unknown]"
-    : "[DETERMINISTIC HISTORICAL MEMORY EXCERPT; evidence and decisions remain durable; omitted context is unknown]";
-  const requiredObservationMarkers = kind === "observation"
-    ? ["OBSERVATION_START", "OBSERVATION_END"].filter((marker) => source.includes(marker))
-    : [];
-  // Preserve high-risk numeric/financial statements verbatim. This is not a
-  // factual endorsement: it retains the source's original denominator and
-  // relationship so a later model cannot turn portfolio composition into
-  // personal ownership. Full observations remain durable in all cases.
-  const numericSourceExcerpts = source
-    .replace(/\\n/g, "\n")
-    .split(/(?<=[.!?])\s+|\r?\n/u)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => /\d/u.test(sentence)
-      && /(?:%|percent|owner|ownership|equity|stake|shareholder|portfolio|investment|investor|valuation|revenue|asset|million|billion|transaction|acquisition|exit|control|concession|licen[cs]e|fossil|energy)/iu.test(sentence)
-      && sentence.length <= 360);
-  const numericHeading = "VERBATIM NUMERIC / FINANCIAL SOURCE EXCERPTS (uninterpreted; preserve original attribution and denominator):";
-  const numericLines: string[] = [];
-  const numericBudget = Math.min(1_000, Math.floor(limit * 0.42));
-  let numericChars = numericHeading.length;
-  for (const sentence of numericSourceExcerpts) {
-    if (numericLines.includes(sentence)) continue;
-    if (numericChars + sentence.length + 2 > numericBudget) continue;
-    numericLines.push(sentence);
-    numericChars += sentence.length + 2;
-    if (numericLines.length >= 4) break;
-  }
-  const numericBlock = numericLines.length ? numericHeading + "\n" + numericLines.join("\n") : "";
-  // Structural observation delimiters are provenance boundaries, not expendable
-  // prose. Reserve room for any delimiter omitted by the head/tail excerpt.
-  const markerReserve = requiredObservationMarkers.reduce((total, marker) => total + marker.length + 1, 0);
-  const projectionBudget = Math.max(0, limit - markerReserve - numericBlock.length - (numericBlock ? 2 : 0));
+  const marker = "[DETERMINISTIC OBSERVATION PROJECTION: non-semantic transport excerpt; complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence; exact action/source-stage metadata and URLs are preserved separately]";
+  const requiredMarkers = ["OBSERVATION_START", "OBSERVATION_END"].filter((item) => source.includes(item));
+  const markerReserve = requiredMarkers.reduce((total, item) => total + item.length + 1, 0);
+  const projectionBudget = Math.max(0, limit - markerReserve);
   const projection = compactPromptSectionPreservingUrlTokens(
     source,
     projectionBudget,
-    projectionBudget >= fullMarker.length + 2 ? fullMarker : shortMarker,
+    projectionBudget >= marker.length + 2 ? marker : "[DETERMINISTIC OBSERVATION EXCERPT; full observation remains durable; omitted content is unknown]",
   );
-  const missingObservationMarkers = requiredObservationMarkers.filter((marker) => !projection.includes(marker));
-  const markerSuffix = missingObservationMarkers.join(" ");
-  return [projection, numericBlock, markerSuffix].filter(Boolean).join(" ").slice(0, limit);
+  const missingMarkers = requiredMarkers.filter((item) => !projection.includes(item));
+  return [projection, missingMarkers.join(" ")].filter(Boolean).join(" ").slice(0, limit);
 }
 
 /** Observation-specific alias used by the recent-observation recovery path. */

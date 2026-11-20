@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const canonicalAtlasLaunchSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const targetActOversightSource = readFileSync(resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
+const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("canonical Atlas terminal authority", () => {
   it("persists an authoritative terminal snapshot for successful and failed jobs", () => {
@@ -18,6 +22,49 @@ describe("canonical Atlas terminal authority", () => {
     expect(canonicalAtlasDiscoverySource).toContain("investigatorActionsRemaining:");
     expect(canonicalAtlasDiscoverySource).not.toContain("targetResearchReserveIterations");
   });
+  it("surfaces runtime parse/provider failures as advisory lane health without automatic reassignment", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("getInvestigatorCapabilityRuntimeHealthSnapshot()");
+    expect(canonicalAtlasDiscoverySource).toContain("investigatorLaneHealth,");
+    expect(canonicalAtlasDiscoverySource).toContain("INVESTIGATOR LANE HEALTH (runtime parse/provider diagnostics; advisory only; Boss retains capability selection)");
+  });
+
+  it("surfaces target-mode runtime Investigator lane health to independent Right-hand and Boss", () => {
+    expect(targetActOversightSource).toContain("getInvestigatorCapabilityRuntimeHealthSnapshot()");
+    expect(targetActOversightSource).toContain("preflight:input.investigatorLaneHealth??[],runtime:getInvestigatorCapabilityRuntimeHealthSnapshot()");
+    expect(targetActOversightSource).toContain("INVESTIGATOR LANE RUNTIME HEALTH (diagnostic only; Boss retains capability selection; never auto-switch lanes)");
+    expect(targetActOversightSource).toContain("investigatorLaneHealth});");
+    expect(targetRunnerSource).toContain("investigatorLaneHealth: options.investigatorLaneHealth");
+  });
+
+  it("gives Boss and Right-hand the durable prior trajectory without embedding full page artifacts", () => {
+    expect(bureauAgenticPassSource).toContain("trajectoryRecords:[...priorTrajectoryRecords,...agentic.trajectoryRecords]");
+    expect(bureauAgenticPassSource).toContain("const{pageArtifact:_pageArtifact,...promptRecord}=record");
+  });
+
+  it("makes discovery stagnation telemetry visible to Boss and independent Right-hand review", () => {
+    expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? [])");
+    expect(canonicalAtlasDiscoverySource).toContain("researchLivenessAdvisory,");
+    expect(canonicalAtlasDiscoverySource).toContain("RESEARCH LIVENESS (advisory only");
+  });
+
+  it("verifies exact named quotations across continuation sections of the same fetched source URL", () => {
+    expect(canonicalAtlasLaunchSource).toContain("(verifiedSourceObservations.get(normalizeEvidenceUrl(url)) ?? []).join");
+    expect(canonicalAtlasLaunchSource).toContain("normalizedObservation.includes(normalizedQuote) && normalizedObservation.includes(normalizedName)");
+    expect(canonicalAtlasLaunchSource).not.toContain(".some((observation) => {");
+  });
+
+  it("records reconciliation results, database read-back counts, durable trace count, and lock-release verification", () => {
+    expect(canonicalAtlasLaunchSource).toContain("organizationReconciliation");
+    expect(canonicalAtlasLaunchSource).toContain("personReconciliation");
+    expect(canonicalAtlasLaunchSource).toContain("persistedCardCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("persistedEvidenceCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("durableTraceEventCountReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("const modelAuditAttachment = resolveModelAuditAttachmentForJob(atlasJobId);");
+    expect(canonicalAtlasLaunchSource).toContain("modelAuditAttachment.complete && modelAuditAttachment.requestCount > 0");
+    expect(canonicalAtlasLaunchSource).toContain("lockReleasedReadBack");
+    expect(canonicalAtlasLaunchSource).toContain("terminal-reconciliation");
+  });
+
   it("allows a completed target episode to become the current terminal", () => {
     expect(deriveLatestEvidenceBackedTerminal("target", "complete")).toBe("target");
   });

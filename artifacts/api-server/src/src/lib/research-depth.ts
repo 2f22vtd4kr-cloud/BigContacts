@@ -128,6 +128,8 @@ export function buildMissionActionBudget(input: {
  * and the capacity allocated to its current phase. This controls resources,
  * not target admission or the Investigator's research sequence.
  */
+export const DISCOVERY_AI_OVERSIGHT_INTERVAL = 6;
+
 export function resolveDiscoveryIterationsPerAct(
   config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
   missionIterationCeiling: number,
@@ -140,7 +142,9 @@ export function resolveDiscoveryIterationsPerAct(
     && config.investigatorIterationsPerAct > 0
     ? Math.floor(config.investigatorIterationsPerAct)
     : available;
-  return Math.min(configuredCap, available);
+  // Return control to Boss/Right-hand at least every six executed research turns;
+  // this is a review cadence, not a source/tool sequence or research strategy.
+  return Math.min(configuredCap, available, DISCOVERY_AI_OVERSIGHT_INTERVAL);
 }
 
 /**

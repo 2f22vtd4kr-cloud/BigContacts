@@ -1,7 +1,12 @@
+import { createRequire } from "node:module";
+import { dirname, resolve, sep } from "node:path";
+
 /** Bytes accepted by the PDF text-only path. Never hand unbounded network input to a parser. */
 export const PDF_TEXT_MAX_BYTES = 8_000_000;
 export const PDF_TEXT_MAX_PAGES = 50;
-export const PDF_TEXT_MAX_CHARS = 16_000;
+// Keep PDF extraction bounded but large enough to support the same retained-page
+// continuation used for HTML observations. The model still receives MAX_OBS-sized windows.
+export const PDF_TEXT_MAX_CHARS = 2_000_000;
 
 export type PdfTextExtractionFailureReason =
   | "pdf_encrypted"
@@ -48,6 +53,12 @@ export interface PdfTextExtraction {
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+
+const moduleRequire = createRequire(import.meta.url);
+const pdfJsLegacyEntry = moduleRequire.resolve("pdfjs-dist/legacy/build/pdf.mjs");
+const pdfJsPackageRoot = resolve(dirname(pdfJsLegacyEntry), "../..");
+const standardFontDataUrl = `${resolve(pdfJsPackageRoot, "standard_fonts")}${sep}`;
+const cMapUrl = `${resolve(pdfJsPackageRoot, "cmaps")}${sep}`;
 let pdfJsModulePromise: Promise<PdfJsModule> | null = null;
 
 /**
@@ -114,6 +125,11 @@ export async function extractPdfText(
     data: Uint8Array.from(bytes),
     // Only getTextContent() is called; no annotations, links, or document actions are executed.
     useWorkerFetch: false,
+    // Resolve bundled PDF.js assets from the installed package. These assets are
+    // needed for non-embedded standard fonts and CMaps in some multilingual PDFs.
+    standardFontDataUrl,
+    cMapUrl,
+    cMapPacked: true,
     stopAtErrors: true,
   });
 

@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
@@ -57,6 +57,13 @@ function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
     || Boolean(env.NODE_TEST_CONTEXT);
   if (isTestRunner) return env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
   if (env.NODE_ENV === "development") return true;
+  if (env.NODE_ENV === "production") {
+    const destination = env.APEX_MODEL_AUDIT_FILE?.trim() ?? "";
+    const privateDestination = destination.startsWith("private-audits/") || destination.startsWith(".local/audits/");
+    // Production traces are opt-in, private, job-scoped and contact-redacted.
+    // Visible workspace audits remain a development-only operator choice.
+    return privateDestination && env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA !== "true";
+  }
   return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
 }
 
@@ -147,6 +154,87 @@ function shouldIncludeContactDataForAuditFile(
     && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true"
     && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA === "true"
     && normalizedRelativePath.startsWith("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_");
+}
+
+export function summarizeModelAuditTrace(contents: string): {
+  requestCount: number;
+  responseCount: number;
+  pairedRequestCount: number;
+  complete: boolean;
+} {
+  // Count raw markers rather than unique IDs: Set-based pairing can hide
+  // duplicate or orphan records and falsely report a complete audit.
+  const markers = [...contents.matchAll(/^### Model (request|response) (\S+)\s*$/gm)]
+    .map((match) => ({
+      kind: match[1] as "request" | "response",
+      id: match[2] ?? "",
+      start: match.index ?? -1,
+      end: (match.index ?? 0) + match[0].length,
+    }))
+    .filter((marker) => marker.start >= 0 && marker.id.length > 0);
+  const requests = markers.filter((marker) => marker.kind === "request");
+  const responses = markers.filter((marker) => marker.kind === "response");
+  const requestCounts = new Map<string, number>();
+  const responseCounts = new Map<string, number>();
+  for (const marker of requests) requestCounts.set(marker.id, (requestCounts.get(marker.id) ?? 0) + 1);
+  for (const marker of responses) responseCounts.set(marker.id, (responseCounts.get(marker.id) ?? 0) + 1);
+
+  const validRecord = (marker: typeof markers[number]): boolean => {
+    const nextMarker = markers.find((candidate) => candidate.start > marker.start);
+    const section = contents.slice(marker.end, nextMarker?.start ?? contents.length);
+    const fenceCharacter = String.fromCharCode(96);
+    const fencePattern = "(?:^|\\r?\\n)(" + fenceCharacter + "{3,})json\\r?\\n([\\s\\S]*?)\\r?\\n\\1(?:\\r?\\n|$)";
+    const fencedJson = section.match(new RegExp(fencePattern));
+    if (!fencedJson) return false;
+    try {
+      const payload: unknown = JSON.parse(fencedJson[2] ?? "");
+      return Boolean(payload && typeof payload === "object" && !Array.isArray(payload)
+        && (payload as Record<string, unknown>).event === "atlas_model_" + marker.kind
+        && (payload as Record<string, unknown>).requestId === marker.id);
+    } catch {
+      return false;
+    }
+  };
+
+  const pairedRequestCount = requests.filter((request) => {
+    const matchingResponses = responses.filter((response) => response.id === request.id);
+    return requestCounts.get(request.id) === 1
+      && responseCounts.get(request.id) === 1
+      && matchingResponses.length === 1
+      && request.start < matchingResponses[0]!.start
+      && validRecord(request)
+      && validRecord(matchingResponses[0]!);
+  }).length;
+  return {
+    requestCount: requests.length,
+    responseCount: responses.length,
+    pairedRequestCount,
+    complete: requests.length > 0
+      && responses.length === requests.length
+      && pairedRequestCount === requests.length,
+  };
+}
+
+export function resolveModelAuditAttachmentForJob(jobId: string): { relativePath: string; bytes: number; requestCount: number; responseCount: number; pairedRequestCount: number; complete: boolean } | null {
+  const configuredPath = process.env.APEX_MODEL_AUDIT_FILE?.trim();
+  if (!configuredPath) return null;
+  const jobPath = resolveModelAuditFilePathForJob(configuredPath, jobId);
+  const auditPath = resolveSafeModelAuditFilePath(
+    jobPath,
+    process.cwd(),
+    process.env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
+  );
+  if (!auditPath || !existsSync(auditPath)) return null;
+  try {
+    const traceSummary = summarizeModelAuditTrace(readFileSync(auditPath, "utf8"));
+    return {
+      relativePath: relative(workspaceRootFrom(process.cwd()), auditPath).replace(/\\\\/g, "/"),
+      bytes: statSync(auditPath).size,
+      ...traceSummary,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function resolveSafeModelAuditFilePath(

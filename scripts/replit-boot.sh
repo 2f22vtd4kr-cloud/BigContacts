@@ -22,7 +22,16 @@ if [[ -z "${REDIS_URL:-}" && -n "${REDIS_URL_1:-}" ]]; then
   export REDIS_URL="${REDIS_URL_1}"
 fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
+SOURCE_REVISION="${APEX_SOURCE_REVISION:-$(cat APEX_SOURCE_REVISION 2>/dev/null || cat .apex-source-revision 2>/dev/null || true)}"
+if [[ ! "${SOURCE_REVISION}" =~ ^[a-fA-F0-9]{40}$ ]]; then
+  ORIGIN_URL="$(git remote get-url origin 2>/dev/null || true)"
+  if [[ "${ORIGIN_URL}" =~ github\.com[:/]2f22vtd4kr-cloud/BigContacts(\.git)?$ ]]; then
+    SOURCE_REVISION="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+  else
+    SOURCE_REVISION="unknown"
+  fi
+fi
+echo "[replit-boot] sourceRevision=${SOURCE_REVISION} gitHead=$(git rev-parse HEAD 2>/dev/null || echo unknown)"
 # Fail before building/starting when an active provider secret is missing. The
 # preflight checks presence only and never prints secret values.
 node scripts/replit-preflight.mjs
@@ -55,7 +64,7 @@ API_DIST="artifacts/api-server/dist/index.mjs"
 API_STAMP="artifacts/api-server/dist/.atlas-build-stamp.json"
 API_BUILD_REUSABLE=false
 if [[ -f "$API_DIST" && -f "$API_STAMP" ]]; then
-  if node -e 'const fs=require("fs"); const stamp=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const {execFileSync}=require("child_process"); const root=process.cwd(); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); const dirty=execFileSync("git",["status","--porcelain"],{encoding:"utf8"}).trim(); process.exit(stamp.revision===head && !stamp.dirty && !dirty ? 0 : 1)' "$API_STAMP"; then
+  if node -e 'const fs=require("fs"); const stamp=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const {execFileSync}=require("child_process"); const root=process.cwd(); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); const origin=(()=>{try{return execFileSync("git",["remote","get-url","origin"],{encoding:"utf8"}).trim()}catch{return ""}})(); const trusted=/(?:github\.com[:/]2f22vtd4kr-cloud\/BigContacts)(?:\.git)?$/i.test(origin); const archive=fs.existsSync("APEX_SOURCE_REVISION")?fs.readFileSync("APEX_SOURCE_REVISION","utf8").trim():""; const marker=fs.existsSync(".apex-source-revision")?fs.readFileSync(".apex-source-revision","utf8").trim():""; const expected=process.env.APEX_SOURCE_REVISION || (/^[a-f0-9]{40}$/i.test(archive)?archive:/^[a-f0-9]{40}$/i.test(marker)?marker:(trusted?head:"unknown")); const dirty=execFileSync("git",["status","--porcelain"],{encoding:"utf8"}).trim(); process.exit(stamp.revision===expected && stamp.dirtyState==="clean" && !stamp.dirty && !dirty ? 0 : 1)' "$API_STAMP"; then
     API_BUILD_REUSABLE=true
   fi
 fi

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { copyFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readFile, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
@@ -20,12 +20,51 @@ async function buildAll() {
   let dirty = false;
   let dirtyState = "unknown";
   const builtAt = new Date().toISOString();
-  try {
-    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
-    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
-    dirtyState = dirty ? "dirty" : "clean";
-  } catch {
-    // Missing Git metadata is explicitly represented as unknown in the job record.
+  // An imported Replit workspace can preserve the starter project's .git
+  // directory while replacing its tracked source with BigContacts. In that
+  // situation Git HEAD describes the scaffold, not the application being built.
+  // An explicit source revision is authoritative; otherwise only trust Git when
+  // its origin is this repository. Never stamp an unrelated starter SHA as Apex.
+  let importedSourceRevision = "";
+  let importedSourceManifest = false;
+  for (const [manifestName, isImmutableArchive] of [["APEX_SOURCE_REVISION", true], [".apex-source-revision", false]]) {
+    try {
+      const candidate = (await readFile(path.resolve(rootDir, manifestName), "utf8")).trim();
+      if (/^[a-f0-9]{40}$/i.test(candidate)) {
+        importedSourceRevision = candidate;
+        importedSourceManifest = isImmutableArchive;
+        break;
+      }
+    } catch {
+      // Continue to the next authoritative source marker.
+    }
+  }
+  const environmentSourceRevision = process.env.APEX_SOURCE_REVISION?.trim() || "";
+  const explicitSourceRevision = environmentSourceRevision || importedSourceRevision;
+  const explicitSourceDirty = process.env.APEX_SOURCE_DIRTY?.trim().toLowerCase() ?? "";
+  if (/^[a-f0-9]{40}$/i.test(explicitSourceRevision)) {
+    revision = explicitSourceRevision.toLowerCase();
+    if (explicitSourceDirty === "clean" || explicitSourceDirty === "dirty") {
+      dirtyState = explicitSourceDirty;
+      dirty = explicitSourceDirty === "dirty";
+    } else if (importedSourceManifest && !environmentSourceRevision) {
+      // The immutable import bundle was produced from git archive at this exact
+      // commit. Keep the source SHA authoritative but do not infer the current
+      // Replit worktree's cleanliness from its unrelated starter .git directory.
+      dirtyState = "unknown";
+    }
+  } else {
+    try {
+      const origin = execFileSync("git", ["remote", "get-url", "origin"], { cwd: rootDir, encoding: "utf8" }).trim();
+      const canonicalOrigin = /(?:github\.com[:/]2f22vtd4kr-cloud\/BigContacts)(?:\.git)?$/i.test(origin);
+      if (canonicalOrigin) {
+        revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+        dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
+        dirtyState = dirty ? "dirty" : "clean";
+      }
+    } catch {
+      // Missing or unrelated Git metadata is explicitly unknown, never guessed.
+    }
   }
 
   await esbuild({
@@ -152,7 +191,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     path.join(distDir, "APEX_ATLAS_BUREAU_PLAYBOOK.txt"),
   );
 
-  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt }) + "\n");
+  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, dirtyState, builtAt }) + "\n");
 }
 
 buildAll().catch((err) => {

@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoveryLeadInspectionRequirement, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -11,6 +12,7 @@ import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, class
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 import { getGroqTokenRequest, resetProviderGateForTests } from "./provider-gate";
 import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
+import { attachDurableFetchedPageArtifacts, replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
 
 const outboundMocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
@@ -31,9 +33,376 @@ const completeInvestigatorProviderPrompt = [
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
   "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
+const agenticWrapperSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
+const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+const intelligenceReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/research-intelligence-replay.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/src/lib/durable-trajectory-replay.ts"), "utf8");
+
+describe("retained fetched-page continuation persistence boundary", () => {
+  it("marks wrapper-checkpointed artifacts durable only when a durable callback will persist them before the next model turn", () => {
+    expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
+    expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
+    expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
+    expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
+    expect(agenticWrapperSource).toContain("await input.onTrajectoryRecord?.(normalizedRecord)");
+    expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
+    expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
+    expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
+    expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
+  });
+});
+
+describe("retained fetched-page continuation", () => {
+  it("reads successive sections from the already fetched page without another network request", async () => {
+    const url = "https://example.com/team";
+    const pageText = "A".repeat(16_000) + "B".repeat(16_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
+    const pageStore: RetainedFetchedPageStore = {
+      pages: new Map([[url, {
+        text: pageText,
+        nextOffset: 16_000,
+        sourceUrl: url,
+        artifactTurn: 1,
+        sourceVerified: true,
+      }]]),
+      retainedChars: pageText.length,
+      maxChars: 64_000_000,
+    };
+    outboundMocks.safeOutboundFetch.mockClear();
+
+    const firstContinuation = await toolVisit(url, undefined, pageStore, 2);
+    expect(firstContinuation.fromRetainedArtifact).toBe(true);
+    expect(firstContinuation.pageReadOffset).toBe(16_000);
+    expect(firstContinuation.pageReadNextOffset).toBe(32_000);
+    expect(firstContinuation.observation).toContain("B".repeat(1_000));
+
+    const secondContinuation = await toolVisit(url, undefined, pageStore, 3);
+    expect(secondContinuation.fromRetainedArtifact).toBe(true);
+    expect(secondContinuation.pageReadOffset).toBe(32_000);
+    expect(secondContinuation.observation).toContain("TAIL-SECOND-SECTION");
+    expect(secondContinuation.observation).toContain("[END OF RETAINED PAGE CONTENT]");
+    expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
+  });
+});
+
+function syntheticTextPdf(text: string): Uint8Array {
+  const escapedText = text.replace(/[\\()]/g, "\\$&");
+  const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
+  const textOperators = chunks.map((chunk, index) => "(" + chunk + ") Tj" + (index + 1 < chunks.length ? "\n0 -1 Td" : "")).join("\n");
+  const stream = "BT\n/F1 1 Tf\n72 720 Td\n" + textOperators + "\nET";
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Length " + Buffer.byteLength(stream, "latin1") + " >>\nstream\n" + stream + "\nendstream",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(Buffer.byteLength(pdf, "latin1"));
+    pdf += (index + 1) + " 0 obj\n" + objects[index] + "\nendobj\n";
+  }
+  const xrefOffset = Buffer.byteLength(pdf, "latin1");
+  pdf += "xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n";
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += String(offsets[index]).padStart(10, "0") + " 00000 n \n";
+  }
+  pdf += "trailer\n<< /Root 1 0 R /Size " + (objects.length + 1) + " >>\nstartxref\n" + xrefOffset + "\n%%EOF\n";
+  return new Uint8Array(Buffer.from(pdf, "latin1"));
+}
+
+describe("fetched-page retention across fetch, durable replay, and restart", () => {
+  it("retains, durably replays, and resumes complete PDF text through the final quotation without refetching", async () => {
+    const url = "https://example.com/filings/company-report.pdf";
+    const distinctiveTail = 'PDF_FINAL_SECTION: Director Elena Varga. EXACT QUOTE: "The board confirms Elena Varga as a director."';
+    const pdfBytes = syntheticTextPdf(
+      "PDF_START " + "A".repeat(18_000) + " PDF_MIDDLE: public filing officer history "
+      + "B".repeat(18_000) + " " + distinctiveTail,
+    );
+    const store: RetainedFetchedPageStore = { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 };
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(Buffer.from(pdfBytes), {
+      status: 200,
+      headers: { "content-type": "application/pdf" },
+    }));
+    try {
+      const initial = await toolVisit(url, undefined, store, 1);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(initial.pageHasMore).toBe(true);
+      expect(initial.observation).toContain("PDF_START");
+      expect(initial.observation).not.toContain("PDF_MIDDLE");
+      expect(initial.observation).not.toContain("PDF_FINAL_SECTION");
+      expect(initial.pageText?.length).toBeGreaterThan(32_000);
+      expect(typeof initial.pageSha256).toBe("string");
+
+      const middle = await toolVisit(url, undefined, store, 2);
+      expect(middle.fromRetainedArtifact).toBe(true);
+      expect(middle.observation).toContain("PDF_MIDDLE");
+      expect(middle.observation).not.toContain("PDF_FINAL_SECTION");
+      expect(middle.pageHasMore).toBe(true);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+
+      const runId = "synthetic-pdf-restart-run";
+      const initialEvent = {
+        id: 10,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 1, action: "visit",
+          args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+          execution: "success", observation: initial.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const continuationEvent = {
+        id: 40,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 2, action: "visit",
+          args: {
+            url,
+            pageReadSource: "retained_fetch_artifact",
+            pageReadNextOffset: middle.pageReadNextOffset,
+            pageHasMore: true,
+            pageArtifactAvailable: true,
+            pageArtifactDurable: true,
+          },
+          execution: "success", observation: middle.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const pageText = initial.pageText!;
+      const sha256 = initial.pageSha256!;
+      const chunkSize = 12 * 1024;
+      const chunks = Array.from({ length: Math.ceil(pageText.length / chunkSize) }, (_, index) =>
+        pageText.slice(index * chunkSize, (index + 1) * chunkSize));
+      const artifactEvents = chunks.map((chunkText, chunkIndex) => ({
+        id: 20 + chunkIndex,
+        payload: JSON.stringify({
+          kind: "fetched_page_artifact_chunk",
+          runId,
+          turn: 1,
+          sourceUrl: url,
+          sha256,
+          retrievedAt: initial.pageRetrievedAt ?? "2026-11-19T12:00:00.000Z",
+          sourceVerified: true,
+          chunkIndex,
+          chunkCount: chunks.length,
+          text: chunkText,
+        }),
+      }));
+      const replayed = replayInvestigatorTrajectoryEvents([initialEvent, continuationEvent]);
+      attachDurableFetchedPageArtifacts(replayed, artifactEvents);
+      expect(replayed[0]?.pageArtifact?.text).toBe(pageText);
+      expect(replayed[0]?.pageArtifact?.sha256).toBe(sha256);
+
+      // A fresh store models a process restart after the continuation checkpoint.
+      const restartedStore = restoreRetainedFetchedPageStore(replayed);
+      expect(restartedStore.pages.get(url)?.nextOffset).toBe(middle.pageReadNextOffset);
+
+      const finalSection = await toolVisit(url, undefined, restartedStore, 3);
+      expect(finalSection.fromRetainedArtifact).toBe(true);
+      expect(finalSection.observation).toContain("PDF_FINAL_SECTION: Director Elena Varga");
+      expect(finalSection.observation).toContain('"The board confirms Elena Varga as a director."');
+      expect(finalSection.pageHasMore).toBe(false);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
+  it("reports continuation unavailable when the shared HTML/PDF retention budget is exhausted", async () => {
+    const url = "https://example.com/filings/over-budget";
+    const pageText = "BUDGET_START " + "X".repeat(18_000) + " BUDGET_TAIL";
+    const maxChars = 64_000_000;
+    const store: RetainedFetchedPageStore = {
+      pages: new Map([["https://example.com/prior-retained-page", {
+        text: "previous HTML/PDF page already accounted for",
+        nextOffset: 16_000,
+        sourceUrl: "https://example.com/prior-retained-page",
+        artifactTurn: 1,
+        sourceVerified: true,
+      }]]),
+      retainedChars: maxChars - 100,
+      maxChars,
+    };
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    }));
+    try {
+      const result = await toolVisit(url, undefined, store, 2);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(result.observation).toContain("exceeded the run-scoped retention budget");
+      expect(result.observation).toContain("no readable continuation");
+      expect(result.pageHasMore).toBe(false);
+      expect(result.pageText).toBeUndefined();
+      expect(result.pageSha256).toBeUndefined();
+      expect(store.pages.has(url)).toBe(false);
+      expect(store.retainedChars).toBe(maxChars - 100);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
+  it("fetches once, restores the persisted cursor, reads the final section, and never refetches an exhausted page", async () => {
+    const url = "https://example.com/company/team";
+    const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
+    const pageText = [
+      "START: Jane Doe, company chair",
+      "A".repeat(17_000),
+      "MIDDLE: Marcus Lee, shareholder liaison",
+      "B".repeat(17_000),
+      "END: Elena Varga, director",
+      exactQuote,
+      "C".repeat(1_000),
+    ].join("\n");
+    // toolVisit stores the sanitized text projection; its whitespace-normalized
+    // bytes are the cursor/hash contract restored after a process restart.
+    const retainedPageText = pageText.replace(/\s+/g, " ").trim();
+    outboundMocks.safeOutboundFetch.mockReset();
+    outboundMocks.safeOutboundFetch.mockResolvedValue(new Response(pageText, {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    }));
+    try {
+      const firstProcessStore: RetainedFetchedPageStore = {
+        pages: new Map(),
+        retainedChars: 0,
+        maxChars: 64_000_000,
+      };
+      const initial = await toolVisit(url, undefined, firstProcessStore, 1);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+      expect(initial.pageText).toBe(retainedPageText);
+      expect(initial.pageSha256).toBe(createHash("sha256").update(retainedPageText).digest("hex"));
+      expect(initial.observation).toContain("START: Jane Doe");
+      expect(initial.observation).not.toContain("MIDDLE: Marcus Lee");
+      expect(initial.observation).not.toContain("END: Elena Varga");
+      expect(initial.pageHasMore).toBe(true);
+
+      const middle = await toolVisit(url, undefined, firstProcessStore, 2);
+      expect(middle.fromRetainedArtifact).toBe(true);
+      expect(middle.observation).toContain("MIDDLE: Marcus Lee");
+      expect(middle.observation).not.toContain("END: Elena Varga");
+
+      // Simulate the immutable trajectory and separately chunked page events
+      // that are committed before the bureau yields to another model turn.
+      const runId = "synthetic-restart-run";
+      const initialEvent = {
+        id: 10,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 1, action: "visit",
+          args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+          execution: "success", observation: initial.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const continuationEvent = {
+        id: 40,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId, turn: 2, action: "visit", args: {
+            url,
+            pageReadSource: "retained_fetch_artifact",
+            pageReadNextOffset: middle.pageReadNextOffset,
+            pageHasMore: true,
+            pageArtifactAvailable: true,
+            pageArtifactDurable: true,
+          },
+          execution: "success", observation: middle.observation,
+          observedUrls: [url], findings: [],
+        }),
+      };
+      const chunkSize = 12 * 1024;
+      const chunks = Array.from({ length: Math.ceil(retainedPageText.length / chunkSize) }, (_, index) =>
+        retainedPageText.slice(index * chunkSize, (index + 1) * chunkSize));
+      const artifactEvents = chunks.map((chunkText, chunkIndex) => ({
+        id: 20 + chunkIndex,
+        payload: JSON.stringify({
+          kind: "fetched_page_artifact_chunk",
+          runId,
+          turn: 1,
+          sourceUrl: url,
+          sha256: initial.pageSha256,
+          retrievedAt: "2026-11-19T12:00:00.000Z",
+          sourceVerified: true,
+          chunkIndex,
+          chunkCount: chunks.length,
+          text: chunkText,
+        }),
+      }));
+      const replayed = replayInvestigatorTrajectoryEvents([initialEvent, continuationEvent]);
+      attachDurableFetchedPageArtifacts(replayed, artifactEvents);
+      expect(replayed[0]?.pageArtifact?.text).toBe(retainedPageText);
+      expect(replayed[0]?.pageArtifact?.sha256).toBe(initial.pageSha256);
+
+      // A fresh store represents a process restart. It must restore both the
+      // full hash-verified text and the last durably observed continuation offset.
+      const restartedStore = restoreRetainedFetchedPageStore(replayed);
+      expect(restartedStore.pages.get(url)?.nextOffset).toBe(middle.pageReadNextOffset);
+
+      const finalSection = await toolVisit(url, undefined, restartedStore, 3);
+      expect(finalSection.fromRetainedArtifact).toBe(true);
+      expect(finalSection.observation).toContain("END: Elena Varga, director");
+      expect(finalSection.observation).toContain(exactQuote);
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+
+      const exhausted = await toolVisit(url, undefined, restartedStore, 4);
+      expect(exhausted.fromRetainedArtifact).toBe(true);
+      expect(exhausted.pageHasMore).toBe(false);
+      expect(exhausted.observation).toContain("already been read");
+      expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      outboundMocks.safeOutboundFetch.mockReset();
+      if (outboundMocks.originalSafeOutboundFetch) outboundMocks.safeOutboundFetch.mockImplementation(outboundMocks.originalSafeOutboundFetch);
+    }
+  });
+
+  it("fails closed when a durable cursor has a missing or corrupted page artifact", () => {
+    const url = "https://example.com/company/team";
+    const records = [{
+      turn: 1,
+      runId: "synthetic-restart-run",
+      model: "test-model",
+      action: "visit",
+      args: { url, pageHasMore: true, pageArtifactAvailable: true, pageArtifactDurable: true },
+      execution: "success",
+      observation: "Initial bounded observation",
+      observedUrls: [url],
+      findings: [],
+      providerFallback: [],
+      pageArtifact: {
+        sourceUrl: url,
+        text: "corrupted page body",
+        sha256: "0".repeat(64),
+        retrievedAt: "2026-11-19T12:00:00.000Z",
+        sourceVerified: true,
+      },
+    }] as unknown as AgenticTrajectoryRecord[];
+    const restored = restoreRetainedFetchedPageStore(records);
+    expect(restored.pages.size).toBe(0);
+    expect(records[0]?.args.pageHasMore).toBe(false);
+    expect(records[0]?.args.pageArtifactAvailable).toBe(false);
+    expect(records[0]?.observation).toContain("ARTIFACT UNAVAILABLE");
+  });
+});
+
 describe("Investigator preflight model and credential lanes", () => {
+  it("requires repeatable sample success and retains per-sample failure and latency diagnostics", () => {
+    expect(agenticCoreSource).toContain("if (passedSamples >= 2)");
+    expect(agenticCoreSource).toContain("rawOutputClass");
+    expect(agenticCoreSource).toContain("samples.push({");
+    expect(agenticCoreSource).toContain("classification,");
+    expect(agenticCoreSource).toContain("latencyMs: Date.now() - sampleStartedAt");
+    expect(agenticCoreSource).toContain("jobId ?? null, null, [\"web_search\"]");
+  });
+
   it("keeps shared-key aliases together but tests different credentials and 20B/120B models independently", () => {
     const env: NodeJS.ProcessEnv = {
       GROQ_INVESTIGATOR_API_KEY: "shared-key",
@@ -94,8 +463,9 @@ describe("recent observation compaction recovery", () => {
   it("uses a provenance-safe fallback instead of treating an unavailable summarizer as Right-hand oversight failure", () => {
     expect(agenticCoreSource).toContain("compactRecentObservationWithFallback");
     expect(agenticCoreSource).toContain("compactInvestigationContextWithFallback");
-    expect(agenticCoreSource).toContain("deterministic_observation_compaction_fallback");
-    expect(agenticCoreSource).toContain("deterministic_historical_memory_projection");
+    expect(agenticCoreSource).toContain("nonsemantic_observation_projection");
+    expect(agenticCoreSource).not.toContain("deterministic_historical_memory_projection");
+    expect(agenticCoreSource).toContain("Unchanged memory below the AI-compaction threshold remains complete");
     expect(agenticCoreSource).toContain("previouslySemanticallyCompactedThroughTurn");
     expect(agenticCoreSource).toContain("if (compactedMemory.method === \"ai_semantic\")");
     expect(agenticCoreSource).toMatch(/full source remains durable; omitted content is unknown/i);
@@ -338,7 +708,7 @@ describe("model-owned discovery relevance reasoning", () => {
 
 describe("live discovery semantic-authority boundary", () => {
   it("keeps lexical pivot/geography/source-class diagnostics out of live action admission", () => {
-    const runtimeStart = agenticCoreSource.indexOf("const selectedArgs = { ...action } as Record<string, unknown>;");
+    const runtimeStart = agenticCoreSource.indexOf("export async function runAgenticWebResearch");
     expect(runtimeStart).toBeGreaterThan(-1);
     for (const diagnostic of [
       "discoveryPivotAlignmentReason(",
@@ -494,7 +864,7 @@ describe("thrown provider error classification", () => {
   });
 });
 
-function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
+function livenessRecord(action: string, execution: AgenticTrajectoryRecord["execution"] = "success"): AgenticTrajectoryRecord {
   return {
     turn: 1,
     model: "test-model",
@@ -2700,6 +3070,12 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
+  it("feeds the liveness advisory into the actual discovery Investigator observation", () => {
+    expect(agenticCoreSource).toContain("const livenessAdvisory = input.mode === \"discovery\"");
+    expect(agenticCoreSource).toContain("discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...records])");
+    expect(agenticCoreSource).toContain("lastObservation, livenessAdvisory");
+  });
+
   it("counts single registry searches as search-only activity in liveness guidance", () => {
     const records = [
       livenessRecord("registry_search", "success"),
@@ -2945,6 +3321,64 @@ Choose each next action yourself from the available capabilities and observed ev
       },
       observedUrls: ["https://example.com/team"],
     };
+
+    it("allows the Investigator to read the next retained page section without an outbound retry", () => {
+      const truncatedVisit = {
+        ...successfulVisit,
+        args: { ...successfulVisit.args, pageHasMore: true, pageArtifactAvailable: true, pageReadSource: "retained_fetch_artifact" },
+      };
+      expect(redundantResearchActionReason("visit", {
+        url: "https://EXAMPLE.com/team#contact",
+        hypothesis: "Inspect the remaining names lower on the same source page.",
+        purpose: "Continue reading the already fetched page.",
+      }, [truncatedVisit])).toBeNull();
+      expect(agenticCoreSource).toContain("PAGE CONTINUATION");
+      expect(agenticCoreSource).toContain("without another network request");
+      expect(agenticCoreSource).toContain("record.pageArtifact =");
+      expect(agenticCoreSource).toContain("pageReadSource: \"retained_fetch_artifact\"");
+      expect(agenticCoreSource).toContain("pageArtifactAvailable: page.fromRetainedArtifact");
+      expect(agenticCoreSource).toContain("if (!page.fromRetainedArtifact) visits += 1");
+      expect(agenticCoreSource).toContain('failureClass: "action_parse_failure"');
+      expect(agenticCoreSource).toContain("recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: true })");
+      expect(agenticCoreSource).toContain("pageArtifactAvailable === true");
+      expect(agenticCoreSource).toContain("const body = sanitizeObservableValue(stripHtml(raw))");
+      expect(agenticCoreSource).toContain("sourceVerified: Boolean(observedBrowserUrl)");
+      expect(agenticCoreSource).toContain("record.execution = sourceVerified ?");
+      expect(agenticCoreSource).toContain("priorRecord.durableEventId > retained.artifactEventId");
+      expect(agenticCoreSource).toContain("RESEARCH CONTINUITY ADVISORY (diagnostic only; not an ordered route)");
+      expect(bureauAgenticPassSource).toContain("initialResearchAdvisory:input.initialResearchAdvisory");
+      expect(canonicalAtlasDiscoverySource).toContain("discoverySearchLivenessAdvisory(discovery.trajectoryRecords");
+      expect(agenticCoreSource).toContain("const browserText = result.html ? sanitizeObservableValue(stripHtml(result.html)) : \"\";");
+      expect(agenticCoreSource).toContain("const latestRetainedPageReads = new Map<string, AgenticTrajectoryRecord>()");
+      expect(agenticCoreSource).toContain("for (const record of completePromptRecords)");
+      expect(agenticCoreSource).toContain("const { pageArtifact: _pageArtifact, ...promptRecord } = record");
+      expect(bureauAgenticPassSource).toContain("fetched_page_artifact_chunk");
+      expect(bureauAgenticPassSource).toContain("Buffer.byteLength(artifactPayload, \"utf8\") > 128 * 1024");
+      expect(bureauAgenticPassSource).toContain("attachDurableFetchedPageArtifacts");
+      expect(durableTrajectoryReplaySource).toContain("record.pageArtifact =");
+      expect(durableTrajectoryReplaySource).toContain("createHash(\"sha256\").update(text).digest(\"hex\")");
+      expect(bureauAgenticPassSource).toContain("const { pageArtifact: _pageArtifact, ...compactRecord } = record");
+    });
+
+    it("allows local continuation of an unverified partial browser page only when its artifact is retained", () => {
+      const partialBrowserPage: AgenticTrajectoryRecord = {
+        ...livenessRecord("browser_fetch", "success"),
+        execution: "partial",
+        turn: 4,
+        args: { url: "https://example.com/team", provider: "scrapfly", pageHasMore: true, pageArtifactAvailable: true },
+        observedUrls: [],
+      };
+      const continuation = {
+        url: "https://example.com/team", provider: "scrapfly",
+        hypothesis: "Inspect names in the remaining section.",
+        purpose: "Read the retained page without another request.",
+      };
+      expect(redundantResearchActionReason("browser_fetch", continuation, [partialBrowserPage])).toBeNull();
+      expect(redundantResearchActionReason("browser_fetch", continuation, [{
+        ...partialBrowserPage,
+        args: { ...partialBrowserPage.args, pageArtifactAvailable: false },
+      }])).toContain("partial/unverified page observation");
+    });
 
     it("blocks the same normalized URL and capability when the model only changes its rationale", () => {
       const reason = redundantResearchActionReason("visit", {
@@ -4956,7 +5390,8 @@ describe("canonical Investigator parse-failure recovery", () => {
   it("recomputes the zero-research parse-failure predicate after a recovery episode", () => {
     expect(canonicalAtlasDiscoverySource).toContain("const isZeroResearchParseFailure = (candidate: typeof result): boolean =>");
     expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(result);");
-    expect(canonicalAtlasDiscoverySource).toContain("if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;");
+    expect(canonicalAtlasDiscoverySource).toContain("zeroResearchParseFailure = isZeroResearchParseFailure(recovered);");
+    expect(canonicalAtlasDiscoverySource).toContain("parseFailureCountForLane = zeroResearchParseFailure");
   });
 
   it("persists incomplete model rationale as telemetry without blocking action execution", () => {

@@ -20,8 +20,8 @@ function encodePdf(objects: string[]): Uint8Array {
 function minimalPdf(text: string): Uint8Array {
   const escapedText = text.replace(/[\\()]/g, "\\$&");
   const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
-  const textOperators = chunks.map((chunk, index) => `(${chunk}) Tj${index + 1 < chunks.length ? "\n0 -15 Td" : ""}`).join("\n");
-  const stream = `BT\n/F1 12 Tf\n72 720 Td\n${textOperators}\nET`;
+  const textOperators = chunks.map((chunk, index) => `(${chunk}) Tj${index + 1 < chunks.length ? "\n0 -1 Td" : ""}`).join("\n");
+  const stream = `BT\n/F1 1 Tf\n72 720 Td\n${textOperators}\nET`;
   return encodePdf([
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -98,6 +98,15 @@ describe("bounded PDF text extraction", () => {
     const result = await extractPdfText(mixedPdfWithImageOnlyFirstPage());
     expect(result.text).toContain("[Page 2] Readable second page");
     expect(result).toMatchObject({ pagesRead: 2, totalPages: 2, ocrRequired: true, ocrRequiredPages: [1] });
+  });
+
+  it("extracts a complete text document larger than one Investigator observation window", async () => {
+    const distinctiveTail = "FINAL-PDF-SECTION: Director Elena Varga";
+    const result = await extractPdfText(minimalPdf("PDF-START " + "A".repeat(18_000) + " " + distinctiveTail));
+    expect(result.text.length).toBeGreaterThan(16_000);
+    expect(result.text).toContain("PDF-START");
+    expect(result.text).toContain(distinctiveTail);
+    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, truncated: false });
   });
 
   it("caps extracted text and refuses oversized input before parsing", async () => {

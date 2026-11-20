@@ -26,10 +26,10 @@ describe("Groq Boss discovery prompt grounding", () => {
     }, ["groq-investigator-1"]);
     expect(prompt).toContain("select an available Investigator execution capability");
     expect(prompt).toContain("prefer groq-investigator-20b for routine discovery");
-    expect(prompt).toContain("canonical mixed-source discovery phase");
+    expect(prompt).toContain("After this capability assignment, the Investigator owns research execution.");
     expect(prompt).toContain("Do not compare sectors, geographies, or strategies.");
     expect(prompt).toContain("Do not add geographic scope or a target preference.");
-    expect(prompt).toContain("randomized, runtime-callable registry/asset-register catalog");
+    expect(prompt).toContain("No source family, registry, provider, query, geography, target class, or research sequence is required in advance.");
     expect(prompt).toContain("Discover under-the-radar people with credible wealth potential and realistic public contact routes.");
     expect(prompt).not.toContain("Choose one concrete, testable company/person/asset lead");
     expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");

@@ -49,8 +49,8 @@ describe("per-episode technical bounds", () => {
     expect(resolveOpeningInvestigatorIterations({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
   });
 
-  it("bounds each episode by its technical per-act limit, not an assumed number of discovery episodes", () => {
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(7);
+  it("returns control to Boss and Right-hand within the six-turn oversight interval", () => {
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(6);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 2 }, 7)).toBe(2);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 0)).toBe(0);
   });

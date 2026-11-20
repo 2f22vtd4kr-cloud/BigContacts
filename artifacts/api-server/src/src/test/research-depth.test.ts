@@ -41,11 +41,11 @@ describe("shared Investigator technical mission budget", () => {
 });
 
 describe("per-episode technical bounds", () => {
-  it("bounds each Investigator episode without allocating a fixed discovery share", () => {
+  it("bounds each Investigator episode by configured capacity and the six-turn oversight interval", () => {
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 20)).toBe(6);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 8)).toBe(6);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 4 }, 12)).toBe(4);
-    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(7);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(6);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
   });
 });

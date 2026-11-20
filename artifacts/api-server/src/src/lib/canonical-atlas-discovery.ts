@@ -8,12 +8,13 @@ import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
-import { buildMissionActionBudget, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
+import { buildMissionActionBudget, DISCOVERY_AI_OVERSIGHT_INTERVAL, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, countDiscoverySearchActions, discoveryPivotScopeKey, discoverySearchLivenessAdvisory, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { getInvestigatorCapabilityRuntimeHealthSnapshot } from "./investigator-capability-registry";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -53,6 +54,7 @@ export type CanonicalAtlasOptions = {
   discoveryGeography?: string;
   discoveryExclusions?: string[];
   excludedInvestigatorLlm?: InvestigatorCapability[];
+  investigatorLaneHealth?: readonly { model: string; capabilities: readonly InvestigatorCapability[]; passedSamples: number; failedSamples: number; samples?: readonly { sample: number; passed: boolean; classification: string; rawOutputClass: string; latencyMs: number; diagnostic: string }[] }[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
@@ -1300,6 +1302,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       ],
       startingLane: "model-selected discovery",
       excludedInvestigatorLlm: opts.excludedInvestigatorLlm,
+      investigatorLaneHealth: opts.investigatorLaneHealth,
     });
     await assertAtlasJobActive(atlasJobId);
 
@@ -1380,7 +1383,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
-    let consecutiveActionParseFailureEpisodes = 0;
+    const parseFailureEpisodesByInvestigator = new Map<InvestigatorCapability, number>();
     // This counter is initialized before opening-episode recovery can invoke the
     // shared reassignment helper.
     let consecutiveInvestigatorTokenCapacityFailures = 0;
@@ -1427,6 +1430,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         ],
         startingLane: "Boss-directed Investigator capability reassignment after explicit hard request-quota exhaustion",
         excludedInvestigatorLlm: bossExcludedCapabilities,
+        investigatorLaneHealth: opts.investigatorLaneHealth,
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
@@ -1613,6 +1617,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? "Boss-directed Investigator capability reassignment after two terminal zero-research action-contract failures"
             : "Boss-directed Investigator reassignment after repeated token-window capacity failures",
         excludedInvestigatorLlm: bossExcludedCapabilities,
+        investigatorLaneHealth: opts.investigatorLaneHealth,
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
@@ -1734,20 +1739,22 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         && candidate.searches === 0 && candidate.visits === 0
         && (candidate.trajectoryRecords ?? []).some((record) => record.action === "parse_failure" && record.stopReason === "PARSE_FAILURE");
       let zeroResearchParseFailure = isZeroResearchParseFailure(result);
-      consecutiveActionParseFailureEpisodes = zeroResearchParseFailure
-        ? consecutiveActionParseFailureEpisodes + 1
+      let parseFailureCountForLane = zeroResearchParseFailure
+        ? (parseFailureEpisodesByInvestigator.get(selectedInvestigator) ?? 0) + 1
         : 0;
+      parseFailureEpisodesByInvestigator.set(selectedInvestigator, parseFailureCountForLane);
       while (isInvestigatorHardQuotaExhausted(result)
         || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)
-        || (zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2)) {
+        || (zeroResearchParseFailure && parseFailureCountForLane >= 2)) {
         const dailyTokenQuotaFailure = isInvestigatorTokenDailyQuotaUnavailableEpisode(result);
-        const actionParseFailure = zeroResearchParseFailure && consecutiveActionParseFailureEpisodes >= 2;
+        const actionParseFailure = zeroResearchParseFailure && parseFailureCountForLane >= 2;
         // Preserve the original hard-request-quota budget calculation; the
         // separate TPD path is bounded to one act and the global budget left.
         const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
-        const quotaRecoveryIterations = dailyTokenQuotaFailure || actionParseFailure
+        const recoveryIterationBudget = dailyTokenQuotaFailure || actionParseFailure
           ? Math.max(0, tokenDailyQuotaAdditionalIterations)
           : remainingIterations;
+        const quotaRecoveryIterations = Math.min(DISCOVERY_AI_OVERSIGHT_INTERVAL, recoveryIterationBudget);
         if (quotaRecoveryIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = isInvestigatorHardQuotaExhausted(result)
@@ -1765,11 +1772,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             );
         if (!replacement) break;
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, initialResearchAdvisory: discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]) ?? undefined, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
-        zeroResearchParseFailure = isZeroResearchParseFailure(result);
-        if (!zeroResearchParseFailure) consecutiveActionParseFailureEpisodes = 0;
+        zeroResearchParseFailure = isZeroResearchParseFailure(recovered);
+        parseFailureCountForLane = zeroResearchParseFailure
+          ? (parseFailureEpisodesByInvestigator.get(selectedInvestigator) ?? 0) + 1
+          : 0;
+        parseFailureEpisodesByInvestigator.set(selectedInvestigator, parseFailureCountForLane);
         if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
       }
       return result;
@@ -2107,6 +2117,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           maxIterations: parseFailureRetryIterations,
           hardTimeoutMs: Math.min(openingDiscoveryBudget, assertAtlasDeadline() - 5_000),
           priorTrajectoryRecords: discovery.trajectoryRecords ?? [],
+          initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined,
           aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext,
           aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn,
           initialConsecutiveActionParseFailures: 0,
@@ -2256,6 +2267,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         investigatorActionsRemaining: resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed }),
         discoverySearchActionsUsed,
       };
+      const researchLivenessAdvisory = discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []);
+      const investigatorLaneHealth = { preflight: opts.investigatorLaneHealth ?? [], runtime: getInvestigatorCapabilityRuntimeHealthSnapshot() };
       const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective),
         leadInventory: controlLeadInventory,
         admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })),
@@ -2265,7 +2278,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         rightHandIndependentReview: latestRightHandReviewContext,
-        controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
+        researchLivenessAdvisory,
+      investigatorLaneHealth,
+      controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss discovery direction at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected structured research direction or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
           : controlValidationFeedback.kind === "candidate_selection"
               ? `The previous Boss candidate selection at control turn ${controlValidationFeedback.controlTurn} was rejected because the candidate was absent from the durable admitted-candidate list. No target investigation was executed. Do not treat a name in source text or a Right-hand suggestion as candidate admission. Choose a valid model-owned control action; if more discovery is needed, direct the Investigator to continue gathering source-backed evidence and make an explicit admission decision. This feedback is control state, not research evidence.`
@@ -2341,6 +2356,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           "INVESTIGATOR PROPOSED ACTION:", JSON.stringify(latestInvestigatorRecord ? { action: latestInvestigatorRecord.action, hypothesis: latestInvestigatorRecord.args?.hypothesis ?? null, thought: latestInvestigatorRecord.thought ?? null, findings: (latestInvestigatorRecord.findings ?? []).slice(0, 8).map((finding) => ({ personName: finding.personName ?? null, role: finding.role ?? null, promotionDecision: finding.promotionDecision ?? null, promotionReason: finding.promotionReason ?? null, exactQuote: finding.exactQuote ?? null, sourceUrls: finding.sourceUrls ?? [] })) } : null),
           "BOSS DECISION:", JSON.stringify({ action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null }),
           "ADMITTED CANDIDATES:", JSON.stringify(admittedCandidateSources.slice(0, 12).map(({ name, role, targetType, sourceUrls }) => ({ name, role, targetType, sourceUrls: sourceUrls.slice(0, 3) }))),
+          "RESEARCH LIVENESS (advisory only; do not infer negative evidence or prescribe a fixed route):", researchLivenessAdvisory ?? "No current liveness advisory.",
+          "INVESTIGATOR LANE HEALTH (runtime parse/provider diagnostics; advisory only; Boss retains capability selection):", JSON.stringify(investigatorLaneHealth),
           "LATEST INVESTIGATOR OBSERVATIONS:", JSON.stringify((discovery.trajectoryRecords ?? []).slice(-6).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: compactControlText(record.observation, 900), observedUrls: (record.observedUrls ?? []).slice(0, 4), failureDomain: record.failureDomain, failureKind: record.failureKind }))),
           "Return JSON fields: assessment (support/challenge/unresolved), materialGaps (string[]), contradictions (string[]), alternativeInterpretation (string), recommendation (string), confidence (0..1).",
         ].join("\n");
@@ -2370,21 +2387,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             rightHandAssessment = typeof parsedReview.assessment === "string" ? parsedReview.assessment : null;
           } catch { rightHandAssessment = null; }
         }
-        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
-          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
-          && !rightHandReconsiderationUsed;
-        if (reviewChallengesConsequentialDecision) {
-          rightHandReconsiderationUsed = true;
-          rejectedControlDecision = {
-            controlTurn: controlTurns,
-            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
-            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
-          };
-          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
-          // Do not execute the challenged stop/admission/pivot yet. The next
-          // Boss call receives the durable Right-hand assessment above.
-          continue;
-        }
         await assertAtlasJobActive(atlasJobId);
         failureStage = "case_persistence";
         await db.transaction(async (tx) => {
@@ -2405,12 +2407,33 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             eventType: "observation", status: review.status === "completed" ? "recorded" : "unavailable",
             summary: review.status === "completed"
               ? "Right-hand independently reviewed a consequential Investigator/Boss decision; advice is non-authoritative."
-              : "Right-hand independent review was unavailable; Boss decision remains recorded without independent advice.",
+              : "Right-hand independent review unavailable; Boss decision remains recorded without independent advice.",
             correlationKey: `${atlasJobId}:right-hand-consequential:${controlTurns}`,
-            payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, reviewedAction: decision.action, status: review.status, model: review.model, raw: review.raw, error: review.error, authority: "advisory_only" }),
+            payload: JSON.stringify({
+              jobId: atlasJobId, controlTurn: controlTurns,
+              reviewedAction: decision.action,
+              bossDecision: { action: decision.action, candidateName: decision.candidateName ?? null, candidateType: decision.candidateType ?? null, direction: decision.direction ?? null, reason: decision.reason ?? null },
+              status: review.status, model: review.model, raw: review.raw, error: review.error,
+              authority: "advisory_only",
+            }),
           }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
         }, { isolationLevel: "serializable" });
         phaseSummary[`right_hand_review_${controlTurns}`] = review.status === "completed" ? "Independent consequential review recorded as advisory." : "Independent consequential review unavailable; Boss retains responsibility.";
+        const reviewChallengesConsequentialDecision = rightHandAssessment === "challenge"
+          && ["stop", "research_candidate", "revisit_candidate", "pivot_discovery"].includes(decision.action)
+          && !rightHandReconsiderationUsed;
+        if (reviewChallengesConsequentialDecision) {
+          rightHandReconsiderationUsed = true;
+          rejectedControlDecision = {
+            controlTurn: controlTurns,
+            reason: "Right-hand independently challenged the consequential decision. Reconsider once using its recorded gaps, contradictions and alternative interpretation: " + compactControlText(review.raw ?? "", 1_400),
+            kind: decision.action === "stop" ? "discovery_budget" : decision.action === "pivot_discovery" ? "pivot_direction" : "candidate_selection",
+          };
+          phaseSummary.rightHandReview = "Right-hand challenged a consequential decision; Boss will reconsider once with the independent review.";
+          // Do not execute the challenged stop/admission/pivot yet. The next
+          // Boss call receives the durable Right-hand assessment above.
+          continue;
+        }
       }
       if (controlValidationFeedback) rejectedControlDecision = null;
       await assertAtlasJobActive(atlasJobId);
@@ -2538,7 +2561,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
-        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities() });
+        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, objective: activeDiscoveryObjective, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities(), investigatorLaneHealth: opts.investigatorLaneHealth });
         if (targetResult.budgetExhausted) throw new Error("investigator_daily_token_budget_exhausted");
         if (targetResult.usageLedgerUnavailable) throw new Error("investigator_usage_ledger_unavailable");
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
@@ -2689,7 +2712,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "investigator_episode";
         const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations);
         latestDiscoveryEpisodeLimit = nextEpisodeLimit;
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,
