@@ -136,14 +136,14 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
   }
 
   const memoryProjectionIndex = lines.findIndex((line) =>
-    line.trim().replace(/^#+\\s*/, "").replace(/:$/, "").trim() === "DURABLE CASE MEMORY PROJECTION");
+    line.trim().replace(/^#+\s*/, "").replace(/:$/, "").trim() === "DURABLE CASE MEMORY PROJECTION");
   if (memoryProjectionIndex >= 0) {
     // Accept both the plain-text heading used by durable case memory and its
     // Markdown/colon variants. The projection may be compact or pretty JSON.
     let candidate = "";
     for (const line of lines.slice(memoryProjectionIndex + 1, memoryProjectionIndex + 257)) {
       if (!candidate && !line.trim()) continue;
-      candidate += (candidate ? "\\n" : "") + line;
+      candidate += (candidate ? "\n" : "") + line;
       if (candidate.length > 256_000) break;
       try {
         const projection = JSON.parse(candidate) as Record<string, unknown>;
