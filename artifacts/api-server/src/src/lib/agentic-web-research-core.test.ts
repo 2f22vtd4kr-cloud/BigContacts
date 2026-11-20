@@ -4960,7 +4960,7 @@ describe("prompt composition recovery integrity", () => {
 
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
     const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
-    const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
+    const end = agenticCoreSource.indexOf("// Prefer one bounded AI reduction when historical memory does not fit.", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);
