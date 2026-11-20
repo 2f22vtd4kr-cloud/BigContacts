@@ -853,7 +853,7 @@ describe("AI investigation context compaction", () => {
     }, "historical_memory");
 
     expect(result?.method).toBe("verbatim_fallback");
-    expect(result?.text).toContain(source);
+    expect(result?.text.startsWith(source)).toBe(true);
     expect(result?.text).toContain("Omissions unknown.");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
     expect(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[5]).toMatchObject({
