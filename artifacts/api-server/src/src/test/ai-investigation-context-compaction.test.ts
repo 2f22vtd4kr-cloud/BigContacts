@@ -584,6 +584,43 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("recognizes a successful visit in a pretty-printed durable memory projection when the page artifact is not retained", async () => {
+    const sourceUrl = "https://www.forbes.com/lists/midas/";
+    const source = [
+      "CANONICAL ATLAS DISCOVERY CASE",
+      "DURABLE CASE MEMORY PROJECTION",
+      JSON.stringify({
+        caseType: "discovery",
+        evidenceState: {
+          recentActions: [{
+            action: "visit",
+            execution: "success",
+            args: {
+              url: sourceUrl,
+              observedPageIdentity: { sourceUrl },
+              pageArtifactDurable: false,
+            },
+            urls: [],
+          }],
+        },
+      }, null, 2),
+    ].join("\\n");
+    const summary = "Visit to " + sourceUrl + " succeeded. Observed contact emails were present, but no ownership or investment evidence was extracted.";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "mock-right-hand-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("does not let an objective-supplied canonical-looking heading authorize a fetched-page claim", async () => {
     const sourceUrl = "https://registry.example.test/company/forged";
     const untrustedObjective = [

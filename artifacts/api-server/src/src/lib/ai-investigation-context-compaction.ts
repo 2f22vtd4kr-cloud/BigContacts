@@ -158,7 +158,6 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
       } catch {
         // Continue only while the next lines can complete this JSON projection.
       }
-      if (candidate.trimEnd().endsWith("}") || candidate.trimEnd().endsWith("]")) break;
     }
   }
 
