@@ -236,7 +236,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         };
         investigatorPreflightReport = preflightReport;
         logger.info({ jobId: atlasJobId, investigatorPreflight: preflightReport }, "Apex Investigator preflight completed.");
-        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/3`).join("; ");
+        const probeReport = investigatorProbe.sampleSummary.map((sample) => `${sample.model}=${sample.passedSamples}/1${sample.cacheHit ? " (cached)" : ""}`).join("; ");
         await updateJob(atlasJobId!, {
           result: JSON.stringify({ buildProvenance, investigatorPreflight: preflightReport, terminalState: investigatorProbe.ok ? "running" : "failed" }),
           message: investigatorProbe.ok

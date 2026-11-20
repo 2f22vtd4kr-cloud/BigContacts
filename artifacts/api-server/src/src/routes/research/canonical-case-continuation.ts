@@ -31,6 +31,7 @@ router.post(["/research/bureau/cases/:caseId/run-next-pass","/research/bureau/ca
  const requestedDepthValue=req.body?.researchDepth;
  if(requestedDepthValue!==undefined&&(typeof requestedDepthValue!=="string"||!["fast","standard","deep"].includes(requestedDepthValue))){res.status(400).json({error:"researchDepth must be one of fast, standard, or deep."});return;}
  const requestedResearchDepth=typeof requestedDepthValue==="string"?requestedDepthValue:undefined;
+ // recover-control resumes an already persisted case/lane; launch-only Investigator preflight is intentionally skipped here.
  const isControlRecovery=req.path.endsWith("/recover-control");
  const recoverableControlActions=new Set(["groq-right-hand-unavailable","canonical-control-unavailable","canonical-investigator-provider-unavailable","canonical-right-hand-oversight-unavailable"]);
  let legacyRightHandOpeningRecovery=false;

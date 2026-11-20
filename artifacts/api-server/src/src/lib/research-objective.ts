@@ -34,7 +34,6 @@ export function validateResearchObjective(direction: string | null | undefined):
  */
 export type BossAdjudicatedOpeningResolution =
   | { status: "approved"; direction: string; source: "boss_direction" | "initial_boss_direction"; reason: null }
-  | { status: "base_scope"; direction: null; source: "base_objective"; reason: null }
   | { status: "stopped"; direction: null; source: "boss_stop"; reason: string }
   | { status: "invalid"; direction: null; source: "invalid_boss_decision"; reason: string };
 
@@ -67,15 +66,14 @@ export function resolveBossAdjudicatedOpeningDirection(input: {
     ? bossDirection
     : (bossDirection || initialDirection);
 
-  if (!direction && action === "continue_discovery") {
-    return { status: "base_scope", direction: null, source: "base_objective", reason: null };
-  }
   if (!direction) {
     return {
       status: "invalid",
       direction: null,
       source: "invalid_boss_decision",
-      reason: "Groq Boss selected a pivot without supplying its own opening direction.",
+      reason: action === "continue_discovery"
+        ? "Groq Boss selected continue_discovery without supplying a concrete opening research direction."
+        : "Groq Boss selected a pivot without supplying its own opening direction.",
     };
   }
   if (direction.length > 1_200) {

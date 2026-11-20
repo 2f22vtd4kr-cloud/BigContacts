@@ -52,6 +52,12 @@ describe("canonicalCaseContinuationGuard", () => {
     expect(source).not.toContain("context.length<=16000");
     expect(source).toContain('new Error(boss.error??"Groq Boss did not select a Groq Investigator.")');
   });
+  it("does not run launch-only Investigator preflight during recover-control", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
+    expect(source).toContain('const isControlRecovery=req.path.endsWith("/recover-control")');
+    expect(source).toContain("launch-only Investigator preflight is intentionally skipped");
+    expect(source).not.toContain("probeGroqInvestigatorCapabilities");
+  });
   it("keeps discovery and target continuation endpoints for saved entity cards", () => {
     const discoverySource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     const targetSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-target-continuation.ts"), "utf8");

@@ -29,7 +29,7 @@ vi.mock("../lib/agentic-llm-telemetry", async (importOriginal) => {
   };
 });
 
-import { callGroqJson, probeGroqInvestigatorCapabilities } from "../lib/agentic-web-research-core";
+import { callGroqJson, probeGroqInvestigatorCapabilities, resetGroqInvestigatorProbeCacheForTests, GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 const strictInvestigatorPrompt = [
@@ -72,6 +72,7 @@ async function callTransport(strictPreflight = false) {
 
 describe("Groq Investigator HTTP transport recovery", () => {
   beforeEach(() => {
+    resetGroqInvestigatorProbeCacheForTests();
     resetProviderGateForTests();
     vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "transport-test-key");
     vi.stubEnv("APEX_ENABLE_GROQ_INVESTIGATOR_20B", "false");
@@ -95,7 +96,9 @@ describe("Groq Investigator HTTP transport recovery", () => {
   });
 
   afterEach(() => {
+    resetGroqInvestigatorProbeCacheForTests();
     resetProviderGateForTests();
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -180,11 +183,10 @@ describe("Groq Investigator HTTP transport recovery", () => {
       searches: [],
       findings: [],
     };
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-20T00:00:00.000Z"));
+    expect(GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS).toBe(30 * 60 * 1_000);
     transportMocks.responses.push(
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
     );
@@ -193,9 +195,11 @@ describe("Groq Investigator HTTP transport recovery", () => {
 
     expect(result.ok).toBe(true);
     expect(result.checked.map((entry) => entry.model)).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
+    expect(result.sampleSummary.map((entry) => entry.passedSamples)).toEqual([1, 1]);
+    expect(result.sampleSummary.every((entry) => entry.cacheHit === false && entry.samples.length === 1)).toBe(true);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
     const twentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
-    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[3]?.[1]?.body as string);
+    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
     expect(twentyBRequest.response_format).toBeUndefined();
     expect(twentyBRequest.messages[1].content).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     expect(oneTwentyBRequest.response_format.type).toBe("json_schema");
@@ -203,6 +207,69 @@ describe("Groq Investigator HTTP transport recovery", () => {
     expect(oneTwentyBRequest.messages[1].content).toContain("provider");
     expect(oneTwentyBRequest.messages[1].content).not.toContain('provider="serper"');
     expect(oneTwentyBRequest.messages[1].content).not.toContain("provider=null");
+
+    const cached = await probeGroqInvestigatorCapabilities();
+    expect(cached.ok).toBe(true);
+    expect(cached.sampleSummary.every((entry) => entry.cacheHit === true)).toBe(true);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+
+    vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "different-transport-test-key");
+    transportMocks.responses.push(
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+    );
+    const differentCredential = await probeGroqInvestigatorCapabilities();
+    expect(differentCredential.ok).toBe(true);
+    expect(differentCredential.sampleSummary.every((entry) => entry.cacheHit === false)).toBe(true);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(4);
+
+    vi.setSystemTime(new Date("2026-11-20T00:31:00.000Z"));
+    transportMocks.responses.push(
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
+    );
+    const expired = await probeGroqInvestigatorCapabilities();
+    expect(expired.ok).toBe(true);
+    expect(expired.sampleSummary.every((entry) => entry.cacheHit === false)).toBe(true);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
+  });
+
+  it("does not cache a failed Investigator preflight result", async () => {
+    const validAction = {
+      action: "web_search",
+      query: "Apex retryable preflight contract probe",
+      provider: "serper",
+      url: null,
+      email: null,
+      username: null,
+      domain: null,
+      registry: null,
+      thought: "Verify the configured response contract.",
+      hypothesis: "The model can produce one valid action object.",
+      purpose: "Exercise successful preflight after an earlier failure.",
+      expectedInformationGain: 0.2,
+      locale: null,
+      market: null,
+      target: null,
+      targetType: null,
+      profile: null,
+      sources: [],
+      searches: [],
+      findings: [],
+    };
+    transportMocks.responses.push(groqResponse(400, {
+      error: { message: "Invalid response format.", type: "invalid_request_error", code: "invalid_request_error", param: "response_format" },
+    }));
+    const failed = await probeGroqInvestigatorCapabilities();
+    expect(failed.ok).toBe(false);
+    expect(failed.sampleSummary[0]).toMatchObject({ passedSamples: 0, failedSamples: 1, cacheHit: false });
+    transportMocks.responses.push(groqResponse(200, {
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }],
+    }));
+    const retried = await probeGroqInvestigatorCapabilities();
+    expect(retried.ok).toBe(true);
+    expect(retried.sampleSummary[0]).toMatchObject({ passedSamples: 1, failedSamples: 0, cacheHit: false });
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
   });
 
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {

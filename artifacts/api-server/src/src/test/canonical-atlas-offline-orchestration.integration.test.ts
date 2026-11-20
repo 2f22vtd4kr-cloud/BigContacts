@@ -339,7 +339,8 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       else if (call === 1) { action = "research_candidate"; candidateName = firstName; candidateType = "person"; }
       else if (mocks.scenario === "operator-cap") { action = "research_candidate"; candidateName = secondName; candidateType = "person"; }
       else action = "stop";
-      return { model: "mock-groq-boss", raw: JSON.stringify({ action, candidateName, candidateType, direction: null, reason: "Mock provider response: Boss makes the control decision.", confidence: 0.9 }), error: null, attempts: [] };
+      const direction = action === "continue_discovery" ? "Establish the first source-backed relationship that would verify the human objective." : null;
+      return { model: "mock-groq-boss", raw: JSON.stringify({ action, candidateName, candidateType, direction, reason: "Mock provider response: Boss makes the control decision.", confidence: 0.9 }), error: null, attempts: [] };
     });
 
     const exactQuote = `${firstName} is the Chief Executive Officer of Apex Offline Holdings.`;

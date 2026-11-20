@@ -29,7 +29,7 @@ import { isInvestigatorAuthoredResearchEvent, lockResearchCaseEventAppendStream,
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, shouldRequireExplicitBossContinueDirection, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
+import { formatBossDirectedObjective, resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
@@ -1935,7 +1935,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         bossInitialReport: null,
         bossInitialDirections: [],
         bossUncertainties: [],
-        instruction: "This is the opening adjudication before the first Investigator action. Make the final Boss decision: authorize the Investigator to begin research under the exact human objective, or stop only for a concrete blocker. No source-backed candidates or target directions exist yet; Right-hand review is deferred until a consequential decision emerges.",
+        instruction: "This is the opening adjudication before the first Investigator action. Make the final Boss decision: authorize the Investigator to begin research under the exact human objective with one concrete opening research question, or stop only for a concrete blocker. No source-backed candidates exist yet; Right-hand review is deferred until a consequential decision emerges.",
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
@@ -1944,7 +1944,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
         "OPENING RESEARCH CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not prescribe a source mix, source family, query sequence, target class, or jurisdiction. The Investigator independently chooses which runtime-enabled capability or source best tests the current mission and may pivot as observations warrant. Do not compare targets, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
-        "The human mission and realistic-targetability rules govern. Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.",
+        "The human mission and realistic-targetability rules govern. Boss must now provide one concrete, objective-aligned opening research question. It must not name an unobserved target or prescribe a provider, registry, tool, search query, source family, or new geography.",
       ].join("\n"),
       rightHandOverride: {
         status: rightHand.status,
@@ -1972,7 +1972,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
       bossAction: openingBossDecision.action,
-      bossDirection: null,
+      bossDirection: openingBossDecision.direction,
       initialBossDirection: null,
     });
     if (openingDirectionResolution.status === "invalid") {
@@ -2006,8 +2006,22 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
+    const openingDirectedObjective = formatBossDirectedObjective(discoveryObjective, openingDirectionResolution.direction);
+    await persistAcceptedAtlasDiscoveryObjective({
+      caseId: discoveryCaseId,
+      jobId: atlasJobId,
+      controlTurn: 1,
+      action: "continue_discovery",
+      direction: openingDirectionResolution.direction,
+      baseObjective: discoveryObjective,
+      previousObjective: activeDiscoveryObjective,
+      activeObjective: openingDirectedObjective,
+    });
+    activeDiscoveryObjective = openingDirectedObjective;
+
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
+      "BOSS-APPROVED OPENING RESEARCH QUESTION: " + openingDirectionResolution.direction,
       "BOSS FINAL OPENING DECISION: autonomous discovery is authorized under the exact human objective; no candidate, target, query, source mix, or fixed source sequence was selected.",
       "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + openingBossDecision.reason,
       "RIGHT-HAND STATUS (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until evidence-backed consequential decisions exist." : rightHand.reason ?? "No opening review was performed.") + ". The Investigator owns source selection.",
