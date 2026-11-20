@@ -1035,6 +1035,13 @@ describe("AI investigation context compaction", () => {
             urls: [],
             observation: "The fetched page observation contains public contact emails [REDACTED_EMAIL] only; no material ownership, equity, or transaction evidence is recorded in the observation.",
           },
+          {
+            turn: 3,
+            action: "parse_failure",
+            execution: "error",
+            args: {},
+            observation: "The Investigator model output did not match the required action contract; no research tool was executed.",
+          },
         ],
       },
     };
@@ -1068,10 +1075,10 @@ describe("AI investigation context compaction", () => {
     const finalSummary = [
       "Web search (serper) returned several URLs, including " + sourceUrl + ".",
       "Visit to " + sourceUrl + " succeeded and exposed contact emails.",
-      "No material ownership, equity, or transaction clues were extracted from the retrieved page.",
+      "The retained visit observation records contact emails but no ownership, equity, or transaction evidence.",
       "The earlier parse failure was an operational model-output issue, not a negative finding.",
       "No conclusion about the absence of relevant individuals’ wealth or investment activity is supported yet.",
-      "Next step: inspect the Forbes Midas entries and retrieve source-specific profiles.",
+      "Open question: which Forbes Midas entries, if any, contain source-backed evidence relevant to the objective?",
     ].join(" ");
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary }), error: null, attempts: [] })
