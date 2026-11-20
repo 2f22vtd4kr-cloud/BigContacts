@@ -635,6 +635,7 @@ describe("Boss opening response budget", () => {
     expect(ATLAS_BOSS_OPENING_CONTROL_MAX_OUTPUT_TOKENS).toBe(1_024);
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.required).toContain("direction");
     expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBeGreaterThan(500);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.reason.maxLength).toBe(800);
   });
 });
 
