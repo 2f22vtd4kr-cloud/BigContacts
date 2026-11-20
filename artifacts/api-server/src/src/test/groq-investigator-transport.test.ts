@@ -186,20 +186,19 @@ describe("Groq Investigator HTTP transport recovery", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-20T00:00:00.000Z"));
     expect(GROQ_INVESTIGATOR_PROBE_CACHE_TTL_MS).toBe(30 * 60 * 1_000);
-    transportMocks.responses.push(
+    transportMocks.responses.push(...Array.from({ length: 6 }, () =>
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-    );
+    ));
 
     const result = await probeGroqInvestigatorCapabilities();
 
     expect(result.ok).toBe(true);
     expect(result.checked.map((entry) => entry.model)).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
-    expect(result.sampleSummary.map((entry) => entry.passedSamples)).toEqual([1, 1]);
-    expect(result.sampleSummary.every((entry) => entry.cacheHit === false && entry.samples.length === 1)).toBe(true);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+    expect(result.sampleSummary.map((entry) => entry.passedSamples)).toEqual([3, 3]);
+    expect(result.sampleSummary.every((entry) => entry.cacheHit === false && entry.samples.length === 3)).toBe(true);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
     const twentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[0]?.[1]?.body as string);
-    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[1]?.[1]?.body as string);
+    const oneTwentyBRequest = JSON.parse(transportMocks.safeOutboundFetch.mock.calls[3]?.[1]?.body as string);
     expect(twentyBRequest.response_format).toBeUndefined();
     expect(twentyBRequest.messages[1].content).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     expect(oneTwentyBRequest.response_format.type).toBe("json_schema");
@@ -211,27 +210,25 @@ describe("Groq Investigator HTTP transport recovery", () => {
     const cached = await probeGroqInvestigatorCapabilities();
     expect(cached.ok).toBe(true);
     expect(cached.sampleSummary.every((entry) => entry.cacheHit === true)).toBe(true);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
 
     vi.stubEnv("GROQ_INVESTIGATOR_API_KEY", "different-transport-test-key");
-    transportMocks.responses.push(
+    transportMocks.responses.push(...Array.from({ length: 6 }, () =>
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-    );
+    ));
     const differentCredential = await probeGroqInvestigatorCapabilities();
     expect(differentCredential.ok).toBe(true);
     expect(differentCredential.sampleSummary.every((entry) => entry.cacheHit === false)).toBe(true);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(4);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(12);
 
     vi.setSystemTime(new Date("2026-11-20T00:31:00.000Z"));
-    transportMocks.responses.push(
+    transportMocks.responses.push(...Array.from({ length: 6 }, () =>
       groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-      groqResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }] }),
-    );
+    ));
     const expired = await probeGroqInvestigatorCapabilities();
     expect(expired.ok).toBe(true);
     expect(expired.sampleSummary.every((entry) => entry.cacheHit === false)).toBe(true);
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(18);
   });
 
   it("does not cache a failed Investigator preflight result", async () => {
@@ -257,19 +254,19 @@ describe("Groq Investigator HTTP transport recovery", () => {
       searches: [],
       findings: [],
     };
-    transportMocks.responses.push(groqResponse(400, {
+    transportMocks.responses.push(...Array.from({ length: 3 }, () => groqResponse(400, {
       error: { message: "Invalid response format.", type: "invalid_request_error", code: "invalid_request_error", param: "response_format" },
-    }));
+    })));
     const failed = await probeGroqInvestigatorCapabilities();
     expect(failed.ok).toBe(false);
-    expect(failed.sampleSummary[0]).toMatchObject({ passedSamples: 0, failedSamples: 1, cacheHit: false });
-    transportMocks.responses.push(groqResponse(200, {
+    expect(failed.sampleSummary[0]).toMatchObject({ passedSamples: 0, failedSamples: 3, cacheHit: false });
+    transportMocks.responses.push(...Array.from({ length: 3 }, () => groqResponse(200, {
       choices: [{ finish_reason: "stop", message: { content: JSON.stringify(validAction) } }],
-    }));
+    })));
     const retried = await probeGroqInvestigatorCapabilities();
     expect(retried.ok).toBe(true);
-    expect(retried.sampleSummary[0]).toMatchObject({ passedSamples: 1, failedSamples: 0, cacheHit: false });
-    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(2);
+    expect(retried.sampleSummary[0]).toMatchObject({ passedSamples: 3, failedSamples: 0, cacheHit: false });
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
   });
 
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {

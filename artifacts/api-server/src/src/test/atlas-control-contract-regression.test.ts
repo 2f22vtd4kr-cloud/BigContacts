@@ -464,7 +464,7 @@ describe("Atlas control-plane contract regression", () => {
 
   it("keeps local validation after provider structured-output compatibility handling", () => {
     expect(controlSource).toContain("const rightHandContractValid =");
-    expect(controlSource).toContain("const bossContractValid =");
+    expect(controlSource).toContain("let bossContractValid =");
     expect(controlSource).toContain("validateAtlasRightHandControl(rightParsed)");
     expect(controlSource).toContain("validateAtlasBossControl(parsed)");
     expect(controlSource).not.toContain("Mistral Right-hand");
@@ -654,7 +654,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(normalizeAtlasControlAction(paddedStop.action)).toBe("stop");
     expect(normalizeAtlasControlAction(" RESEARCH_CANDIDATE ")).toBe("research_candidate");
     expect(normalizeAtlasControlAction("invented_action")).toBeNull();
-    expect(controlSource).toContain("const requestedAction = normalizeAtlasControlAction(parsed?.action);");
+    expect(controlSource).toContain("let requestedAction = normalizeAtlasControlAction(parsed?.action);");
     expect(validateAtlasBossControl({
       action: "invented_action",
       candidateName: null,
@@ -1108,7 +1108,14 @@ describe("model-request audit correlation", () => {
     expect(rightHandSource).toContain("jobId:auditContext?.jobId??null");
     expect(rightHandSource).toContain("caseId:auditContext?.caseId??null");
     expect(controlSource).toContain('{ jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_advisory" }');
-    expect(controlSource).toContain('jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision"');
+    expect(controlSource).toContain("const generationOptions = {");
+    expect(controlSource).toContain("jobId: input.jobId ?? null,");
+    expect(controlSource).toContain("caseId: input.caseId,");
+    expect(controlSource).toContain("targetDigest,");
+    expect(controlSource).toContain("iteration: input.controlTurn,");
+    expect(controlSource).toContain('cognitiveTask: "control_decision" as const,');
+    expect(controlSource).toContain("generateGroqBossText(selection, correctionPrompt, generationOptions)");
+    expect(controlSource).toContain("corrected.model !== generated.model");
     expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
     expect(canonicalDiscoverySource).toContain("caseId: discoveryCaseId");
     expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
