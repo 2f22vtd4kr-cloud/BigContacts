@@ -46,7 +46,7 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
     expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
-    expect(apexInvestigatorSystemCore()).toContain("GLEIF: entity LEI/parent links, not natural-person shareholders, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search");
     expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
     expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
     expect(agenticCoreSource).toContain("complete_immutable_observation_event");
@@ -4292,7 +4292,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(apexInvestigatorSystemCore()).toContain("GLEIF: entity LEI/parent links, not a natural-person shareholder, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search");
     expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
     expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
     const body = buildGroqInvestigatorRequestBody({
