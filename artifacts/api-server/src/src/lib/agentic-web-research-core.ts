@@ -7252,7 +7252,6 @@ record.args = {
         || /\[(?:PAGE|PDF) (?:OBSERVATION |TEXT )?TRUNCATED/i.test(page.observation)
         ? "truncated_observation_only"
         : "complete_immutable_observation_event",
-    pageObservationSha256: createHash("sha256").update(page.observation).digest("hex"),
   } : {}),
 };
 record.execution = page.status;
@@ -7277,6 +7276,12 @@ if (communityObservationSource && page.status === "success") {
   };
 } else {
   record.observation = page.observation;
+}
+if (page.status === "success" && typeof record.observation === "string") {
+  record.args = {
+    ...record.args,
+    pageObservationSha256: createHash("sha256").update(record.observation).digest("hex"),
+  };
 }
 if (page.observedUrl) record.observedUrls = [page.observedUrl];
 if (page.pageText && page.observedUrl && page.pageSha256 && page.pageRetrievedAt) {
