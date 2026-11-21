@@ -130,8 +130,9 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
   const latestFindings = latest?.findings ?? [];
   if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
-  // A continued discovery episode with several successful external actions but no
-  // review lead or source-backed finding is a consequential strategy decision.
+  // Three successful external actions since the last review are a consequential
+  // strategy signal even when an older provisional lead exists. A newly surfaced
+  // lead is reviewed immediately above; an old lead must not mask later stagnation.
   // Right-hand critiques the trajectory; it does not choose the next route/action.
   const isSuccessfulExternalResearchAction = (record: typeof input.trajectoryRecords[number]): boolean =>
     record.execution === "success"
@@ -141,19 +142,8 @@ export function shouldInvokeAtlasRightHandReview(input: {
     (typeof record.turn === "number" ? record.turn > reviewedThroughTurn : reviewedThroughTurn === 0)
       && isSuccessfulExternalResearchAction(record),
   ).length;
-  const hasNamedReviewLead = input.discoveryFindings.some((value) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-    const finding = value as Record<string, unknown>;
-    const hasObservedUrl = Array.isArray(finding.sourceUrls)
-      && finding.sourceUrls.some((url) => typeof url === "string" && url.trim());
-    if (!hasObservedUrl) return false;
-    return finding.scope === "candidate"
-      ? typeof finding.personName === "string" && Boolean(finding.personName.trim())
-      : finding.scope === "organization" && typeof finding.value === "string" && Boolean(finding.value.trim());
-  });
   if (input.priorAction === "continue_discovery"
     && input.admittedCandidates.length === 0
-    && !hasNamedReviewLead
     && successfulResearchActionsSinceReview >= 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
