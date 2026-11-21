@@ -5740,13 +5740,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const registryCapabilityWarnings = [
-    "Adapter coverage is jurisdiction-specific; query hosts do not change it.",
-    availableRegistryIds.includes("gleif") ? "GLEIF: entity LEI/parent links, not natural-person shareholders/beneficial owners/wealth." : "",
-    availableRegistryIds.includes("companies-house") ? "Companies House: UK only, not Ireland." : "",
-    "Query indexed fields; lexical matches are leads, not proof.",
-  ].filter(Boolean).join(" ");
-  const compactRegistryGuidance = registryCapabilityWarnings;
+  const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields.";
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
   const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
