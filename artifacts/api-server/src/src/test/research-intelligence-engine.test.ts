@@ -202,6 +202,11 @@ describe("Apex research intelligence", () => {
     expect(question?.status).toBe("open");
     expect(question?.importance).toBe(0.8);
     expect(question?.uncertainty).toBeNull();
+    // Search-only discovery has no claim-grade facts yet, but the stated
+    // research purpose is still unresolved and must not disappear from the
+    // terminal/oversight summary merely because no hypothesis was formed.
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
   });
 
   it("answers a research question only after a fetched source binds a useful finding", () => {
