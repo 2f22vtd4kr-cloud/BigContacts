@@ -276,14 +276,17 @@ export function buildDiscoveryLeadUtilizationState(
 
   const newestFirst = [...leads.entries()].sort((a, b) => b[1].turn - a[1].turn);
   const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key) && !blocked.has(key));
-  const unfetchedKeys = new Set(unfetched.map(([key]) => key));
+  // Preserve title/snippet context for every lead that has not been fetched
+  // successfully, including failed and blocked attempts. A failed retrieval is
+  // unresolved, not a reason to erase the original search observation.
+  const unresolvedLeadKeys = new Set(newestFirst.filter(([key]) => !fetched.has(key)).map(([key]) => key));
   const unfetchedLeadObservations = [...records]
     .filter((record) => record.execution === "success" && searchActions.has(record.action))
     .reverse()
     .flatMap((record) => {
       const urls = (record.leadUrls ?? []).filter((rawUrl) => {
         const candidate = normalize(rawUrl);
-        return candidate !== null && unfetchedKeys.has(candidate.key);
+        return candidate !== null && unresolvedLeadKeys.has(candidate.key);
       });
       if (!urls.length) return [];
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
