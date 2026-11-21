@@ -2338,7 +2338,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
-    expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
+    expect(modelPrompt).toMatch(/REVIEW LEADS:.*candidate=person/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
