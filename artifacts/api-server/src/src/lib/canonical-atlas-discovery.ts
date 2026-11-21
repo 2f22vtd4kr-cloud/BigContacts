@@ -2346,7 +2346,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
-      rightHandReviewedThroughTurn = Math.max(rightHandReviewedThroughTurn, decision.rightHand.reviewedThroughTurn ?? 0);
       const previousAcceptedAction = priorAction;
       const previousAcceptedCandidate = priorCandidate;
       controlTurns += 1;
@@ -2421,6 +2420,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           failureKind: record.failureKind,
         })) ?? [],
       }, null, 2) });
+      rightHandReviewedThroughTurn = Math.max(rightHandReviewedThroughTurn, decision.rightHand.reviewedThroughTurn ?? 0);
       // Independent review is valuable only after the Investigator has produced
       // evidence and Boss is considering a consequential stop, candidate admission,
       // or strategic pivot. It is advisory: it can challenge the decision but cannot
