@@ -198,7 +198,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
 
     expect(result.status).toBe("unavailable");
     expect(result.error).toContain('"rateLimitKind":"tokens"');
-    expect(result.error).toContain('"providerCode":"budget_exhausted"');
+    expect(result.error).toContain('"providerCode":"prompt_exceeds_local_ceiling"');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/models");
   });
