@@ -5,7 +5,7 @@ export type ExternalProvider = "serper"|"tavily"|"exa"|"groq"|"mistral"|"gemini"
 export type AtlasProviderRole = "investigator" | "control";
 const providerRoleStorage = new AsyncLocalStorage<AtlasProviderRole>();
 type BudgetClass="llm"|"search"|"scrape"|"registry"|"osint"|"generic";type ProviderConfig={budgetClass:BudgetClass;maxRequests:number;minIntervalMs:number;cacheTtlMs:number};type ProviderState={active:number;lastStartedAt:number;windowStartedAt:number;windowAttempts:number;cooldownUntil:number;lastUsedAt:number};type CacheEntry={expiresAt:number;status:number;statusText:string;headers:Array<[string,string]>;body:Uint8Array};type Waiter={provider:ExternalProvider;resolve:()=>void;reject:(error:Error)=>void;signal?:AbortSignal;onAbort?:()=>void};
-export class ProviderQuotaError extends Error{readonly code:"budget_exhausted"|"cooldown";readonly provider:ExternalProvider;readonly retryAfterMs:number;readonly quotaKind:"tokens"|null;constructor(code:"budget_exhausted"|"cooldown",provider:ExternalProvider,retryAfterMs:number,quotaKind:"tokens"|null=null){super(`${provider} ${code.replace("_"," ")}`);this.name="ProviderQuotaError";this.code=code;this.provider=provider;this.retryAfterMs=retryAfterMs;this.quotaKind=quotaKind;}}
+export type ProviderQuotaErrorCode="budget_exhausted"|"cooldown"|"role_budget_exhausted"|"prompt_exceeds_local_ceiling";export class ProviderQuotaError extends Error{readonly code:ProviderQuotaErrorCode;readonly provider:ExternalProvider;readonly retryAfterMs:number;readonly quotaKind:"tokens"|null;readonly requestedTokens:number|null;readonly limitTokens:number|null;constructor(code:ProviderQuotaErrorCode,provider:ExternalProvider,retryAfterMs:number,quotaKind:"tokens"|null=null,requestedTokens:number|null=null,limitTokens:number|null=null){super(`${provider} ${code.replace(/_/g," ")}`);this.name="ProviderQuotaError";this.code=code;this.provider=provider;this.retryAfterMs=retryAfterMs;this.quotaKind=quotaKind;this.requestedTokens=requestedTokens;this.limitTokens=limitTokens;}}
 const scopeStorage=new AsyncLocalStorage<string>();export type ProviderRetryOwner="gate"|"caller";const retryOwnerStorage=new AsyncLocalStorage<Partial<Record<ExternalProvider,ProviderRetryOwner>>>();const providerStates=new Map<string,ProviderState>();const scopeStates=new Map<string,ProviderState>();const waiters:Waiter[]=[];const responseCache=new Map<string,CacheEntry>();let responseCacheBytes=0;const inFlight=new Map<string,Promise<Response>>();const boundedEnv=(name:string,fallback:number,min:number,max:number):number=>{const parsed=Number(process.env[name]);if(!Number.isFinite(parsed))return fallback;return Math.min(max,Math.max(min,parsed));};const globalConcurrency=()=>boundedEnv("APEX_EXTERNAL_GLOBAL_CONCURRENCY",4,1,32);const perProviderConcurrency=(provider?:ExternalProvider)=>{const suffix=provider?`_${provider.replace(/[^a-z0-9]/gi,"_").toUpperCase()}`:"";const providerSpecific=provider?process.env[`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`]:undefined;const fallback=provider==="gemini"?2:1;return boundedEnv(`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`,providerSpecific?Number(providerSpecific):fallback,1,8);};const windowMs=()=>boundedEnv("APEX_EXTERNAL_WINDOW_MS",10*60_000,10_000,24*60*60_000);const perScopeMaxRequests=()=>{const scope=getScope();if(scope.startsWith("atlas-run:"))return boundedEnv("APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80);return boundedEnv("APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE",40,1,10_000);};const maxWaiters=()=>boundedEnv("APEX_EXTERNAL_MAX_WAITERS",1024,1,10_000);const maxProviderStates=()=>boundedEnv("APEX_EXTERNAL_MAX_PROVIDER_STATES",4096,32,100_000);const maxResponseCacheEntries=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_ENTRIES",512,16,10_000);const maxResponseCacheBytes=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_BYTES",64*1024*1024,4*1024*1024,512*1024*1024);let activeGlobal=0;
 const DEFAULTS:Record<BudgetClass,Omit<ProviderConfig,"budgetClass">>={llm:{maxRequests:90,minIntervalMs:250,cacheTtlMs:0},search:{maxRequests:120,minIntervalMs:125,cacheTtlMs:60_000},scrape:{maxRequests:30,minIntervalMs:250,cacheTtlMs:5*60_000},registry:{maxRequests:150,minIntervalMs:125,cacheTtlMs:2*60_000},osint:{maxRequests:90,minIntervalMs:150,cacheTtlMs:60_000},generic:{maxRequests:300,minIntervalMs:75,cacheTtlMs:30_000}};
 const PROVIDER_CLASSES:Record<ExternalProvider,BudgetClass>={serper:"search",tavily:"search",exa:"search",groq:"llm",mistral:"llm",gemini:"llm",scrapfly:"scrape",zenrows:"scrape",browserless:"scrape",playwright:"scrape",rdap:"registry","companies-house":"registry",whoisjson:"registry",whoxy:"registry",registry:"registry",search:"search",osint:"osint",generic:"generic"};
@@ -38,7 +38,7 @@ function assertAtlasRoleBudgetAvailable(provider:ExternalProvider,budget:{role:A
  if(state.windowAttempts>=budget.limit){
   const retryAfterMs=Math.max(1_000,Math.min(windowMs(),state.windowStartedAt+windowMs()-now));
   logger.warn({provider,block:"atlas_role_budget_exhausted",role:budget.role??"unclassified",retryAfterMs,scope:getScope(),roleAttempts:state.windowAttempts,roleBudget:budget.limit},"Atlas role provider budget exhausted; preserving the other role's reserved budget");
-  throw new ProviderQuotaError("budget_exhausted",provider,retryAfterMs);
+  throw new ProviderQuotaError("role_budget_exhausted",provider,retryAfterMs);
  }
 }
 function chargeAtlasRoleBudget(budget:{role:AtlasProviderRole|null;state:ProviderState;limit:number}|null):void{
@@ -64,6 +64,7 @@ const groqTokenWindows = new Map<string, GroqTokenWindowState>();
 const pendingGroqTokenResponses = new WeakMap<Response, { key: string; reservation: GroqTokenReservation }>();
 const groqTokenWindowMs = () => boundedEnv("APEX_GROQ_TPM_WINDOW_MS", 60_000, 10_000, 120_000);
 const groqTokenBudget = () => boundedEnv("APEX_GROQ_TPM_BUDGET", 7_000, 1_000, 1_000_000);
+export function getGroqTokenRequestLimit(model:string):number{return groqTokenWindowState("groq-model:"+model).providerLimit??groqTokenBudget();}
 /**
  * Allow one complete provider token-window reset by default. The prior 10s
  * ceiling caused a valid, cancellation-aware Boss request to fail locally
@@ -142,7 +143,7 @@ async function reserveGroqTokenWindow(key: string, requestedTokens: number, sign
   const limit = state.providerLimit ?? configuredLimit;
   if (requestedTokens > limit) {
     logger.warn({ modelKeyDigest: createHash("sha256").update(key).digest("hex").slice(0, 12), requestedTokens, tokenBudget: limit }, "Groq request exceeds the safe local TPM reservation");
-    throw new ProviderQuotaError("budget_exhausted", "groq", windowMs, "tokens");
+    throw new ProviderQuotaError("prompt_exceeds_local_ceiling", "groq", 0, "tokens", requestedTokens, limit);
   }
   const startedAt = Date.now();
   while (true) {

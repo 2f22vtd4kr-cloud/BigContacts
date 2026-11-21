@@ -5,6 +5,8 @@ const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-resea
 const telemetry = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts", "utf8");
 const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
+const providerGate = fs.readFileSync("artifacts/api-server/src/src/lib/provider-gate.ts", "utf8");
+const failureDiagnostics = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-failure-diagnostics.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -14,7 +16,7 @@ assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \
 assert(/maxChars: input\.mode === "discovery" \? 350 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 150 : 700/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 450 : 350\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
-assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and latest durable evidence are never clipped to meet it");
+assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and bounded newest evidence projection are preserved independently of that target");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000/.test(core), "the schema-inclusive preferred request/user prompt targets reserve the observed strict response schema overhead");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
@@ -25,15 +27,17 @@ const providerBoundedPromptEnd = core.indexOf("const mandatorySuffix = providerB
 const providerBoundedPromptSource = providerBoundedPromptStart >= 0 && providerBoundedPromptEnd > providerBoundedPromptStart
   ? core.slice(providerBoundedPromptStart, providerBoundedPromptEnd)
   : "";
-const appendsCompleteLatestEvidenceEnvelope = providerBoundedPromptSource.includes("preserveFetchedClaimAtProviderBoundary")
+const appendsBoundedLatestEvidenceEnvelope = providerBoundedPromptSource.includes("preserveFetchedClaimAtProviderBoundary")
   && providerBoundedPromptSource.includes("[composedPrompt, latestRecordTail]")
   && providerBoundedPromptSource.includes("providerGuidance")
   && providerBoundedPromptSource.includes("modelOwnedScopeGuidance")
   && providerBoundedPromptSource.includes("compactWorkerCapabilityGuidance")
   && /return (?:reportPromptMeasurement\(boundedPrompt\)|boundedPrompt);/.test(core)
   && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core)
-  && /const latestRecordTail = \[/.test(core);
-assert(appendsCompleteLatestEvidenceEnvelope, "live Investigator prompt composition preserves the full authored prompt, latest durable action, fetched evidence and URL context");
+  && /const latestRecordTail = \[/.test(core)
+  && core.includes("const boundedObservation = compactDurablePromptObservation(")
+  && core.includes("observationCharsOmittedFromPrompt");
+assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective, latest durable action, bounded fetched excerpt and URL context");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(core.includes("const allPromptRecords = sanitizeObservableValue(") && core.includes("const { pageArtifact: _pageArtifact, ...promptRecord } = record;") && core.includes("const promptTrajectoryRecords = allPromptRecords.map(") && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection, excluding full fetched-page artifacts");
 assert(core.includes("const latestRecordTail = [") && core.includes("buildLatestRecordTail()"), "latest durable evidence envelope is assembled from the trajectory record");
@@ -71,6 +75,14 @@ assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
 assert(/const totalPromptChars = systemPromptChars \+ userPromptChars/.test(core) && /const totalRequestChars = totalPromptChars \+ responseFormatChars/.test(core) && /waitForKnownGroqTokenWindow\(\s*quotaAccount,\s*model,\s*promptMeasurement\.totalRequestChars,/s.test(core), "known token-window estimation must include the actual transmitted system/user messages and structured response schema");
 assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core) && /const boundedPrefix = compactPromptSectionPreservingUrlTokens\(/.test(core) && /const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt\.length\)/.test(core), "provider-bound prompt softly compacts auxiliary context while preserving mandatory evidence and the shared provider-size estimate");
+
+assert(/export function fitGroqInvestigatorRequestToLocalCeiling[\s\S]*?getGroqTokenRequest\(/.test(core) && /getGroqTokenRequestLimit\(input\.model\)/.test(core) && /prompt_exceeds_local_ceiling/.test(core), "canonical Investigator request fitting uses the provider gate's exact structured estimator and effective token ceiling");
+assert(/const fittedRequest = fitGroqInvestigatorRequestToLocalCeiling[\s\S]*?emitInvestigatorProviderRequestAudit\(/.test(core), "exact prompt fit and typed fail-closed refusal occur before request audit and provider egress");
+assert(/ARCHIVED TRAJECTORY INDEX[\s\S]*?AI-COMPACTED HISTORICAL RESEARCH MEMORY[\s\S]*?COMPACTED HISTORICAL RESEARCH CONTEXT[\s\S]*?CANONICAL EVIDENCE GRAPH STATE/.test(core), "optional context is compacted in the required older-history, durable-memory, auxiliary-state order");
+assert(/searchActions\.has\(record\.action\) \? 640 : 1_200/.test(core) && /compactEmergencyTrajectoryObservation\(record\.observation, 1_200\)/.test(core) && /recentActions: intelligenceState\.recentActions\.map/.test(core) && /atomicEvidence: intelligenceState\.atomicEvidence\.map/.test(core) && /const historyForMemory = history\.map/.test(core), "fetched observations are bounded in trajectory, structured intelligence and history memory projections while full events remain durable");
+assert(/prompt_exceeds_local_ceiling/.test(providerGate) && /role_budget_exhausted/.test(providerGate) && /cooldown/.test(providerGate) && /getGroqTokenRequestLimit/.test(providerGate) && /providerRequestedTokens/.test(telemetry) && /providerTokenLimit/.test(telemetry), "local prompt oversize, role budget, cooldown and provider budget diagnostics remain distinct and report requested tokens/ceiling");
+assert(/daily_token_budget_exhausted/.test(failureDiagnostics) && /prompt_exceeds_local_ceiling/.test(failureDiagnostics) && /local_provider_role_budget_exhausted/.test(failureDiagnostics), "daily budget exhaustion, prompt oversize and role budget exhaustion remain distinct failure classes");
+
 const promptBudgetTest = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.test.ts", "utf8");
 assert(/4,000 is the preferred compaction target, not a hard ceiling/.test(promptBudgetTest) && /expect\(userPrompt\.length\)\.toBeLessThanOrEqual\(4_500\)/.test(promptBudgetTest), "the 4,000-character target remains advisory while a bounded 4,500-character ceiling protects complete mandatory prompt context");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");

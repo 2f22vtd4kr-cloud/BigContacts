@@ -42,6 +42,8 @@ type Attempt = {
   reason?: string;
   providerErrorCode?: string | null;
   providerErrorType?: string | null;
+  providerRequestedTokens?: number | null;
+  providerTokenLimit?: number | null;
   rateLimitRemainingTokens?: number | null;
   rateLimitResetTokensMs?: number | null;
   rateLimitRemainingRequests?: number | null;
@@ -91,7 +93,7 @@ const SAFE_PROVIDER_DIAGNOSTIC_LABELS = new Set([
   "permission_denied", "permission_error", "quota_exceeded", "rate_limit_error",
   "rate_limit_exceeded", "rate_limited", "resource_exhausted", "requests", "server_error",
   "too_many_requests", "tokens", "unauthenticated", "unauthorized", "unavailable",
-  "unknown", "unsupported_parameter",
+  "unknown", "unsupported_parameter", "prompt_exceeds_local_ceiling", "role_budget_exhausted", "daily_token_budget_exhausted", "budget_exhausted", "cooldown",
 ]);
 
 export type AgenticLlmDailyReservation = {
@@ -491,6 +493,8 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     reason: safeTelemetryReason(event.reason),
     providerErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
     providerErrorType: safeProviderDiagnosticLabel(event.providerErrorType),
+    providerRequestedTokens: event.providerRequestedTokens ?? null,
+    providerTokenLimit: event.providerTokenLimit ?? null,
     rateLimitRemainingTokens: event.rateLimitRemainingTokens ?? null,
     rateLimitResetTokensMs: event.rateLimitResetTokensMs ?? null,
     rateLimitRemainingRequests: event.rateLimitRemainingRequests ?? null,

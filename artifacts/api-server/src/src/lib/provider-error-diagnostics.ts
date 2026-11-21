@@ -265,7 +265,10 @@ export function classifyThrownProviderError(error: unknown, aborted = false): Pr
   // The provider quota gate throws this locally before another HTTP request can
   // be attempted. Treat it as rate limiting, never as a transport failure that
   // could accidentally advance to another same-role model.
-  if (error instanceof Error && error.name === "ProviderQuotaError") return "rate_limited";
+  if (error instanceof Error && error.name === "ProviderQuotaError") {
+    const code = (error as Error & { code?: unknown }).code;
+    return code === "prompt_exceeds_local_ceiling" ? "request_size" : "rate_limited";
+  }
   if (aborted) return "cancelled";
 
   const top = diagnosticPart(error);

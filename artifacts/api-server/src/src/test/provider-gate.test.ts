@@ -116,12 +116,12 @@ describe("provider quota gate", () => {
     await runScope("investigator", async () => {
       await call();
       await call();
-      await expect(call()).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+      await expect(call()).rejects.toMatchObject({ code: "role_budget_exhausted", provider: "groq" });
     });
     await runScope("control", async () => {
       await call();
       await call();
-      await expect(call()).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+      await expect(call()).rejects.toMatchObject({ code: "role_budget_exhausted", provider: "groq" });
     });
     expect(calls).toBe(4);
   });
@@ -136,7 +136,7 @@ describe("provider quota gate", () => {
         calls += 1;
         return "must-not-run";
       }),
-    )).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+    )).rejects.toMatchObject({ code: "role_budget_exhausted", provider: "groq" });
     expect(calls).toBe(0);
   });
 
@@ -756,9 +756,11 @@ describe("provider quota gate", () => {
         async () => new Response("{}", { status: 200 }),
       ),
     ).rejects.toMatchObject({
-      code: "budget_exhausted",
+      code: "prompt_exceeds_local_ceiling",
       provider: "groq",
       quotaKind: "tokens",
+      requestedTokens: 1_500,
+      limitTokens: 1_000,
     });
   });
 
