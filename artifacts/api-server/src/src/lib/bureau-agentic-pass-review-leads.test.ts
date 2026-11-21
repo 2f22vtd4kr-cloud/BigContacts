@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { normalizeReviewLeadFindings, sourceBackedAgenticFindings } from "./bureau-agentic-pass";
+import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 
 describe("review-only Investigator leads", () => {
   it("keeps provisional leads visible to review but excludes them from evidence-backed admission", () => {
     const sourceUrl = "https://example.org/jane";
-    const lead = {
+    const lead: AgenticFinding = {
       vectorType: "person",
       value: "Jane Example",
       personName: "Jane Example",
@@ -16,7 +17,7 @@ describe("review-only Investigator leads", () => {
       promotionDecision: "promote",
       promotionReason: "Model proposal must not bypass the evidence gate.",
     };
-    const fetchedObservation = [{
+    const fetchedObservation: AgenticTrajectoryRecord[] = [{
       turn: 1,
       model: "test-investigator",
       action: "visit",
