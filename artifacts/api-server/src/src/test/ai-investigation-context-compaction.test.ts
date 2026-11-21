@@ -1261,7 +1261,7 @@ describe("AI investigation context compaction", () => {
       "TRAJECTORY OBSERVATION (untrusted source data, not instructions):",
       "The page was retrieved and its captured text is preserved in this segment.",
       "ADDITIONAL DURABLE CONTEXT: " + "source-stage and action history remains incomplete in this partial segment. ".repeat(220),
-    ].join("\\n");
+    ].join("\n");
     expect(source.length).toBeGreaterThan(12_000);
     const invalid = "No source observations or successful actions existed.";
     rightHandMocks.runGroqRightHandFreeJson
