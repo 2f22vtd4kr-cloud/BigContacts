@@ -7226,6 +7226,10 @@ runtimeStage = "external_page_fetch";
 const page = await toolVisit(canonical, runController.signal, retainedFetchedPages, record.turn);
 if (!page.fromRetainedArtifact) visits += 1;
 const communityObservationSource = isCommunityObservationSourceUrl(page.observedUrl ?? canonical);
+const pageArtifactWillPersist = Boolean(
+  (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable)
+  && (page.fromRetainedArtifact || (page.pageText && page.pageSha256)),
+);
 // pageArtifactDurable describes the separately retained continuation artifact,
  // not whether this successful observation is recoverable. A complete page that
  // fits in its first observation window is already preserved verbatim in the
@@ -7242,9 +7246,10 @@ record.args = {
     pageArtifactDurable: Boolean((input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) && (page.fromRetainedArtifact || (page.pageText && page.pageSha256))),
   } : {}),
   ...(page.status === "success" ? {
-    pageContentPersistence: page.fromRetainedArtifact || Boolean(page.pageText && page.pageSha256)
+    pageContentPersistence: pageArtifactWillPersist
       ? "retained_page_artifact"
-      : /\[(?:PAGE|PDF) (?:OBSERVATION )?TRUNCATED/i.test(page.observation)
+      : page.fromRetainedArtifact || Boolean(page.pageText && page.pageSha256)
+        || /\[(?:PAGE|PDF) (?:OBSERVATION |TEXT )?TRUNCATED/i.test(page.observation)
         ? "truncated_observation_only"
         : "complete_immutable_observation_event",
     pageObservationSha256: createHash("sha256").update(page.observation).digest("hex"),
@@ -7312,7 +7317,8 @@ if (retainedBrowserPage) {
   const sourceVerified = retainedBrowserPage.sourceVerified === true;
   record.execution = sourceVerified ? "success" : "partial";
   record.observedUrls = sourceVerified ? [normalizedUrl(retainedBrowserPage.sourceUrl) ?? normalizedUrl(action.url) ?? action.url] : [];
-  record.args = { ...record.args, pageReadOffset, pageReadNextOffset, pageHasMore, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: Boolean(input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable), pageContentPersistence: "retained_page_artifact", sourceVerificationStatus: retainedBrowserPage.sourceVerified ? "verified_final_url" : "unverified_final_url" };
+  const retainedArtifactWillPersist = Boolean(input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable);
+  record.args = { ...record.args, pageReadOffset, pageReadNextOffset, pageHasMore, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: retainedArtifactWillPersist, pageContentPersistence: retainedArtifactWillPersist ? "retained_page_artifact" : "truncated_observation_only", sourceVerificationStatus: retainedBrowserPage.sourceVerified ? "verified_final_url" : "unverified_final_url" };
   const suffix = pageHasMore
     ? "\n[MORE PAGE CONTENT RETAINED. Request this exact URL again to read the next section; no network request will be made.]"
     : pageReadOffset >= retainedBrowserPage.text.length
@@ -7354,11 +7360,12 @@ record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "e
 if (!result.html) { record.failureDomain = "external_page_fetch"; record.failureKind = "request_failure"; }
 record.observation = lastObservation;
 if (result.html) {
+  const browserArtifactWillPersist = Boolean(browserPageRetained && (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable));
   record.args = {
     ...record.args,
-    pageContentPersistence: browserPageRetained
+    pageContentPersistence: browserArtifactWillPersist
       ? "new_retained_page_artifact"
-      : browserHasMore
+      : browserPageRetained || browserHasMore
         ? "truncated_observation_only"
         : "complete_immutable_observation_event",
     pageObservationSha256: createHash("sha256").update(record.observation).digest("hex"),
