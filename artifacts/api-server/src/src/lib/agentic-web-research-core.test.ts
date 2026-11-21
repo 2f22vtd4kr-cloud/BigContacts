@@ -2131,7 +2131,7 @@ describe("partial model findings", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
     expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
-    expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
+    expect(modelPrompt).toContain("REVIEW LEADS: candidate=person; organization=organization.");
   });
 });
 
@@ -2218,7 +2218,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
+    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -2486,7 +2486,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
+    expect(modelPrompt).toMatch(/search-only is review-only; promote only with same-case fetched evidence./);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -3476,7 +3476,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("casinos in Slovenia");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("scope=person/organization/asset");
+    expect(modelPrompt).toContain("candidate=person; organization=organization");
   });
 
   it("does not exclude prominent people or companies by deterministic fame and ranking priors", () => {
@@ -3606,7 +3606,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
     const sourceAdvice = discoverySearchLivenessAdvisory(sameSourceFamily);
     expect(sourceAdvice).toContain("Source-family concentration");
-    expect(sourceAdvice).toContain("do not prescribe a tool");
+    expect(sourceAdvice).toContain("no tool, provider, page, source family, or hop order is prescribed");
   });
 
   describe("successful page retrieval repeat guard", () => {
@@ -5137,7 +5137,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
+    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
@@ -5828,8 +5828,8 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(apexOrientationFor("boss")).toContain("do not privilege an investor");
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
-    expect(prompt).toContain("Search-only leads are review-only");
-    expect(prompt).toContain("Assets remain source-backed observations");
+    expect(prompt).toContain("search-only is review-only");
+    expect(agenticCoreSource).toContain("Assets remain source-backed observations");
   });
   it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {
     const advisory = discoverySearchLivenessAdvisory([
