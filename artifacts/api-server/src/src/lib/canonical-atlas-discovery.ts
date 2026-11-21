@@ -1243,6 +1243,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     discoveryObjective += `\n\nPRIOR-ATTEMPT CONTEXT (historical observations, not evidence or a fixed action plan):\n${discoveryContext}\nUse your own judgment to choose each direction, query, source, tool, and stopping point. Do not repeat a failed action unless new evidence gives a reason. All ordinary targetability, identity, provenance, privacy, and admission rules still apply.`;
   }
   let activeDiscoveryObjective = discoveryObjective;
+  // Keep admission reconciliation visible to both success and failure terminal snapshots.
+  let materialized = 0;
+  let evidenceRows = 0;
+  let admittedTargetCount = 0;
   let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {
     await assertAtlasJobActive(atlasJobId);
@@ -1360,8 +1364,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorLlm: boss.investigatorLlm,
       directorModel: boss.model,
     });
-    let materialized = 0;
-    let evidenceRows = 0;
     const checkpointDiscoveryFindings = async (checkpoint: {
       runId: string; turn: number; action: string; execution: string; findings: AgenticFinding[];
     }): Promise<void> => {
@@ -2093,7 +2095,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; admittedTargetCount = admittedCandidateSources.length; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
     if (providerContractFailure) throw new Error("investigator_provider_contract_error");
     // The opening Investigator pass is followed by Boss control outside the
     // continuation loop below. A wrapper runtime exception must terminate here:
@@ -2782,6 +2784,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           });
           admittedCandidateSources = mergeDurablyAdmittedAtlasTargetSources([admittedCandidateSources, admission.candidates]);
           admitted = admittedCandidateSources.map(({ name }) => name);
+          admittedTargetCount = admittedCandidateSources.length;
           materialized += admission.materialized;
           evidenceRows += admission.evidenceRows;
           const underlyingError = new Error(nextDiscovery.error ?? episodeFailure.code);
@@ -3029,6 +3032,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
         admittedCandidateSources = mergeDurablyAdmittedAtlasTargetSources([admittedCandidateSources, admission.candidates]);
         admitted = admittedCandidateSources.map(({ name }) => name);
+        admittedTargetCount = admittedCandidateSources.length;
         materialized += admission.materialized;
         evidenceRows += admission.evidenceRows;
         discoveryResourceLimited = nextDiscovery.stopReason !== "MODEL_DECIDED_DONE"
@@ -3074,7 +3078,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       caseAction: finalCaseAction,
       evidenceBackedTerminal,
       latestEvidenceBackedTerminal,
-      admittedTargetCount: admittedCandidateSources.length,
+      admittedTargetCount,
       materializedCardCount: materialized,
       evidenceRows,
       completedTargetInvestigations: researched,
@@ -3196,6 +3200,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       usageLedgerUnavailable,
       providerContractError,
       actionParseFailure,
+      admittedTargetCount,
+      materializedCardCount: materialized,
+      evidenceRows,
       researchActionsExecuted: actionParseFailure ? 0 : failureResearchActions,
       discoverySearchActionsUsed: failureSearchActions,
       discoveryVisitActionsUsed: failureVisitActions,
