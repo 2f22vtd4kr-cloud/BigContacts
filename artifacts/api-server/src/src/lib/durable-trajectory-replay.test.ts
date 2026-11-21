@@ -180,8 +180,9 @@ describe("immutable Investigator trajectory replay", () => {
         args: {
           url: "https://registry.example/team",
           requestedAction: "browser_fetch",
+          requestedProvider: "playwright",
           normalizationReason: "browser_provider_unavailable",
-          provider: "playwright",
+          provider: null,
         },
         execution: "success",
         observation: "Fetched the page through the visit fallback.",
@@ -195,7 +196,9 @@ describe("immutable Investigator trajectory replay", () => {
       execution: "success",
       args: {
         requestedAction: "browser_fetch",
+        requestedProvider: "playwright",
         normalizationReason: "browser_provider_unavailable",
+        provider: null,
         url: "https://registry.example/team",
       },
       durableEventId: 35,
