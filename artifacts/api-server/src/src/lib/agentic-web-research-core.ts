@@ -5837,7 +5837,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF (required model judgment): inspect actual title/snippet/URL pairs and page observations. On every non-terminal action, put each named person or organization you judge relevant enough for target-scoped verification into findings[] with exact same-run source URL, correct scope, stated role only when observed, and explicit uncertainty. Omit promotionDecision and mark no lead as admitted. Use [] only when no observed named lead merits review. Do not extract names from URL slugs, promote every result, or turn assets into person/company cards."
+      ? "DISCOVERY LEAD HANDOFF (required model judgment): inspect actual title/snippet/URL pairs and page observations. On every non-terminal action, put each named person or organization you judge relevant enough for target-scoped verification into findings[] with exact same-run source URL, correct scope, stated role only when observed, and explicit uncertainty. Do not authorize promotion; set promotionDecision/promotionReason to null where the active schema requires them. Use [] only when no observed named lead merits review. Do not extract names from URL slugs, promote every result, or turn assets into person/company cards."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6113,7 +6113,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; omit promotionDecision. Use [] only when no observed named lead merits review. done uses source-backed claims."
+        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; leave promotionDecision/promotionReason null where the active schema requires them; never authorize admission. Use [] only when no observed named lead merits review. done uses source-backed claims."
         : "Every discovery action MUST include useful same-run person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
@@ -6287,7 +6287,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
+      ? "DISCOVERY LEAD HANDOFF (required model judgment): inspect actual title/snippet/URL pairs. On each non-terminal action, include every named objective-relevant person/org you select for verification in findings[] with exact same-run URL, scope and uncertainty; never admit a lead. Where the active schema requires promotion fields, set them to null. Use [] only when no observed named lead merits review; never infer names from URL slugs or promote every result."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
