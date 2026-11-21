@@ -167,7 +167,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(systemMessage?.content).toContain("DISCOVERY ECONOMY");
   });
 
-  it("preserves local TPM exhaustion as a model-scoped token diagnostic", async () => {
+  it("preserves local prompt oversize as a model-scoped request-size diagnostic", async () => {
     vi.stubEnv("APEX_GROQ_TPM_BUDGET", "1000");
     vi.stubEnv("APEX_PROVIDER_MIN_INTERVAL_MS_GROQ", "0");
     vi.stubEnv("APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE", "100");
@@ -198,6 +198,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
 
     expect(result.status).toBe("unavailable");
     expect(result.error).toContain('"rateLimitKind":"tokens"');
+    expect(result.error).toContain('"failureClass":"request_size"');
     expect(result.error).toContain('"providerCode":"prompt_exceeds_local_ceiling"');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/models");
