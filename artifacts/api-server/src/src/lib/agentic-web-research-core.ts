@@ -2763,8 +2763,25 @@ function compactInvestigatorPromptSectionBody(prompt: string, heading: string, m
   if (headingAt < 0) return prompt;
   const bodyStart = prompt.indexOf("\n", headingAt);
   if (bodyStart < 0) return prompt;
-  const nextSection = prompt.indexOf("\n\n", bodyStart + 1);
-  const bodyEnd = nextSection < 0 ? prompt.length : nextSection;
+  const sectionHeadings = [
+    "ARCHIVED TRAJECTORY INDEX",
+    "CONTEXT MANAGEMENT LAW",
+    "AI-COMPACTED HISTORICAL RESEARCH MEMORY",
+    "CANONICAL EVIDENCE GRAPH STATE",
+    "CURRENT CONTROL / OVERSIGHT CONTEXT",
+    "LATEST TRAJECTORY RECORD",
+    "LATEST OBSERVATION",
+    "LAST SUCCESSFUL FETCHED SOURCE",
+    "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS",
+    "PINNED DURABLE URL INVENTORY",
+    "LEAD FOLLOW-UP",
+    "AVAILABLE ACTIONS:",
+    "OUTPUT CONTRACT:",
+  ];
+  const nextSectionIndexes = sectionHeadings
+    .map((sectionHeading) => prompt.indexOf("\n\n" + sectionHeading, bodyStart + 1))
+    .filter((index) => index >= 0);
+  const bodyEnd = nextSectionIndexes.length ? Math.min(...nextSectionIndexes) : prompt.length;
   const body = prompt.slice(bodyStart + 1, bodyEnd);
   if (body.length <= maxBodyChars) return prompt;
   const bounded = compactPromptSectionPreservingUrlTokens(body, maxBodyChars, marker);
