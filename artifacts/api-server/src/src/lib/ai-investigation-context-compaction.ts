@@ -365,7 +365,7 @@ type SummaryValidation = {
  * are safe; a passing mention of "this segment" cannot excuse a case-wide claim.
  */
 function absenceClaimIsSegmentScoped(clause: string): boolean {
-  const segment = "(?:this|the supplied|the provided|this particular)\\s+(?:memory\\s+)?(?:segment|chunk|excerpt|slice|input|block)";
+  const segment = "(?:this|these|the supplied|the provided|this particular|these particular)\\s+(?:memory\\s+)?(?:segments?|chunks?|excerpts?|slices?|inputs?|blocks?)";
   const absentItem = "(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)";
   return new RegExp("\\b(?:no|none|zero)\\b.{0,100}\\b" + absentItem + "\\b.{0,80}\\b(?:in|within|from)\\s+" + segment + "\\b", "i").test(clause)
     || new RegExp("\\b(?:in|within|from)\\s+" + segment + "\\b.{0,80}\\b(?:no|none|zero)\\b.{0,100}\\b" + absentItem + "\\b", "i").test(clause)
@@ -376,10 +376,12 @@ function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
   const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)\b/i;
   const noSuccessfulActions = /\bno\s+successful\s+(?:external\s+)?actions?\b/i;
   const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)\b/i;
-  return summary.split(/(?:[.!?]\s+|;\s+|,\s+|\b(?:and|but|however)\b|\n+)/i).some((clause) =>
-    (globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause))
-    && !absenceClaimIsSegmentScoped(clause),
-  );
+  return summary.split(/(?:[.!?]\s+|;\s+|,\s+|\b(?:and|but|however)\b|\n+)/i).some((clause) => {
+    const absenceClaim = globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause);
+    const sourceSpecificRetrievalAbsence = /\b(?:no|none|zero)\b.{0,100}\b(?:fetch(?:es)?|visits?|pages?|page retrievals?)\b/i.test(clause)
+      && extractAiContextUrls(clause).length > 0;
+    return absenceClaim && !absenceClaimIsSegmentScoped(clause) && !sourceSpecificRetrievalAbsence;
+  });
 }
 
 function validateSummary(
