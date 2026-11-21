@@ -5746,7 +5746,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   );
   const registryCapabilityWarnings = "Adapters are jurisdiction/field-limited; query hosts do not change coverage. GLEIF: entity LEI/parent links, not natural-person ownership/wealth. Companies House: UK only, not Ireland. Query indexed fields; lexical matches are leads, not proof.";
   const compactRegistryGuidance = [
-    `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested; never invent IDs.`,
     registryCoverageGuidance ? "REGISTRY CAPABILITY MATRIX: " + registryCoverageGuidance : "",
     registryCapabilityWarnings,
   ].filter(Boolean).join("\n");
