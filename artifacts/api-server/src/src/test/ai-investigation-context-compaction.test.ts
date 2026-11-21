@@ -1263,7 +1263,7 @@ describe("AI investigation context compaction", () => {
       "ADDITIONAL DURABLE CONTEXT: " + "source-stage and action history remains incomplete in this partial segment. ".repeat(220),
     ].join("\n");
     expect(source.length).toBeGreaterThan(12_000);
-    const invalid = "No source observations or successful actions existed.";
+    const invalid = "No source observations or successful external actions existed.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null });
