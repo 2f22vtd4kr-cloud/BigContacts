@@ -118,7 +118,7 @@ export function shouldInvokeAtlasRightHandReview(input: {
   // Right-hand critiques the trajectory; it does not choose the next route/action.
   const isSuccessfulExternalResearchAction = (record: typeof input.trajectoryRecords[number]): boolean =>
     record.execution === "success"
-      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"].includes(String(record.action ?? ""));
+      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(String(record.action ?? ""));
   const recentResearchActions = input.trajectoryRecords.slice(-6).filter(isSuccessfulExternalResearchAction).length;
   // Trigger on the threshold crossing, not on every later continuation while
   // the same six-action window still contains three successes. This gives the
