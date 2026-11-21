@@ -5831,6 +5831,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryRetrievalFeedback = input.mode === "discovery"
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
+  const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
+    ? "TERMINAL REVIEW-CARD HANDOFF: On done, you may explicitly preserve a model-selected same-run organization lead as a durable review-only card by setting promotionDecision=promote and a non-empty promotionReason, with the exact observed source URL and uncertainty. This is only a review card, not company admission or claim-grade evidence; never do it automatically or for every lead."
+    : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
   const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
@@ -5875,6 +5878,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     searchActivityGuidance,
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
+    terminalReviewCardGuidance,
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect actual title/snippet/URL pairs and page observations. On every non-terminal action, include each objective-relevant provisional person/organization lead you select for target-scoped verification in findings[] with exact same-run source URL, correct scope, stated role only when observed, and explicit uncertainty. Never authorize admission; set promotionDecision/promotionReason to null where the active schema requires them. Use [] only when no observed named lead merits review. Do not extract names from URL slugs, promote every result, or turn assets into person/company cards."
       : "",
@@ -6152,7 +6156,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant provisional named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; leave promotionDecision/promotionReason null where the active schema requires them; never authorize admission. Use [] only when no observed named lead merits review. done uses source-backed claims."
+        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant provisional named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; leave promotionDecision/promotionReason null where the active schema requires them; never authorize admission. Use [] only when no observed named lead merits review. On done, use source-backed claims; you may explicitly select a same-run organization lead for a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
         : "Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
@@ -6325,6 +6329,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     searchActivityGuidance,
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
+    terminalReviewCardGuidance,
     input.mode === "discovery"
       ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Preserve model-selected provisional person/org leads in findings[] on non-terminal actions with exact same-run URLs, scope and uncertainty; review-only, never admitted. Set promotion fields to null where required; never infer names from URL slugs or promote every result."
       : "",
