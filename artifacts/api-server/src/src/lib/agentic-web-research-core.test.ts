@@ -747,10 +747,10 @@ describe("Investigator local Groq token fit", () => {
       "PRIMARY CASE OBJECTIVE:\nMISSION_SENTINEL: investigate the objective without narrowing the human mission.",
       "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\nBOSS_DIRECTION_SENTINEL: test the current evidence-backed hypothesis.",
       "CAPABILITIES:\nModel-selected actions remain autonomous.",
-      "ARCHIVED TRAJECTORY INDEX\n" + "OLDER_HISTORY_SENTINEL; historical actions remain durable. ".repeat(1_100),
-      "AI-COMPACTED HISTORICAL RESEARCH MEMORY:\n" + "DURABLE_MEMORY_SENTINEL; model-generated context is advisory. ".repeat(1_100),
-      "COMPACTED HISTORICAL RESEARCH CONTEXT:\n" + "EMERGENCY_MEMORY_SENTINEL; older context remains advisory. ".repeat(1_100),
-      "CANONICAL EVIDENCE GRAPH STATE:\n" + "AUXILIARY_STATE_SENTINEL; structured state is contextual. ".repeat(1_100),
+      "ARCHIVED TRAJECTORY INDEX\nhttps://history.example.test/record/1\n" + "OLDER_HISTORY_SENTINEL; historical actions remain durable. ".repeat(1_100),
+      "AI-COMPACTED HISTORICAL RESEARCH MEMORY:\nhttps://memory.example.test/source/2\n" + "DURABLE_MEMORY_SENTINEL; model-generated context is advisory. ".repeat(1_100),
+      "COMPACTED HISTORICAL RESEARCH CONTEXT:\nhttps://emergency.example.test/source/3\n" + "EMERGENCY_MEMORY_SENTINEL; older context remains advisory. ".repeat(1_100),
+      "CANONICAL EVIDENCE GRAPH STATE:\nhttps://state.example.test/evidence/4\n" + "AUXILIARY_STATE_SENTINEL; structured state is contextual. ".repeat(1_100),
       "LATEST TRAJECTORY RECORD — TURN 19:\n" + JSON.stringify({
         turn: 19,
         action: "visit",
@@ -778,6 +778,10 @@ describe("Investigator local Groq token fit", () => {
     expect(fitted.prompt).toContain("DURABLE MEMORY PROJECTION COMPACTED");
     expect(fitted.prompt).toContain("EMERGENCY MEMORY PROJECTION COMPACTED");
     expect(fitted.prompt).toContain("AUXILIARY STATE COMPACTED");
+    expect(fitted.prompt).toContain("https://history.example.test/record/1");
+    expect(fitted.prompt).toContain("https://memory.example.test/source/2");
+    expect(fitted.prompt).toContain("https://emergency.example.test/source/3");
+    expect(fitted.prompt).toContain("https://state.example.test/evidence/4");
   });
 
   it("fails closed with a distinct typed error when mandatory content alone exceeds the local ceiling", () => {
