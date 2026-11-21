@@ -234,6 +234,7 @@ describe("Apex research intelligence", () => {
     expect(state.researchQuestions.some((question) => question.status === "blocked")).toBe(true);
     expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
     expect(state.stoppingAssessment.recommendation).toBe("continue");
+    expect(state.frontier.unresolvedQuestions).toBeGreaterThan(0);
     expect(state.negativeFindings).toHaveLength(0);
   });
 
