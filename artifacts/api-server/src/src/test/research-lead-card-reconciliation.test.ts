@@ -25,7 +25,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientation).toContain("public-web search, registries and other attested capabilities are neutral options, not a fixed sequence");
     expect(orientation).toContain("Preserve explicit human geographic constraints");
-    expect(orientation).not.toContain("Companies House");
+    expect(orientation).toContain("UK Companies House is UK-only, not Ireland");
     expect(orientation).toContain("public-web search, registries and other attested capabilities are neutral options");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
     expect(orientation).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions");
