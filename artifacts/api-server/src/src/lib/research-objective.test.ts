@@ -116,7 +116,13 @@ describe("research objective validation", () => {
       currentObjective,
       direction: "Refine the United Kingdom renewable-energy ownership question using publicly accessible company filings.",
       requireExplicitDirection: true,
-    })).toMatchObject({ valid: true, reusedCurrentObjective: false });
+    })).toEqual({
+      valid: true,
+      objective: currentObjective,
+      direction: currentObjective,
+      reusedCurrentObjective: true,
+      advisory: "Refine the United Kingdom renewable-energy ownership question using publicly accessible company filings.",
+    });
   });
 
   it("uses Boss's own validated direction after considering advisory Right-hand input", () => {
