@@ -54,6 +54,27 @@ describe("Investigator quota diagnostics", () => {
   });
 });
 
+describe("local provider request diagnostics", () => {
+  it("keeps prompt oversize, role budget, cooldown and daily budget as distinct outcomes", () => {
+    expect(classifyInvestigatorProviderError("prompt_exceeds_local_ceiling")).toEqual({
+      domain: "model_provider",
+      kind: "prompt_exceeds_local_ceiling",
+    });
+    expect(classifyInvestigatorProviderError("local_provider_role_budget_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_role_budget_exhausted",
+    });
+    expect(classifyInvestigatorProviderError("local_provider_cooldown")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_cooldown",
+    });
+    expect(classifyInvestigatorProviderError("daily_token_budget_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "daily_token_budget_exhausted",
+    });
+  });
+});
+
 describe("canonical Atlas lease-read diagnostics", () => {
   it("classifies an invalid Right-hand opening contract as a model contract failure", () => {
     expect(classifyCanonicalAtlasFailure({
