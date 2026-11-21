@@ -110,7 +110,7 @@ describe("canonical opening discovery contract", () => {
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
     expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(agenticCoreSource).toContain("REGISTRY CAPABILITY MATRIX:");
-    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent data, not natural-person shareholders");
+    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent links, not natural-person ownership/wealth");
     expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
