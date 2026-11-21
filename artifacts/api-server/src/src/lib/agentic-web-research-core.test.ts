@@ -2104,7 +2104,7 @@ describe("partial model findings", () => {
       findings: [],
       mode: "discovery",
     });
-    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
@@ -3466,7 +3466,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
     expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
