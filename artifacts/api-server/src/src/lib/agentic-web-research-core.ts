@@ -3556,6 +3556,7 @@ export async function callGroqJson(
                 : "local_provider_budget_exhausted"
           : null;
         const dailyBudgetFailure = error instanceof AgenticDailyTokenBudgetError ? error : null;
+        const localProviderQuota = isLocalProviderQuotaError(error) ? error as ProviderQuotaError : null;
         const failureClass = dailyBudgetFailure?.code ?? localProviderGateFailure ?? classifyThrownProviderError(error);
         lastProviderError = failureClass;
         recordAgenticLlmAttempt({
@@ -3563,7 +3564,10 @@ export async function callGroqJson(
             dailyReservationDate,
             dailyReservationTokens,
             dailyBudgetTokens,
-            estimatedTokens: dailyEstimatedTokens,
+            estimatedTokens: localProviderQuota?.requestedTokens ?? dailyEstimatedTokens,
+            providerErrorCode: localProviderQuota?.code ?? dailyBudgetFailure?.code ?? null,
+            providerRequestedTokens: localProviderQuota?.requestedTokens ?? null,
+            providerTokenLimit: localProviderQuota?.limitTokens ?? null,
             providerRequestSent, provider: "groq", model,
             ...promptMeasurement, status: "error", success: false, latencyMs: Date.now() - started,
             providerWaitMs, retryIndex: attempt, reason: failureClass === "daily_token_budget_exhausted" || failureClass === "daily_usage_ledger_unavailable" ? failureClass : `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}`, budgetExhausted: failureClass === "daily_token_budget_exhausted" });
