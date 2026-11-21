@@ -373,9 +373,9 @@ function absenceClaimIsSegmentScoped(clause: string): boolean {
 }
 
 function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
-  const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
+  const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)\b/i;
   const noSuccessfulActions = /\bno\s+successful\s+(?:external\s+)?actions?\b/i;
-  const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
+  const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)\b/i;
   return summary.split(/(?:[.!?]\s+|;\s+|,\s+|\b(?:and|but|however)\b|\n+)/i).some((clause) =>
     (globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause))
     && !absenceClaimIsSegmentScoped(clause),
@@ -397,7 +397,7 @@ function validateSummary(
   if (summary && summaryDeniesSuccessfulFetchEvidence(summary, successfulFetchUrls)) issues.push("summary_denies_successful_fetch: the summary says no fetch/visit occurred despite durable successful visit/browser_fetch metadata");
   if (summary && summaryContainsUnverifiableNumericClaim(summary, allowedSource)) issues.push("summary_contains_unverifiable_numeric_claim: numeric values and ownership/portfolio relationships must be supported by the same source clause so their denominator and attribution cannot be changed");
   if (summary && summaryTreatsParseFailureAsNegativeFinding(summary)) issues.push("summary_treats_parse_failure_as_negative_finding: parsing/model-output failures are operational limitations, not evidence of absence or a negative finding");
-  if (summary && summaryMakesUnfoundedGlobalAbsenceClaim(summary)) issues.push("summary_asserts_global_absence_from_partial_segment: a memory segment cannot establish that the full case has no actions, observations, sources, findings, or evidence; scope the statement to this segment or omit it");
+  if (summary && summaryMakesUnfoundedGlobalAbsenceClaim(summary)) issues.push("summary_asserts_global_absence_from_partial_segment: a memory segment cannot establish case-wide absence of actions, observations, sources, findings, or page retrievals; scope the statement to this segment or omit it");
   return {
     summary,
     issues,
