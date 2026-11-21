@@ -221,7 +221,7 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 
 function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
   if (successfulFetchUrls.size === 0) return false;
-  const clauses = summary.split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\bhowever\b)/i);
+  const clauses = summary.split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\b(?:and|however)\b)/i);
   const globalNoFetch = /\b(?:no|none|zero)\b.{0,80}\b(?:fetch(?:es)?|visits?|browser_fetch|page retrievals?)\b.{0,80}\b(?:recorded|occurred|succeeded|executed|performed|available|has been|have been|was|were)?/i;
   const noPageRetrieved = /\b(?:no|none|zero)\b.{0,60}\b(?:page|pages|source|sources)\b.{0,60}\b(?:was|were|has been|have been|is|are)?\s*(?:successfully\s*)?(?:fetched|visited|retrieved|opened)\b/i;
   return clauses.some((clause) => {
@@ -376,7 +376,7 @@ function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
   const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
   const noSuccessfulActions = /\bno\s+successful\s+(?:external\s+)?actions?\b/i;
   const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
-  return summary.split(/(?:[.!?]\s+|;\s+|\n+)/).some((clause) =>
+  return summary.split(/(?:[.!?]\s+|;\s+|,\s+|\b(?:and|but|however)\b|\n+)/i).some((clause) =>
     (globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause))
     && !absenceClaimIsSegmentScoped(clause),
   );
