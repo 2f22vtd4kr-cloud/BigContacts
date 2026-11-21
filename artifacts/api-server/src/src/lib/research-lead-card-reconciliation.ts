@@ -75,11 +75,12 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
-    const findings = new Map<string, { name: string; urls: Set<string>; notes: Set<string> }>();
-    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
+    const findings = new Map<string, { runId: string; name: string; urls: Set<string>; notes: Set<string> }>();
+    const observations: Array<{ runId: string; action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
-      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId) continue;
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId || typeof payload.runId !== "string" || !payload.runId.trim()) continue;
+      const runId = payload.runId;
       if (Array.isArray(payload.findings)) {
         for (const raw of payload.findings) {
           if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
@@ -88,12 +89,13 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
           if (!name || !identity || isContactLikeOrganizationReviewValue(name)) continue;
-          const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
+          const key = `${runId}::${identity}`;
+          const entry = findings.get(key) ?? { runId, name, urls: new Set<string>(), notes: new Set<string>() };
           if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
             const url = normalizeSource(rawUrl);
             if (url) entry.urls.add(url);
           }
-          findings.set(identity, entry);
+          findings.set(key, entry);
         }
       }
       if (event.eventType !== "tool_observation") continue;
@@ -128,7 +130,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
               const url = normalizeSource(rawUrl);
               if (!url) continue;
               observations.push({
-                action: "registry_search", execution: "success", url,
+                runId, action: "registry_search", execution: "success", url,
                 text: `${name}${normalizedNotes ? ` — ${normalizedNotes}` : ""}`,
                 eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead", sourceUrlBoundByAdapter: true,
                  sourceName: typeof company.sourceName === "string" ? company.sourceName : undefined,
@@ -183,7 +185,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           ? pageIdentity.name + " — fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". Supports the page-associated organization name only; no ownership, wealth, or person conclusion."
           : sourceLeadName ? sourceLeadName + " — " + observationText : observationText;
         observations.push({
-          action, execution: String(payload.execution), url,
+          runId, action, execution: String(payload.execution), url,
           text: sourceText,
           eventId: event.id, createdAt: event.createdAt,
           verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead",
@@ -193,7 +195,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
     for (const lead of findings.values()) {
       const supports = new Map<string, typeof observations[number]>();
       for (const observation of observations) {
-        if (!lead.urls.has(observation.url)) continue;
+        if (observation.runId !== lead.runId || !lead.urls.has(observation.url)) continue;
         const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
           ? bindExactSourceSpan(observation.text, lead.name)
           : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name);
@@ -349,11 +351,12 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
-    const findings = new Map<string, { name: string; role: string | null; urls: Set<string> }>();
-    const observations: Array<{ url: string; text: string; eventId: number; createdAt: Date; action: string; verificationLevel: "fetched_source" | "search_result_lead"; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
+    const findings = new Map<string, { runId: string; name: string; role: string | null; urls: Set<string> }>();
+    const observations: Array<{ runId: string; url: string; text: string; eventId: number; createdAt: Date; action: string; verificationLevel: "fetched_source" | "search_result_lead"; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
-      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId) continue;
+      if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || !payload || payload.jobId !== jobId || typeof payload.runId !== "string" || !payload.runId.trim()) continue;
+      const runId = payload.runId;
       if (Array.isArray(payload.findings)) for (const raw of payload.findings) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const finding = raw as Record<string, unknown>;
@@ -362,8 +365,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         const name = finding.personName.trim().replace(/\s+/g, " ");
         const role = typeof finding.role === "string" && finding.role.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
         if (!name) continue;
-        const key = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
-        const entry = findings.get(key) ?? { name, role, urls: new Set<string>() };
+        const key = `${runId}::` + normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
+        const entry = findings.get(key) ?? { runId, name, role, urls: new Set<string>() };
         if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
           const url = normalizeSource(rawUrl);
           if (url) entry.urls.add(url);
@@ -383,13 +386,13 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       for (const rawUrl of rawUrls) {
         const url = normalizeSource(rawUrl);
         if (!url) continue;
-        observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, action, verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead" });
+        observations.push({ runId, url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, action, verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead" });
       }
     }
     for (const lead of findings.values()) {
       const supports = new Map<string, typeof observations[number]>();
       for (const observation of observations) {
-        if (!lead.urls.has(observation.url)) continue;
+        if (observation.runId !== lead.runId || !lead.urls.has(observation.url)) continue;
         const span = observation.verificationLevel === "fetched_source"
           ? (lead.role ? bindExactSourceSpan(observation.text, lead.role, lead.name, 320) : bindExactSourceSpan(observation.text, lead.name, undefined, 320))
           : (lead.role ? bindExactSourceSpanToUrl(observation.text, observation.url, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name, undefined, 320));
