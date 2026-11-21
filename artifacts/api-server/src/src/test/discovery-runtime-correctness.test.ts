@@ -50,7 +50,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
-    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
     expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
@@ -115,7 +115,8 @@ describe("discovery runtime architecture", () => {
 
   it("keeps model-generated hypotheses out of the first Investigator objective", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalSource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
+    expect(canonicalSource).toContain("activeDiscoveryObjective = restored.activeObjective;");
     expect(canonicalSource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
     expect(canonicalSource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(canonicalSource).toContain("BOSS CONTINUATION HYPOTHESIS (non-binding; not an accepted scope or source requirement):");
