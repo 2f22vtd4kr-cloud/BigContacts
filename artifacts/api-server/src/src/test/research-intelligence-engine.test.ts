@@ -207,7 +207,7 @@ describe("Apex research intelligence", () => {
     // terminal/oversight summary merely because no hypothesis was formed.
     expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
     expect(state.stoppingAssessment.recommendation).toBe("continue");
-    expect(state.frontier.unresolvedQuestions).toBeGreaterThan(0);
+    expect(state.frontier.unresolvedPressure).toBeGreaterThan(0);
     expect(state.missionBriefs.some((brief) => brief.evidenceGap.includes("Verify a real operating company"))).toBe(true);
   });
 
