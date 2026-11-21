@@ -45,7 +45,7 @@ describe("Investigator quota diagnostics", () => {
     });
     expect(classifyInvestigatorProviderError("daily_token_budget_exhausted")).toEqual({
       domain: "model_provider",
-      kind: "local_provider_budget_exhausted",
+      kind: "daily_token_budget_exhausted",
     });
     expect(classifyInvestigatorProviderError("daily_usage_ledger_unavailable")).toEqual({
       domain: "persistence_database",
