@@ -17,7 +17,7 @@ const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export asy
 describe("terminal review-card reconciliation", () => {
   it("requires Investigator-authored events for partial and terminal review-card provenance", () => {
     expect(reconciler.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(2);
-    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(4);
+    expect(canonicalAtlas.match(/isInvestigatorAuthoredResearchEvent\(event\.actorRole\)/g) ?? []).toHaveLength(3);
     expect(reconciler).toContain("actorRole: researchCaseEventsTable.actorRole");
     expect(canonicalAtlas).toContain("actorRole: researchCaseEventsTable.actorRole");
   });
@@ -60,7 +60,7 @@ describe("terminal review-card reconciliation", () => {
       organizationStart,
       organizationEnd >= 0 ? organizationEnd : canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings", organizationStart),
     );
-    expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
+    expect(organizationMaterializer).toContain("Resolve only organization leads explicitly selected in Investigator findings");
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
     expect(organizationMaterializer).toContain("Registry adapter rows may support this lead only because the");
     expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
