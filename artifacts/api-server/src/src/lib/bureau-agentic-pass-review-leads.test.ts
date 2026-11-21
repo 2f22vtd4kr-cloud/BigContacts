@@ -6,7 +6,7 @@ describe("review-only Investigator leads", () => {
   it("keeps provisional leads visible to review but excludes them from evidence-backed admission", () => {
     const sourceUrl = "https://example.org/jane";
     const lead: AgenticFinding = {
-      vectorType: "person",
+      vectorType: "other",
       value: "Jane Example",
       personName: "Jane Example",
       role: "Chief Executive Officer",
@@ -18,6 +18,8 @@ describe("review-only Investigator leads", () => {
       promotionReason: "Model proposal must not bypass the evidence gate.",
     };
     const fetchedObservation: AgenticTrajectoryRecord[] = [{
+      turn: 1,
+      model: "test-investigator",
       turn: 1,
       model: "test-investigator",
       action: "visit",
@@ -35,6 +37,17 @@ describe("review-only Investigator leads", () => {
       sourceUrls: [sourceUrl],
     }]);
     expect(sourceBackedAgenticFindings([lead], [], fetchedObservation)).toEqual([]);
-    expect(sourceBackedAgenticFindings([{ ...lead, reviewOnly: false }], [], fetchedObservation)).toHaveLength(1);
+    const evidenceBackedFinding: AgenticFinding = {
+      vectorType: "other",
+      value: "Jane Example",
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: "Fetched source identifies the named person and role.",
+      promotionDecision: "promote",
+      promotionReason: "Same-observation identity and role support the claim.",
+    };
+    expect(sourceBackedAgenticFindings([evidenceBackedFinding], [], fetchedObservation)).toHaveLength(1);
   });
 });
