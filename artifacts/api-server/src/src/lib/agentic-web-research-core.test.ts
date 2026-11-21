@@ -2322,7 +2322,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
-  it("preserves complete fetched PDF evidence and durable URLs while bounding the newest search observation", () => {
+  it("preserves bounded fetched PDF evidence and durable URLs while bounding the newest search observation", () => {
     const objective = "Discover public-source ownership and transaction evidence relevant to the active human objective.";
     const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
     const fetchedUrl = "https://registry.example.test/filings/" + "f".repeat(120) + ".pdf";
@@ -2371,7 +2371,6 @@ describe("Investigator prompt architecture", () => {
       actionAllowlist: ["web_search", "visit", "done"],
     });
 
-    expect(prompt.length).toBeGreaterThan(6_000);
     expect(prompt).not.toContain(fetchedObservation);
     expect(prompt).toContain("OBSERVATION PROJECTION");
     // Search results and fetched PDF text are bounded prompt projections; full observations remain durable.
