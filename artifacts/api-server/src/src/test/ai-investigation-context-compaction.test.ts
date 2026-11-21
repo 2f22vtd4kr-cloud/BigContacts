@@ -1260,11 +1260,11 @@ describe("AI investigation context compaction", () => {
       "No page was fetched in this segment; the listed URLs remain unvisited leads.",
       "LEAD_URL: " + leadUrl,
       "PARTIAL CONTEXT: " + "This segment records search activity but no page retrieval in this segment. ".repeat(120),
-    ].join("\\n");
+    ].join("\n");
     const trustedSourceContext = [
       "LATEST ACTION METADATA (preserve turn/action/result distinction):",
       JSON.stringify({ turn: 1, action: "visit", execution: "success", observedUrls: [earlierUrl], leadUrls: [] }),
-    ].join("\\n");
+    ].join("\n");
     expect(source.length).toBeGreaterThan(9_000);
     expect(source.length).toBeLessThan(12_000);
     const summary = "No page was fetched in this segment; the listed URL remains an unvisited lead.";
