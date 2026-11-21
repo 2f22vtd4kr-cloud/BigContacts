@@ -45,9 +45,9 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
-    expect(agenticCoreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds)");
-    expect(agenticCoreSource).toContain("GLEIF is a legal-entity LEI identity and reported parent-relationship source");
-    expect(agenticCoreSource).toContain("companies-house is the UK Companies House API only");
+    expect(agenticCoreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds.filter");
+    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent data, not natural-person shareholders");
+    expect(agenticCoreSource).toContain("Companies House: UK only, not Ireland");
     expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
@@ -56,8 +56,8 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
     expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
     expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
-    expect(targetRunnerSource).toContain("observation:record.observation??null");
-    expect(targetRunnerSource).toContain("if (record.pageArtifact)");
+    expect(bureauAgenticPassSource).toContain("observation: record.observation ?? null");
+    expect(bureauAgenticPassSource).toContain("if (record.pageArtifact)");
     expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
   });
 });
