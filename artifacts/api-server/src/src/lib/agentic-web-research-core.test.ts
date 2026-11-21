@@ -45,8 +45,8 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
-    expect(agenticCoreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds.filter");
-    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent links, not natural-person ownership/wealth");
+    expect(agenticCoreSource).toContain("const registryCapabilityWarnings =");
+    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent links, not personal ownership/wealth");
     expect(agenticCoreSource).toContain("Companies House: UK only, not Ireland");
     expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
