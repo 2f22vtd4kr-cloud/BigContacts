@@ -5739,6 +5739,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
+  const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryCoverageGuidance = boundInvestigatorPromptSection(
     renderRegistryCoverageGuidance(availableRegistryIds.filter((id) => id === "gleif" || id === "companies-house")),
     180,
