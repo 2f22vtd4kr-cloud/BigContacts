@@ -790,9 +790,9 @@ describe("Atlas Boss direction adoption", () => {
       rightHand: { status: "completed", decision: "continue_discovery", reason: "Explore Nordic public registries.", direction: "Investigate regional private manufacturers in Sweden using official business registers.", confidence: 0.8, model: "test-model", error: null },
     });
     expect(prompt).toContain("Right-hand is advisory");
-    expect(prompt).toContain("null keeps the accepted scope");
+    expect(prompt).toContain("continue_discovery always preserves it and any direction is advisory");
     expect(prompt).toContain("preceding Investigator episode executed no external research action");
-    expect(prompt).toContain("structured direction field");
+    expect(prompt).toContain("validated structured direction on pivot_discovery");
   });
 });
 
