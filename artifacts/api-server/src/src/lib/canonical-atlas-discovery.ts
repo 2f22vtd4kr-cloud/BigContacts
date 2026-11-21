@@ -237,9 +237,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
   let materialized = 0;
   let evidenceRows = 0;
-  // Persist provisional review cards before attempting stricter target admission.
-  // A later ownership/corroboration admission error must not erase an already
-  // observed person/company lead from this discovery checkpoint.
+  // Resolve provisional leads before strict admission so they remain visible
+  // to Boss/Right-hand in the trajectory, but do not persist review-only cards.
+  // Only the evidence-gated admission paths below may create durable targets.
   const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryRunId: input.discoveryRunId, discoveryCaseId: input.discoveryCaseId });
   materialized += partialPeople.materialized;
   evidenceRows += partialPeople.evidenceRows;
@@ -387,7 +387,6 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       && normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(name)
       && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\s+/g, " ") ?? null,
   }));
-  const strictPersonIdentities = new Set(personTargets.map(({ name }) => normalizeCandidateIdentityName(name)));
   // No target-scoped research is authorized without a source-backed lead.
   // This is a provenance handoff, not a source-count or role/name admission filter.
   // Review-only leads are already visible to Boss/Right-hand in discoveryFindings
@@ -522,9 +521,9 @@ async function materializePartialPersonLeadCards(input: {
   discoveryRunId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }> }> {
-  // The Investigator's structured finding is the card-worthiness decision.
-  // Runtime persists that selection as a review-only lead; Boss may choose it
-  // for target-scoped verification, while promotion remains a separate decision.
+  // The Investigator's structured finding is the lead-worthiness decision.
+  // Keep review-only selections in the same-run trajectory; durable candidate
+  // creation belongs exclusively to the separate evidence-backed admission path.
   // Ownership terminology, wealth signals, role keywords and proximity are not admission gates.
   // The only runtime admission constraints here are the model's candidate selection,
   // same-run source attribution, exact identity binding, and durable case/job ownership.
@@ -868,7 +867,7 @@ function isContactLikeOrganizationReviewValue(value: string): boolean {
 }
 
 // COMPANY REVIEW: when a concrete company is explicitly named in a same-case search-result observation,
- // preserve it as a review card with scope=organization and its associated public result URL.
+ // preserve it as an in-memory review lead with scope=organization and its associated public result URL.
  // Do not synthesize company names from URL paths, generic metadata or registry rows; registry rows may
  // support only a company already selected by the Investigator.
 async function materializePartialOrganizationLeadCards(input: {
@@ -877,9 +876,9 @@ async function materializePartialOrganizationLeadCards(input: {
   discoveryRunId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> }> {
-  // Persist only organization leads explicitly selected in Investigator findings.
+  // Resolve only organization leads explicitly selected in Investigator findings.
   // They remain distinct from person candidates and imply no ownership, wealth,
-  // or HNWI status.
+  // or HNWI status; review-only leads are not persisted as cards.
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
