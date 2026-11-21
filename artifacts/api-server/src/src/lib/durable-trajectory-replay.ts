@@ -51,9 +51,30 @@ export function replayInvestigatorTrajectoryEvents(
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const args = objectValue(payload.args) ?? {};
+    let args = objectValue(payload.args) ?? {};
     const stringArray = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    const observation = typeof payload.observation === "string" ? payload.observation : undefined;
+    const observedUrls = stringArray(payload.observedUrls);
+    let replayedExecution = execution as AgenticTrajectoryRecord["execution"];
+    const pagePersistence = args.pageContentPersistence;
+    if ((action === "visit" || action === "browser_fetch") && typeof pagePersistence === "string") {
+      const expectedHash = args.pageObservationSha256;
+      const hashValid = typeof expectedHash === "string"
+        && /^[a-f0-9]{64}$/i.test(expectedHash)
+        && typeof observation === "string"
+        && createHash("sha256").update(observation).digest("hex") === expectedHash.toLowerCase();
+      const finalSourceUrlPresent = observedUrls.some((url) => normalizedFetchedPageSourceUrl(url) !== null);
+      const pageObservationIntegrity = !hashValid
+        ? "hash_mismatch"
+        : finalSourceUrlPresent
+          ? "verified"
+          : "source_unverified";
+      args = { ...args, pageObservationIntegrity };
+      if (replayedExecution === "success" && pageObservationIntegrity !== "verified") {
+        replayedExecution = "partial";
+      }
+    }
     const findings = Array.isArray(payload.findings)
       ? payload.findings.filter((item) => objectValue(item) !== null) as unknown as AgenticTrajectoryRecord["findings"]
       : [];
@@ -70,9 +91,9 @@ export function replayInvestigatorTrajectoryEvents(
       ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
       ...(typeof payload.pivotScopeKey === "string" ? { pivotScopeKey: payload.pivotScopeKey } : {}),
       leadUrls: stringArray(payload.leadUrls),
-      execution: execution as AgenticTrajectoryRecord["execution"],
-      ...(typeof payload.observation === "string" ? { observation: payload.observation } : {}),
-      observedUrls: stringArray(payload.observedUrls),
+      execution: replayedExecution,
+      ...(typeof observation === "string" ? { observation } : {}),
+      observedUrls,
       findings,
       providerFallback: stringArray(payload.providerFallback),
       ...(typeof payload.stopReason === "string" ? { stopReason: payload.stopReason as AgenticTrajectoryRecord["stopReason"] } : {}),
@@ -187,6 +208,21 @@ export function attachDurableFetchedPageArtifacts(
       sourceVerified: artifact.sourceVerified ?? (record.execution === "success" && record.observedUrls.length > 0),
       artifactEventId: artifact.firstEventId,
     };
+    record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "verified" };
+  }
+
+  // A durable page-artifact promise is not fulfilled merely because its
+  // observation event replayed. Require the complete hash-verified chunks to
+  // have reattached to the exact run/turn/source before treating it as durable.
+  for (const record of records) {
+    const persistence = record.args?.pageContentPersistence;
+    if (persistence !== "retained_page_artifact" && persistence !== "new_retained_page_artifact") continue;
+    if (record.args?.pageArtifactDurable === true && !record.pageArtifact) {
+      record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "missing" };
+      if (record.execution === "success") record.execution = "partial";
+    } else if (record.pageArtifact) {
+      record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "verified" };
+    }
   }
   return records;
 }
