@@ -5742,10 +5742,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryCoverageGuidance = boundInvestigatorPromptSection(
     renderRegistryCoverageGuidance(availableRegistryIds.filter((id) => id === "gleif" || id === "companies-house")),
-    180,
+    60,
   );
-  const registryCapabilityWarnings = "Use only schema-listed adapters; jurisdiction and fields are fixed, and query hostnames do not change coverage. GLEIF: entity LEI/parent data, not natural-person shareholders, beneficial ownership, wealth or assets. Companies House: UK only, not Ireland.";
+  const registryCapabilityWarnings = "Adapters are jurisdiction/field-limited; query hosts do not change coverage. GLEIF: entity LEI/parent links, not natural-person ownership/wealth. Companies House: UK only, not Ireland. Query indexed fields; lexical matches are leads, not proof.";
   const compactRegistryGuidance = [
+    `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested; never invent IDs.`,
     registryCoverageGuidance ? "REGISTRY CAPABILITY MATRIX: " + registryCoverageGuidance : "",
     registryCapabilityWarnings,
   ].filter(Boolean).join("\n");
