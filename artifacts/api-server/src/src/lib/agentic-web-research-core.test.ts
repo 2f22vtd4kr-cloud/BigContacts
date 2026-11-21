@@ -4291,10 +4291,17 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toMatch(/CALLABLE REGISTRY IDS:/);
-    expect(prompt).toContain("sec-edgar");
-    expect(prompt).not.toContain("inbiz");
-    expect(prompt).toMatch(/Never invent IDs/i);
+    expect(prompt).toContain("GLEIF: entity LEI/parent links, not natural-person ownership/wealth");
+    expect(prompt).toContain("Companies House: UK only, not Ireland");
+    expect(prompt).toContain("Query indexed fields; lexical matches are leads, not proof.");
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    });
+    const responseFormat = body.response_format as { json_schema?: { schema?: { properties?: { registry?: { enum?: string[] } } } } };
+    expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).toContain("sec-edgar");
+    expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).not.toContain("inbiz");
     expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners;");
   });
 
@@ -5176,7 +5183,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).not.toContain("RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland");
     expect(agenticCoreSource).toContain("const availableRegistryIds = getAvailableRegistryIdsForPrompt();");
     expect(agenticCoreSource).toContain('const registryIdList = availableRegistryIds.join(", ")');
-    expect(agenticCoreSource).toContain("${registryIdList}");
+    expect(agenticCoreSource).toContain('appendBeforeSchema("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList');
   });
 
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
