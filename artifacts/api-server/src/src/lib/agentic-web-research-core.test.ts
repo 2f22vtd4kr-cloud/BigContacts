@@ -45,9 +45,10 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
-    expect(agenticCoreSource).toContain("const registryCapabilityWarnings =");
-    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent links, not natural-person shareholders/beneficial owners/wealth");
-    expect(agenticCoreSource).toContain("Companies House: UK only, not Ireland");
+    expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF: entity LEI/parent links, not natural-person shareholders, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
+    expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
     expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
@@ -4291,9 +4292,9 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("GLEIF: entity LEI/parent links, not natural-person ownership/wealth");
-    expect(prompt).toContain("Companies House: UK only, not Ireland");
-    expect(prompt).toContain("Query indexed fields; lexical matches are leads, not proof.");
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF: entity LEI/parent links, not a natural-person shareholder, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
+    expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
       prompt,
@@ -4302,7 +4303,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const responseFormat = body.response_format as { json_schema?: { schema?: { properties?: { registry?: { enum?: string[] } } } } };
     expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).toContain("sec-edgar");
     expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).not.toContain("inbiz");
-    expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners;");
+    expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners:");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
