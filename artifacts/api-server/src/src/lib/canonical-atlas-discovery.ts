@@ -35,7 +35,6 @@ import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
-import { bindExactRegistryLeadName } from "./registry-result-source-binding";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { getAgenticLlmTelemetryForJob } from "./agentic-llm-telemetry";
