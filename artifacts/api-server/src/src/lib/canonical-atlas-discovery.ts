@@ -3186,6 +3186,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     };
     await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (operatorTargetSpendingCapReached ? `Operator target-investigation spending cap reached after ${researched} target investigation(s); Boss requested additional target-stage work, so the case is preserved for review.` : investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify(terminalJobResult), finishedAt: new Date().toISOString() });
     const activeJobLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
+    terminalAuditLockReleased = activeJobLockReleased;
     terminalSnapshot.activeJobLockReleased = activeJobLockReleased;
     phaseSummary.terminal = JSON.stringify(terminalSnapshot);
     terminalJobResult.phaseSummary = phaseSummary;
@@ -3319,7 +3320,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
     }
     try {
-      terminalAuditLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
+      const failureLockReleaseSucceeded = await clearActiveJobIfOwned(lockKey, atlasJobId);
+      terminalAuditLockReleased = terminalAuditLockReleased === true || failureLockReleaseSucceeded;
     } catch {
       // Outer launch boundary owns the final cleanup attempt.
     }
