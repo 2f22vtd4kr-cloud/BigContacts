@@ -1219,7 +1219,7 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
     expect(canonicalDiscoverySource).not.toContain("discoverySearchActionsRemaining");
     expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");
     expect(canonicalDiscoverySource).toContain("activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
-    expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");
+    expect(canonicalDiscoverySource).toContain("pinnedControlState, rightHandReviewedThroughTurn, investigatorReport:");
   });
 });
 
