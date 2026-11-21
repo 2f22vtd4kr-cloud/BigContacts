@@ -959,7 +959,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown.");
+    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
@@ -968,7 +968,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -2128,7 +2128,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
   });
 });
@@ -2329,7 +2329,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("Omit provider for a healthy runtime default.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/Search snippets\/registry hits remain leads, not evidence; failed\/unfetched are unknown/i);
+    expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
