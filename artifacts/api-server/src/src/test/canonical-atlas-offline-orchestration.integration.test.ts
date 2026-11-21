@@ -543,7 +543,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
     const completedOversight = targetCaseFile.investigatorActOversight?.find((entry: any) => entry?.oversight?.action === "stop");
     expect(completedOversight?.oversight).toMatchObject({ action: "stop", status: "completed" });
     expect(completedOversight?.evidenceGraphs).toHaveLength(1);
-    expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "partial_person_role_lead", status: "review" })]));
+    expect(outcome.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ claimType: "identity_candidate", status: "review" })]));
     const eventTypes = outcome.events.map((event: any) => event.eventType);
     expect(eventTypes).toContain("assignment");
     expect(eventTypes).toContain("tool_observation");

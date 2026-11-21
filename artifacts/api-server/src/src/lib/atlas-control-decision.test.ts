@@ -7,6 +7,7 @@ import {
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
+  buildAtlasControlEventPayload,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
   buildAtlasPinnedControlState,
@@ -23,6 +24,7 @@ import {
   normalizeAtlasOpeningRightHandApprovalReview,
   normalizeAtlasOpeningRightHandReview,
   shouldInvokeAtlasRightHandReview,
+  resolveAtlasRightHandReviewWatermark,
   validateAtlasOpeningRightHandReview,
   validateAtlasOpeningRightHandApprovalReview,
 } from "./atlas-control-decision";
@@ -121,6 +123,31 @@ describe("Atlas control-plane lead continuity", () => {
     expect(compact).toContain('"unfetchedLeadUrls"');
     expect(compact).toContain(leadUrl);
     expect(compact).toContain('"visits": 0');
+  });
+
+  it("keeps review-only leads visibly distinct in the compact Boss and Right-hand report", () => {
+    const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq",
+      status: "completed",
+      searches: 1,
+      visits: 0,
+      findings: [{
+        vectorType: "person",
+        value: "Jane Example",
+        personName: "Jane Example",
+        role: null,
+        scope: "candidate",
+        reviewOnly: true,
+        sourceUrls: ["https://example.org/jane"],
+        note: "Named in a search result; not fetched or verified.",
+      }],
+    }))) as { findings: Array<{ personName: string | null; reviewOnly: boolean; sourceUrls: string[] }> };
+
+    expect(report.findings[0]).toMatchObject({
+      personName: "Jane Example",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    });
   });
 
   it("preserves complete source URLs longer than 300 characters in supervisor reports", () => {
@@ -428,7 +455,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("unfetchedLeadUrls");
     expect(pinnedStateWithUnfetchedLead()).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
     expect(pinnedStateWithUnfetchedLead()).toContain("CKX Lands appears in a transaction announcement");
-    expect(prompt).toContain("Search URLs/snippets remain leads, not evidence until fetched.");
+    expect(prompt).toContain("Snippets/URLs are leads, not evidence.");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
   });
 
@@ -555,10 +582,10 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
     expect(law).toContain("when geography is open, the Investigator may propose an evidence-led jurisdiction to Boss");
     expect(law).toContain("Use jurisdiction-specific sources when the objective or same-case observations support relevance");
-    expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
-    expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
-    expect(atlasLeadUtilizationLaw()).toContain("relevance is unknown, not disproven");
-    expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
+    expect(atlasLeadUtilizationLaw()).toContain("Missing descriptions mean unknown, not irrelevant");
+    expect(atlasLeadUtilizationLaw()).toContain("URL/domain alone cannot establish irrelevance");
+    expect(atlasLeadUtilizationLaw()).toContain("Missing descriptions mean unknown, not irrelevant");
+    expect(atlasLeadUtilizationLaw()).toContain("No target count or route is mandated");
 
     const input = {
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
@@ -578,6 +605,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("neither an instruction to fetch all");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
@@ -589,7 +617,7 @@ describe("Atlas control-plane lead continuity", () => {
       compactState: "One official registry result identifies a potentially relevant company.",
       pinnedControlState: "One source-attributed organization review target is available.",
     });
-    expect(prompt).toContain("There is no target-count threshold");
+    expect(prompt).toContain("No target count or route is mandated");
     expect(prompt).toContain("Investigator chooses the action");
     expect(prompt).not.toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(prompt).not.toContain("recommend investigating it now");
@@ -974,3 +1002,195 @@ describe("Atlas opening Right-hand advisory normalization", () => {
   });
 });
 
+describe("AI-led discovery trajectory oversight", () => {
+  it("invokes independent Right-hand review after a low-yield continuation episode", () => {
+    const records = [
+      { action: "web_search", execution: "success", findings: [] },
+      { action: "web_search", execution: "success", findings: [] },
+      { action: "visit", execution: "success", findings: [] },
+    ];
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [{ value: "https://example.com/article", personName: null, scope: "candidate" }],
+      priorAction: "continue_discovery",
+      trajectoryRecords: records,
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: records.slice(0, 2),
+    })).toBe(false);
+  });
+
+  it("counts only successful external research actions and reviews once per new low-yield threshold crossing", () => {
+    const externalActions = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
+    for (const action of externalActions) {
+      expect(shouldInvokeAtlasRightHandReview({
+        admittedCandidates: [],
+        discoveryFindings: [],
+        priorAction: "continue_discovery",
+        trajectoryRecords: [action, action, action].map((name, index) => ({ action: name, turn: index + 1, execution: "success", findings: [] })),
+      })).toBe(true);
+    }
+
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: [
+        { action: "web_search", turn: 1, execution: "error", findings: [] },
+        { action: "visit", turn: 2, execution: "blocked", findings: [] },
+        { action: "registry_search", turn: 3, execution: "timeout", findings: [] },
+        { action: "model_decision", turn: 4, execution: "success", findings: [] },
+        { action: "internal_compaction", turn: 5, execution: "success", findings: [] },
+      ],
+    })).toBe(false);
+
+    // Only one action has occurred since the persisted Right-hand review watermark.
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      rightHandReviewedThroughTurn: 3,
+      trajectoryRecords: [
+        { action: "web_search", turn: 1, execution: "success", findings: [] },
+        { action: "registry_search", turn: 2, execution: "success", findings: [] },
+        { action: "visit", turn: 3, execution: "success", findings: [] },
+        { action: "domain_lookup", turn: 4, execution: "success", findings: [] },
+      ],
+    })).toBe(false);
+  });
+
+  it("does not let an older review-only lead suppress later low-yield oversight", () => {
+    const reviewLead = {
+      value: "Jane Example",
+      personName: "Jane Example",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    };
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [reviewLead],
+      priorAction: "continue_discovery",
+      rightHandReviewedThroughTurn: 1,
+      trajectoryRecords: [
+        { action: "web_search", turn: 1, execution: "success", findings: [reviewLead] },
+        { action: "visit", turn: 2, execution: "success", findings: [] },
+        { action: "web_search", turn: 3, execution: "success", findings: [] },
+        { action: "registry_search", turn: 4, execution: "success", findings: [] },
+      ],
+    })).toBe(true);
+  });
+
+  it("triggers after three new successful actions even when the resumed trajectory is long", () => {
+    const prior = Array.from({ length: 10 }, (_, index) => ({
+      action: "web_search", turn: index + 1, execution: "success", findings: [],
+    }));
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: prior,
+      rightHandReviewedThroughTurn: 0,
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: prior,
+      rightHandReviewedThroughTurn: 10,
+    })).toBe(false);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: [...prior, ...[11, 12, 13].map((turn) => ({
+        action: "registry_search", turn, execution: "success", findings: [],
+      }))],
+      rightHandReviewedThroughTurn: 10,
+    })).toBe(true);
+  });
+
+  it("treats an Investigator-selected review-only lead as a consequential handoff", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: null,
+      trajectoryRecords: [{
+        action: "web_search",
+        execution: "success",
+        findings: [{ reviewOnly: true, scope: "candidate", personName: "Alex Example", value: "Alex Example" }],
+      }],
+    })).toBe(true);
+  });
+
+  it("restores the latest Right-hand review watermark from durable control history", () => {
+    expect(resolveAtlasRightHandReviewWatermark([
+      { controlTurn: 1, rightHand: { status: "completed", reviewedThroughTurn: 7 } },
+      { controlTurn: 2, rightHand: { status: "deferred", reviewedThroughTurn: 7 } },
+      { controlTurn: 3, rightHand: { status: "completed", reviewedThroughTurn: 13 } },
+      { controlTurn: 4, rightHand: { status: "deferred", reviewedThroughTurn: "invalid" } },
+      null,
+    ])).toBe(13);
+    expect(resolveAtlasRightHandReviewWatermark(null)).toBe(0);
+  });
+
+  it("persists the Right-hand review watermark in the canonical control event payload", () => {
+    const payload = buildAtlasControlEventPayload({
+      controlTurn: 4,
+      jobId: "atlas-job",
+      decision: {
+        status: "completed",
+        action: "continue_discovery",
+        candidateName: null,
+        candidateType: null,
+        direction: "Continue testing the active objective.",
+        reason: "The evidence remains insufficient.",
+        confidence: 0.7,
+        rightHand: {
+          status: "completed",
+          decision: "challenge",
+          reason: "The current source route remains low-yield.",
+          direction: null,
+          confidence: 0.8,
+          model: "right-hand-model",
+          error: null,
+          reviewedThroughTurn: 13,
+        },
+        bossModel: "boss-model",
+        error: null,
+      },
+    });
+    expect(payload.rightHand.reviewedThroughTurn).toBe(13);
+  });
+
+  it("does not let a positive unfetched count become an instruction to fetch everything", () => {
+    expect(atlasLeadUtilizationLaw()).toContain("neither an instruction to fetch all");
+    expect(atlasLeadUtilizationLaw()).toContain("reassess the hypothesis");
+  });
+
+  it("keeps opening Boss direction broad and faithful to the human objective", () => {
+    const prompt = buildAtlasBossControlPrompt({
+      opening: true,
+      humanObjective: "Find objective-fit people, organizations, assets, relationships and public routes.",
+      investigatorReport: "No observations yet.",
+      compactState: "No candidates yet.",
+      rightHand: {
+        status: "deferred",
+        decision: null,
+        reason: "No evidence-bearing decision yet.",
+        direction: null,
+        confidence: null,
+        model: "not-invoked",
+        error: null,
+      },
+    });
+    expect(prompt).toContain("founder");
+    expect(prompt).toContain("angel investors");
+    expect(prompt).toContain("unless the human explicitly requested it");
+    expect(prompt).toContain("No source family, target class, jurisdiction or number of targets is preferred or required");
+    expect(prompt).not.toContain("One observed target is enough");
+  });
+});

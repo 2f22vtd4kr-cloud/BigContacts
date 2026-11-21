@@ -29,7 +29,7 @@ export type AtlasTargetType = "person" | "organization";
 export type AtlasAdmittedTargetInput = { name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType };
 
 export type AtlasRightHandStatus = "completed" | "unavailable" | "deferred";
-export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: AtlasRightHandStatus; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
+export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: AtlasRightHandStatus; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null; reviewedThroughTurn?: number }; bossModel: string | null; error: string | null };
 
 /** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
 export function isRecoverableAtlasControlRejection(decision: Pick<AtlasControlDecision, "status" | "error">): boolean {
@@ -68,14 +68,16 @@ export function normalizeAtlasControlAction(value: unknown): AtlasControlAction 
 /** Match a model-selected target by both identity and declared entity kind. */
 /**
  * Right-hand is invoked for consequential independent reviews, not routine
- * Investigator observations. The model's own semantic findings trigger review
- * when they propose promotion, surface contradiction/ambiguity, or make a
- * consequential identity decision. Ordinary page facts do not trigger another
- * model call. The first stop proposal and strategic pivots remain reviewable.
+ * Investigator observations. Review triggers include model-selected review-lead
+ * handoffs, promotion/contradiction/identity decisions, first stop proposals,
+ * strategic pivots, and low-yield continuation after several successful research
+ * actions without a useful handoff. It critiques evidence and strategy; it never
+ * browses or chooses the next Investigator route/action.
  */
 function isConsequentialInvestigatorFinding(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const finding = value as Record<string, unknown>;
+  if (finding.reviewOnly === true && ((finding.scope === "candidate" && typeof finding.personName === "string" && finding.personName.trim()) || (finding.scope === "organization" && typeof finding.value === "string" && finding.value.trim()))) return true;
   const promotion = typeof finding.promotionDecision === "string" ? finding.promotionDecision : "";
   if (promotion === "promote" || promotion === "reject") return true;
   const relation = typeof finding.hypothesisRelation === "string" ? finding.hypothesisRelation : "";
@@ -83,6 +85,21 @@ function isConsequentialInvestigatorFinding(value: unknown): boolean {
   const identity = typeof finding.identityAssessment === "string" ? finding.identityAssessment : "";
   const identityRationale = typeof finding.identityRationale === "string" ? finding.identityRationale.trim() : "";
   return Boolean(identityRationale && (identity === "different_people" || identity === "unresolved"));
+}
+
+export function resolveAtlasRightHandReviewWatermark(controlHistory: unknown): number {
+  if (!Array.isArray(controlHistory)) return 0;
+  let reviewedThroughTurn = 0;
+  for (const entry of controlHistory) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const rightHand = (entry as Record<string, unknown>).rightHand;
+    if (!rightHand || typeof rightHand !== "object" || Array.isArray(rightHand)) continue;
+    const turn = (rightHand as Record<string, unknown>).reviewedThroughTurn;
+    if (typeof turn === "number" && Number.isSafeInteger(turn)) {
+      reviewedThroughTurn = Math.max(reviewedThroughTurn, turn);
+    }
+  }
+  return reviewedThroughTurn;
 }
 
 export function shouldInvokeAtlasRightHandReview(input: {
@@ -95,7 +112,10 @@ export function shouldInvokeAtlasRightHandReview(input: {
     failureDomain?: string | null;
     failureKind?: string | null;
     findings?: readonly unknown[] | null;
+    execution?: string | null;
+    turn?: number | null;
   }[];
+  rightHandReviewedThroughTurn?: number;
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
   const previousName = input.priorCandidate?.trim().toLocaleLowerCase() ?? null;
@@ -110,6 +130,21 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
   const latestFindings = latest?.findings ?? [];
   if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
+  // Three successful external actions since the last review are a consequential
+  // strategy signal even when an older provisional lead exists. A newly surfaced
+  // lead is reviewed immediately above; an old lead must not mask later stagnation.
+  // Right-hand critiques the trajectory; it does not choose the next route/action.
+  const isSuccessfulExternalResearchAction = (record: typeof input.trajectoryRecords[number]): boolean =>
+    record.execution === "success"
+      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(String(record.action ?? ""));
+  const reviewedThroughTurn = Math.max(0, Number.isFinite(input.rightHandReviewedThroughTurn) ? Math.floor(input.rightHandReviewedThroughTurn!) : 0);
+  const successfulResearchActionsSinceReview = input.trajectoryRecords.filter((record) =>
+    (typeof record.turn === "number" ? record.turn > reviewedThroughTurn : reviewedThroughTurn === 0)
+      && isSuccessfulExternalResearchAction(record),
+  ).length;
+  if (input.priorAction === "continue_discovery"
+    && input.admittedCandidates.length === 0
+    && successfulResearchActionsSinceReview >= 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
@@ -515,7 +550,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
-  return "LEAD-UTILIZATION JUDGMENT: Assess operating businesses, investors, assets and individuals against the actual mission and observations. Inspect same-case titles/snippets for unfetched leads; URL/domain alone cannot establish irrelevance. If no item-specific description is available, relevance is unknown, not disproven. Do not treat lack of findings from snippets as evidence against an unvisited lead. Do not label an unvisited result generic or irrelevant from its domain/URL alone. Snippets/URLs are leads, not evidence. Positive unfetchedLeadUrlCount means leads remain, even if only a URL sample is shown; never say none remain. There is no target-count threshold; Right-hand advises and does not select or authorize targets. Fetching every URL is not required: Boss/Right-hand may recommend a stop only with a specific same-case reason (irrelevance, low value, contradiction or observed access failure). This is judgment, not a fixed action sequence; Investigator chooses the action.";
+  return "LEAD-UTILIZATION JUDGMENT: Same-case titles/snippets can make unfetched leads relevant; URL/domain alone cannot establish irrelevance. Missing descriptions mean unknown, not irrelevant. Snippets/URLs are leads, not evidence. A positive unfetchedLeadUrlCount is neither an instruction to fetch all nor a reason by itself to continue. Judge item-specific information gain; directories/listicles do not prove a person\u2019s wealth or fit. After similar searches or generic pages yield no named objective-fit lead, reassess the hypothesis rather than rephrase or exhaust the list. No target count or route is mandated; Right-hand advises and Investigator chooses.";
 }
 
 /** Prevent jurisdiction-only churn when the current source route has demonstrably failed. */
@@ -544,7 +579,7 @@ export function buildAtlasPinnedControlState(input: {
   activeScope: string | null;
   leadInventory: AtlasControlLeadInventory;
   admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>;
-  findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
+  findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; reviewOnly?: boolean; sourceUrls: string[]; note: string }>;
   missionBudget?: { investigatorActionsUsed: number; investigatorActionsRemaining: number; discoverySearchActionsUsed: number };
 }): string {
   const state = input.leadInventory;
@@ -666,7 +701,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
     "REVIEW-TARGET CONSIDERATION (advisory, not a sequence): when a source-attributed company/person/asset lead is available, compare target research with continued discovery or an evidence-led pivot by expected information gain. There is no target-count threshold or automatic handoff; preserve model-owned target selection. Only exact admitted name/type pairs may be recommended; Right-hand advises, never selects/authorizes.",
     "Assess feasibility against observed public-source access/status; do not assume private/registry access without runtime evidence. For every source lane, assume no nonpublic filings, private records or registry coverage without runtime evidence.",
     atlasRegistryFeasibilityLaw(),
-    "LEAD-UTILIZATION JUDGMENT: compare same-scope unfetched leads before pivot. Positive unfetchedLeadUrlCount means leads remain, not all must be fetched. Missing descriptions/URL/domain mean relevance unknown. Stop only for a specific same-case reason. Search URLs/snippets remain leads, not evidence until fetched.",
+    atlasLeadUtilizationLaw(),
     "SOURCE-ROUTE RECOVERY JUDGMENT: distinguish access failure from no suitable people. Preflight block made no request; failed fetch is not observation. Do not repeat unchanged blocked routes or switch jurisdictions for the same unsupported premise. Never infer owner absence from access failure.",
     "INVESTIGATOR BUDGET SEMANTICS: episodeStopReason=ITERATION_BUDGET and episodeLimitReached=true are local. Do not claim global budget exhaustion while actionsRemaining is greater than zero and missionLimitReached is false; global exhaustion requires actionsRemaining=0 and missionLimitReached=true.",
     "SOURCE AND FAILURE DISTINCTIONS: A blocked request cannot support a claim that a registry or sector lacks ownership information. Never evade access controls. Distinguish blocked, failed-fetch, and successfully observed sources.",
@@ -773,10 +808,10 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
       "You are Groq Boss. This is the first control decision, before any Investigator action. Choose only continue_discovery or stop. If continuing, supply one concrete, objective-aligned opening research question that identifies what evidence should be established first. Do not name an unobserved target or prescribe a provider, registry, tool, search query, source family, fixed action sequence, or geography absent from the human objective. After launch, the Investigator chooses exact targets, routes, tools, hypotheses and next actions.",
       "HUMAN OBJECTIVE (complete and authoritative; do not shorten, reinterpret, add geography, or add a source preference):",
       humanObjective,
-      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery and state a concrete first research question strictly within the exact human objective. Do not compare strategies, sectors, or geographies.",
+      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery and state a concrete first research question strictly within the exact human objective. Do not compare strategies, sectors, or geographies. Do not infer a founder\u2019s sector from the word founder, or narrow the mission to angel investors, privately held-company owners, a particular wealth/ownership threshold, company size, fame preference, jurisdiction or source family unless the human explicitly requested it. A concrete question may ask what evidence would best identify objective-fit people, organizations, assets, relationships or public/professional routes; it must not silently turn one possible category into the whole mission.",
       "RUNTIME SOURCE/REGISTRY FEASIBILITY (inform the start/stop decision only; do not prescribe a route or order):",
       atlasRegistryFeasibilityLaw(),
-      "SOURCE-NEUTRALITY: after this decision, the Investigator selects one useful company, person, or asset from any enabled registry/asset register or public-web result. All enabled registries and public-web search are equal, neutral options. One observed target is enough.",
+      "SOURCE-NEUTRALITY: after this decision, the Investigator may investigate any objective-fit people, organizations, assets, relationships or public/professional routes using any enabled capability. No source family, target class, jurisdiction or number of targets is preferred or required; all research choices remain model-owned.",
       "EVIDENCE BOUNDARY: Boss and Right-hand output, hypotheses, confidence, and rationale are not source evidence. Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.",
       "RIGHT-HAND ADVICE (advisory only; no free-form rationale or focus lanes are passed as evidence):",
       JSON.stringify(advice),
@@ -1042,6 +1077,7 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       personName: boundedText(finding.personName, 120),
       role: boundedText(finding.role, 120),
       scope: boundedText(finding.scope, 24),
+      reviewOnly: finding.reviewOnly === true,
       promotionDecision: boundedText(finding.promotionDecision, 16),
       sourceUrls,
       sourceUrlCount: rawSourceUrls.length,
@@ -1110,9 +1146,10 @@ export type AtlasRightHandAdvisoryOverride = {
   confidence: number | null;
   model: string;
   error: string | null;
+  reviewedThroughTurn?: number;
 };
 
-export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; priorCandidateType?: AtlasTargetType | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string; pinnedControlState?: string; opening?: boolean; rightHandOverride?: AtlasRightHandAdvisoryOverride }): Promise<AtlasControlDecision> {
+export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ value: string; personName: string | null; role: string | null; scope: string; reviewOnly?: boolean; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; priorCandidateType?: AtlasTargetType | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string; pinnedControlState?: string; opening?: boolean; rightHandReviewedThroughTurn?: number; rightHandOverride?: AtlasRightHandAdvisoryOverride }): Promise<AtlasControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Atlas control decision requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Atlas control decision requires a valid positive controlTurn.");
   const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision, jobId: input.jobId }); if (persisted.persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: persisted.error ?? "Failed to persist Atlas control decision." }; };
@@ -1135,6 +1172,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
     priorAction: input.priorAction,
     priorCandidate: input.priorCandidate,
     trajectoryRecords: structuredTrajectory,
+    rightHandReviewedThroughTurn: input.rightHandReviewedThroughTurn,
   })) {
     rightHand = {
       status: "deferred",
@@ -1164,6 +1202,8 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // Right-hand review is invoked only for consequential, evidence-bearing
   // decisions. Deferred review is explicit control state, not a provider outage.
   // Right-hand remains advisory; Boss owns every control decision.
+  const latestReviewedTurn = Math.max(0, ...structuredTrajectory.map((record) => Number.isFinite(record.turn) ? Math.floor(record.turn) : 0));
+  rightHand = { ...rightHand, reviewedThroughTurn: rightHand.status === "deferred" ? Math.max(0, input.rightHandReviewedThroughTurn ?? 0) : latestReviewedTurn };
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
   try {

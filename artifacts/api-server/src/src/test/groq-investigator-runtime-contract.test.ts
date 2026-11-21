@@ -919,6 +919,7 @@ describe("Groq Investigator runtime contract", () => {
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(strictUser).toContain("review-only");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
 
@@ -930,7 +931,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(twentyBUser).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(twentyBUser).toContain("Discovery: include useful same-run person/org leads in findings[]");
     expect(twentyBUser).toContain("sourceUrls");
   });
 

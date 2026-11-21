@@ -100,7 +100,9 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
     expect(discovery).toContain("discoveryRunId: string;");
     expect(discovery).toContain("payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId");
-    expect(discovery).toContain("discoveryRunId: input.discoveryRunId, discoveryCaseId: input.discoveryCaseId");
+    expect(discovery).toContain("discoveryRunId: input.discoveryRunId");
+    expect(discovery).toContain('finding.reviewOnly !== true');
+    expect(discovery).toContain("candidateRoleCorroborationSources");
   });
 
   it("admits a review-only ownership lead from one fetched exact identity/role source without weakening provenance", () => {
@@ -108,7 +110,9 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     const policy = read("src/src/lib/candidate-source-url-union.ts");
     expect(discovery).toContain("candidateRoleCorroborationSources");
     expect(discovery).toContain("sources.length >= 1");
-    expect(discovery).toContain("Ownership terminology, wealth signals, role keywords and proximity are not admission gates.");
+    expect(discovery).not.toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(policy).not.toContain("DISCOVERY_OWNERSHIP_SIGNALS");
+    expect(discovery).toContain('finding.reviewOnly !== true');
     expect(discovery).toContain("const observations = caseEvents.flatMap");
     expect(discovery).toContain("durableSourceCount >= 1");
     expect(discovery).toContain("reviewOnly: true");

@@ -2131,7 +2131,7 @@ describe("partial model findings", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
     expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
-    expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
+    expect(modelPrompt).toContain("REVIEW LEADS: candidate=person; organization=organization.");
   });
 });
 
@@ -2218,7 +2218,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
+    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -2338,7 +2338,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
-    expect(modelPrompt).toMatch(/REVIEW LEADS:.*provisional/i);
+    expect(modelPrompt).toMatch(/REVIEW LEADS:.*candidate=person/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
@@ -2486,7 +2486,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toMatch(/Search-only is unverified; promotion needs same-case fetched evidence./);
+    expect(modelPrompt).toMatch(/search-only is review-only; promote only with same-case fetched evidence./);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -3173,7 +3173,8 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source class is provenance, not admission policy. The model selects the
     // role and exact quote; code verifies same-run fetched/registry provenance.
     expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const');
-    expect(canonicalAtlasDiscoverySource).toContain('if (finding.scope !== "candidate" || finding.promotionDecision === "reject"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("async function materializePartialPersonLeadCards");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
     expect(canonicalAtlasDiscoverySource).not.toContain("if (!isClaimGradeDiscoverySourceUrl(sourceUrl))");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
@@ -3476,7 +3477,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("casinos in Slovenia");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("scope=person/organization/asset");
+    expect(modelPrompt).toContain("candidate=person; organization=organization");
   });
 
   it("does not exclude prominent people or companies by deterministic fame and ranking priors", () => {
@@ -3606,7 +3607,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
     const sourceAdvice = discoverySearchLivenessAdvisory(sameSourceFamily);
     expect(sourceAdvice).toContain("Source-family concentration");
-    expect(sourceAdvice).toContain("do not prescribe a tool");
+    expect(sourceAdvice).toContain("no tool, provider, page, source family, or hop order is prescribed");
   });
 
   describe("successful page retrieval repeat guard", () => {
@@ -5041,15 +5042,16 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
   });
 
-  it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
-    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
-    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+  it("keeps review-only leads in the trajectory and gates every durable card on fetched evidence", () => {
+    expect(canonicalAtlasDiscoverySource).not.toContain("async function materializePartialPersonLeadCards");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
+    expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
+    expect(canonicalAtlasDiscoverySource).toContain("hasFetchedClaimGradeSupport");
     expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;');
-    expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
-    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
-    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
-    expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
+    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(researchLeadCardReconciliationSource).toContain('finding.reviewOnly === true');
+    expect(researchLeadCardReconciliationSource).toContain('finding.promotionDecision !== "promote"');
+    expect(researchLeadCardReconciliationSource).toContain("observation.runId !== lead.runId");
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
   });
 
@@ -5058,7 +5060,8 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlasDiscoverySource).toContain('payload.runId !== input.discoveryRunId');
     expect(canonicalAtlasDiscoverySource).toContain('targetEligibleForResearch');
-    expect(canonicalAtlasDiscoverySource).toContain('const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source" && !support.restrictedCommunitySource)');
+    expect(canonicalAtlasDiscoverySource).toContain("hasFetchedClaimGradeSupport");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
     expect(canonicalAtlasDiscoverySource).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
   });
 });
@@ -5137,7 +5140,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("Search-only is unverified; promotion needs same-case fetched evidence.");
+    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
@@ -5814,5 +5817,52 @@ describe("failed-run terminal audit completeness", () => {
     expect(canonicalAtlasDiscoverySource).toContain("providerWaitMs: failureLlmTelemetry.providerWaitMs");
     expect(canonicalAtlasDiscoverySource).toContain("failureTerminalSnapshot.activeJobLockReleased = terminalAuditLockReleased;");
     expect(canonicalAtlasDiscoverySource).toContain("await updateJob(atlasJobId, { result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }) });");
+  });
+});
+
+describe("model-led discovery adaptation and advisory continuity", () => {
+  it("does not re-inject the same Boss hypothesis on every one-action continuation turn", () => {
+    expect(agenticWrapperSource).toContain("initialResearchAdvisory: actionTurn === 1 ? input.initialResearchAdvisory : undefined");
+  });
+
+  it("keeps the Investigator autonomous and requires structured provisional lead handoff", () => {
+    const prompt = apexInvestigatorSystemCore();
+    expect(prompt).toContain("BOSS DIRECTION: advisory hypothesis, not scope or route; only a validated pivot changes scope.");
+    expect(apexOrientationFor("boss")).toContain("privilege investors");
+    expect(apexOrientationFor("right_hand")).toContain("privilege investors");
+    expect(apexOrientationFor("investigator")).toContain("Assets remain source-backed observations, not person/organization cards.");
+    expect(prompt).toContain("REVIEW LEADS:");
+    expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
+    expect(prompt).toContain("search-only is review-only");
+    expect(agenticCoreSource).toContain("Assets remain source-backed observations");
+  });
+  it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {
+    const advisory = discoverySearchLivenessAdvisory([
+      { turn: 1, model: "test", action: "web_search", args: { query: "emerging investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+      { turn: 2, model: "test", action: "web_search", args: { query: "lesser-known investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+      { turn: 3, model: "test", action: "web_search", args: { query: "early-stage investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+    ]);
+    expect(advisory).toContain("Reassess whether the current hypothesis");
+    expect(advisory).toContain("do not merely rephrase a low-yield search");
+    expect(advisory).toContain("fetch every remaining URL");
+  });
+
+});
+
+describe("requested versus executed action provenance", () => {
+  it("records when an unavailable browser_fetch provider is normalized to visit", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "browser_fetch",
+      url: "https://example.com/public-profile",
+      provider: "stale-provider",
+      thought: "Read the public page.",
+      hypothesis: "The page may identify an objective-fit person.",
+      purpose: "Test whether the source contains a named person.",
+      expectedInformationGain: 0.6,
+    }), ["visit", "browser_fetch"]);
+    expect(parsed?.action).toBe("visit");
+    expect(parsed?.requestedAction).toBe("browser_fetch");
+    expect(parsed?.requestedProvider).toBe("stale-provider");
+    expect(parsed?.normalizationReason).toBe("browser_provider_unavailable");
   });
 });

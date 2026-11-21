@@ -130,7 +130,9 @@ describe("discovery runtime architecture", () => {
     expect(openingCallEnd).toBeGreaterThan(openingCallStart);
     const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
     expect(openingCall).toContain("openingInvestigatorObjective,");
-    expect(openingCall).toContain("openingResearchAdvisory,");
+    expect(openingCall).not.toContain("openingResearchAdvisory,");
+    expect(canonicalSource).toContain("initialResearchAdvisory: discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]) || undefined");
+    expect(canonicalSource).not.toContain("initialResearchAdvisory: [initialResearchAdvisory, discoverySearchLivenessAdvisory");
     expect(openingCall).toContain("openingDiscoveryBudget");
     expect(openingCall).toContain("openingInvestigatorIterations");
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");

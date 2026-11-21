@@ -169,6 +169,75 @@ describe("immutable Investigator trajectory replay", () => {
     expect(records[1].observation).toContain("no source conclusion");
   });
 
+  it("replays requested versus executed action provenance without collapsing normalization", () => {
+    const records = replayInvestigatorTrajectoryEvents([{
+      id: 35,
+      eventType: "tool_observation",
+      payload: JSON.stringify({
+        runId: "run-browser-fallback",
+        turn: 1,
+        action: "visit",
+        args: {
+          url: "https://registry.example/team",
+          requestedAction: "browser_fetch",
+          requestedProvider: "playwright",
+          normalizationReason: "browser_provider_unavailable",
+          provider: null,
+        },
+        execution: "success",
+        observation: "Fetched the page through the visit fallback.",
+        observedUrls: ["https://registry.example/team"],
+        findings: [],
+      }),
+    }]);
+
+    expect(records[0]).toMatchObject({
+      action: "visit",
+      execution: "success",
+      args: {
+        requestedAction: "browser_fetch",
+        requestedProvider: "playwright",
+        normalizationReason: "browser_provider_unavailable",
+        provider: null,
+        url: "https://registry.example/team",
+      },
+      durableEventId: 35,
+    });
+  });
+
+  it("preserves review-only lead state through durable trajectory replay", () => {
+    const records = replayInvestigatorTrajectoryEvents([{
+      id: 36,
+      eventType: "tool_observation",
+      payload: JSON.stringify({
+        runId: "run-review-lead",
+        turn: 2,
+        action: "web_search",
+        args: { query: "objective-fit public people" },
+        execution: "success",
+        observation: "A search result names Jane Example but has not been fetched.",
+        observedUrls: ["https://example.org/jane"],
+        findings: [{
+          vectorType: "person",
+          value: "Jane Example",
+          personName: "Jane Example",
+          role: null,
+          scope: "candidate",
+          sourceUrls: ["https://example.org/jane"],
+          note: "Named in a same-run search result; role and fit remain unverified.",
+          reviewOnly: true,
+        }],
+      }),
+    }]);
+
+    expect(records[0].findings[0]).toMatchObject({
+      personName: "Jane Example",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    });
+  });
+
   it("keeps equal turn numbers from different durable runs distinct", () => {
     const records = replayInvestigatorTrajectoryEvents([
       { id: 20, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", execution: "success", observedUrls: ["https://a.example/"], findings: [] }) },
