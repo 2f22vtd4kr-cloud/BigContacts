@@ -226,6 +226,7 @@ function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUr
   const noPageRetrieved = /\b(?:no|none|zero)\b.{0,60}\b(?:page|pages|source|sources)\b.{0,60}\b(?:was|were|has been|have been|is|are)?\s*(?:successfully\s*)?(?:fetched|visited|retrieved|opened)\b/i;
   return clauses.some((clause) => {
     if (/\b(?:additional|further|other|another|subsequent|remaining|unvisited|search[- ]only|lead|previous|prior|earlier|before|until)\b/i.test(clause)) return false;
+    if (absenceClaimIsSegmentScoped(clause)) return false;
     if (!globalNoFetch.test(clause) && !noPageRetrieved.test(clause)) return false;
     const urls = extractAiContextUrls(clause);
     // A source-specific negative can be correct when a different page was fetched.
@@ -360,16 +361,24 @@ type SummaryValidation = {
 /**
  * A compaction input can be one segment of a larger case history. It cannot
  * establish case-wide absence merely because a source/action is not present in
- * this segment. Only segment-scoped absence statements are safe to summarize.
+ * this segment. Only absence claims grammatically tied to this supplied segment
+ * are safe; a passing mention of "this segment" cannot excuse a case-wide claim.
  */
+function absenceClaimIsSegmentScoped(clause: string): boolean {
+  const segment = "(?:this|the supplied|the provided|this particular)\\s+(?:memory\\s+)?(?:segment|chunk|excerpt|slice|input|block)";
+  const absentItem = "(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)";
+  return new RegExp("\\b(?:no|none|zero)\\b.{0,100}\\b" + absentItem + "\\b.{0,80}\\b(?:in|within|from)\\s+" + segment + "\\b", "i").test(clause)
+    || new RegExp("\\b(?:in|within|from)\\s+" + segment + "\\b.{0,80}\\b(?:no|none|zero)\\b.{0,100}\\b" + absentItem + "\\b", "i").test(clause)
+    || new RegExp("\\b" + segment + "\\b.{0,50}\\b(?:has|had|contains?|records?)\\s+no\\b.{0,100}\\b" + absentItem + "\\b", "i").test(clause);
+}
+
 function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
-  const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
-  const noSuccessfulActions = /\bno\s+successful\s+(?:external\s+)?actions?\b/i;
-  const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
-  const explicitlySegmentScoped = /\b(?:in|within|from)\s+(?:this|the supplied|the provided|this particular)\s+(?:memory\s+)?(?:segment|chunk|excerpt|slice|input|block)\b/i;
-  return summary.split(/(?:[.!?]\s+|;\s+|\n+)/).some((clause) =>
+  const globalAbsence = /\\b(?:no|none|zero)\\s+(?:(?:source|research|tool|external)\\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\\b/i;
+  const noSuccessfulActions = /\\bno\\s+successful\\s+(?:external\\s+)?actions?\\b/i;
+  const caseWideAbsence = /\\b(?:case|investigation|run|mission)\\b[^.!?;\\n]{0,80}\\b(?:has|had|contains?|shows?|records?)\\s+no\\s+(?:(?:source|research|tool|external)\\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\\b/i;
+  return summary.split(/(?:[.!?]\\s+|;\\s+|\\n+)/).some((clause) =>
     (globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause))
-    && !explicitlySegmentScoped.test(clause),
+    && !absenceClaimIsSegmentScoped(clause),
   );
 }
 
