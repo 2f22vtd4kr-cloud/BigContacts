@@ -22,6 +22,7 @@ export type AtlasFailureKind =
   | "local_provider_cooldown"
   | "local_provider_role_budget_exhausted"
   | "local_provider_budget_exhausted"
+  | "daily_token_budget_exhausted"
   | "prompt_exceeds_local_ceiling"
   | "provider_rate_limited"
   | "invalid_provider_request"
@@ -183,7 +184,8 @@ export function classifyInvestigatorProviderError(value: string): { domain: Atla
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
   if (code === "local_provider_role_budget_exhausted") return { domain: "model_provider", kind: "local_provider_role_budget_exhausted" };
   if (code === "prompt_exceeds_local_ceiling") return { domain: "model_provider", kind: "prompt_exceeds_local_ceiling" };
-  if (code === "local_provider_budget_exhausted" || code === "daily_token_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  if (code === "daily_token_budget_exhausted") return { domain: "model_provider", kind: "daily_token_budget_exhausted" };
+  if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
   if (code === "daily_usage_ledger_unavailable") return { domain: "persistence_database", kind: "request_failure" };
   if (code === "upstream_rate_limited" || code === "rate_limited" || /^http_429(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_rate_limited" };
   if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "upstream_request_size_rejected" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
