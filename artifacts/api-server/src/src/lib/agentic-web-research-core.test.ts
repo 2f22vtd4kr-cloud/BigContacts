@@ -717,6 +717,28 @@ describe("Investigator local Groq token fit", () => {
     expect(prompt.length).toBeLessThan(6_000);
   });
 
+  it("bounds a standalone latest observation and applies the same projection before historical memory compaction", () => {
+    const sourceUrl = "https://registry.example.test/filings/long-document";
+    const observation = "Fetched source " + sourceUrl + ". " + "REPEATED_PDF_TEXT ".repeat(1_200)
+      + " STANDALONE_LATEST_FACT_SENTINEL: the filing names the current director.";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate the source-backed public record without inferring missing facts.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt).toContain("OBSERVATION PROJECTION");
+    expect(prompt).toContain("STANDALONE_LATEST_FACT_SENTINEL");
+    expect(prompt).toContain(sourceUrl);
+    expect(prompt).toContain("OBSERVATION_CHARS_OMITTED_FROM_PROMPT");
+    expect(agenticCoreSource).toContain("compactEmergencyTrajectoryObservation(record.observation, 1_200)");
+  });
+
   it("trims optional context in order and preserves the complete objective, Boss direction, newest observation and action contract", () => {
     const prompt = [
       "PRIMARY CASE OBJECTIVE:\nMISSION_SENTINEL: investigate the objective without narrowing the human mission.",
