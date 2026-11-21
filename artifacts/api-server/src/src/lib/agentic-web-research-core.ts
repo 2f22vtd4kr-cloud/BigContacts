@@ -2537,7 +2537,23 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         temporalStatus: ["current","historical","unclear","not_applicable"].includes(cleanText(f.temporalStatus, 30)) ? cleanText(f.temporalStatus, 30) as AgenticFinding["temporalStatus"] : undefined,
         interpretationConfidence: typeof f.interpretationConfidence === "number" && Number.isFinite(f.interpretationConfidence) ? Math.max(0, Math.min(1, f.interpretationConfidence)) : undefined,
         ambiguityNotes: cleanText(f.ambiguityNotes, 800) || undefined,
-        promotionDecision: scope === "candidate" && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution) && exactQuote && f.identityAssessment === "same_person" && Boolean(cleanText(f.identityRationale, 800)) && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
+        // A company may be explicitly selected for a durable review-only card
+        // without being admitted as a verified company. The terminal reconciler
+        // preserves search_result_lead provenance; fetched-source/target gates
+        // remain separate and unchanged.
+        promotionDecision: (
+          scope === "candidate"
+          && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution)
+          && exactQuote
+          && f.identityAssessment === "same_person"
+          && Boolean(cleanText(f.identityRationale, 800))
+          && f.promotionDecision === "promote"
+        ) || (
+          scope === "organization"
+          && f.promotionDecision === "promote"
+          && Boolean(cleanText(f.promotionReason, 500))
+          && sourceUrls.length > 0
+        ) ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
     }
@@ -2802,7 +2818,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
       ? allowed.has("done")
-        ? "On every non-terminal discovery action, MUST include each objective-relevant provisional named person/org lead selected from same-run observations in findings[] with exact source URL and uncertainty; these remain review-only and are never admitted. done uses source-backed findings."
+        ? "On every non-terminal discovery action, MUST include each objective-relevant provisional named person/org lead selected from same-run observations in findings[] with exact source URL and uncertainty; these remain review-only and are never admitted. On done, use source-backed findings; you may explicitly select a same-run organization lead for a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
         : "Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
