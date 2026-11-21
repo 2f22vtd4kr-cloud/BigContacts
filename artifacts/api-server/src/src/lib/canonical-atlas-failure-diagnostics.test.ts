@@ -41,6 +41,25 @@ describe("canonical Atlas nested provider failure classification", () => {
     })).toEqual({ domain: "model_provider", kind: "local_provider_budget_exhausted" });
   });
 
+  it("keeps oversized prompts, role budgets, cooldowns and daily budgets distinct", () => {
+    expect(classifyInvestigatorProviderError("prompt_exceeds_local_ceiling")).toEqual({
+      domain: "model_provider",
+      kind: "prompt_exceeds_local_ceiling",
+    });
+    expect(classifyInvestigatorProviderError("local_provider_role_budget_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_role_budget_exhausted",
+    });
+    expect(classifyInvestigatorProviderError("local_provider_cooldown")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_cooldown",
+    });
+    expect(classifyInvestigatorProviderError("daily_token_budget_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "local_provider_budget_exhausted",
+    });
+  });
+
   it("reads an HTTP rate-limit status through an ordinary wrapper", () => {
     const wrapped = new Error("Boss control request failed", {
       cause: Object.assign(new Error("upstream returned too many requests"), { status: 429 }),
