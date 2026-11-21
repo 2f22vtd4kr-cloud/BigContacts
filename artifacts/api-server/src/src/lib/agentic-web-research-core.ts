@@ -5897,7 +5897,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // not fetched evidence. Bound them even when the search itself is the newest
     // action; otherwise the latest-record envelope can reintroduce the full
     // provider response after the historical carry-forward copy is compacted.
-    // Fetched-page observations remain complete.
+    // Fetched-page observations are projected to a bounded head/tail excerpt; the complete source remains in immutable case events.
     const boundedObservation = compactDurablePromptObservation(
       rawObservation,
       searchActions.has(record.action) ? 640 : 1_200,
