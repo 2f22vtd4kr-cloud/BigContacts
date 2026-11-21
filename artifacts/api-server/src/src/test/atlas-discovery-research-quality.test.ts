@@ -198,6 +198,7 @@ describe("AI-led discovery research quality context", () => {
       trajectoryRecords: records,
       lastObservation: records[2]!.observation ?? "",
       findings: [],
+      intelligenceContext: 'RESEARCH INTELLIGENCE STATE: {"openQuestions":["Verify operating status"],"researchQuestions":[{"question":"Verify the current decision-maker","status":"blocked"}],"frontier":{"unresolvedPressure":0.25},"stoppingAssessment":{"unresolvedQuestions":2,"recommendation":"continue"}}',
       mode: "discovery",
       actionAllowlist: ["web_search"],
     });
@@ -208,6 +209,9 @@ describe("AI-led discovery research quality context", () => {
     expect(prompt).toContain("Acme Holdings leadership page");
     expect(prompt).toContain("Northstar Group company profile");
     expect(prompt).toContain("Do not bypass them");
+    expect(prompt).toContain("researchQuestions");
+    expect(prompt).toContain('"unresolvedQuestions":2');
+    expect(prompt).toContain("unresolvedPressure");
   });
 
   it("keeps the explicit terminal review-card option separate from company admission", () => {
