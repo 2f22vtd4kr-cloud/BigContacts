@@ -399,8 +399,10 @@ describe("review-only lead persistence boundary", () => {
     expect(person).toContain('finding.reviewOnly === true');
     expect(organization).toContain('finding.promotionDecision !== "promote"');
     expect(organization).toContain('support.verificationLevel === "fetched_source"');
+    expect(organization).toContain('observation.runId !== lead.runId');
     expect(person).toContain('finding.promotionDecision !== "promote"');
     expect(person).toContain('!lead.role');
     expect(person).toContain('support.verificationLevel === "fetched_source"');
+    expect(person).toContain('observation.runId !== lead.runId');
   });
 });
