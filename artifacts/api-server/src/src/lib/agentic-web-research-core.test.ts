@@ -43,6 +43,9 @@ const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/s
 describe("retained fetched-page continuation persistence boundary", () => {
   it("marks wrapper-checkpointed artifacts durable only when a durable callback will persist them before the next model turn", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
+    expect(agenticCoreSource).toContain("pageContentPersistence");
+    expect(agenticCoreSource).toContain("pageObservationSha256");
+    expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
     expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
@@ -50,6 +53,8 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
     expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
     expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
+    expect(targetRunnerSource).toContain("observation:record.observation??null");
+    expect(targetRunnerSource).toContain("if (record.pageArtifact)");
     expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
   });
 });
