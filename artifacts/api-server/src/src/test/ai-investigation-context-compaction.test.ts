@@ -1251,4 +1251,37 @@ describe("AI investigation context compaction", () => {
     )).toBe(true);
   });
 
+
+  it("rejects case-wide no-action/no-observation claims when compacting a partial trajectory segment", async () => {
+    const sourceUrl = "https://registry.example.test/officers/123";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "registry_search", execution: "success", observedUrls: [], leadUrls: [sourceUrl] }),
+      JSON.stringify({ turn: 2, action: "visit", execution: "success", observedUrls: [sourceUrl], leadUrls: [] }),
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions):",
+      "The page was retrieved and its captured text is preserved in this segment.",
+      "ADDITIONAL DURABLE CONTEXT: " + "source-stage and action history remains incomplete in this partial segment. ".repeat(220),
+    ].join("\\n");
+    expect(source.length).toBeGreaterThan(12_000);
+    const invalid = "No source observations or successful actions existed.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 1_800,
+      jobId: "job-partial-trajectory-absence",
+      caseId: 142,
+      turn: 1,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(source);
+    expect(result?.text).toContain("Omissions unknown");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_asserts_global_absence_from_partial_segment");
+  });
 });
