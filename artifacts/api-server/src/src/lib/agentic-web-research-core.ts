@@ -189,7 +189,7 @@ export type DiscoveryLeadUtilizationState = {
   blockedLeadUrlCount: number;
   /** Case-wide, deduplicated URLs that have not had a fetch action or a preflight block yet. */
   unfetchedLeadUrls: string[];
-  /** Bounded raw search-result context for unvisited leads; untrusted lead text, never fetched evidence. */
+  /** Bounded raw search-result context for leads not yet fetched successfully; untrusted lead text, never fetched evidence. */
   unfetchedLeadObservations: Array<{ turn: number; action: string; leadUrlCount: number; observation: string }>;
   /** Fetch attempts that ended without a complete successful observation, including partial fetches. */
   failedLeadUrls: Array<{
@@ -2784,7 +2784,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
       ? allowed.has("done")
-        ? "Non-terminal discovery may return review-only person/org leads in findings[]; promotion requires same-case fetched evidence; done uses source-backed findings."
+        ? "On every non-terminal discovery action, MUST include each objective-relevant named person/org lead selected from same-run observations in findings[] with exact source URL and uncertainty; these remain review-only and are never admitted. done uses source-backed findings."
         : "Discovery: include useful same-run person/org leads in findings[] with exact name/URL, scope, role and rationale/uncertainty; [] if none."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
@@ -5782,15 +5782,21 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
     input.mode === "discovery" ? 900 : 700,
   );
+  const activeDiscoveryScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
+  const discoveryWorkingRecords = input.mode === "discovery"
+    ? input.trajectoryRecords.filter((record) => activeDiscoveryScopeKey
+        ? record.pivotScopeKey === activeDiscoveryScopeKey || !record.pivotScopeKey
+        : !record.pivotScopeKey)
+    : [];
   const discoveryWorkingMemory = input.mode === "discovery"
     ? boundInvestigatorPromptSection(
-        buildDiscoveryWorkingMemoryContext(input.trajectoryRecords ?? []),
+        buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
         1_900,
         "[DISCOVERY WORKING MEMORY BOUNDED: omitted details remain in durable case events; search snippets are unverified and omitted content is unknown]",
       )
     : "";
   const discoveryRetrievalFeedback = input.mode === "discovery"
-    ? buildDiscoveryRetrievalFeedback(input.trajectoryRecords ?? []) ?? ""
+    ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
