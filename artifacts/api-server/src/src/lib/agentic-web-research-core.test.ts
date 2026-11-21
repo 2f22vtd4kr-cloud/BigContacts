@@ -5824,11 +5824,11 @@ describe("model-led discovery adaptation and advisory continuity", () => {
 
   it("keeps the Investigator autonomous and requires structured provisional lead handoff", () => {
     const prompt = apexInvestigatorSystemCore();
-    expect(prompt).toContain("BOSS HYPOTHESIS BOUNDARY");
+    expect(prompt).toContain("BOSS HYPOTHESIS: advisory only");
     expect(apexOrientationFor("boss")).toContain("do not privilege an investor");
     expect(prompt).toContain("BOSS HYPOTHESIS: advisory only");
     expect(prompt).toContain("REVIEW LEADS:");
-    expect(prompt).toContain("current review-lead schema materializes people and organizations only");
+    expect(prompt).toContain("Assets remain source-backed observations");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
     expect(prompt).toContain("Search-only leads are review-only");
     expect(prompt).toContain("Assets remain source-backed observations");
