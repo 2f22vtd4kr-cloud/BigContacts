@@ -1252,6 +1252,42 @@ describe("AI investigation context compaction", () => {
   });
 
 
+  it("allows a segment-scoped no-fetch statement when a different case segment has fetched a page", async () => {
+    const earlierUrl = "https://registry.example.test/earlier-page";
+    const leadUrl = "https://registry.example.test/unvisited-lead";
+    const source = [
+      "CURRENT MEMORY SEGMENT: a later discovery segment with search leads only.",
+      "No page was fetched in this segment; the listed URLs remain unvisited leads.",
+      "LEAD_URL: " + leadUrl,
+      "PARTIAL CONTEXT: " + "This segment records search activity but no page retrieval in this segment. ".repeat(120),
+    ].join("\\n");
+    const trustedSourceContext = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "visit", execution: "success", observedUrls: [earlierUrl], leadUrls: [] }),
+    ].join("\\n");
+    expect(source.length).toBeGreaterThan(9_000);
+    expect(source.length).toBeLessThan(12_000);
+    const summary = "No page was fetched in this segment; the listed URL remains an unvisited lead.";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary }),
+      error: null,
+    });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      trustedSourceContext,
+      maxChars: 1_800,
+      jobId: "job-segment-scoped-no-fetch",
+      caseId: 143,
+      turn: 2,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("ai_semantic");
+    expect(result?.text).toContain(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects case-wide no-action/no-observation claims when compacting a partial trajectory segment", async () => {
     const sourceUrl = "https://registry.example.test/officers/123";
     const source = [
