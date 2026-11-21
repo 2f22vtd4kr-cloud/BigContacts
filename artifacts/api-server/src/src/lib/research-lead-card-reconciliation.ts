@@ -197,15 +197,15 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
           ? bindExactSourceSpan(observation.text, lead.name)
           : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name);
-        // The finding itself is the Investigator's card selection. A failed
-        // exact-span parse lowers the evidence tier; it does not veto the card.
+        // The finding is only a model-selected lead. A failed exact-span parse
+        // leaves it review-only and cannot satisfy the fetched-source card gate.
         const verificationLevel = span?.exact ? observation.verificationLevel : "search_result_lead" as const;
         const previous = supports.get(observation.url);
         if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
           supports.set(observation.url, { ...observation, verificationLevel });
         }
       }
-      if (!supports.size) continue;
+      if (!supports.size || ![...supports.values()].some((support) => support.verificationLevel === "fetched_source")) continue;
       const persisted = await db.transaction(async (tx) => {
         const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
@@ -401,7 +401,10 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           supports.set(observation.url, { ...observation, verificationLevel });
         }
       }
-      if (!supports.size) continue;
+      // A PersonCandidate card requires a fetched claim-grade source that
+      // binds both the selected person and the selected role. Search snippets
+      // and role-unknown leads remain in the trajectory for model review only.
+      if (!lead.role || ![...supports.values()].some((support) => support.verificationLevel === "fetched_source")) continue;
       const persisted = await db.transaction(async (tx) => {
         const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
