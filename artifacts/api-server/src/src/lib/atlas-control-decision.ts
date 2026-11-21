@@ -76,6 +76,7 @@ export function normalizeAtlasControlAction(value: unknown): AtlasControlAction 
 function isConsequentialInvestigatorFinding(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const finding = value as Record<string, unknown>;
+  if (finding.reviewOnly === true && ((finding.scope === "candidate" && typeof finding.personName === "string" && finding.personName.trim()) || (finding.scope === "organization" && typeof finding.value === "string" && finding.value.trim()))) return true;
   const promotion = typeof finding.promotionDecision === "string" ? finding.promotionDecision : "";
   if (promotion === "promote" || promotion === "reject") return true;
   const relation = typeof finding.hypothesisRelation === "string" ? finding.hypothesisRelation : "";
@@ -95,6 +96,7 @@ export function shouldInvokeAtlasRightHandReview(input: {
     failureDomain?: string | null;
     failureKind?: string | null;
     findings?: readonly unknown[] | null;
+    execution?: string | null;
   }[];
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
@@ -110,6 +112,17 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const latest = input.trajectoryRecords[input.trajectoryRecords.length - 1];
   const latestFindings = latest?.findings ?? [];
   if (latestFindings.some(isConsequentialInvestigatorFinding)) return true;
+  // A continued discovery episode with several successful external actions but no
+  // review lead or source-backed finding is a consequential strategy decision.
+  // Right-hand critiques the trajectory; it does not choose the next route/action.
+  const recentResearchActions = input.trajectoryRecords.slice(-6).filter((record) =>
+    record.execution === "success"
+      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"].includes(String(record.action ?? "")),
+  ).length;
+  if (input.priorAction === "continue_discovery"
+    && input.admittedCandidates.length === 0
+    && input.discoveryFindings.length === 0
+    && recentResearchActions >= 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
@@ -515,7 +528,7 @@ export function atlasRegistryFeasibilityLaw(): string {
   ].join("\n");
 }/** Keep supervisors focused on converting search leads into observed evidence. */
 export function atlasLeadUtilizationLaw(): string {
-  return "LEAD-UTILIZATION JUDGMENT: Assess operating businesses, investors, assets and individuals against the actual mission and observations. Inspect same-case titles/snippets for unfetched leads; URL/domain alone cannot establish irrelevance. If no item-specific description is available, relevance is unknown, not disproven. Do not treat lack of findings from snippets as evidence against an unvisited lead. Do not label an unvisited result generic or irrelevant from its domain/URL alone. Snippets/URLs are leads, not evidence. Positive unfetchedLeadUrlCount means leads remain, even if only a URL sample is shown; never say none remain. There is no target-count threshold; Right-hand advises and does not select or authorize targets. Fetching every URL is not required: Boss/Right-hand may recommend a stop only with a specific same-case reason (irrelevance, low value, contradiction or observed access failure). This is judgment, not a fixed action sequence; Investigator chooses the action.";
+  return "LEAD-UTILIZATION JUDGMENT: Assess operating businesses, investors, assets and individuals against the actual mission and observations. Inspect same-case titles/snippets for unfetched leads; URL/domain alone cannot establish irrelevance. If no item-specific description is available, relevance is unknown, not disproven. Do not treat lack of findings from snippets as evidence against an unvisited lead. Do not label an unvisited result generic or irrelevant from its domain/URL alone. Snippets/URLs are leads, not evidence. Positive unfetchedLeadUrlCount means leads remain, but that count is not an instruction to fetch them and is not by itself a reason to continue. Evaluate actual item descriptions and expected information gain; a directory/listicle is not evidence of any individual\u2019s wealth or fit. If a specific remaining result is worth inspecting, explain the expected gain; fetching every URL is never required. When several similar searches or generic pages produce no named objective-fit lead, reassess the hypothesis rather than merely rephrasing the query or exhausting the list. There is no target-count threshold; Right-hand advises and does not select or authorize targets. Stop/continue/pivot on same-case evidence, feasibility and mission fit. This is judgment, not a fixed action sequence; Investigator chooses the action.";
 }
 
 /** Prevent jurisdiction-only churn when the current source route has demonstrably failed. */
@@ -773,7 +786,7 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
       "You are Groq Boss. This is the first control decision, before any Investigator action. Choose only continue_discovery or stop. If continuing, supply one concrete, objective-aligned opening research question that identifies what evidence should be established first. Do not name an unobserved target or prescribe a provider, registry, tool, search query, source family, fixed action sequence, or geography absent from the human objective. After launch, the Investigator chooses exact targets, routes, tools, hypotheses and next actions.",
       "HUMAN OBJECTIVE (complete and authoritative; do not shorten, reinterpret, add geography, or add a source preference):",
       humanObjective,
-      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery and state a concrete first research question strictly within the exact human objective. Do not compare strategies, sectors, or geographies.",
+      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery and state a concrete first research question strictly within the exact human objective. Do not compare strategies, sectors, or geographies. Do not infer a founder\u2019s sector from the word founder, or narrow the mission to angel investors, privately held-company owners, a particular wealth/ownership threshold, company size, fame preference, jurisdiction or source family unless the human explicitly requested it. A concrete question may ask what evidence would best identify objective-fit people, organizations, assets, relationships or public/professional routes; it must not silently turn one possible category into the whole mission.",
       "RUNTIME SOURCE/REGISTRY FEASIBILITY (inform the start/stop decision only; do not prescribe a route or order):",
       atlasRegistryFeasibilityLaw(),
       "SOURCE-NEUTRALITY: after this decision, the Investigator selects one useful company, person, or asset from any enabled registry/asset register or public-web result. All enabled registries and public-web search are equal, neutral options. One observed target is enough.",
