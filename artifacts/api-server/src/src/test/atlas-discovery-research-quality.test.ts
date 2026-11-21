@@ -70,7 +70,7 @@ describe("AI-led discovery research quality context", () => {
       observedUrls: [],
       findings: [],
       failureDomain: "tool_execution",
-      failureKind: "scope_guard",
+      failureKind: "out_of_scope_action",
     },
   ];
 
@@ -92,6 +92,7 @@ describe("AI-led discovery research quality context", () => {
       leadInventory: { unfetchedLeadUrls: string[]; unverifiedTitleSnippetPairs: Array<{ observation: string }> };
       retrievalOutcomes: { failedLeadUrls: Array<{ url: string }>; blockedLeadUrls: Array<{ url: string }> };
       modelAuthoredResearchIntent: Array<{ hypothesis: string | null; purpose: string | null }>;
+      unresolvedResearchQuestions: Array<{ question: string; status: "open" | "blocked" }>;
       provisionalReviewLeads: Array<{ name: string; scope: string; sourceUrls: string[] }>;
     };
     expect(memory.leadInventory.unfetchedLeadUrls).toContain(thirdUrl);
@@ -99,6 +100,14 @@ describe("AI-led discovery research quality context", () => {
     expect(memory.retrievalOutcomes.blockedLeadUrls[0]?.url).toBe(secondUrl);
     expect(memory.modelAuthoredResearchIntent[0]?.hypothesis).toContain("Regional operating-company");
     expect(memory.modelAuthoredResearchIntent[0]?.purpose).toContain("current operating company");
+    expect(memory.unresolvedResearchQuestions).toContainEqual(expect.objectContaining({
+      question: "Identify a current operating company and a source-backed decision-maker",
+      status: "open",
+    }));
+    expect(memory.unresolvedResearchQuestions).toContainEqual(expect.objectContaining({
+      question: "Verify the company's current decision-maker from a public source",
+      status: "blocked",
+    }));
     expect(memory.provisionalReviewLeads).toContainEqual(expect.objectContaining({
       name: "Acme Holdings",
       scope: "organization",
@@ -126,7 +135,7 @@ describe("AI-led discovery research quality context", () => {
       mode: "discovery",
       actionAllowlist: ["web_search"],
     });
-    expect(prompt).toContain("DISCOVERY LEAD HANDOFF (required model judgment)");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT");
     expect(prompt).toContain("findings[]");
     expect(prompt).toContain("DISCOVERY RETRIEVAL ADAPTATION");
     expect(prompt).toContain(firstUrl);
