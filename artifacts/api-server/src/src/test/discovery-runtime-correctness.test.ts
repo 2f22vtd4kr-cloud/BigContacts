@@ -30,7 +30,7 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
-    expect(orientationSource).toContain("INTELLIGENCE SCORES: Deterministic weights, rankings and stopping hints are advisory only; Investigator decides relevance, falsification, promotion and stopping from evidence.");
+    expect(orientationSource).toContain("INTELLIGENCE SCORES: Weights, rankings and stop hints are advisory; Investigator decides relevance, promotion and stopping from evidence.");
   });
 
   it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
@@ -128,7 +128,7 @@ describe("discovery runtime architecture", () => {
     expect(openingCallStart).toBeGreaterThan(-1);
     expect(openingCallEnd).toBeGreaterThan(openingCallStart);
     const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
-    expect(openingCall).toContain("objective: openingInvestigatorObjective");
+    expect(openingCall).toContain("openingInvestigatorObjective,");
     expect(openingCall).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(openingCall).toContain("openingDiscoveryBudget");
     expect(openingCall).toContain("openingInvestigatorIterations");
