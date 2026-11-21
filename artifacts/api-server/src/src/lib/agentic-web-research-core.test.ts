@@ -5816,3 +5816,18 @@ describe("failed-run terminal audit completeness", () => {
     expect(canonicalAtlasDiscoverySource).toContain("await updateJob(atlasJobId, { result: JSON.stringify({ terminal: failureTerminalSnapshot, phaseSummary }) });");
   });
 });
+
+describe("model-led discovery adaptation and advisory continuity", () => {
+  it("does not re-inject the same Boss hypothesis on every one-action continuation turn", () => {
+    expect(agenticWrapperSource).toContain("initialResearchAdvisory: actionTurn === 1 ? input.initialResearchAdvisory : undefined");
+  });
+
+  it("keeps the Investigator autonomous and requires structured provisional lead handoff", () => {
+    const prompt = apexInvestigatorSystemCore();
+    expect(prompt).toContain("BOSS HYPOTHESIS BOUNDARY");
+    expect(prompt).toContain("RESEARCH ADAPTATION");
+    expect(prompt).toContain("PROVISIONAL LEAD HANDOFF");
+    expect(prompt).toContain("reviewOnly");
+    expect(prompt).toContain("Do not merely rephrase the same search");
+  });
+});
