@@ -81,7 +81,7 @@ describe("immutable Investigator trajectory replay", () => {
         action: "visit",
         args: {
           url: "https://registry.example/long-page",
-          pageContentPersistence: "retained_page_artifact",
+          pageContentPersistence: "new_retained_page_artifact",
           pageArtifactAvailable: true,
           pageArtifactDurable: true,
           pageObservationSha256: createHash("sha256").update(observation).digest("hex"),
@@ -177,6 +177,72 @@ describe("immutable Investigator trajectory replay", () => {
     expect(records).toHaveLength(2);
     expect(records.map((record) => record.runId)).toEqual(["run-a", "run-b"]);
     expect(records.map((record) => record.execution)).toEqual(["success", "partial"]);
+  });
+
+  it("verifies a continuation reference against the earlier durable artifact for the same run and source", () => {
+    const sourceUrl = "https://registry.example/long-page";
+    const initialObservation = "First window of the retained page.";
+    const continuationObservation = "Second window of the retained page.";
+    const pageText = initialObservation + continuationObservation;
+    const pageHash = createHash("sha256").update(pageText).digest("hex");
+    const records = replayInvestigatorTrajectoryEvents([
+      {
+        id: 40,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId: "run-reference",
+          turn: 1,
+          action: "visit",
+          args: {
+            url: sourceUrl,
+            pageContentPersistence: "new_retained_page_artifact",
+            pageArtifactDurable: true,
+            pageObservationSha256: createHash("sha256").update(initialObservation).digest("hex"),
+          },
+          execution: "success",
+          observation: initialObservation,
+          observedUrls: [sourceUrl],
+          findings: [],
+        }),
+      },
+      {
+        id: 41,
+        eventType: "tool_observation",
+        payload: JSON.stringify({
+          runId: "run-reference",
+          turn: 2,
+          action: "visit",
+          args: {
+            url: sourceUrl,
+            pageContentPersistence: "retained_page_artifact_reference",
+            pageArtifactDurable: true,
+            pageObservationSha256: createHash("sha256").update(continuationObservation).digest("hex"),
+          },
+          execution: "success",
+          observation: continuationObservation,
+          observedUrls: [sourceUrl],
+          findings: [],
+        }),
+      },
+    ]);
+    attachDurableFetchedPageArtifacts(records, [{
+      id: 42,
+      payload: JSON.stringify({
+        kind: "fetched_page_artifact_chunk",
+        runId: "run-reference",
+        turn: 1,
+        sourceUrl,
+        sha256: pageHash,
+        retrievedAt: "2026-11-21T09:00:00.000Z",
+        sourceVerified: true,
+        chunkIndex: 0,
+        chunkCount: 1,
+        text: pageText,
+      }),
+    }]);
+
+    expect(records[0]).toMatchObject({ execution: "success", args: { pageArtifactIntegrity: "verified" } });
+    expect(records[1]).toMatchObject({ execution: "success", args: { pageArtifactIntegrity: "verified_reference", pageObservationIntegrity: "verified" } });
   });
 
   it("rehydrates page artifacts only onto the matching run and preserves source verification", () => {
