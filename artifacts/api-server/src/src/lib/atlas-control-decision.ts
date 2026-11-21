@@ -123,6 +123,9 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const hasNamedReviewLead = input.discoveryFindings.some((value) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const finding = value as Record<string, unknown>;
+    const hasObservedUrl = Array.isArray(finding.sourceUrls)
+      && finding.sourceUrls.some((url) => typeof url === "string" && url.trim());
+    if (!hasObservedUrl) return false;
     return finding.scope === "candidate"
       ? typeof finding.personName === "string" && Boolean(finding.personName.trim())
       : finding.scope === "organization" && typeof finding.value === "string" && Boolean(finding.value.trim());
