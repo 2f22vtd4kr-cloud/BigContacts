@@ -33,6 +33,7 @@ Tools are capabilities, not stages. There is no mandatory identity → organizat
 6. Partial memory/context must never be summarized as case-wide absence. When compaction cannot validate a summary, preserve the original context.
 7. Source observations must survive durable trajectory replay. Long fetched pages require persisted artifact chunks and verified reattachment; missing or mismatched artifacts must not be treated as complete evidence.
 8. Unknown or insufficient evidence is a valid result. Do not force candidates, lower evidence thresholds, invent people, contacts, ownership, wealth, sources, or tool activity.
+9. Review-only leads remain visible in same-run findings and trajectory for Boss/Right-hand review, but they are not persisted entities/cards or admitted targets. Person candidates require explicit non-review-only promotion plus fetched exact name/role evidence. Organization cards and targets require explicit promotion plus fetched claim-grade source binding. Terminal reconciliation must bind each finding and its supporting observation to the same Investigator run.
 
 ## PR #935 — latest canonical repair
 
