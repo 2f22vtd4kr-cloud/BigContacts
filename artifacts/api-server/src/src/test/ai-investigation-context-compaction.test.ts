@@ -511,6 +511,29 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("does not let an unrelated search lead mask a case-wide no-fetch contradiction", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const unvisitedUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "SEARCH-ONLY LEAD: " + unvisitedUrl,
+      "TRAJECTORY OBSERVATION: the leadership page was fetched; the investor lead remains unvisited.",
+    ].join("\\n");
+    const invalid = "No page was fetched in the case; an unvisited search lead remains: " + unvisitedUrl + ".";
+    const corrected = "The leadership page was fetched (source: " + fetchedUrl + "); the investor lead remains unvisited (lead URL: " + unvisitedUrl + ").";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
     const sourceUrl = "https://company.example/leadership";
     const source = [
