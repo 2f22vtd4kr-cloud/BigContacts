@@ -3,6 +3,7 @@ import {
   buildDiscoveryLeadUtilizationState,
   buildDiscoveryRetrievalFeedback,
   buildDiscoveryWorkingMemoryContext,
+  buildStepPrompt,
   type AgenticTrajectoryRecord,
 } from "../lib/agentic-web-research-core";
 
@@ -112,6 +113,26 @@ describe("AI-led discovery research quality context", () => {
     expect(feedback).toContain(firstUrl);
     expect(feedback).toContain(secondUrl);
     expect(feedback).toContain("no particular route or sequence is prescribed");
+  });
+
+  it("keeps lead handoff and adaptive retrieval guidance in the actual bounded Investigator prompt", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify operating companies and their current decision-makers.",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: records[2]!.observation ?? "",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search"],
+    });
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF (required model judgment)");
+    expect(prompt).toContain("findings[]");
+    expect(prompt).toContain("DISCOVERY RETRIEVAL ADAPTATION");
+    expect(prompt).toContain(firstUrl);
+    expect(prompt).toContain("Acme Holdings leadership page");
+    expect(prompt).toContain("Northstar Group company profile");
+    expect(prompt).toContain("Do not bypass them");
   });
 
   it("does not add route-adaptation instructions when no fetch has failed or been blocked", () => {
