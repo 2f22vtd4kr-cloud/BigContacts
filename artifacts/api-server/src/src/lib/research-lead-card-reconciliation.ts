@@ -84,7 +84,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         for (const raw of payload.findings) {
           if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
           const finding = raw as Record<string, unknown>;
-          if (finding.scope !== "organization" || finding.promotionDecision === "reject" || typeof finding.value !== "string") continue;
+          if (finding.scope !== "organization" || finding.reviewOnly === true || finding.promotionDecision === "reject" || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
           if (!name || !identity || isContactLikeOrganizationReviewValue(name)) continue;
@@ -357,7 +357,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       if (Array.isArray(payload.findings)) for (const raw of payload.findings) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const finding = raw as Record<string, unknown>;
-        if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
+        if (finding.scope !== "candidate" || finding.reviewOnly === true || finding.promotionDecision === "reject"
           || typeof finding.personName !== "string") continue;
         const name = finding.personName.trim().replace(/\s+/g, " ");
         const role = typeof finding.role === "string" && finding.role.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
