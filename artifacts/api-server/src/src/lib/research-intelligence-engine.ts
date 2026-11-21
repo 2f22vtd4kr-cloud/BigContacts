@@ -871,7 +871,18 @@ export class ResearchIntelligenceEngine {
       });
     }
     const researchQuestions = [...researchQuestionMap.values()].slice(-24);
-    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
+    // Reconcile the control-facing unresolved count across evidence-derived
+    // gaps and model-authored research purposes that remain open/blocked.
+    // The latter are not facts or negative findings, but must not vanish from
+    // the frontier/oversight summary when no hypothesis exists yet.
+    const unresolvedQuestionKeys = new Set([
+      ...openQuestions,
+      ...researchQuestions
+        .filter((question) => question.status === "open" || question.status === "blocked")
+        .map((question) => question.question),
+    ].map(normalize).filter(Boolean));
+    const unresolvedQuestionCount = unresolvedQuestionKeys.size;
+    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: unresolvedQuestionCount, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
     const discovery = buildDiscoveryIntelligence({
@@ -890,19 +901,8 @@ export class ResearchIntelligenceEngine {
       sourceFamilyDiversity,
       repeatedSourceFamilies,
     });
-    const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
+    const missionBriefs = this.buildMissionBriefs([...new Set([...openQuestions, ...researchQuestions.filter((question) => question.status === "open" || question.status === "blocked").map((question) => question.question)])], facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    // A search purpose remains an outstanding research question until useful
-    // evidence answers it. openQuestions is intentionally narrower (missing
-    // discriminators/contradictions), so using it alone falsely reports zero
-    // unresolved questions after search-only or failed-fetch episodes.
-    const unresolvedQuestionKeys = new Set([
-      ...openQuestions,
-      ...researchQuestions
-        .filter((question) => question.status === "open" || question.status === "blocked")
-        .map((question) => question.question),
-    ].map(normalize).filter(Boolean));
-    const unresolvedQuestionCount = unresolvedQuestionKeys.size;
     return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, actionYieldStats: [...this.actionYield.entries()].map(([action, stat]) => [action, { ...stat }]), sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: unresolvedQuestionCount, recommendation: unresolvedQuestionCount > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
