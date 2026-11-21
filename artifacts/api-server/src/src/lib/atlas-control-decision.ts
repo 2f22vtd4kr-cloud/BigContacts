@@ -29,7 +29,7 @@ export type AtlasTargetType = "person" | "organization";
 export type AtlasAdmittedTargetInput = { name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType };
 
 export type AtlasRightHandStatus = "completed" | "unavailable" | "deferred";
-export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: AtlasRightHandStatus; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
+export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; candidateType?: AtlasTargetType | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: AtlasRightHandStatus; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null; reviewedThroughTurn?: number }; bossModel: string | null; error: string | null };
 
 /** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
 export function isRecoverableAtlasControlRejection(decision: Pick<AtlasControlDecision, "status" | "error">): boolean {
@@ -98,7 +98,9 @@ export function shouldInvokeAtlasRightHandReview(input: {
     failureKind?: string | null;
     findings?: readonly unknown[] | null;
     execution?: string | null;
+    turn?: number | null;
   }[];
+  rightHandReviewedThroughTurn?: number;
 }): boolean {
   if (input.priorAction === "pivot_discovery") return true;
   const previousName = input.priorCandidate?.trim().toLocaleLowerCase() ?? null;
@@ -119,11 +121,11 @@ export function shouldInvokeAtlasRightHandReview(input: {
   const isSuccessfulExternalResearchAction = (record: typeof input.trajectoryRecords[number]): boolean =>
     record.execution === "success"
       && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(String(record.action ?? ""));
-  const recentResearchActions = input.trajectoryRecords.slice(-6).filter(isSuccessfulExternalResearchAction).length;
-  // Trigger on the threshold crossing, not on every later continuation while
-  // the same six-action window still contains three successes. This gives the
-  // independent reviewer a meaningful new trajectory segment to assess.
-  const previousResearchActions = input.trajectoryRecords.slice(-7, -1).filter(isSuccessfulExternalResearchAction).length;
+  const reviewedThroughTurn = Math.max(0, Number.isFinite(input.rightHandReviewedThroughTurn) ? Math.floor(input.rightHandReviewedThroughTurn!) : 0);
+  const successfulResearchActionsSinceReview = input.trajectoryRecords.filter((record) =>
+    (typeof record.turn === "number" ? record.turn > reviewedThroughTurn : reviewedThroughTurn === 0)
+      && isSuccessfulExternalResearchAction(record),
+  ).length;
   const hasNamedReviewLead = input.discoveryFindings.some((value) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const finding = value as Record<string, unknown>;
@@ -137,8 +139,7 @@ export function shouldInvokeAtlasRightHandReview(input: {
   if (input.priorAction === "continue_discovery"
     && input.admittedCandidates.length === 0
     && !hasNamedReviewLead
-    && recentResearchActions >= 3
-    && previousResearchActions < 3) return true;
+    && successfulResearchActionsSinceReview >= 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
@@ -1193,6 +1194,8 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // Right-hand review is invoked only for consequential, evidence-bearing
   // decisions. Deferred review is explicit control state, not a provider outage.
   // Right-hand remains advisory; Boss owns every control decision.
+  const latestReviewedTurn = Math.max(0, ...structuredTrajectory.map((record) => Number.isFinite(record.turn) ? Math.floor(record.turn) : 0));
+  rightHand = { ...rightHand, reviewedThroughTurn: rightHand.status === "deferred" ? Math.max(0, input.rightHandReviewedThroughTurn ?? 0) : latestReviewedTurn };
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
   try {
