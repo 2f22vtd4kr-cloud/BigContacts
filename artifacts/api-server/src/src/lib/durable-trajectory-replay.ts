@@ -216,12 +216,36 @@ export function attachDurableFetchedPageArtifacts(
   // have reattached to the exact run/turn/source before treating it as durable.
   for (const record of records) {
     const persistence = record.args?.pageContentPersistence;
-    if (persistence !== "retained_page_artifact" && persistence !== "new_retained_page_artifact") continue;
-    if (record.args?.pageArtifactDurable === true && !record.pageArtifact) {
-      record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "missing" };
-      if (record.execution === "success") record.execution = "partial";
-    } else if (record.pageArtifact) {
-      record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "verified" };
+    if (persistence === "new_retained_page_artifact") {
+      if (record.args?.pageArtifactDurable === true && !record.pageArtifact) {
+        record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "missing" };
+        if (record.execution === "success") record.execution = "partial";
+      } else if (record.pageArtifact) {
+        record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "verified" };
+      }
+      continue;
+    }
+    if (persistence === "retained_page_artifact_reference") {
+      const referenceUrls = [
+        record.args?.url,
+        ...(record.observedUrls ?? []),
+      ].map(normalizedFetchedPageSourceUrl).filter((url): url is string => Boolean(url));
+      const hasPriorArtifact = records.some((candidate) =>
+        candidate !== record
+        && candidate.runId === record.runId
+        && candidate.turn < record.turn
+        && candidate.pageArtifact
+        && referenceUrls.includes(normalizedFetchedPageSourceUrl(candidate.pageArtifact.sourceUrl) ?? ""),
+      );
+      if (record.args?.pageArtifactDurable === true && !hasPriorArtifact) {
+        record.args = { ...(record.args ?? {}), pageArtifactIntegrity: "missing" };
+        if (record.execution === "success") record.execution = "partial";
+      } else {
+        record.args = {
+          ...(record.args ?? {}),
+          pageArtifactIntegrity: hasPriorArtifact ? "verified_reference" : "not_durable",
+        };
+      }
     }
   }
   return records;
