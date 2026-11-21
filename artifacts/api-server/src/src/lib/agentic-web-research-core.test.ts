@@ -940,7 +940,7 @@ describe("model-owned discovery relevance reasoning", () => {
       actionAllowlist: ["web_search", "visit"],
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
-    const modelPrompt = apexInvestigatorSystemCore() + "\n" + discoveryPrompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
@@ -1769,9 +1769,9 @@ describe("discovery lead inventory", () => {
     const tavilyUrls = Array.from({ length: 6 }, (_, index) => `https://tavily.example.test/record/${index + 1}`);
     const exaUrls = Array.from({ length: 6 }, (_, index) => `https://exa.example.test/record/${index + 1}`);
     const records = [
-      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
-      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
-      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
+      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
+      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
     ] as AgenticTrajectoryRecord[];
     const state = buildDiscoveryLeadUtilizationState(records);
     expect(state.unfetchedLeadUrlCount).toBe(18);
@@ -2104,7 +2104,7 @@ describe("partial model findings", () => {
       findings: [],
       mode: "discovery",
     });
-    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
     expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
@@ -2372,8 +2372,9 @@ describe("Investigator prompt architecture", () => {
     });
 
     expect(prompt.length).toBeGreaterThan(6_000);
-    expect(prompt).toContain(fetchedObservation);
-    // Search results are unverified leads and may be compacted; the fetched PDF remains complete.
+    expect(prompt).not.toContain(fetchedObservation);
+    expect(prompt).toContain("OBSERVATION PROJECTION");
+    // Search results and fetched PDF text are bounded prompt projections; full observations remain durable.
     expect(prompt).not.toContain(latestObservation);
     expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
     expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
@@ -2686,7 +2687,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry.",
-    ].join("\n");
+    ].join("\\n");
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "unrelated but model-selected research hypothesis",
       registry: "opencorporates",
@@ -5252,7 +5253,9 @@ describe("small emergency observation budgets", () => {
     const prompt = appendEmergencyObservationContext(basePrompt, observation, limit);
     expect(prompt.length).toBeGreaterThan(limit);
     expect(prompt).toContain(header);
-    expect(prompt).toContain(observation);
+    expect(prompt).not.toContain(observation);
+    expect(prompt).toContain("OBSERVATION PROJECTION");
+    expect(prompt).toContain("OBSERVATION_CHARS_OMITTED_FROM_PROMPT");
     expect(prompt).toContain("OBSERVATION_START_SENTINEL");
     expect(prompt).toContain("OBSERVATION_END_SENTINEL");
   });
