@@ -5253,7 +5253,7 @@ describe("small emergency observation budgets", () => {
     expect(prompt.length).toBeGreaterThan(limit);
     expect(prompt).toContain(header);
     expect(prompt).not.toContain(observation);
-    expect(prompt).toContain("OBSERVATION PROJECTION");
+    expect(prompt).toContain("Middle of observed source omitted");
     expect(prompt).toContain("OBSERVATION_CHARS_OMITTED_FROM_PROMPT");
     expect(prompt).toContain("OBSERVATION_START_SENTINEL");
     expect(prompt).toContain("OBSERVATION_END_SENTINEL");
