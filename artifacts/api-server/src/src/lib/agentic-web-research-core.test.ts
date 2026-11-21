@@ -749,6 +749,7 @@ describe("Investigator local Groq token fit", () => {
       "CAPABILITIES:\nModel-selected actions remain autonomous.",
       "ARCHIVED TRAJECTORY INDEX\n" + "OLDER_HISTORY_SENTINEL; historical actions remain durable. ".repeat(1_100),
       "AI-COMPACTED HISTORICAL RESEARCH MEMORY:\n" + "DURABLE_MEMORY_SENTINEL; model-generated context is advisory. ".repeat(1_100),
+      "COMPACTED HISTORICAL RESEARCH CONTEXT:\n" + "EMERGENCY_MEMORY_SENTINEL; older context remains advisory. ".repeat(1_100),
       "CANONICAL EVIDENCE GRAPH STATE:\n" + "AUXILIARY_STATE_SENTINEL; structured state is contextual. ".repeat(1_100),
       "LATEST TRAJECTORY RECORD — TURN 19:\n" + JSON.stringify({
         turn: 19,
@@ -775,6 +776,7 @@ describe("Investigator local Groq token fit", () => {
     expect(fitted.prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(fitted.prompt).toContain("OLDER HISTORY COMPACTED");
     expect(fitted.prompt).toContain("DURABLE MEMORY PROJECTION COMPACTED");
+    expect(fitted.prompt).toContain("EMERGENCY MEMORY PROJECTION COMPACTED");
     expect(fitted.prompt).toContain("AUXILIARY STATE COMPACTED");
   });
 
