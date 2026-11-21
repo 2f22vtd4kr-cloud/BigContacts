@@ -221,7 +221,7 @@ function sourceSuccessfulFetchUrls(source: string): Set<string> {
 
 function summaryDeniesSuccessfulFetchEvidence(summary: string, successfulFetchUrls: ReadonlySet<string>): boolean {
   if (successfulFetchUrls.size === 0) return false;
-  const clauses = summary.split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\b(?:and|however)\b)/i);
+  const clauses = summary.split(/(?:[.!?]\s+|;\s+|,\s+but\s+|\b(?:and|but|however)\b)/i);
   const globalNoFetch = /\b(?:no|none|zero)\b.{0,80}\b(?:fetch(?:es)?|visits?|browser_fetch|page retrievals?)\b.{0,80}\b(?:recorded|occurred|succeeded|executed|performed|available|has been|have been|was|were)?/i;
   const noPageRetrieved = /\b(?:no|none|zero)\b.{0,60}\b(?:page|pages|source|sources)\b.{0,60}\b(?:was|were|has been|have been|is|are)?\s*(?:successfully\s*)?(?:fetched|visited|retrieved|opened)\b/i;
   return clauses.some((clause) => {
