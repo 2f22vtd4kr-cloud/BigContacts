@@ -127,7 +127,7 @@ describe("terminal review-card reconciliation", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     // Regression: the checkpoint previously read only observedUrls and only
     // accepted fetched pages, so a model-grounded company name in a successful
-    // search result could not create a review card before the next control turn.
+    // search result could not be admitted as a candidate or persisted as a card before the next control turn.
     expect(canonical).toContain('if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId) return [];');
     expect(canonical).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
     expect(canonical).toContain('searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length');
@@ -328,23 +328,22 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("No target count or route is mandated; Right-hand advises and Investigator chooses.");
 
-    // Runtime integrity checks may grade provenance, but cannot replace the
-    // Investigator's card-worthiness decision with regex/span or vector rules.
-    expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
+    // Runtime does not create partial PersonCandidate cards. It retains the
+    // Investigator's lead in findings/trajectory and applies the strict
+    // fetched-source, exact role/identity and promotion gates before persistence.
+    expect(canonicalAtlas).not.toContain("async function materializePartialPersonLeadCards");
+    expect(admission).toContain("candidateRoleCorroborationSources");
+    expect(admission).toContain("supportingSources.length < 1");
+    expect(admission).toContain("isClaimGradeDiscoverySourceUrl");
     expect(organizationMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(organizationMaterializer).not.toContain("finding.personName?.trim()");
     expect(organizationMaterializer).not.toContain("finding.role?.trim()");
-    expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
-    expect(personMaterializer).not.toContain("!finding.role?.trim()");
-    expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
     expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
-    expect(personMaterializer).not.toContain("name.length < 3");
     expect(organizationMaterializer).not.toContain("name.length < 3");
     expect(candidateSourcePolicy).not.toContain("name.length < 3");
     expect(candidateSourcePolicy).not.toContain("identity.length < 3");
     expect(reconcilerSource).not.toContain("name.length < 3");
     expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
-    expect(personMaterializer).not.toContain("if (!span?.exact");
     expect(organizationMaterializer).not.toContain("if (!span?.exact");
     expect(reconcilerSource).not.toContain('finding.vectorType !== "other"');
     expect(reconcilerSource).not.toContain("if (!span?.exact) continue;");
