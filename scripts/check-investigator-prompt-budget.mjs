@@ -16,7 +16,7 @@ assert(/buildBoundedInvestigatorObjective\(\{ base, direction, maxChars: 4_000 \
 assert(/maxChars: input\.mode === "discovery" \? 350 : 3_000/.test(core), "discovery working context is compacted without changing target-stage evidence headroom");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /input\.mode === "discovery" \? 150 : 700/.test(core), "discovery intelligence state is compacted while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 450 : 350\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
-assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and latest durable evidence are never clipped to meet it");
+assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and bounded newest evidence projection are preserved independently of that target");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000/.test(core), "the schema-inclusive preferred request/user prompt targets reserve the observed strict response schema overhead");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
@@ -27,15 +27,17 @@ const providerBoundedPromptEnd = core.indexOf("const mandatorySuffix = providerB
 const providerBoundedPromptSource = providerBoundedPromptStart >= 0 && providerBoundedPromptEnd > providerBoundedPromptStart
   ? core.slice(providerBoundedPromptStart, providerBoundedPromptEnd)
   : "";
-const appendsCompleteLatestEvidenceEnvelope = providerBoundedPromptSource.includes("preserveFetchedClaimAtProviderBoundary")
+const appendsBoundedLatestEvidenceEnvelope = providerBoundedPromptSource.includes("preserveFetchedClaimAtProviderBoundary")
   && providerBoundedPromptSource.includes("[composedPrompt, latestRecordTail]")
   && providerBoundedPromptSource.includes("providerGuidance")
   && providerBoundedPromptSource.includes("modelOwnedScopeGuidance")
   && providerBoundedPromptSource.includes("compactWorkerCapabilityGuidance")
   && /return (?:reportPromptMeasurement\(boundedPrompt\)|boundedPrompt);/.test(core)
   && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core)
-  && /const latestRecordTail = \[/.test(core);
-assert(appendsCompleteLatestEvidenceEnvelope, "live Investigator prompt composition preserves the full authored prompt, latest durable action, fetched evidence and URL context");
+  && /const latestRecordTail = \[/.test(core)
+  && core.includes("const boundedObservation = compactDurablePromptObservation(")
+  && core.includes("observationCharsOmittedFromPrompt");
+assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective, latest durable action, bounded fetched excerpt and URL context");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(core.includes("const allPromptRecords = sanitizeObservableValue(") && core.includes("const { pageArtifact: _pageArtifact, ...promptRecord } = record;") && core.includes("const promptTrajectoryRecords = allPromptRecords.map(") && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection, excluding full fetched-page artifacts");
 assert(core.includes("const latestRecordTail = [") && core.includes("buildLatestRecordTail()"), "latest durable evidence envelope is assembled from the trajectory record");
