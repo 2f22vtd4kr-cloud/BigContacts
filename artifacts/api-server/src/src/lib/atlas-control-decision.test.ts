@@ -24,6 +24,7 @@ import {
   normalizeAtlasOpeningRightHandApprovalReview,
   normalizeAtlasOpeningRightHandReview,
   shouldInvokeAtlasRightHandReview,
+  resolveAtlasRightHandReviewWatermark,
   validateAtlasOpeningRightHandReview,
   validateAtlasOpeningRightHandApprovalReview,
 } from "./atlas-control-decision";
@@ -1076,6 +1077,17 @@ describe("AI-led discovery trajectory oversight", () => {
         findings: [{ reviewOnly: true, scope: "candidate", personName: "Alex Example", value: "Alex Example" }],
       }],
     })).toBe(true);
+  });
+
+  it("restores the latest Right-hand review watermark from durable control history", () => {
+    expect(resolveAtlasRightHandReviewWatermark([
+      { controlTurn: 1, rightHand: { status: "completed", reviewedThroughTurn: 7 } },
+      { controlTurn: 2, rightHand: { status: "deferred", reviewedThroughTurn: 7 } },
+      { controlTurn: 3, rightHand: { status: "completed", reviewedThroughTurn: 13 } },
+      { controlTurn: 4, rightHand: { status: "deferred", reviewedThroughTurn: "invalid" } },
+      null,
+    ])).toBe(13);
+    expect(resolveAtlasRightHandReviewWatermark(null)).toBe(0);
   });
 
   it("persists the Right-hand review watermark in the canonical control event payload", () => {
