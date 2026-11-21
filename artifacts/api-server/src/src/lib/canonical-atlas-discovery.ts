@@ -1927,7 +1927,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       status: "deferred" as const,
       model: "none",
       decision: null,
-      reason: "Deferred until the Investigator produces source observations or a consequential stop, admission, pivot, identity, or contradiction decision.",
+      reason: "Deferred until a consequential decision emerges, including a low-yield continuation after several successful research actions.",
       focusLanes: [] as string[],
       confidence: null as number | null,
       error: null as string | null,
@@ -2082,7 +2082,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       "BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement): " + openingDirectionResolution.direction,
       "Use this hypothesis only if it helps test the complete human objective. You may pursue any other objective-fit people, organizations, assets, relationships, public sources, or jurisdictions without asking Boss to approve a change in hypothesis.",
       "Boss rationale (advisory only, not evidence): " + openingBossDecision.reason,
-      "Right-hand status (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until evidence-backed consequential decisions exist." : rightHand.reason ?? "No opening review was performed."),
+      "Right-hand status (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until a consequential decision emerges; repeated low-yield research after successful actions is also reviewable." : rightHand.reason ?? "No opening review was performed."),
     ].join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
@@ -2118,7 +2118,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         actorRole: "head_investigator",
         eventType: "assignment",
         status: "recorded",
-        summary: "Canonical discovery Investigator mounted after Boss opening; Right-hand review is deferred until consequential evidence.",
+        summary: "Canonical discovery Investigator mounted after Boss opening; Right-hand review is deferred until a consequential decision emerges.",
         correlationKey: `${atlasJobId}:discovery-assignment`,
         payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
       });
