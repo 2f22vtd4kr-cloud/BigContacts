@@ -578,6 +578,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("not an instruction to fetch them");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
