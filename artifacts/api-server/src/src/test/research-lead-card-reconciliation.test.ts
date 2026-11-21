@@ -137,10 +137,10 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(orientation).toContain("REVIEW LEADS: Investigator may retain one relevant same-case person/company/asset as provisional.");
+    expect(orientation).toContain("REVIEW LEADS: Investigator may retain useful same-case people and organizations as provisional review-only leads.");
     expect(orientation).toContain("A search result/snippet may support an unverified review card before the underlying page is fetched");
-    expect(orientation).toContain("exact observed name, scope, source URL and rationale");
-    expect(orientation).toContain("exactQuote=null");
+    expect(orientation).toContain("exact observed names, candidate/organization scope, source URL, rationale and uncertainty.");
+    expect(orientation).toContain("Search-only is unverified; selection is not promotion.");
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
     expect(orientation).toContain("no fixed sequence");
     expect(agenticCore).not.toContain("Companies House is UK-only");
@@ -363,7 +363,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
-    expect(control).toContain("There is no target-count threshold; Right-hand advises and does not select or authorize targets.");
+    expect(control).toContain("No target count or route is mandated; Right-hand advises and does not select or authorize targets.");
 
     // Runtime integrity checks may grade provenance, but cannot replace the
     // Investigator's card-worthiness decision with regex/span or vector rules.
