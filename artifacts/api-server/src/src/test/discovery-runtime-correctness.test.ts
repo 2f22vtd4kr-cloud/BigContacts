@@ -129,7 +129,7 @@ describe("discovery runtime architecture", () => {
     expect(openingCallEnd).toBeGreaterThan(openingCallStart);
     const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
     expect(openingCall).toContain("openingInvestigatorObjective,");
-    expect(openingCall).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(openingCall).toContain("openingResearchAdvisory,");
     expect(openingCall).toContain("openingDiscoveryBudget");
     expect(openingCall).toContain("openingInvestigatorIterations");
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
