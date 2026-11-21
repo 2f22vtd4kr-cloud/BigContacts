@@ -5989,7 +5989,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       );
     }
     if (latestSuccessfulFetchRecord && latestSuccessfulFetchRecord !== latestRecord) {
-      // Keep the complete prior fetched observation when a later search or
+      // Keep a bounded prior fetched observation when a later search or
       // blocked action is the newest turn; the latest claim marker is only an
       // aid for locating the relevant sentence, not a replacement for evidence.
       parts.push(
@@ -6658,6 +6658,20 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       const historicalRecords = completePromptRecords.slice(0, Math.max(0, completePromptRecords.length - 3));
       const previouslySemanticallyCompactedThroughTurn = aiCompactedHistoricalThroughTurn;
       const pendingHistoricalRecords = historicalRecords.filter((record) => record.turn > aiCompactedHistoricalThroughTurn);
+      const intelligenceStateForMemory = {
+        ...intelligenceState,
+        recentActions: intelligenceState.recentActions.map((action) => ({
+          ...action,
+          observation: compactEmergencyTrajectoryObservation(action.observation, 1_200),
+        })),
+        atomicEvidence: intelligenceState.atomicEvidence.map((evidence) => ({
+          ...evidence,
+          passage: evidence.passage
+            ? compactEmergencyTrajectoryObservation(evidence.passage, 1_200)
+            : null,
+        })),
+      };
+      const historyForMemory = history.map((entry) => compactEmergencyTrajectoryObservation(entry, 1_200));
       const renderMemoryRecord = (record: AgenticTrajectoryRecord) => ({
         turn: record.turn,
         action: record.action,
@@ -6676,9 +6690,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       });
       const initialMemorySource = [
         "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:\n" + objective,
-        "COMPLETE STRUCTURED INTELLIGENCE STATE (for bounded semantic/deterministic context compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
+        "BOUNDED STRUCTURED INTELLIGENCE MEMORY PROJECTION (full state remains durable; omitted observation detail is unknown):\n" + JSON.stringify(sanitizeObservableValue(intelligenceStateForMemory)),
         "FINDINGS ALREADY OBSERVED:\n" + JSON.stringify(sanitizeObservableValue(findings)),
-        "COMPLETE PRIOR TURN HISTORY (chronological, including tool outcomes and model-correction feedback):\n" + JSON.stringify(history),
+        "COMPLETE PRIOR TURN HISTORY (chronological, including tool outcomes and model-correction feedback):\n" + JSON.stringify(historyForMemory),
         "DURABLE URL INVENTORY (exact observed/lead URLs; preserve source-stage distinctions):\n" + (input.durableUrlInventory ?? ""),
         "PREVIOUSLY ATTEMPTED SEARCH QUERIES (do not repeat without new evidence):\n" + JSON.stringify(input.priorSearchQueries ?? []),
         "CURRENT BOSS/RIGHT-HAND CONTEXT (latest control direction, not raw evidence):\n" + (input.priorContext ?? ""),
@@ -6702,11 +6716,11 @@ export async function runAgenticWebResearch(input: { targetName: string; company
               "EXISTING COMPACTED HISTORICAL RESEARCH CONTEXT (possibly older; omissions unknown):\n" + aiCompactedHistoricalContext,
               "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE (authoritative):\n" + objective,
               "CURRENT BOSS/RIGHT-HAND CONTEXT (latest control direction, not raw evidence):\n" + (input.priorContext ?? ""),
-              "COMPLETE STRUCTURED INTELLIGENCE STATE (for bounded semantic/deterministic context compaction; do not pre-trim fields):\n" + JSON.stringify(sanitizeObservableValue(intelligenceState)),
+              "BOUNDED STRUCTURED INTELLIGENCE MEMORY PROJECTION (full state remains durable; omitted observation detail is unknown):\n" + JSON.stringify(sanitizeObservableValue(intelligenceStateForMemory)),
               "CURRENT FINDINGS:\n" + JSON.stringify(sanitizeObservableValue(findings)),
               "CURRENT DURABLE URL INVENTORY (exact URLs and source-stage context):\n" + (input.durableUrlInventory ?? ""),
               "PREVIOUSLY ATTEMPTED SEARCH QUERIES:\n" + JSON.stringify(input.priorSearchQueries ?? []),
-              "LATEST TURN HISTORY / MODEL CORRECTION FEEDBACK:\n" + JSON.stringify(history.slice(-3)),
+              "LATEST TURN HISTORY / MODEL CORRECTION FEEDBACK:\n" + JSON.stringify(historyForMemory.slice(-3)),
               "NEWLY AGED DURABLE TRAJECTORY RECORDS (chronological; merge these into the memory without dropping material facts):\n"
                 + pendingHistoricalRecords.map((record) => JSON.stringify(renderMemoryRecord(record))).join("\n"),
             ].join("\n\n");
