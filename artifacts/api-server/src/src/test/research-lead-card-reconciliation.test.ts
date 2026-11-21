@@ -363,7 +363,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
     expect(control).toContain("REVIEW-TARGET CONSIDERATION (advisory, not a sequence)");
-    expect(control).toContain("No target count or route is mandated; Right-hand advises and does not select or authorize targets.");
+    expect(control).toContain("No target count or route is mandated; Right-hand advises and Investigator chooses.");
 
     // Runtime integrity checks may grade provenance, but cannot replace the
     // Investigator's card-worthiness decision with regex/span or vector rules.
