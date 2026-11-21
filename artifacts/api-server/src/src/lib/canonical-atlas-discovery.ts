@@ -1795,7 +1795,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, partialFindings: [...(failed.partialFindings ?? []), ...(recovered.partialFindings ?? [])], searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0, aiCompactedHistoricalContext: recovered.aiCompactedHistoricalContext ?? failed.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: Math.max(recovered.aiCompactedHistoricalThroughTurn ?? 0, failed.aiCompactedHistoricalThroughTurn ?? 0) });
-    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations, initialResearchAdvisory?: string): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
+    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
       const isZeroResearchParseFailure = (candidate: typeof result): boolean =>
@@ -2216,7 +2216,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             retryEpisode.iterations ?? retryEpisode.trajectoryRecords?.length ?? 0,
             remainingAfterParseFailure,
           ),
-          openingResearchAdvisory,
         );
         discovery = mergeDiscoveryResults(discovery, recoveredRetryEpisode);
         captureTerminalAuditTrajectory(discovery.trajectoryRecords);
