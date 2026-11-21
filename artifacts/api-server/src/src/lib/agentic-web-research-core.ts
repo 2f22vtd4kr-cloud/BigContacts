@@ -5740,15 +5740,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const registryCoverageGuidance = boundInvestigatorPromptSection(
-    renderRegistryCoverageGuidance(availableRegistryIds.filter((id) => id === "gleif" || id === "companies-house")),
-    60,
-  );
-  const registryCapabilityWarnings = "Adapters are jurisdiction/field-limited; query hosts do not change coverage. GLEIF: entity LEI/parent links, not natural-person ownership/wealth. Companies House: UK only, not Ireland. Query indexed fields; lexical matches are leads, not proof.";
-  const compactRegistryGuidance = [
-    registryCoverageGuidance ? "REGISTRY CAPABILITY MATRIX: " + registryCoverageGuidance : "",
-    registryCapabilityWarnings,
-  ].filter(Boolean).join("\n");
+  const registryCapabilityWarnings = "Adapter coverage is jurisdiction-specific; query hosts do not change it. GLEIF: entity LEI/parent links, not personal ownership/wealth. Companies House: UK only. Query indexed fields; lexical matches are leads.";
+  const compactRegistryGuidance = registryCapabilityWarnings;
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
   const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
