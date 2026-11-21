@@ -5826,13 +5826,24 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     const prompt = apexInvestigatorSystemCore();
     expect(prompt).toContain("BOSS HYPOTHESIS BOUNDARY");
     expect(apexOrientationFor("boss")).toContain("do not privilege an investor");
-    expect(prompt).toContain("RESEARCH ADAPTATION");
-    expect(prompt).toContain("PROVISIONAL LEAD HANDOFF");
+    expect(prompt).toContain("BOSS HYPOTHESIS: advisory only");
+    expect(prompt).toContain("REVIEW LEADS:");
     expect(prompt).toContain("current review-lead schema materializes people and organizations only");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
-    expect(prompt).toContain("review-only leads");
-    expect(prompt).toContain("Do not merely rephrase the same search");
+    expect(prompt).toContain("Search-only leads are review-only");
+    expect(prompt).toContain("Assets remain source-backed observations");
   });
+  it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {
+    const advisory = discoverySearchLivenessAdvisory([
+      { turn: 1, model: "test", action: "web_search", args: { query: "emerging investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+      { turn: 2, model: "test", action: "web_search", args: { query: "lesser-known investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+      { turn: 3, model: "test", action: "web_search", args: { query: "early-stage investors" }, execution: "success", observation: "0 results", observedUrls: [], findings: [], providerFallback: [] },
+    ]);
+    expect(advisory).toContain("Reassess whether the current hypothesis");
+    expect(advisory).toContain("do not merely rephrase a low-yield search");
+    expect(advisory).toContain("fetch every remaining URL");
+  });
+
 });
 
 describe("requested versus executed action provenance", () => {
