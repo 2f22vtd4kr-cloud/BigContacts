@@ -5825,6 +5825,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
   it("keeps the Investigator autonomous and requires structured provisional lead handoff", () => {
     const prompt = apexInvestigatorSystemCore();
     expect(prompt).toContain("BOSS HYPOTHESIS BOUNDARY");
+    expect(apexOrientationFor("boss")).toContain("do not privilege an investor");
     expect(prompt).toContain("RESEARCH ADAPTATION");
     expect(prompt).toContain("PROVISIONAL LEAD HANDOFF");
     expect(prompt).toContain("review-only leads");
