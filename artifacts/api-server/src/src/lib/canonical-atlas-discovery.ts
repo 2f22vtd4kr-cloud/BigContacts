@@ -1376,9 +1376,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failureStage = "case_persistence";
       const [existingDiscoveryCase] = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
       let storedInvestigator: InvestigatorCapability | null = null;
+      let persistedRightHandReviewedThroughTurn = 0;
       try {
         const stored = existingDiscoveryCase?.caseFile ? JSON.parse(existingDiscoveryCase.caseFile) as Record<string, unknown> : {};
         storedInvestigator = typeof stored.investigatorLlm === "string" ? stored.investigatorLlm as InvestigatorCapability : null;
+        const priorControlDecisions = Array.isArray(stored.atlasControlDecisions) ? stored.atlasControlDecisions : [];
+        for (const entry of priorControlDecisions) {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+          const rightHand = (entry as Record<string, unknown>).rightHand;
+          if (!rightHand || typeof rightHand !== "object" || Array.isArray(rightHand)) continue;
+          const reviewedThroughTurn = (rightHand as Record<string, unknown>).reviewedThroughTurn;
+          if (typeof reviewedThroughTurn === "number" && Number.isSafeInteger(reviewedThroughTurn)) {
+            persistedRightHandReviewedThroughTurn = Math.max(persistedRightHandReviewedThroughTurn, reviewedThroughTurn);
+          }
+        }
       } catch {
         throw new Error("Canonical discovery case has unreadable durable Investigator selection.");
       }
@@ -1441,6 +1452,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       evidenceRows += result.evidenceRows;
     };
     let selectedInvestigator = boss.investigatorLlm;
+    let rightHandReviewedThroughTurn = persistedRightHandReviewedThroughTurn;
     let latestRightHandReviewContext: { status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null; reviewedAction: string } | null = null;
     let rightHandReconsiderationUsed = false;
     const rightHandReviewedDecisionKeys = new Set<string>();
@@ -2334,6 +2346,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
+      rightHandReviewedThroughTurn = Math.max(rightHandReviewedThroughTurn, decision.rightHand.reviewedThroughTurn ?? 0);
       const previousAcceptedAction = priorAction;
       const previousAcceptedCandidate = priorCandidate;
       controlTurns += 1;
@@ -2355,7 +2368,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         findings: controlFindings,
         missionBudget: controlBudgetState,
       });
-      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, reviewOnly: finding.reviewOnly, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
+      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, reviewOnly: finding.reviewOnly, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, priorCandidateType, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, rightHandReviewedThroughTurn, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         rightHandIndependentReview: latestRightHandReviewContext,
         researchLivenessAdvisory,
