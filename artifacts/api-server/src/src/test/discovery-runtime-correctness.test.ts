@@ -49,7 +49,9 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: autonomous discovery is authorized under the exact human objective; no candidate, target, query, source mix, or fixed source sequence was selected.");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
@@ -113,35 +115,26 @@ describe("discovery runtime architecture", () => {
 
   it("keeps model-generated hypotheses out of the first Investigator objective", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("const openingInvestigatorObjective = [");
-    const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
-    const openingObjectiveEnd = canonicalSource.indexOf('].join("\\n");', openingObjectiveStart);
-    expect(openingObjectiveStart).toBeGreaterThan(-1);
-    expect(openingObjectiveEnd).toBeGreaterThan(openingObjectiveStart);
-    const openingObjective = canonicalSource.slice(openingObjectiveStart, openingObjectiveEnd);
-    expect(openingObjective).toContain("No source observations or admitted candidates exist yet.");
-    expect(openingObjective).toContain("Only actual same-run Investigator tool observations may establish candidate names");
-    expect(openingObjective).not.toContain("boss.report");
-    expect(openingObjective).not.toContain("boss.nextDirections");
-    expect(openingObjective).toContain("RIGHT-HAND STATUS (advisory only)");
-    expect(openingObjective).not.toContain("rightHand.focusLanes");
-    expect(openingObjective).toContain("BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope)");
-    expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
+    expect(canonicalSource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalSource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalSource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalSource).toContain("BOSS CONTINUATION HYPOTHESIS (non-binding; not an accepted scope or source requirement):");
+    expect(canonicalSource).not.toContain("formatBossDirectedObjective(discoveryObjective, openingDirectionResolution.direction)");
+    expect(canonicalSource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(canonicalSource).not.toContain("rightHand.approval");
+
     const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
     const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
     expect(openingCallStart).toBeGreaterThan(-1);
     expect(openingCallEnd).toBeGreaterThan(openingCallStart);
     const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
-    expect(openingCall).toContain("discovery");
-    expect(openingCall).toContain("openingInvestigatorObjective");
+    expect(openingCall).toContain("objective: openingInvestigatorObjective");
+    expect(openingCall).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(openingCall).toContain("openingDiscoveryBudget");
     expect(openingCall).toContain("openingInvestigatorIterations");
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
-    expect(canonicalSource).toContain("decision: rightHand.decision");
-    expect(canonicalSource).toContain("authority: \"advisory_only\"");
-    expect(canonicalSource).not.toContain("rightHand.approval");
-    expect(canonicalSource).not.toContain("approvedOpeningDirection");
-    expect(canonicalSource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
+
+    expect(atlasControlDecisionSource).toContain("Only actual same-run Investigator tool observations can establish candidate names");
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
