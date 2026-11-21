@@ -5859,6 +5859,7 @@ describe("requested versus executed action provenance", () => {
     }), ["visit", "browser_fetch"]);
     expect(parsed?.action).toBe("visit");
     expect(parsed?.requestedAction).toBe("browser_fetch");
+    expect(parsed?.requestedProvider).toBe("stale-provider");
     expect(parsed?.normalizationReason).toBe("browser_provider_unavailable");
   });
 });
