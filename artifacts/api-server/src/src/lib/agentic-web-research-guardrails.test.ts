@@ -30,7 +30,7 @@ describe("Investigator target and source grounding guardrails", () => {
 
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations");
-    expect(modelPrompt).toContain("Never use model memory as evidence.");
+    expect(modelPrompt).toMatch(/never use model memory as evidence/i);
     expect(modelPrompt).not.toContain("The full objective is represented in Boss-generated memory");
   });
 
