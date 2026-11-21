@@ -431,6 +431,23 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
       hypothesis: hypothesis.slice(0, 240) || null, purpose: purpose.slice(0, 240) || null,
     }];
   });
+  const unresolvedQuestionMap = new Map<string, { turn: number; question: string; status: "open" | "blocked"; action: string }>();
+  for (const record of records.slice(-32)) {
+    const purpose = typeof record.args?.purpose === "string" ? record.args.purpose.trim() : "";
+    if (!purpose) continue;
+    const hasClaimFinding = (record.findings ?? []).some((finding) => finding.reviewOnly !== true);
+    const status = record.execution === "success" && hasClaimFinding
+      ? "answered"
+      : ["blocked", "http_error", "timeout", "error", "cancelled", "partial"].includes(record.execution)
+        ? "blocked"
+        : "open";
+    if (status === "answered") continue;
+    const key = purpose.toLocaleLowerCase("en-US").replace(/\\s+/g, " ").slice(0, 500);
+    unresolvedQuestionMap.set(key, {
+      turn: record.turn, question: purpose.slice(0, 300), status, action: record.action,
+    });
+  }
+  const unresolvedResearchQuestions = [...unresolvedQuestionMap.values()].slice(-12);
   const reviewLeads = records.flatMap((record) => (record.findings ?? [])
     .filter((finding) => finding.reviewOnly === true)
     .map((finding) => ({
@@ -451,6 +468,7 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
     },
     retrievalOutcomes: { failedLeadUrls: state.failedLeadUrls, blockedLeadUrls: state.blockedLeadUrls },
     modelAuthoredResearchIntent: recentIntent,
+    unresolvedResearchQuestions,
     provisionalReviewLeads: reviewLeads,
   });
 }
