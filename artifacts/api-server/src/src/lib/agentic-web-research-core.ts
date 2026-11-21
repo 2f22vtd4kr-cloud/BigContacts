@@ -438,7 +438,7 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
     const hasClaimFinding = (record.findings ?? []).some((finding) => finding.reviewOnly !== true);
     const status = record.execution === "success" && hasClaimFinding
       ? "answered"
-      : ["blocked", "http_error", "timeout", "error", "cancelled", "partial"].includes(record.execution)
+      : ["blocked", "http_error", "timeout", "error", "cancelled"].includes(record.execution)
         ? "blocked"
         : "open";
     if (status === "answered") continue;
