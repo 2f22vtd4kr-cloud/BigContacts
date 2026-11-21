@@ -390,15 +390,16 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const strictPersonIdentities = new Set(personTargets.map(({ name }) => normalizeCandidateIdentityName(name)));
   // No target-scoped research is authorized without a source-backed lead.
   // This is a provenance handoff, not a source-count or role/name admission filter.
-  const partialPersonTargets = partialPeople.candidates
-    .filter(({ name }) => !strictPersonIdentities.has(normalizeCandidateIdentityName(name)))
-    .map(({ name, role, sourceUrls }) => ({ name, sourceUrls, targetType: "person" as const, role }));
+  // Review-only leads are already visible to Boss/Right-hand in discoveryFindings
+  // and the durable trajectory. They are deliberately not promoted into this
+  // admitted-target list; only evidence-gated person admissions and organizations
+  // that pass the explicit fetched-source gate can be researched as targets.
   const organizationTargets = partialOrganizations.candidates
     .filter(({ targetEligibleForResearch }) => targetEligibleForResearch)
     .map(({ name, sourceUrls }) => ({
       name, sourceUrls, targetType: "organization" as const, role: null,
     }));
-  const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets];
+  const targetCandidates = [...personTargets, ...organizationTargets];
   return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows };
 }
 
@@ -637,6 +638,11 @@ async function materializePartialPersonLeadCards(input: {
       });
     }
     if (!supports.size) continue;
+
+    // Keep person leads in findings[]/trajectory for Boss and Right-hand review.
+    // Only the separate evidence-backed admission loop may create a candidate.
+    candidates.push({ name: lead.name, role: null, sourceUrls: [...supports.keys()] });
+    continue;
 
     // Review-only leads remain in the same-run control/review context and may
     // be considered for target-scoped verification, but never create a card,
@@ -1052,14 +1058,18 @@ async function materializePartialOrganizationLeadCards(input: {
     const leadFindings = input.findings.filter((finding) =>
       finding.scope === "organization"
       && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
-    if (leadFindings.length > 0 && leadFindings.every((finding) => finding.reviewOnly === true)) {
-      const explicitlyPromotedByInvestigator = leadFindings.some((finding) => finding.promotionDecision === "promote");
-      candidates.push({
-        name,
-        sourceUrls: [...supports.keys()],
-        targetEligibleForResearch: explicitlyPromotedByInvestigator && [...supports.values()].some((support) =>
-          !support.restrictedCommunitySource && (support.spanVerified || support.sourceUrlBoundByAdapter === true)),
-      });
+    const explicitlyPromotedByInvestigator = leadFindings.some((finding) =>
+      finding.promotionDecision === "promote" && finding.reviewOnly !== true);
+    const hasFetchedClaimGradeSupport = [...supports.values()].some((support) =>
+      !support.restrictedCommunitySource
+      && support.verificationLevel === "fetched_source"
+      && support.spanVerified
+      && isClaimGradeDiscoverySourceUrl(support.sourceUrl));
+    if (!explicitlyPromotedByInvestigator || !hasFetchedClaimGradeSupport) {
+      // Search-only and explicitly review-only company leads remain in the
+      // trajectory/control context; they cannot create a Corporation card or
+      // enter the admitted-target list without fetched, claim-grade support.
+      candidates.push({ name, sourceUrls: [...supports.keys()], targetEligibleForResearch: false });
       continue;
     }
 
@@ -1230,6 +1240,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const explicitlyPromotedByInvestigator = input.findings.some((finding) =>
         finding.scope === "organization"
         && finding.promotionDecision === "promote"
+        && finding.reviewOnly !== true
         && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
       candidates.push({
         ...persisted.candidate,
