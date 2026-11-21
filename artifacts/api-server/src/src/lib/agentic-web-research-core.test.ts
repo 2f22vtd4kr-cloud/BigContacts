@@ -5827,7 +5827,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("BOSS HYPOTHESIS BOUNDARY");
     expect(prompt).toContain("RESEARCH ADAPTATION");
     expect(prompt).toContain("PROVISIONAL LEAD HANDOFF");
-    expect(prompt).toContain("reviewOnly");
+    expect(prompt).toContain("review-only leads");
     expect(prompt).toContain("Do not merely rephrase the same search");
   });
 });
