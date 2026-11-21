@@ -2,6 +2,7 @@
 import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const reconciler = fs.readFileSync("artifacts/api-server/src/src/lib/research-lead-card-reconciliation.ts", "utf8");
 const bossDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau.ts", "utf8");
 const controlDecision = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const openingReviewPromptStart = atlas.indexOf("Independently review the exact human objective");
@@ -61,6 +62,7 @@ const checks = [
   ["person candidate cards require fetched same-run role/identity evidence and explicit promotion", atlas.includes("candidateRoleCorroborationSources") && atlas.includes("supportingSources.length < 1") && atlas.includes('finding.promotionDecision === "promote"') && atlas.includes("isClaimGradeDiscoverySourceUrl")],
   ["organization review cards require the exact name in a same-run source observation", atlas.includes("exact organization name in the observed result/page text")],
   ["organization cards and targets require explicit promotion plus fetched claim-grade source binding", atlas.includes("hasFetchedClaimGradeSupport") && atlas.includes('finding.reviewOnly !== true') && atlas.includes("targetEligibleForResearch: false")],
+  ["terminal card reconciliation binds findings and source observations to the exact same Investigator run", (reconciler.match(/typeof payload\.runId !== "string"/g) ?? []).length >= 2 && (reconciler.match(/observation\.runId !== lead\.runId/g) ?? []).length >= 2],
   ["registry evidence cannot be inflated into ownership or wealth claims", atlas.includes("REGISTRY EPISTEMIC LIMIT") && atlas.includes("require direct official evidence for ownership claims")],
   ["Right-hand unavailability remains advisory and is durably recorded without vetoing Boss", atlas.includes('review.status === "completed" ? "recorded" : "unavailable"') && atlas.includes("Boss decision remains recorded without independent advice") && atlas.includes("authority: \"advisory_only\"")],
   ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],
