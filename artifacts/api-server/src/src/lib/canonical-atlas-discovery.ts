@@ -1248,6 +1248,63 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   let evidenceRows = 0;
   let admittedTargetCount = 0;
   let failureStage: AtlasFailureStage = "job_state_or_lease";
+
+  /**
+   * Early terminal branches must receive the same durable reconciliation
+   * evidence as the ordinary control-loop exit. Preserve the branch-specific
+   * result already written by the caller, then append a read-back snapshot
+   * after releasing the owned job lock.
+   */
+  const persistEarlyTerminalAuditSnapshot = async (): Promise<void> => {
+    const activeJobLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
+    terminalAuditLockReleased = activeJobLockReleased;
+    const durableJob = await getJobStrict(atlasJobId);
+    if (!durableJob) throw new Error("Canonical Atlas terminal audit could not read back the terminal job.");
+    const resultRecord = parseJsonRecord(durableJob.result) ?? {};
+    const priorTerminal = parseJsonRecord(resultRecord.terminal) ?? {};
+    const [caseRecord] = await db.select({
+      status: researchCasesTable.status,
+      currentAction: researchCasesTable.currentAction,
+    }).from(researchCasesTable).where(
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+    ).orderBy(desc(researchCasesTable.updatedAt)).limit(1);
+    const trajectory = terminalAuditTrajectory;
+    const researchActionsExecuted = trajectory.filter((record) =>
+      !["done", "parse_failure", "provider_error", "provider_contract_error"].includes(record.action)
+      && record.execution !== "selected" && record.execution !== "blocked",
+    ).length;
+    const telemetry = getAgenticLlmTelemetryForJob(atlasJobId);
+    const terminalSnapshot = {
+      ...priorTerminal,
+      status: durableJob.outcome === "complete" ? "complete" : "incomplete",
+      jobStatus: durableJob.status,
+      caseStatus: caseRecord?.status ?? "unknown",
+      caseAction: caseRecord?.currentAction ?? "unknown",
+      evidenceBackedTerminal: priorTerminal.evidenceBackedTerminal === true,
+      admittedTargetCount,
+      materializedCardCount: materialized,
+      evidenceRows,
+      completedTargetInvestigations: Number(priorTerminal.completedTargetInvestigations ?? 0),
+      explicitCardPromotions: Number(priorTerminal.explicitCardPromotions ?? 0),
+      investigatorActionsUsed: trajectory.length,
+      discoverySearchActionsUsed: countDiscoverySearchActions(trajectory),
+      discoveryVisitActionsUsed: trajectory.filter((record) =>
+        (record.action === "visit" || record.action === "browser_fetch")
+        && record.execution !== "selected" && record.execution !== "blocked",
+      ).length,
+      researchActionsExecuted,
+      rationaleIncompleteActions: trajectory.filter((record) => record.rationaleIncomplete === true).length,
+      investigatorTrajectoryRecords: trajectory.length,
+      llmTelemetry: { ...telemetry, accountingScope: "process_local_job_id" },
+      providerWaitMs: telemetry.providerWaitMs,
+      providerWaitMeasurement: "groq_provider_gate_before_request",
+      activeJobLockReleased,
+    };
+    phaseSummary.terminal = JSON.stringify(terminalSnapshot);
+    await updateJob(atlasJobId, {
+      result: JSON.stringify({ ...resultRecord, terminal: terminalSnapshot, phaseSummary }),
+    });
+  };
   try {
     await assertAtlasJobActive(atlasJobId);
     if (opts.discoveryCaseId) {
@@ -1350,7 +1407,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           .set({ status: "review", currentAction: "groq-boss-unavailable", updatedAt: new Date() })
           .where(and(eq(researchCasesTable.id, opts.discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
       }
-      await clearActiveJobIfOwned(lockKey, atlasJobId);
+      await persistEarlyTerminalAuditSnapshot();
       return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
@@ -2005,7 +2062,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         finishedAt: new Date().toISOString(),
       });
       phaseSummary.assignment = "Boss chose stop before the first Investigator action; opening Right-hand review was deferred.";
-      await clearActiveJobIfOwned(lockKey, atlasJobId);
+      await persistEarlyTerminalAuditSnapshot();
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
@@ -2221,7 +2278,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         result: JSON.stringify({ rightHand, boss, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [] }, discoveryHealth }),
         finishedAt: new Date().toISOString(),
       });
-      await clearActiveJobIfOwned(lockKey, atlasJobId);
+      await persistEarlyTerminalAuditSnapshot();
       return { phase: 1, ingested: 0, enriched: materialized, contactsFound: 0, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
     }
     while (true) {
@@ -2269,7 +2326,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           result: JSON.stringify({ discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0 }, discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length), control: { turns: controlTurns, maxControlTurns, safetyCeiling: true } }),
           finishedAt: new Date().toISOString(),
         });
-        await clearActiveJobIfOwned(lockKey, atlasJobId);
+        await persistEarlyTerminalAuditSnapshot();
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
       const previousAcceptedAction = priorAction;
@@ -2544,7 +2601,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           // A status-writeable but temporarily unreadable job still records at least one error.
         }
         await updateJob(atlasJobId, { status: "failed", errors: Math.max(1, priorErrorCount), progress: 3, total: 4, atlasPhase: 3, atlasPhaseTotal: 4, outcome: "incomplete", message: terminalMessage, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns }, discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length), control: { turns: controlTurns, decision } }), finishedAt: new Date().toISOString() });
-        await clearActiveJobIfOwned(lockKey, atlasJobId);
+        await persistEarlyTerminalAuditSnapshot();
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
       finalControlAction = decision.action;
@@ -2914,7 +2971,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             }),
             finishedAt: new Date().toISOString(),
           });
-          await clearActiveJobIfOwned(lockKey, atlasJobId);
+          await persistEarlyTerminalAuditSnapshot();
           return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
         }
 
@@ -3015,7 +3072,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               }),
               finishedAt: new Date().toISOString(),
             });
-            await clearActiveJobIfOwned(lockKey, atlasJobId);
+            await persistEarlyTerminalAuditSnapshot();
             return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
           }
         }
