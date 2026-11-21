@@ -6624,6 +6624,20 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     try {
       if (input.runId) record.runId = input.runId;
       const durableRecord = sanitizeObservableValue(record);
+      // The replay hash must cover the exact sanitized observation written to
+      // the immutable trajectory event, not the pre-sanitization model/tool text.
+      // Sanitization can withhold unsafe embedded URLs while preserving the
+      // independently verified final page URL and the remaining source text.
+      if (
+        (durableRecord.action === "visit" || durableRecord.action === "browser_fetch")
+        && typeof durableRecord.observation === "string"
+        && typeof durableRecord.args?.pageContentPersistence === "string"
+      ) {
+        durableRecord.args = {
+          ...durableRecord.args,
+          pageObservationSha256: createHash("sha256").update(durableRecord.observation).digest("hex"),
+        };
+      }
       if (durableRecord.pageArtifact) {
         durableRecord.pageArtifact.sha256 = createHash("sha256").update(durableRecord.pageArtifact.text).digest("hex");
       }
