@@ -291,7 +291,7 @@ export function buildDiscoveryLeadUtilizationState(
       if (!urls.length) return [];
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
       const observationLines = observation.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const resultExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      const resultExcerpts: Array<{ provider: string | null; url: string; excerpt: string }> = [];
       const actionProvider = typeof record.args?.provider === "string" && record.args.provider.trim()
         ? record.args.provider.trim().toLowerCase()
         : null;
@@ -317,7 +317,7 @@ export function buildDiscoveryLeadUtilizationState(
           .join(" — ")
           .slice(0, 220);
         if (excerpt && !resultExcerpts.some((item) => item.provider === currentProvider && item.excerpt === excerpt)) {
-          resultExcerpts.push({ provider: currentProvider, excerpt });
+          resultExcerpts.push({ provider: currentProvider, url: candidate.url, excerpt });
         }
       }
       // Preserve representative context from providers the Investigator actually
@@ -333,15 +333,23 @@ export function buildDiscoveryLeadUtilizationState(
           })
         : [];
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
-      const selectedExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      const selectedExcerpts: Array<{ provider: string | null; url: string; excerpt: string }> = [];
       for (const provider of providers) {
         const matching = resultExcerpts.filter((item) => item.provider === provider);
         if (matching.length) selectedExcerpts.push(matching[0]!);
+        // Preserve exact title/snippet pairs for failed and blocked leads,
+        // not just the first/last result from a provider.
+        for (const item of matching) {
+          const candidate = normalize(item.url);
+          if (!candidate || (!attempts.has(candidate.key) && !blocked.has(candidate.key))) continue;
+          if (!selectedExcerpts.some((selected) => selected.url === item.url)) selectedExcerpts.push(item);
+          if (selectedExcerpts.length >= 6) break;
+        }
       }
       for (const provider of providers) {
         const matching = resultExcerpts.filter((item) => item.provider === provider);
         const last = matching.at(-1);
-        if (last && last !== matching[0] && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 820) {
+        if (last && last !== matching[0] && selectedExcerpts.length < 6 && !selectedExcerpts.some((item) => item.url === last.url) && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 820) {
           selectedExcerpts.push(last);
         }
       }
