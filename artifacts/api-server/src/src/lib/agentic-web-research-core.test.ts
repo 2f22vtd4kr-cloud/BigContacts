@@ -737,6 +737,9 @@ describe("Investigator local Groq token fit", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).toContain("OBSERVATION_CHARS_OMITTED_FROM_PROMPT");
     expect(agenticCoreSource).toContain("compactEmergencyTrajectoryObservation(record.observation, 1_200)");
+    expect(agenticCoreSource).toContain("recentActions: intelligenceState.recentActions.map");
+    expect(agenticCoreSource).toContain("atomicEvidence: intelligenceState.atomicEvidence.map");
+    expect(agenticCoreSource).toContain("const historyForMemory = history.map");
   });
 
   it("trims optional context in order and preserves the complete objective, Boss direction, newest observation and action contract", () => {
