@@ -56,7 +56,7 @@ describe("canonical Atlas nested provider failure classification", () => {
     });
     expect(classifyInvestigatorProviderError("daily_token_budget_exhausted")).toEqual({
       domain: "model_provider",
-      kind: "local_provider_budget_exhausted",
+      kind: "daily_token_budget_exhausted",
     });
   });
 
