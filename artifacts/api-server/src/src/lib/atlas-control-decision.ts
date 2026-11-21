@@ -1087,6 +1087,7 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       personName: boundedText(finding.personName, 120),
       role: boundedText(finding.role, 120),
       scope: boundedText(finding.scope, 24),
+      reviewOnly: finding.reviewOnly === true,
       promotionDecision: boundedText(finding.promotionDecision, 16),
       sourceUrls,
       sourceUrlCount: rawSourceUrls.length,
