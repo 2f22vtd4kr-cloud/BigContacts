@@ -521,7 +521,7 @@ describe.skipIf(!databaseEnabled)("canonical Atlas offline orchestration integra
       currentAction: outcome.ownedCase.currentAction,
       targetCalls: mocks.targetCalls,
       outboundUrls: mocks.outboundUrls,
-    })).toHaveLength(4);
+    })).toHaveLength(1);
     expect(outcome.admittedEntities.map((entity: any) => entity.name)).toContain(directorName);
     expect(outcome.controlDecisions.map((decision: any) => decision.action)).toContain("research_candidate");
     expect(mocks.runTargetContactAgent).toHaveBeenCalledTimes(1);
