@@ -107,8 +107,10 @@ describe("canonical opening discovery contract", () => {
     expect(canonicalDiscoverySource).not.toContain('failureStage = "right_hand_opening_review"');
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
-    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = [");
-    expect(agenticCoreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(agenticCoreSource).toContain("REGISTRY CAPABILITY MATRIX:");
+    expect(agenticCoreSource).toContain("GLEIF: entity LEI/parent data, not natural-person shareholders");
     expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
@@ -1055,7 +1057,7 @@ describe("Boss-adjudicated opening direction", () => {
     const bossCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
     const invalidBossGuard = canonicalDiscoverySource.indexOf('if (openingBossDecision.status !== "completed")', bossCall);
     const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({", bossCall);
-    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [", openingResolution);
+    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = discoveryObjective;", openingResolution);
     expect(bossCall).toBeGreaterThan(-1);
     expect(invalidBossGuard).toBeGreaterThan(bossCall);
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
@@ -1067,12 +1069,11 @@ describe("Boss-adjudicated opening direction", () => {
   });
 
   it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
     expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
     expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(canonicalDiscoverySource).not.toContain("BOSS-APPROVED OPENING RESEARCH QUESTION:");
-    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(controlSource).toContain("Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run");
     expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
     expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
@@ -1111,8 +1112,10 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
   });
 
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(controlSource).toContain("Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run");
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
