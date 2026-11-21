@@ -5833,3 +5833,20 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("Do not merely rephrase the same search");
   });
 });
+
+describe("requested versus executed action provenance", () => {
+  it("records when an unavailable browser_fetch provider is normalized to visit", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "browser_fetch",
+      url: "https://example.com/public-profile",
+      provider: "stale-provider",
+      thought: "Read the public page.",
+      hypothesis: "The page may identify an objective-fit person.",
+      purpose: "Test whether the source contains a named person.",
+      expectedInformationGain: 0.6,
+    }), ["visit", "browser_fetch"]);
+    expect(parsed?.action).toBe("visit");
+    expect(parsed?.requestedAction).toBe("browser_fetch");
+    expect(parsed?.normalizationReason).toBe("browser_provider_unavailable");
+  });
+});
