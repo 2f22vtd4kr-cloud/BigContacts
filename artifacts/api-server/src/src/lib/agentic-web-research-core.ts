@@ -5740,7 +5740,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const registryCapabilityWarnings = "Adapter coverage is jurisdiction-specific; query hosts do not change it. GLEIF: entity LEI/parent links, not personal ownership/wealth. Companies House: UK only, not Ireland. Query indexed fields; lexical matches are leads.";
+  const registryCapabilityWarnings = "Adapter coverage is jurisdiction-specific; query hosts do not change it. GLEIF: entity LEI/parent links, not natural-person shareholders/beneficial owners/wealth. Companies House: UK only, not Ireland. Query indexed fields; lexical matches are leads.";
   const compactRegistryGuidance = registryCapabilityWarnings;
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
