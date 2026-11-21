@@ -7,6 +7,7 @@ import {
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
+  buildAtlasControlEventPayload,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
   buildAtlasPinnedControlState,
@@ -1075,6 +1076,35 @@ describe("AI-led discovery trajectory oversight", () => {
         findings: [{ reviewOnly: true, scope: "candidate", personName: "Alex Example", value: "Alex Example" }],
       }],
     })).toBe(true);
+  });
+
+  it("persists the Right-hand review watermark in the canonical control event payload", () => {
+    const payload = buildAtlasControlEventPayload({
+      controlTurn: 4,
+      jobId: "atlas-job",
+      decision: {
+        status: "completed",
+        action: "continue_discovery",
+        candidateName: null,
+        candidateType: null,
+        direction: "Continue testing the active objective.",
+        reason: "The evidence remains insufficient.",
+        confidence: 0.7,
+        rightHand: {
+          status: "completed",
+          decision: "challenge",
+          reason: "The current source route remains low-yield.",
+          direction: null,
+          confidence: 0.8,
+          model: "right-hand-model",
+          error: null,
+          reviewedThroughTurn: 13,
+        },
+        bossModel: "boss-model",
+        error: null,
+      },
+    });
+    expect(payload.rightHand.reviewedThroughTurn).toBe(13);
   });
 
   it("does not let a positive unfetched count become an instruction to fetch everything", () => {
