@@ -27,7 +27,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("Preserve explicit human geographic constraints");
     expect(orientation).toContain("UK Companies House is UK-only, not Ireland");
     expect(orientation).toContain("public-web search, registries and other attested capabilities are neutral options");
-    expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
+    expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review leads in the same-run trajectory/control context");
     expect(orientation).toContain("Rankings, valuation, prestige, size and growth are contextual signals, not automatic qualifications or exclusions");
     expect(orientation).toContain("A ranking or search result alone is a lead, not a verified claim");
     expect(orientation).toMatch(/do not prefer private or mid-market status unless the human objective asks for it/i);
@@ -138,7 +138,7 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
     expect(orientation).toContain("REVIEW LEADS: Investigator may retain useful same-case people and organizations as provisional review-only leads.");
-    expect(orientation).toContain("A search result/snippet may support an unverified review card before the underlying page is fetched");
+    expect(orientation).toContain("A search result/snippet may support an unverified in-memory review lead before the underlying page is fetched");
     expect(orientation).toContain("exact observed names, candidate/organization scope, source URL, rationale and uncertainty.");
     expect(orientation).toContain("Search-only is unverified; selection is not promotion.");
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION: public-web search, registries and other attested capabilities are neutral options");
@@ -148,7 +148,7 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain("A successful public search observation contains the exact organization name");
   });
 
-  it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
+  it("keeps model-selected person leads available at the first checkpoint even when role is unknown", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     const personMaterializer = canonical.slice(
       canonical.indexOf("async function materializePartialPersonLeadCards"),
@@ -180,9 +180,8 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain('type: "PersonCandidate"');
     expect(personMaterializer).toContain('stage: "partial_review"');
 
-    // Review-only candidate/company cards must be persisted before strict
-    // promotion/admission work. A later admission exception must not prevent
-    // an already observed lead from becoming a durable review card.
+    // Review-only leads remain available before strict admission, but are not
+    // persisted as cards unless the existing evidence gates are satisfied.
     const materialization = canonical.slice(
       canonical.indexOf("async function materializeAtlasAdmissions"),
       canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
@@ -307,7 +306,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
   });
 
-  it("keeps worthwhile search-result leads as review cards and preserves verification before promotion", () => {
+  it("keeps worthwhile search-result leads ephemeral and preserves verification before promotion", () => {
     const personMaterializer = canonicalAtlas.slice(
       canonicalAtlas.indexOf("async function materializePartialPersonLeadCards"),
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
@@ -325,9 +324,9 @@ describe("canonical Atlas organization target selection", () => {
     const control = readFileSync(new URL("../lib/atlas-control-decision.ts", import.meta.url), "utf8");
     const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 
-    // Search-result leads can remain review cards, but only a fetched claim-grade
-    // page or a structured registry adapter record can authorize company research.
-    // This preserves model-owned discovery while preventing snippet-only targets.
+    // Search-result leads remain in-memory review context. Only the existing
+    // explicit target-selection and evidence gates may authorize card admission.
+    // This preserves model-owned discovery without persisting snippet-only cards.
 
     expect(organizationMaterializer).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(organizationMaterializer).not.toContain('&& !isClaimGradeDiscoverySourceUrl(sourceUrl)');
