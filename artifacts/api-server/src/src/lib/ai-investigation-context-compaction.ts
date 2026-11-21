@@ -378,7 +378,7 @@ function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
   const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?|fetch(?:es)?|visits?|pages?|page retrievals?)\b/i;
   return summary.split(/(?:[.!?]\s+|;\s+|,\s+|\b(?:and|but|however)\b|\n+)/i).some((clause) => {
     const absenceClaim = globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause);
-    const sourceSpecificRetrievalAbsence = /\b(?:no|none|zero)\b.{0,100}\b(?:fetch(?:es)?|visits?|pages?|page retrievals?)\b/i.test(clause)
+    const sourceSpecificRetrievalAbsence = /\b(?:no|none|zero)\b.{0,100}\b(?:fetch(?:es)?|visits?|pages?|page retrievals?)\b.{0,100}\b(?:for|of|at|to|from)\s+(?:(?:the|this|that)\s+)?(?:lead|source|page|record|profile|site|website|url|https?:\/\/)\b/i.test(clause)
       && extractAiContextUrls(clause).length > 0;
     return absenceClaim && !absenceClaimIsSegmentScoped(clause) && !sourceSpecificRetrievalAbsence;
   });
