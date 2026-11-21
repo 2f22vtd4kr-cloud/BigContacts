@@ -7,7 +7,7 @@ const GENERIC_PROVIDER_OR_TOOL_DIRECTIVE = /\b(?:switch|change|move|fall\s+back)
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
 const SEARCH_QUERY_OPERATOR = /\b(?:site|inurl|intitle|allinurl|allintitle|filetype|intext):\s*\S+/i;
-// A Boss direction is a research-scope question, not a direct adapter/tool choice.
+// A Boss direction is a research question; only an explicit validated pivot turns it into accepted scope.
 const RUNTIME_ROUTE_IDENTIFIER = /\b(?:web_search|parallel_web_search|registry_search|parallel_registry_search|browser_fetch|domain_lookup)(?:_[a-z0-9]+)+\b|\b(?:companies-house|sec-edgar|ares-czechia|cvr-denmark|bodacc-france|kbo-belgium|brreg|atoka-italy|ytj-finland|zefix-switzerland|borme-spain|gleif|faa)\b/i;
 const HUMAN_READABLE_ROUTE_DIRECTIVE = /\b(?:use|via|through|with|search(?:ing)?|query(?:ing)?|lookup|look\s+up|consult|access|check|switch\s+to|pivot\s+to)\b[^.!?]{0,100}\b(?:companies\s+house|sec\s+edgar|ares(?:\s+czechia)?|cvr(?:\s+denmark)?|bodacc(?:\s+france)?|kbo(?:\s+belgium)?|brreg|atoka(?:\s+italy)?|ytj(?:\s+finland)?|zefix(?:\s+switzerland)?|borme(?:\s+spain)?|gleif|faa)\b/i;
 const UNRESOLVED_SCOPE_PLACEHOLDER = /\b(?:chosen|selected|appropriate|unspecified|any)\s+(?:region|geography|location|jurisdiction|market|sector|industry)\b/i;
