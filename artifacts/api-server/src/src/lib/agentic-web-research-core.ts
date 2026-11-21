@@ -442,7 +442,7 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
         ? "blocked"
         : "open";
     if (status === "answered") continue;
-    const key = purpose.toLocaleLowerCase("en-US").replace(/\\s+/g, " ").slice(0, 500);
+    const key = purpose.toLocaleLowerCase("en-US").replace(/\s+/g, " ").slice(0, 500);
     unresolvedQuestionMap.set(key, {
       turn: record.turn, question: purpose.slice(0, 300), status, action: record.action,
     });
