@@ -68,10 +68,11 @@ export function normalizeAtlasControlAction(value: unknown): AtlasControlAction 
 /** Match a model-selected target by both identity and declared entity kind. */
 /**
  * Right-hand is invoked for consequential independent reviews, not routine
- * Investigator observations. The model's own semantic findings trigger review
- * when they propose promotion, surface contradiction/ambiguity, or make a
- * consequential identity decision. Ordinary page facts do not trigger another
- * model call. The first stop proposal and strategic pivots remain reviewable.
+ * Investigator observations. Review triggers include model-selected review-lead
+ * handoffs, promotion/contradiction/identity decisions, first stop proposals,
+ * strategic pivots, and low-yield continuation after several successful research
+ * actions without a useful handoff. It critiques evidence and strategy; it never
+ * browses or chooses the next Investigator route/action.
  */
 function isConsequentialInvestigatorFinding(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
