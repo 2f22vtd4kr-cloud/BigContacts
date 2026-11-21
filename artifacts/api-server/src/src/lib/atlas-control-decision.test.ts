@@ -997,7 +997,7 @@ describe("AI-led discovery trajectory oversight", () => {
   });
 
   it("counts only successful external research actions and reviews once per new low-yield threshold crossing", () => {
-    const externalActions = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"];
+    const externalActions = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
     for (const action of externalActions) {
       expect(shouldInvokeAtlasRightHandReview({
         admittedCandidates: [],
