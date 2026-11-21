@@ -2144,7 +2144,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discovery.iterations ?? discovery.trajectoryRecords?.length ?? 0,
         discoveryIterationCeiling,
       ),
-      openingResearchAdvisory,
     );
     captureTerminalAuditTrajectory(discovery.trajectoryRecords);
     if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
