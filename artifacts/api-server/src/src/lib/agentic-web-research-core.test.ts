@@ -45,6 +45,8 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
+    expect(agenticCoreSource).toContain("The replay hash must cover the exact sanitized observation");
+    expect(agenticCoreSource).toContain('pageObservationSha256: createHash("sha256").update(durableRecord.observation).digest("hex")');
     expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
     expect(apexInvestigatorSystemCore()).toContain("GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search");
     expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
