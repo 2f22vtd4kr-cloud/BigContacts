@@ -1371,12 +1371,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorLaneHealth: opts.investigatorLaneHealth,
     });
     await assertAtlasJobActive(atlasJobId);
+    let persistedRightHandReviewedThroughTurn = 0;
 
     if (opts.discoveryCaseId) {
       failureStage = "case_persistence";
       const [existingDiscoveryCase] = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
       let storedInvestigator: InvestigatorCapability | null = null;
-      let persistedRightHandReviewedThroughTurn = 0;
       try {
         const stored = existingDiscoveryCase?.caseFile ? JSON.parse(existingDiscoveryCase.caseFile) as Record<string, unknown> : {};
         storedInvestigator = typeof stored.investigatorLlm === "string" ? stored.investigatorLlm as InvestigatorCapability : null;
