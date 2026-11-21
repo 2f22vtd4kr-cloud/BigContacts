@@ -2760,7 +2760,9 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
 
 function compactInvestigatorPromptSectionBody(prompt: string, heading: string, maxBodyChars: number, marker: string): string {
   const sectionPrefix = "\n\n" + heading;
-  const sectionAt = prompt.indexOf(sectionPrefix);
+  const capabilityBoundary = prompt.lastIndexOf("\n\nCAPABILITIES:");
+  const searchFrom = capabilityBoundary >= 0 ? capabilityBoundary + 2 : 0;
+  const sectionAt = prompt.indexOf(sectionPrefix, searchFrom);
   const headingAt = sectionAt >= 0 ? sectionAt + 2 : prompt.startsWith(heading) ? 0 : -1;
   if (headingAt < 0) return prompt;
   const bodyStart = prompt.indexOf("\n", headingAt);
