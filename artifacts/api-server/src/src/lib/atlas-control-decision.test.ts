@@ -428,7 +428,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("unfetchedLeadUrls");
     expect(pinnedStateWithUnfetchedLead()).toContain("ACTUAL UNFETCHED SEARCH-RESULT CONTEXT");
     expect(pinnedStateWithUnfetchedLead()).toContain("CKX Lands appears in a transaction announcement");
-    expect(prompt).toContain("Search URLs/snippets remain leads, not evidence until fetched.");
+    expect(prompt).toContain("Snippets/URLs are leads, not evidence.");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
   });
 
@@ -578,7 +578,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasRightHandControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasBossControlPrompt(input)).toContain("SOURCE AUTONOMY");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
-    expect(buildAtlasRightHandControlPrompt(input)).toContain("not an instruction to fetch them");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("neither an instruction to fetch all");
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
@@ -1010,7 +1010,7 @@ describe("AI-led discovery trajectory oversight", () => {
   });
 
   it("does not let a positive unfetched count become an instruction to fetch everything", () => {
-    expect(atlasLeadUtilizationLaw()).toContain("not an instruction to fetch them");
+    expect(atlasLeadUtilizationLaw()).toContain("neither an instruction to fetch all");
     expect(atlasLeadUtilizationLaw()).toContain("reassess the hypothesis");
   });
 
