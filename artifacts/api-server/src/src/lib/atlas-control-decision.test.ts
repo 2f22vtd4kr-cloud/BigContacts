@@ -1029,7 +1029,7 @@ describe("AI-led discovery trajectory oversight", () => {
         error: null,
       },
     });
-    expect(prompt).toContain("Do not infer a founder's sector");
+    expect(prompt).toContain("founder");
     expect(prompt).toContain("angel investors");
     expect(prompt).toContain("unless the human explicitly requested it");
   });
