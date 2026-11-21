@@ -6446,6 +6446,18 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   if (emptyResultCount >= 2) {
     cues.push("Recent successful research actions returned explicit empty or low-yield results " + emptyResultCount + " times. Treat those results as evidence to reassess expected information gain, not as a reason to fabricate a candidate.");
   }
+  let successfulPageReadsWithoutFindings = 0;
+  for (const record of [...recent].reverse()) {
+    if ((record.findings?.length ?? 0) > 0) break;
+    if (
+      record.execution === "success"
+      && (record.action === "visit" || record.action === "browser_fetch")
+      && record.observedUrls.length > 0
+    ) successfulPageReadsWithoutFindings += 1;
+  }
+  if (successfulPageReadsWithoutFindings >= 2) {
+    cues.push("Recent successful page retrievals (" + successfulPageReadsWithoutFindings + ") produced no Investigator-authored findings in the recorded trajectory. A successful fetch proves access, not relevance or substantive progress. Reassess whether the page fields actually address the complete human objective, whether the current hypothesis remains useful, and whether another objective-fit source offers better expected information gain. Extract only what the captured text supports; do not infer wealth or ownership from company names or officer appointments. This is a reassessment cue, not a prescribed next action.");
+  }
   if (emptyTerminalCount > 0) {
     cues.push("A recent terminal attempt produced no findings or was rejected. Continue only if a concrete, source-backed research question remains; completion is still an Investigator decision.");
   }
