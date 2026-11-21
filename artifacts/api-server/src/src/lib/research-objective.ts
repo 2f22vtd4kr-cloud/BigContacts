@@ -108,13 +108,13 @@ export function formatBossDirectedObjective(baseObjective: string, direction: st
 
 export type AtlasDiscoveryDirectionAction = "continue_discovery" | "pivot_discovery";
 export type ResolvedAtlasDiscoveryObjective =
-  | { valid: true; objective: string; direction: string; reusedCurrentObjective: boolean }
+  | { valid: true; objective: string; direction: string; reusedCurrentObjective: boolean; advisory?: string }
   | { valid: false; reason: string };
 
 /**
- * A directionless continuation means "continue the accepted objective", not
- * "invent a generic redirect". A pivot, by contrast, must supply and pass
- * validation for a new direction before it can execute.
+ * A continue decision never narrows the human objective or an already accepted
+ * pivot. Its optional direction is a non-binding research hypothesis/advisory.
+ * Only an explicit pivot_discovery decision may activate a narrower scope.
  */
 export function resolveBossDirectedDiscoveryObjective(input: {
   action: AtlasDiscoveryDirectionAction;
@@ -124,16 +124,27 @@ export function resolveBossDirectedDiscoveryObjective(input: {
   requireExplicitDirection?: boolean;
 }): ResolvedAtlasDiscoveryObjective {
   const proposed = typeof input.direction === "string" ? input.direction.trim() : "";
-  if (input.action === "continue_discovery" && !proposed) {
-    if (input.requireExplicitDirection) {
-      return {
-        valid: false,
-        reason: "A directionless continuation cannot reuse the active scope after the preceding Investigator episode executed no external research action; provide a structured direction or stop.",
-      };
-    }
+  if (input.action === "continue_discovery") {
     const current = input.currentObjective.trim();
     if (!current) return { valid: false, reason: "Cannot continue discovery because no accepted active research objective exists." };
-    return { valid: true, objective: current, direction: current, reusedCurrentObjective: true };
+    if (!proposed) {
+      if (input.requireExplicitDirection) {
+        return {
+          valid: false,
+          reason: "A directionless continuation cannot reuse the active scope after the preceding Investigator episode executed no external research action; provide a structured direction or stop.",
+        };
+      }
+      return { valid: true, objective: current, direction: current, reusedCurrentObjective: true };
+    }
+    const validated = validateResearchObjective(proposed);
+    if (!validated.valid) return validated;
+    return {
+      valid: true,
+      objective: current,
+      direction: current,
+      reusedCurrentObjective: true,
+      advisory: validated.direction,
+    };
   }
   const validated = validateResearchObjective(proposed);
   if (!validated.valid) return validated;
