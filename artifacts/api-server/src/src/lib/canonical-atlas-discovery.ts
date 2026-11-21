@@ -7,7 +7,7 @@ import { reconcilePreflightInvestigatorAssignment } from "./canonical-investigat
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, resolveAtlasRightHandReviewWatermark, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, DISCOVERY_AI_OVERSIGHT_INTERVAL, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
@@ -1380,16 +1380,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       try {
         const stored = existingDiscoveryCase?.caseFile ? JSON.parse(existingDiscoveryCase.caseFile) as Record<string, unknown> : {};
         storedInvestigator = typeof stored.investigatorLlm === "string" ? stored.investigatorLlm as InvestigatorCapability : null;
-        const priorControlDecisions = Array.isArray(stored.atlasControlDecisions) ? stored.atlasControlDecisions : [];
-        for (const entry of priorControlDecisions) {
-          if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-          const rightHand = (entry as Record<string, unknown>).rightHand;
-          if (!rightHand || typeof rightHand !== "object" || Array.isArray(rightHand)) continue;
-          const reviewedThroughTurn = (rightHand as Record<string, unknown>).reviewedThroughTurn;
-          if (typeof reviewedThroughTurn === "number" && Number.isSafeInteger(reviewedThroughTurn)) {
-            persistedRightHandReviewedThroughTurn = Math.max(persistedRightHandReviewedThroughTurn, reviewedThroughTurn);
-          }
-        }
+        persistedRightHandReviewedThroughTurn = resolveAtlasRightHandReviewWatermark(stored.atlasControlDecisions);
       } catch {
         throw new Error("Canonical discovery case has unreadable durable Investigator selection.");
       }
