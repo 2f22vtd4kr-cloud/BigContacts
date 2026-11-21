@@ -209,6 +209,32 @@ describe("Apex research intelligence", () => {
     expect(state.stoppingAssessment.recommendation).toBe("continue");
   });
 
+  it("keeps failed and blocked retrieval questions unresolved in the oversight metric", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "blocked-retrieval-question",
+      target: "Example Operating Company",
+      objective: "verify current operating status and decision-maker identity",
+    });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "blocked",
+      args: {
+        url: "https://example.com/leadership",
+        purpose: "Verify the company's current decision-maker from a public source",
+        hypothesis: "A leadership page may identify the current decision-maker",
+      },
+      urls: [],
+      observation: "The requested retrieval was blocked before outbound access.",
+      findings: [],
+    });
+    const state = engine.buildContext();
+    expect(state.researchQuestions.some((question) => question.status === "blocked")).toBe(true);
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
+    expect(state.negativeFindings).toHaveLength(0);
+  });
+
   it("answers a research question only after a fetched source binds a useful finding", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "fetched-question-answered", target: "Example Operating Company", objective: "identify operating companies and decision-makers" });
     const sourceUrl = "https://example.com/about";
