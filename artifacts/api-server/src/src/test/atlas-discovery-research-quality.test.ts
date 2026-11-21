@@ -204,6 +204,23 @@ describe("AI-led discovery research quality context", () => {
     expect(prompt).toContain("Do not bypass them");
   });
 
+  it("keeps the explicit terminal review-card option separate from company admission", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify relevant operating companies and their current decision-makers.",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "The search result names Acme Holdings.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "done"],
+    });
+    expect(prompt).toContain("TERMINAL REVIEW-CARD HANDOFF");
+    expect(prompt).toContain("promotionDecision=promote");
+    expect(prompt).toContain("not company admission");
+    expect(prompt).toContain("search_result_lead remains unverified");
+  });
+
   it("does not add route-adaptation instructions when no fetch has failed or been blocked", () => {
     expect(buildDiscoveryRetrievalFeedback(records.slice(0, 1))).toBeNull();
   });
