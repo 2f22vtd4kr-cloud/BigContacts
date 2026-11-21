@@ -974,3 +974,63 @@ describe("Atlas opening Right-hand advisory normalization", () => {
   });
 });
 
+describe("AI-led discovery trajectory oversight", () => {
+  it("invokes independent Right-hand review after a low-yield continuation episode", () => {
+    const records = [
+      { action: "web_search", execution: "success", findings: [] },
+      { action: "web_search", execution: "success", findings: [] },
+      { action: "visit", execution: "success", findings: [] },
+    ];
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: records,
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: records.slice(0, 2),
+    })).toBe(false);
+  });
+
+  it("treats an Investigator-selected review-only lead as a consequential handoff", () => {
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: null,
+      trajectoryRecords: [{
+        action: "web_search",
+        execution: "success",
+        findings: [{ reviewOnly: true, scope: "candidate", personName: "Alex Example", value: "Alex Example" }],
+      }],
+    })).toBe(true);
+  });
+
+  it("does not let a positive unfetched count become an instruction to fetch everything", () => {
+    expect(atlasLeadUtilizationLaw()).toContain("not an instruction to fetch them");
+    expect(atlasLeadUtilizationLaw()).toContain("reassess the hypothesis");
+  });
+
+  it("keeps opening Boss direction broad and faithful to the human objective", () => {
+    const prompt = buildAtlasBossControlPrompt({
+      opening: true,
+      humanObjective: "Find objective-fit people, organizations, assets, relationships and public routes.",
+      investigatorReport: "No observations yet.",
+      compactState: "No candidates yet.",
+      rightHand: {
+        status: "deferred",
+        decision: null,
+        reason: "No evidence-bearing decision yet.",
+        direction: null,
+        confidence: null,
+        model: "not-invoked",
+        error: null,
+      },
+    });
+    expect(prompt).toContain("Do not infer a founder's sector");
+    expect(prompt).toContain("angel investors");
+    expect(prompt).toContain("unless the human explicitly requested it");
+  });
+});
