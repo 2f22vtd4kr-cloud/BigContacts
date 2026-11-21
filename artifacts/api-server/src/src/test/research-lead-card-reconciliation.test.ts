@@ -343,12 +343,12 @@ describe("canonical Atlas organization target selection", () => {
     expect(reconcilerSource).toContain("sourceUrlBoundByAdapter: true");
     expect(personMaterializer).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
 
-    // Review-only person cards are supplied to Boss as typed targets without
-    // displacing stronger, explicitly admitted person candidates.
+    // Provisional person leads stay in the trajectory/review context. They do
+    // not enter the admitted-target list until the strict person gate succeeds.
     expect(personMaterializer).toContain("candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>");
-    expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
+    expect(admission).not.toContain("partialPersonTargets");
     expect(admission).toContain('targetType: "person" as const');
-    expect(admission).toContain("const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets]");
+    expect(admission).toContain("const targetCandidates = [...personTargets, ...organizationTargets]");
     expect(canonicalAtlas).toContain("const validUrls = candidate.sourceUrls");
     expect(canonicalAtlas).toContain(".filter((url): url is string => url !== null)");
     expect(canonicalAtlas).toContain("isRestrictedCommunitySourceUrl(url)");
@@ -416,9 +416,9 @@ describe("review-only lead persistence boundary", () => {
       canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
     );
 
-    const personGuard = person.indexOf("finding.reviewOnly === true");
+    const personGuard = person.indexOf("Keep person leads in findings[]/trajectory for Boss and Right-hand review.");
     const personWrite = person.indexOf("const persisted = await db.transaction");
-    const organizationGuard = organization.indexOf("finding.reviewOnly === true");
+    const organizationGuard = organization.indexOf("finding.reviewOnly !== true");
     const organizationWrite = organization.indexOf("const persisted = await db.transaction");
 
     expect(personGuard).toBeGreaterThanOrEqual(0);
@@ -433,7 +433,8 @@ describe("review-only lead persistence boundary", () => {
     // Explicit review-only state cannot be promoted through the strict person
     // admission path; the unpersisted lead remains available to the control loop.
     expect(admission).toContain('finding.reviewOnly !== true');
-    expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
+    expect(admission).not.toContain("partialPersonTargets");
+    expect(admission).toContain("const targetCandidates = [...personTargets, ...organizationTargets]");
     expect(admission).toContain("const organizationTargets = partialOrganizations.candidates");
     expect(canonicalAtlas).toContain("reviewOnly: finding.reviewOnly");
   });
