@@ -555,10 +555,10 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).toContain("Do not infer searchable fields or ownership from an adapter ID");
     expect(law).toContain("when geography is open, the Investigator may propose an evidence-led jurisdiction to Boss");
     expect(law).toContain("Use jurisdiction-specific sources when the objective or same-case observations support relevance");
-    expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
-    expect(atlasLeadUtilizationLaw()).toContain("Do not label an unvisited result generic");
-    expect(atlasLeadUtilizationLaw()).toContain("relevance is unknown, not disproven");
-    expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
+    expect(atlasLeadUtilizationLaw()).toContain("Missing descriptions mean unknown, not irrelevant");
+    expect(atlasLeadUtilizationLaw()).toContain("URL/domain alone cannot establish irrelevance");
+    expect(atlasLeadUtilizationLaw()).toContain("Missing descriptions mean unknown, not irrelevant");
+    expect(atlasLeadUtilizationLaw()).toContain("No target count or route is mandated");
 
     const input = {
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
@@ -590,7 +590,7 @@ describe("Atlas control-plane lead continuity", () => {
       compactState: "One official registry result identifies a potentially relevant company.",
       pinnedControlState: "One source-attributed organization review target is available.",
     });
-    expect(prompt).toContain("There is no target-count threshold");
+    expect(prompt).toContain("No target count or route is mandated");
     expect(prompt).toContain("Investigator chooses the action");
     expect(prompt).not.toContain("Do not delay for broad discovery, a larger pool or geography comparison.");
     expect(prompt).not.toContain("recommend investigating it now");
