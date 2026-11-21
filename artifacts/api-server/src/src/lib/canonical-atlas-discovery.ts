@@ -230,7 +230,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
 
 async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
   const candidates = uniqueNames(input.findings
-    .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
+    .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate" && finding.reviewOnly !== true)
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length > 0)
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
@@ -638,6 +638,18 @@ async function materializePartialPersonLeadCards(input: {
     }
     if (!supports.size) continue;
 
+    // Review-only leads remain in the same-run control/review context and may
+    // be considered for target-scoped verification, but never create a card,
+    // entity, session, or evidence row before the explicit evidence gate.
+    const leadFindings = input.findings.filter((finding) =>
+      finding.scope === "candidate"
+      && normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(lead.name)
+      && (finding.role?.trim() ? normalizeCandidateIdentityName(finding.role) : "") === (lead.role ? normalizeCandidateIdentityName(lead.role) : ""));
+    if (leadFindings.length > 0 && leadFindings.every((finding) => finding.reviewOnly === true)) {
+      candidates.push({ name: lead.name, role: null, sourceUrls: [...supports.keys()] });
+      continue;
+    }
+
     const persisted = await db.transaction(async (tx) => {
       const [ownedCase] = await tx.select({
         status: researchCasesTable.status,
@@ -1033,6 +1045,23 @@ async function materializePartialOrganizationLeadCards(input: {
       }
     }
     if (!supports.size) continue;
+
+    // Keep review-only organization leads ephemeral. Boss/Right-hand can see
+    // the observed lead, and an explicitly selected lead may be researched,
+    // but the review-only state cannot create a Corporation card or evidence.
+    const leadFindings = input.findings.filter((finding) =>
+      finding.scope === "organization"
+      && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
+    if (leadFindings.length > 0 && leadFindings.every((finding) => finding.reviewOnly === true)) {
+      const explicitlyPromotedByInvestigator = leadFindings.some((finding) => finding.promotionDecision === "promote");
+      candidates.push({
+        name,
+        sourceUrls: [...supports.keys()],
+        targetEligibleForResearch: explicitlyPromotedByInvestigator && [...supports.values()].some((support) =>
+          !support.restrictedCommunitySource && (support.spanVerified || support.sourceUrlBoundByAdapter === true)),
+      });
+      continue;
+    }
 
     const persisted = await db.transaction(async (tx) => {
       const [ownedCase] = await tx.select({
