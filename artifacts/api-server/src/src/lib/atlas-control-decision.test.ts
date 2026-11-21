@@ -996,6 +996,45 @@ describe("AI-led discovery trajectory oversight", () => {
     })).toBe(false);
   });
 
+  it("counts only successful external research actions and reviews once per new low-yield threshold crossing", () => {
+    const externalActions = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"];
+    for (const action of externalActions) {
+      expect(shouldInvokeAtlasRightHandReview({
+        admittedCandidates: [],
+        discoveryFindings: [],
+        priorAction: "continue_discovery",
+        trajectoryRecords: [action, action, action].map((name) => ({ action: name, execution: "success", findings: [] })),
+      })).toBe(true);
+    }
+
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: [
+        { action: "web_search", execution: "error", findings: [] },
+        { action: "visit", execution: "blocked", findings: [] },
+        { action: "registry_search", execution: "timeout", findings: [] },
+        { action: "model_decision", execution: "success", findings: [] },
+        { action: "internal_compaction", execution: "success", findings: [] },
+      ],
+    })).toBe(false);
+
+    // A fourth successful research action is part of the same already-reviewed
+    // low-yield window; it must not invoke Right-hand again on every Boss turn.
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: [
+        { action: "web_search", execution: "success", findings: [] },
+        { action: "registry_search", execution: "success", findings: [] },
+        { action: "visit", execution: "success", findings: [] },
+        { action: "domain_lookup", execution: "success", findings: [] },
+      ],
+    })).toBe(false);
+  });
+
   it("treats an Investigator-selected review-only lead as a consequential handoff", () => {
     expect(shouldInvokeAtlasRightHandReview({
       admittedCandidates: [],
