@@ -1220,9 +1220,9 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
 describe("canonical early terminal reconciliation", () => {
   it("persists a post-release audit snapshot on every early terminal return", () => {
     expect(canonicalDiscoverySource).toContain("const persistEarlyTerminalAuditSnapshot = async");
-    const earlyTerminalReturns = [...canonicalDiscoverySource.matchAll(/await persistEarlyTerminalAuditSnapshot\\(\\);\\s*return \\{ phase:/g)];
+    const earlyTerminalReturns = [...canonicalDiscoverySource.matchAll(/await persistEarlyTerminalAuditSnapshot\(\);\s*return \{ phase:/g)];
     expect(earlyTerminalReturns.length).toBeGreaterThanOrEqual(7);
-    expect(canonicalDiscoverySource).not.toMatch(/await clearActiveJobIfOwned\\(lockKey, atlasJobId\\);\\s*return \\{ phase:/);
+    expect(canonicalDiscoverySource).not.toMatch(/await clearActiveJobIfOwned\(lockKey, atlasJobId\);\s*return \{ phase:/);
     expect(canonicalDiscoverySource).toContain("activeJobLockReleased,");
     expect(canonicalDiscoverySource).toContain("admittedTargetCount,");
     expect(canonicalDiscoverySource).toContain("materializedCardCount: materialized,");
