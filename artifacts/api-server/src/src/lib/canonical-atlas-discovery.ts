@@ -29,7 +29,7 @@ import { isInvestigatorAuthoredResearchEvent, lockResearchCaseEventAppendStream,
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, hasRecoverableInvestigatorDecisionFailure, hasUnexpectedInvestigatorRuntimeFailure, shouldRequireExplicitBossContinueDirection, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { formatBossDirectedObjective, resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
+import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
@@ -134,7 +134,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   caseId: number;
   jobId: string;
   controlTurn: number;
-  action: "continue_discovery" | "pivot_discovery";
+  action: "pivot_discovery";
   direction: string;
   baseObjective: string;
   previousObjective: string;
@@ -1732,7 +1732,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, partialFindings: [...(failed.partialFindings ?? []), ...(recovered.partialFindings ?? [])], searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0, aiCompactedHistoricalContext: recovered.aiCompactedHistoricalContext ?? failed.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: Math.max(recovered.aiCompactedHistoricalThroughTurn ?? 0, failed.aiCompactedHistoricalThroughTurn ?? 0) });
-    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
+    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations, initialResearchAdvisory?: string): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
       const isZeroResearchParseFailure = (candidate: typeof result): boolean =>
@@ -1773,7 +1773,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             );
         if (!replacement) break;
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, initialResearchAdvisory: discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]) ?? undefined, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, initialResearchAdvisory: [initialResearchAdvisory, discoverySearchLivenessAdvisory([...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])])].filter(Boolean).join("\n\n") || undefined, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], aiCompactedHistoricalContext: result.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: result.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
         zeroResearchParseFailure = isZeroResearchParseFailure(recovered);
@@ -2007,29 +2007,16 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
-    const openingDirectedObjective = formatBossDirectedObjective(discoveryObjective, openingDirectionResolution.direction);
-    await persistAcceptedAtlasDiscoveryObjective({
-      caseId: discoveryCaseId,
-      jobId: atlasJobId,
-      controlTurn: 1,
-      action: "continue_discovery",
-      direction: openingDirectionResolution.direction,
-      baseObjective: discoveryObjective,
-      previousObjective: activeDiscoveryObjective,
-      activeObjective: openingDirectedObjective,
-    });
-    activeDiscoveryObjective = openingDirectedObjective;
-
-    const openingInvestigatorObjective = [
-      activeDiscoveryObjective,
-      "BOSS-APPROVED OPENING RESEARCH QUESTION: " + openingDirectionResolution.direction,
-      "BOSS FINAL OPENING DECISION: autonomous discovery is authorized under the exact human objective; no candidate, target, query, source mix, or fixed source sequence was selected.",
-      "BOSS SOURCE-MIX RATIONALE (advisory only, not evidence or additional scope): " + openingBossDecision.reason,
-      "RIGHT-HAND STATUS (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until evidence-backed consequential decisions exist." : rightHand.reason ?? "No opening review was performed.") + ". The Investigator owns source selection.",
-      "OPENING RESEARCH CHOICE: independently select the capability, source, query, target and next action that best test the human objective. A registry, public-web source, both, or another available capability may be appropriate; no source family is mandatory and no source itinerary is prescribed.",
-      "No source observations or admitted candidates exist yet. Choose a useful person, company, asset, event, registry record, or other target appropriate to the mission; one source-backed observation is enough to inform the next decision.",
-      "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, registry subset, provider, source, tool, visit, pivot, and stopping point yourself.",
-      "Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes. Model hypotheses, confidence, Boss rationale, and Right-hand advice are not source evidence.",
+    // The opening Boss direction is a research hypothesis, not a newly accepted
+    // scope. Keep the exact human objective mounted as the Investigator's authority;
+    // pass the hypothesis through the advisory channel so it can inform (but never
+    // constrain) the Investigator's autonomous route selection.
+    const openingInvestigatorObjective = discoveryObjective;
+    const openingResearchAdvisory = [
+      "BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement): " + openingDirectionResolution.direction,
+      "Use this hypothesis only if it helps test the complete human objective. You may pursue any other objective-fit people, organizations, assets, relationships, public sources, or jurisdictions without asking Boss to approve a change in hypothesis.",
+      "Boss rationale (advisory only, not evidence): " + openingBossDecision.reason,
+      "Right-hand status (advisory only): " + (rightHand.status === "deferred" ? "Independent review is deferred until evidence-backed consequential decisions exist." : rightHand.reason ?? "No opening review was performed."),
     ].join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
@@ -2078,7 +2065,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingInvestigatorIterations = resolveOpeningInvestigatorIterations(depth, discoveryIterationCeiling);
     let latestDiscoveryEpisodeLimit = openingInvestigatorIterations;
     failureStage = "investigator_episode";
-    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, initialResearchAdvisory: openingResearchAdvisory, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
     captureTerminalAuditTrajectory(discovery.trajectoryRecords);
     discovery = await runDiscoveryWithQuotaRecovery(
       discovery,
@@ -2091,6 +2078,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discovery.iterations ?? discovery.trajectoryRecords?.length ?? 0,
         discoveryIterationCeiling,
       ),
+      openingResearchAdvisory,
     );
     captureTerminalAuditTrajectory(discovery.trajectoryRecords);
     if (discovery.status === "budget_exhausted" || discovery.stopReason === "DAILY_TOKEN_BUDGET_EXHAUSTED") throw new Error("investigator_daily_token_budget_exhausted");
@@ -2144,7 +2132,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           maxIterations: parseFailureRetryIterations,
           hardTimeoutMs: Math.min(openingDiscoveryBudget, assertAtlasDeadline() - 5_000),
           priorTrajectoryRecords: discovery.trajectoryRecords ?? [],
-          initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined,
+          initialResearchAdvisory: [openingResearchAdvisory, discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? [])].filter(Boolean).join("\n\n") || undefined,
           aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext,
           aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn,
           initialConsecutiveActionParseFailures: 0,
@@ -2162,6 +2150,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             retryEpisode.iterations ?? retryEpisode.trajectoryRecords?.length ?? 0,
             remainingAfterParseFailure,
           ),
+          openingResearchAdvisory,
         );
         discovery = mergeDiscoveryResults(discovery, recoveredRetryEpisode);
         captureTerminalAuditTrajectory(discovery.trajectoryRecords);
@@ -2710,6 +2699,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         repeatedRejectedPivotCount = 0;
         failureStage = "orchestration";
         const directedObjective = resolvedObjective.objective;
+        const continuationAdvisory = resolvedObjective.advisory ?? undefined;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed });
         if (remainingInvestigatorIterations <= 0) {
@@ -2724,22 +2714,27 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         failureStage = "control_event_persistence";
-        await persistAcceptedAtlasDiscoveryObjective({
-          caseId: discoveryCaseId,
-          jobId: atlasJobId,
-          controlTurn: controlTurns,
-          action: decision.action,
-          direction: resolvedObjective.direction,
-          baseObjective: discoveryObjective,
-          previousObjective: activeDiscoveryObjective,
-          activeObjective: directedObjective,
-        });
+        if (!resolvedObjective.reusedCurrentObjective) {
+          // Only an explicit, validated pivot changes the accepted research scope.
+          // continue_discovery directions are recorded in the Boss control event
+          // and passed as optional advisory context, never as a scope mutation.
+          await persistAcceptedAtlasDiscoveryObjective({
+            caseId: discoveryCaseId,
+            jobId: atlasJobId,
+            controlTurn: controlTurns,
+            action: "pivot_discovery",
+            direction: resolvedObjective.direction,
+            baseObjective: discoveryObjective,
+            previousObjective: activeDiscoveryObjective,
+            activeObjective: directedObjective,
+          });
+        }
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
         const nextEpisodeLimit = Math.min(resolveDiscoveryIterationsPerAct(depth, remainingInvestigatorIterations), remainingInvestigatorIterations);
         latestDiscoveryEpisodeLimit = nextEpisodeLimit;
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, initialResearchAdvisory: discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? []) ?? undefined, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, initialResearchAdvisory: [continuationAdvisory, discoverySearchLivenessAdvisory(discovery.trajectoryRecords ?? [])].filter(Boolean).join("\n\n") || undefined, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextEpisodeLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], aiCompactedHistoricalContext: discovery.aiCompactedHistoricalContext, aiCompactedHistoricalThroughTurn: discovery.aiCompactedHistoricalThroughTurn, initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, shouldCancel: shouldCancelAtlasInvestigator, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,
