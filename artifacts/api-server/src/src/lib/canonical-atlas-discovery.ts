@@ -2074,7 +2074,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // scope. Keep the exact human objective mounted as the Investigator's authority;
     // pass the hypothesis through the advisory channel so it can inform (but never
     // constrain) the Investigator's autonomous route selection.
-    const openingInvestigatorObjective = discoveryObjective;
+    // Fresh runs use the complete human objective; resumed runs retain the last
+    // validated Boss pivot restored from durable case state. The new opening Boss
+    // hypothesis remains advisory and cannot replace either accepted objective.
+    const openingInvestigatorObjective = activeDiscoveryObjective;
     const openingResearchAdvisory = [
       "BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement): " + openingDirectionResolution.direction,
       "Use this hypothesis only if it helps test the complete human objective. You may pursue any other objective-fit people, organizations, assets, relationships, public sources, or jurisdictions without asking Boss to approve a change in hypothesis.",
