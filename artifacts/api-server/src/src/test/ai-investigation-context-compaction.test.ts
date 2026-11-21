@@ -414,9 +414,9 @@ describe("AI investigation context compaction", () => {
     const source = "CASE MEMORY START " + "x".repeat(12_500);
     const falseClaim = "Apple leadership/investor pages were fetched and verified.";
     const firstSummary = falseClaim + " " + "x".repeat(1_393 - falseClaim.length - 1);
-    const correctedSummary = "Search-only leads mention Apple leadership, but no page was fetched; these remain unverified leads.";
-    const secondChunkSummary = "The remaining search results are unverified leads; no page was fetched.";
-    const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded.";
+    const correctedSummary = "Search-only leads mention Apple leadership, but no page was fetched in this segment; these remain unverified leads.";
+    const secondChunkSummary = "The remaining search results are unverified leads; no page was fetched in this segment.";
+    const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded in the supplied segments.";
     expect(firstSummary.length).toBe(1_393);
 
     rightHandMocks.runGroqRightHandFreeJson
@@ -559,7 +559,7 @@ describe("AI investigation context compaction", () => {
       "BACKGROUND: " + "The source-stage distinction must remain strict. ".repeat(25),
     ].join("\n");
     const unsupported = "Does a fetched visit confirm the role? The fetched professional profile identifies the current director.";
-    const corrected = "The possible professional profile remains an unverified search lead; no page was fetched.";
+    const corrected = "The possible professional profile remains an unverified search lead; no page was fetched in this segment.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
@@ -898,7 +898,7 @@ describe("AI investigation context compaction", () => {
       "LEAD_URLS: " + sourceUrl,
       "SEARCH RESULTS: " + "A search-result snippet contains a named entity and a possible role; this remains a lead until fetched. ".repeat(18),
     ].join("\n");
-    const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched. URL: " + sourceUrl;
+    const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched in this segment. URL: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
