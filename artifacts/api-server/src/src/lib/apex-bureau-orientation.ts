@@ -93,7 +93,7 @@ Do not mistake organizations or topics for people; preserve exact names and sour
 Fail-closed: only report contacts visible in observations or FINDINGS SO FAR, each with a real sourceUrl. SERP phones/emails are leads until verified on a primary/public source. Prefer primary sources over people-search aggregators. Organization switchboards stay organization scope — never invent personal mobiles.
 Groq Boss and Groq right-hand are not the dig provider lane. If the investigator provider pool is unavailable, fail closed rather than silently changing roles.`,
   };
-  return [APEX_WHAT_IS_ATLAS, "", roles[role], "", APEX_OSINT_TOOL_SURFACE].join("\n");
+  return [APEX_WHAT_IS_ATLAS, "", APEX_DISCOVERY_REVIEW_LEAD_GUIDANCE, "", roles[role], "", APEX_OSINT_TOOL_SURFACE].join("\n");
 }
 
 export function apexInvestigatorSystemCore(): string {
