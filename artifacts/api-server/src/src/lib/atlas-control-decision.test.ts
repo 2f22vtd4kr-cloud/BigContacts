@@ -1003,7 +1003,7 @@ describe("AI-led discovery trajectory oversight", () => {
         admittedCandidates: [],
         discoveryFindings: [],
         priorAction: "continue_discovery",
-        trajectoryRecords: [action, action, action].map((name) => ({ action: name, execution: "success", findings: [] })),
+        trajectoryRecords: [action, action, action].map((name, index) => ({ action: name, turn: index + 1, execution: "success", findings: [] })),
       })).toBe(true);
     }
 
@@ -1012,27 +1012,56 @@ describe("AI-led discovery trajectory oversight", () => {
       discoveryFindings: [],
       priorAction: "continue_discovery",
       trajectoryRecords: [
-        { action: "web_search", execution: "error", findings: [] },
-        { action: "visit", execution: "blocked", findings: [] },
-        { action: "registry_search", execution: "timeout", findings: [] },
-        { action: "model_decision", execution: "success", findings: [] },
-        { action: "internal_compaction", execution: "success", findings: [] },
+        { action: "web_search", turn: 1, execution: "error", findings: [] },
+        { action: "visit", turn: 2, execution: "blocked", findings: [] },
+        { action: "registry_search", turn: 3, execution: "timeout", findings: [] },
+        { action: "model_decision", turn: 4, execution: "success", findings: [] },
+        { action: "internal_compaction", turn: 5, execution: "success", findings: [] },
       ],
     })).toBe(false);
 
-    // A fourth successful research action is part of the same already-reviewed
-    // low-yield window; it must not invoke Right-hand again on every Boss turn.
+    // Only one action has occurred since the persisted Right-hand review watermark.
     expect(shouldInvokeAtlasRightHandReview({
       admittedCandidates: [],
       discoveryFindings: [],
       priorAction: "continue_discovery",
+      rightHandReviewedThroughTurn: 3,
       trajectoryRecords: [
-        { action: "web_search", execution: "success", findings: [] },
-        { action: "registry_search", execution: "success", findings: [] },
-        { action: "visit", execution: "success", findings: [] },
-        { action: "domain_lookup", execution: "success", findings: [] },
+        { action: "web_search", turn: 1, execution: "success", findings: [] },
+        { action: "registry_search", turn: 2, execution: "success", findings: [] },
+        { action: "visit", turn: 3, execution: "success", findings: [] },
+        { action: "domain_lookup", turn: 4, execution: "success", findings: [] },
       ],
     })).toBe(false);
+  });
+
+  it("triggers after three new successful actions even when the resumed trajectory is long", () => {
+    const prior = Array.from({ length: 10 }, (_, index) => ({
+      action: "web_search", turn: index + 1, execution: "success", findings: [],
+    }));
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: prior,
+      rightHandReviewedThroughTurn: 0,
+    })).toBe(true);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: prior,
+      rightHandReviewedThroughTurn: 10,
+    })).toBe(false);
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [],
+      priorAction: "continue_discovery",
+      trajectoryRecords: [...prior, ...[11, 12, 13].map((turn) => ({
+        action: "registry_search", turn, execution: "success", findings: [],
+      }))],
+      rightHandReviewedThroughTurn: 10,
+    })).toBe(true);
   });
 
   it("treats an Investigator-selected review-only lead as a consequential handoff", () => {
