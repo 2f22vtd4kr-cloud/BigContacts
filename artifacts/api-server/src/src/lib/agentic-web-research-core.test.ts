@@ -5827,7 +5827,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("BOSS DIRECTION: advisory hypothesis, not scope or route; only a validated pivot changes scope.");
     expect(apexOrientationFor("boss")).toContain("privilege investors");
     expect(apexOrientationFor("right_hand")).toContain("privilege investors");
-    expect(apexOrientationFor("investigator")).toContain("Asset leads remain exact source-backed observations");
+    expect(apexOrientationFor("investigator")).toContain("Assets remain source-backed observations, not person/organization cards.");
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
     expect(prompt).toContain("search-only is review-only");
