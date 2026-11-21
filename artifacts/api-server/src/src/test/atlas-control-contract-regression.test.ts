@@ -1115,6 +1115,7 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
     expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
     expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalDiscoverySource).toContain("BOSS CONTINUATION HYPOTHESIS (non-binding; not an accepted scope or source requirement):");
     expect(controlSource).toContain("Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes");
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
