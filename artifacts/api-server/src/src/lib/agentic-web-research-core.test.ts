@@ -5827,6 +5827,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("BOSS HYPOTHESIS: advisory only");
     expect(apexOrientationFor("boss")).toContain("privilege investors");
     expect(apexOrientationFor("right_hand")).toContain("privilege investors");
+    expect(apexOrientationFor("investigator")).toContain("Asset leads remain exact source-backed observations");
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
     expect(prompt).toContain("search-only is review-only");
