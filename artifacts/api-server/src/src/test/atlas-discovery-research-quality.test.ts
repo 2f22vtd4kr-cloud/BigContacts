@@ -167,6 +167,12 @@ describe("AI-led discovery research quality context", () => {
       promotionReason,
     });
     expect(parsed.findings[0]?.reviewOnly).not.toBe(true);
+    expect(parsed.partialFindings[0]).toMatchObject({
+      value: "Acme Holdings",
+      scope: "organization",
+      reviewOnly: true,
+    });
+    expect(parsed.partialFindings[0]?.promotionDecision).toBeUndefined();
 
     const withoutReason = parseAgentAction(JSON.stringify({
       action: "done",
