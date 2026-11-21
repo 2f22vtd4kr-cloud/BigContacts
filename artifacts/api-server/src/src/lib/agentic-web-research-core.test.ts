@@ -5824,7 +5824,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
 
   it("keeps the Investigator autonomous and requires structured provisional lead handoff", () => {
     const prompt = apexInvestigatorSystemCore();
-    expect(prompt).toContain("BOSS HYPOTHESIS: advisory only");
+    expect(prompt).toContain("BOSS DIRECTION: advisory hypothesis, not scope or route; only a validated pivot changes scope.");
     expect(apexOrientationFor("boss")).toContain("privilege investors");
     expect(apexOrientationFor("right_hand")).toContain("privilege investors");
     expect(apexOrientationFor("investigator")).toContain("Asset leads remain exact source-backed observations");
