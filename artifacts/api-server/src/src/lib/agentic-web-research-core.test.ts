@@ -3173,7 +3173,8 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source class is provenance, not admission policy. The model selects the
     // role and exact quote; code verifies same-run fetched/registry provenance.
     expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const');
-    expect(canonicalAtlasDiscoverySource).toContain('if (finding.scope !== "candidate" || finding.promotionDecision === "reject"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("async function materializePartialPersonLeadCards");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
     expect(canonicalAtlasDiscoverySource).not.toContain("if (!isClaimGradeDiscoverySourceUrl(sourceUrl))");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
@@ -5041,15 +5042,16 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
   });
 
-  it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
-    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
-    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+  it("keeps review-only leads in the trajectory and gates every durable card on fetched evidence", () => {
+    expect(canonicalAtlasDiscoverySource).not.toContain("async function materializePartialPersonLeadCards");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
+    expect(canonicalAtlasDiscoverySource).toContain("candidateRoleCorroborationSources");
+    expect(canonicalAtlasDiscoverySource).toContain("hasFetchedClaimGradeSupport");
     expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;');
-    expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
-    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
-    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
-    expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
+    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(researchLeadCardReconciliationSource).toContain('finding.reviewOnly === true');
+    expect(researchLeadCardReconciliationSource).toContain('finding.promotionDecision !== "promote"');
+    expect(researchLeadCardReconciliationSource).toContain("observation.runId !== lead.runId");
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
   });
 
@@ -5058,7 +5060,8 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlasDiscoverySource).toContain('payload.runId !== input.discoveryRunId');
     expect(canonicalAtlasDiscoverySource).toContain('targetEligibleForResearch');
-    expect(canonicalAtlasDiscoverySource).toContain('const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source" && !support.restrictedCommunitySource)');
+    expect(canonicalAtlasDiscoverySource).toContain("hasFetchedClaimGradeSupport");
+    expect(canonicalAtlasDiscoverySource).toContain('finding.reviewOnly !== true');
     expect(canonicalAtlasDiscoverySource).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
   });
 });
