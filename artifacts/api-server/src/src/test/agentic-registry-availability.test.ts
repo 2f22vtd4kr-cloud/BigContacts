@@ -57,8 +57,13 @@ describe("model-facing registry inventory", () => {
     expect(prompt).not.toContain("AVAILABLE STRUCTURED REGISTRY INVENTORY");
     const coreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
     expect(coreSource).toContain("const availableRegistryIds = getAvailableRegistryIdsForPrompt();");
-    expect(coreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
-    expect(coreSource).toContain("Never invent IDs. Treat records as leads until interpreted");
+    expect(coreSource).toContain("const registryIdList = availableRegistryIds.join");
+    expect(coreSource).toContain('appendBeforeSchema("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList');
+    expect(coreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
+    const systemCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/apex-bureau-orientation.ts"), "utf8");
+    expect(systemCoreSource).toContain("GLEIF is legal-entity LEI/parent data");
+    expect(systemCoreSource).toContain("UK Companies House is UK-only, not Ireland");
+    expect(systemCoreSource).toContain("lexical company-name matches are leads, not proof");
     const inventory = renderRegistryCoverageGuidance(["sec-edgar", "faa"]);
     expect(inventory).toContain("faa — FAA Aircraft Registry (US)");
     expect(inventory).toContain("sec-edgar — SEC EDGAR (US)");

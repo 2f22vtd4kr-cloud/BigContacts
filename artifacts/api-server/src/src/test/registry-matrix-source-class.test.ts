@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { REGISTRY_COVERAGE_MATRIX, resolveRegistryRuntimeMode, resolveRegistryRuntimeNote } from "../lib/registry-matrix";
+import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance, resolveRegistryRuntimeMode, resolveRegistryRuntimeNote } from "../lib/registry-matrix";
 
 describe("registry source class catalogue", () => {
+  it("renders actual adapter coverage and prevents entity-identity data being mistaken for personal wealth evidence", () => {
+    const guidance = renderRegistryCoverageGuidance(["gleif", "companies-house", "ares-czechia"]);
+    expect(guidance).toContain("gleif — GLEIF LEI Register");
+    expect(guidance).toContain("entity=LEI");
+    expect(guidance).toContain("people/roles=Limited parent/relationship data");
+    expect(guidance).toContain("ownership limits=Parent relationships where reported");
+    expect(guidance).toContain("companies-house — Companies House");
+    expect(guidance).toContain("ownership limits=PSC records where filed");
+    expect(guidance).toContain("ownership limits=No beneficial-owner inference from base search");
+  });
+
   it("classifies every runtime adapter without conflating commercial providers and official registries", () => {
     const implemented = REGISTRY_COVERAGE_MATRIX.filter((item) => item.runtimeAdapterImplemented);
     expect(implemented.length).toBeGreaterThan(0);

@@ -14,6 +14,7 @@ const canonicalContinuationSource = readFileSync(resolve(process.cwd(), "src/src
 const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
+const investigatorSystemCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/apex-bureau-orientation.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 const targetActOversightSource = readFileSync(resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
 
@@ -103,12 +104,23 @@ describe("objective-aligned Right-hand control guidance", () => {
 });
 
 describe("canonical opening discovery contract", () => {
+  it("retains a previously accepted pivot on resume while keeping the new Boss hypothesis advisory", () => {
+    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = restored.activeObjective;");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+  });
   it("keeps the opening control call source-neutral and exposes runtime-callable capabilities to the Investigator", () => {
     expect(canonicalDiscoverySource).not.toContain('failureStage = "right_hand_opening_review"');
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction(");
-    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = [");
-    expect(agenticCoreSource).toContain("CALLABLE REGISTRY IDS: ${registryIdList}");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
+    expect(investigatorSystemCoreSource).toContain("GLEIF is legal-entity LEI/parent data");
+    expect(investigatorSystemCoreSource).toContain("UK Companies House is UK-only, not Ireland");
+    expect(investigatorSystemCoreSource).toContain("lexical company-name matches are leads, not proof");
     expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
@@ -227,6 +239,20 @@ describe("Atlas control-plane contract regression", () => {
       objective: pivot.objective,
       direction: pivot.objective,
       reusedCurrentObjective: true,
+    });
+
+    const continuedWithHypothesis = resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective: pivot.objective,
+      direction: "Explore public transaction reporting and asset disclosures as an additional route to the same human objective.",
+    });
+    expect(continuedWithHypothesis).toEqual({
+      valid: true,
+      objective: pivot.objective,
+      direction: pivot.objective,
+      reusedCurrentObjective: true,
+      advisory: "Explore public transaction reporting and asset disclosures as an additional route to the same human objective.",
     });
 
     const invalidPivot = resolveBossDirectedDiscoveryObjective({
@@ -1041,7 +1067,7 @@ describe("Boss-adjudicated opening direction", () => {
     const bossCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
     const invalidBossGuard = canonicalDiscoverySource.indexOf('if (openingBossDecision.status !== "completed")', bossCall);
     const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({", bossCall);
-    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [", openingResolution);
+    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = activeDiscoveryObjective;", openingResolution);
     expect(bossCall).toBeGreaterThan(-1);
     expect(invalidBossGuard).toBeGreaterThan(bossCall);
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
@@ -1053,8 +1079,11 @@ describe("Boss-adjudicated opening direction", () => {
   });
 
   it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalDiscoverySource).not.toContain("BOSS-APPROVED OPENING RESEARCH QUESTION:");
+    expect(controlSource).toContain("Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes");
     expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
     expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
@@ -1093,8 +1122,11 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
   });
 
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
-    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalDiscoverySource).toContain("BOSS CONTINUATION HYPOTHESIS (non-binding; not an accepted scope or source requirement):");
+    expect(controlSource).toContain("Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes");
     expect(canonicalDiscoverySource).not.toContain("RIGHT-HAND SOURCE-MIX ADVICE (advisory only, not scope or evidence):");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
@@ -1188,5 +1220,21 @@ describe("Atlas supervisor pinned state survives discovery-history compaction", 
     expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({");
     expect(canonicalDiscoverySource).toContain("activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
     expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");
+  });
+});
+
+
+describe("canonical early terminal reconciliation", () => {
+  it("persists a post-release audit snapshot on every early terminal return", () => {
+    expect(canonicalDiscoverySource).toContain("const persistEarlyTerminalAuditSnapshot = async");
+    const earlyTerminalReturns = [...canonicalDiscoverySource.matchAll(/await persistEarlyTerminalAuditSnapshot(?:\([^;]*\))?;\s*return \{ phase:/g)];
+    expect(earlyTerminalReturns.length).toBeGreaterThanOrEqual(7);
+    expect(canonicalDiscoverySource).not.toMatch(/await clearActiveJobIfOwned\(lockKey, atlasJobId\);\s*return \{ phase:/);
+    expect(canonicalDiscoverySource).toContain("activeJobLockReleased,");
+    expect(canonicalDiscoverySource).toContain("terminalAuditLockReleased = activeJobLockReleased;");
+    expect(canonicalDiscoverySource).toContain("terminalAuditLockReleased = terminalAuditLockReleased === true || failureLockReleaseSucceeded;");
+    expect(canonicalDiscoverySource).toContain("admittedTargetCount,");
+    expect(canonicalDiscoverySource).toContain("materializedCardCount: materialized,");
+    expect(canonicalDiscoverySource).toContain("evidenceRows,");
   });
 });

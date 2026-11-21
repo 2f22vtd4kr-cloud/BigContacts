@@ -43,6 +43,15 @@ const durableTrajectoryReplaySource = readFileSync(resolve(process.cwd(), "src/s
 describe("retained fetched-page continuation persistence boundary", () => {
   it("marks wrapper-checkpointed artifacts durable only when a durable callback will persist them before the next model turn", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
+    expect(agenticCoreSource).toContain("pageContentPersistence");
+    expect(agenticCoreSource).toContain("pageObservationSha256");
+    expect(agenticCoreSource).toContain("The replay hash must cover the exact sanitized observation");
+    expect(agenticCoreSource).toContain('pageObservationSha256: createHash("sha256").update(durableRecord.observation).digest("hex")');
+    expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
+    expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
+    expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
     expect(agenticWrapperSource).toContain("pageArtifactPersistenceAvailable: Boolean(input.onTrajectoryRecord)");
@@ -50,6 +59,8 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
     expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
     expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
+    expect(bureauAgenticPassSource).toContain("observation:record.observation??null");
+    expect(bureauAgenticPassSource).toContain("if (record.pageArtifact)");
     expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
   });
 });
@@ -950,7 +961,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
-    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits remain leads, not evidence; failed/unfetched are unknown.");
+    expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
@@ -959,7 +970,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
     expect(modelPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings alone");
     expect(modelPrompt).not.toContain("News publishers and articles are evidence leads only, never targets or access routes");
@@ -2119,7 +2130,7 @@ describe("partial model findings", () => {
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("REVIEW LEADS");
-    expect(modelPrompt).toContain("Preserve partial findings, uncertainty, temporal status, contradictions and provenance. Never use model memory as evidence.");
+    expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
     expect(modelPrompt).toContain("REVIEW LEADS: Model selects provisional leads; preserve scope=person/organization/asset, exact name, URL, rationale and uncertainty.");
   });
 });
@@ -2320,7 +2331,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("Omit provider for a healthy runtime default.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
-    expect(modelPrompt).toMatch(/Search snippets\/registry hits remain leads, not evidence; failed\/unfetched are unknown/i);
+    expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
@@ -3578,6 +3589,16 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoverySearchLivenessAdvisory(lowYield)).toContain("low-yield results");
     expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not as a reason to fabricate a candidate");
 
+    const lowYieldPageReads = [
+      { ...livenessRecord("visit", "success"), args: { url: "https://registry.example/officers/1" }, observedUrls: ["https://registry.example/officers/1"], findings: [] },
+      { ...livenessRecord("browser_fetch", "success"), args: { url: "https://company.example/leadership" }, observedUrls: ["https://company.example/leadership"], findings: [] },
+    ];
+    const pageReadAdvice = discoverySearchLivenessAdvisory(lowYieldPageReads);
+    expect(pageReadAdvice).toContain("successful page retrievals (2)");
+    expect(pageReadAdvice).toContain("A successful fetch proves access, not relevance or substantive progress");
+    expect(pageReadAdvice).toContain("complete human objective");
+    expect(pageReadAdvice).toContain("not a prescribed next action");
+
     const sameSourceFamily = [
       { ...livenessRecord("visit", "success"), args: { url: "https://example.com/team" }, observedUrls: ["https://example.com/team"] },
       { ...livenessRecord("visit", "success"), args: { url: "https://example.com/about" }, observedUrls: ["https://example.com/about"] },
@@ -4273,11 +4294,18 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toMatch(/CALLABLE REGISTRY IDS:/);
-    expect(prompt).toContain("sec-edgar");
-    expect(prompt).not.toContain("inbiz");
-    expect(prompt).toMatch(/Never invent IDs/i);
-    expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners;");
+    expect(apexInvestigatorSystemCore()).toContain("GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search");
+    expect(apexInvestigatorSystemCore()).toContain("UK Companies House is UK-only, not Ireland");
+    expect(apexInvestigatorSystemCore()).toContain("Query only adapter-indexed fields; lexical company-name matches are leads, not proof.");
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    });
+    const responseFormat = body.response_format as { json_schema?: { schema?: { properties?: { registry?: { enum?: string[] } } } } };
+    expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).toContain("sec-edgar");
+    expect(responseFormat.json_schema?.schema?.properties?.registry?.enum).not.toContain("inbiz");
+    expect(apexInvestigatorSystemCore()).toContain("Never assume registries expose owners:");
   });
 
   it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
@@ -5158,7 +5186,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).not.toContain("RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland");
     expect(agenticCoreSource).toContain("const availableRegistryIds = getAvailableRegistryIdsForPrompt();");
     expect(agenticCoreSource).toContain('const registryIdList = availableRegistryIds.join(", ")');
-    expect(agenticCoreSource).toContain("${registryIdList}");
+    expect(agenticCoreSource).toContain('appendBeforeSchema("RUNTIME-AVAILABLE REGISTRY IDS ONLY: " + registryIdList');
   });
 
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {

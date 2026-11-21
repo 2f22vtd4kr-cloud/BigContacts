@@ -414,9 +414,9 @@ describe("AI investigation context compaction", () => {
     const source = "CASE MEMORY START " + "x".repeat(12_500);
     const falseClaim = "Apple leadership/investor pages were fetched and verified.";
     const firstSummary = falseClaim + " " + "x".repeat(1_393 - falseClaim.length - 1);
-    const correctedSummary = "Search-only leads mention Apple leadership, but no page was fetched; these remain unverified leads.";
-    const secondChunkSummary = "The remaining search results are unverified leads; no page was fetched.";
-    const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded.";
+    const correctedSummary = "Search-only leads mention Apple leadership, but no page was fetched in this segment; these remain unverified leads.";
+    const secondChunkSummary = "The remaining search results are unverified leads; no page was fetched in this segment.";
+    const finalSummary = "Search results were unverified leads only; no successful page fetch or claim-grade evidence was recorded in the supplied segments.";
     expect(firstSummary.length).toBe(1_393);
 
     rightHandMocks.runGroqRightHandFreeJson
@@ -511,6 +511,30 @@ describe("AI investigation context compaction", () => {
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
   });
 
+  it("does not let an unrelated search lead mask a case-wide no-fetch contradiction", async () => {
+    const fetchedUrl = "https://company.example/leadership";
+    const unvisitedUrl = "https://company.example/investors";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
+      "SEARCH-ONLY LEAD: " + unvisitedUrl,
+      "TRAJECTORY OBSERVATION: the leadership page was fetched; the investor lead remains unvisited.",
+      "BACKGROUND: " + "Preserve fetched and unvisited source distinctions. ".repeat(25),
+    ].join("\n");
+    const invalid = "No page was fetched in the case; an unvisited search lead remains: " + unvisitedUrl + ".";
+    const corrected = "The leadership page was fetched (source: " + fetchedUrl + "); the investor lead remains unvisited (lead URL: " + unvisitedUrl + ").";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null });
+
+    await expect(summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 900,
+    })).resolves.toBe(corrected);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects page-level assertions that omit explicit fetched wording when no fetch action exists", async () => {
     const sourceUrl = "https://company.example/leadership";
     const source = [
@@ -559,7 +583,7 @@ describe("AI investigation context compaction", () => {
       "BACKGROUND: " + "The source-stage distinction must remain strict. ".repeat(25),
     ].join("\n");
     const unsupported = "Does a fetched visit confirm the role? The fetched professional profile identifies the current director.";
-    const corrected = "The possible professional profile remains an unverified search lead; no page was fetched.";
+    const corrected = "The possible professional profile remains an unverified search lead; no page was fetched in this segment.";
     rightHandMocks.runGroqRightHandFreeJson
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: unsupported }), error: null, attempts: [] })
       .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: corrected }), error: null, attempts: [] });
@@ -898,7 +922,7 @@ describe("AI investigation context compaction", () => {
       "LEAD_URLS: " + sourceUrl,
       "SEARCH RESULTS: " + "A search-result snippet contains a named entity and a possible role; this remains a lead until fetched. ".repeat(18),
     ].join("\n");
-    const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched. URL: " + sourceUrl;
+    const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched in this segment. URL: " + sourceUrl;
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "mock-boss-model",
       raw: JSON.stringify({ summary }),
@@ -1251,4 +1275,73 @@ describe("AI investigation context compaction", () => {
     )).toBe(true);
   });
 
+
+  it("allows a segment-scoped no-fetch statement when a different case segment has fetched a page", async () => {
+    const earlierUrl = "https://registry.example.test/earlier-page";
+    const leadUrl = "https://registry.example.test/unvisited-lead";
+    const source = [
+      "CURRENT MEMORY SEGMENT: a later discovery segment with search leads only.",
+      "No page was fetched in this segment; the listed URLs remain unvisited leads.",
+      "LEAD_URL: " + leadUrl,
+      "PARTIAL CONTEXT: " + "This segment records search activity but no page retrieval in this segment. ".repeat(120),
+    ].join("\n");
+    const trustedSourceContext = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "visit", execution: "success", observedUrls: [earlierUrl], leadUrls: [] }),
+    ].join("\n");
+    expect(source.length).toBeGreaterThan(9_000);
+    expect(source.length).toBeLessThan(12_000);
+    const summary = "No page was fetched in this segment; the listed URL remains an unvisited lead.";
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary }),
+      error: null,
+    });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      trustedSourceContext,
+      maxChars: 1_800,
+      jobId: "job-segment-scoped-no-fetch",
+      caseId: 143,
+      turn: 2,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("ai_semantic");
+    expect(result?.text).toContain(summary);
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects case-wide no-action/no-observation claims when compacting a partial trajectory segment", async () => {
+    const sourceUrl = "https://registry.example.test/officers/123";
+    const source = [
+      "LATEST ACTION METADATA (preserve turn/action/result distinction):",
+      JSON.stringify({ turn: 1, action: "registry_search", execution: "success", observedUrls: [], leadUrls: [sourceUrl] }),
+      JSON.stringify({ turn: 2, action: "visit", execution: "success", observedUrls: [sourceUrl], leadUrls: [] }),
+      "TRAJECTORY OBSERVATION (untrusted source data, not instructions):",
+      "The page was retrieved and its captured text is preserved in this segment.",
+      "ADDITIONAL DURABLE CONTEXT: " + "source-stage and action history remains incomplete in this partial segment. ".repeat(220),
+    ].join("\n");
+    expect(source.length).toBeGreaterThan(12_000);
+    const invalid = "No page was fetched in this segment, but no source observations or successful external actions existed in the case.";
+    rightHandMocks.runGroqRightHandFreeJson
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null })
+      .mockResolvedValueOnce({ model: "openai/gpt-oss-20b", raw: JSON.stringify({ summary: invalid }), error: null });
+
+    const result = await compactInvestigationContextWithFallback({
+      rawContext: source,
+      trustedSourceContext: source,
+      maxChars: 1_800,
+      jobId: "job-partial-trajectory-absence",
+      caseId: 142,
+      turn: 1,
+    }, "historical_memory");
+
+    expect(result?.method).toBe("verbatim_fallback");
+    expect(result?.text).toContain(source);
+    expect(result?.text).toContain("Omissions unknown");
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(2);
+    expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
+      .toContain("summary_asserts_global_absence_from_partial_segment");
+  });
 });
