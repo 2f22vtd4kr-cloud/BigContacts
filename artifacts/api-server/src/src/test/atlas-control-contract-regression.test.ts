@@ -155,14 +155,11 @@ describe("Atlas control-plane contract regression", () => {
         canonicalDiscoverySource.indexOf("async function assertAtlasJobActive"),
       ),
       canonicalDiscoverySource.slice(
-        canonicalDiscoverySource.indexOf("async function materializePartialPersonLeadCards"),
-        canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
-      ),
-      canonicalDiscoverySource.slice(
         canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
         canonicalDiscoverySource.indexOf("export async function runCanonicalAtlasPipeline"),
       ),
     ];
+    expect(canonicalDiscoverySource).not.toContain("materializePartialPersonLeadCards");
     expect(sourceReaders.every((source) => source.includes("payload.jobId !== input.atlasJobId"))).toBe(true);
   });
 
