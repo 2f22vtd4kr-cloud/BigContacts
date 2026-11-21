@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const atlasControlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 import { buildGroqBossDiscoveryPrompt, parseBossDiscoveryResponse } from "../lib/case-bureau";
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText, runGroqBossMemoryCompaction } from "../lib/groq-boss";
@@ -35,7 +36,7 @@ describe("Groq Boss discovery prompt grounding", () => {
     expect(prompt).toContain("Discover under-the-radar people with credible wealth potential and realistic public contact routes.");
     expect(prompt).not.toContain("Choose one concrete, testable company/person/asset lead");
     expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");
-    expect(canonicalAtlasDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names");
+    expect(atlasControlSource).toContain("Only actual same-run Investigator tool observations can establish candidate names");
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {
