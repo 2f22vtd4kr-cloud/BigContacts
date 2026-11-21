@@ -1255,7 +1255,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
    * result already written by the caller, then append a read-back snapshot
    * after releasing the owned job lock.
    */
-  const persistEarlyTerminalAuditSnapshot = async (): Promise<void> => {
+  const persistEarlyTerminalAuditSnapshot = async (metrics: { completedTargetInvestigations?: number; explicitCardPromotions?: number; controlTurns?: number; finalControlAction?: AtlasControlAction | null; investigatorActionsUsed?: number; latestEvidenceBackedTerminal?: "discovery" | "target" | null } = {}): Promise<void> => {
     const activeJobLockReleased = await clearActiveJobIfOwned(lockKey, atlasJobId);
     terminalAuditLockReleased = activeJobLockReleased;
     const durableJob = await getJobStrict(atlasJobId);
@@ -1280,13 +1280,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       jobStatus: durableJob.status,
       caseStatus: caseRecord?.status ?? "unknown",
       caseAction: caseRecord?.currentAction ?? "unknown",
-      evidenceBackedTerminal: priorTerminal.evidenceBackedTerminal === true,
+      evidenceBackedTerminal: metrics.latestEvidenceBackedTerminal != null || priorTerminal.evidenceBackedTerminal === true,
+      latestEvidenceBackedTerminal: metrics.latestEvidenceBackedTerminal ?? priorTerminal.latestEvidenceBackedTerminal ?? null,
       admittedTargetCount,
       materializedCardCount: materialized,
       evidenceRows,
-      completedTargetInvestigations: Number(priorTerminal.completedTargetInvestigations ?? 0),
-      explicitCardPromotions: Number(priorTerminal.explicitCardPromotions ?? 0),
-      investigatorActionsUsed: trajectory.length,
+      completedTargetInvestigations: metrics.completedTargetInvestigations ?? Number(priorTerminal.completedTargetInvestigations ?? 0),
+      explicitCardPromotions: metrics.explicitCardPromotions ?? Number(priorTerminal.explicitCardPromotions ?? 0),
+      controlTurns: metrics.controlTurns ?? Number(priorTerminal.controlTurns ?? 0),
+      finalControlAction: metrics.finalControlAction ?? priorTerminal.finalControlAction ?? null,
+      investigatorActionsUsed: metrics.investigatorActionsUsed ?? trajectory.length,
+      investigatorActionLimit: depth.agenticMaxIterations,
       discoverySearchActionsUsed: countDiscoverySearchActions(trajectory),
       discoveryVisitActionsUsed: trajectory.filter((record) =>
         (record.action === "visit" || record.action === "browser_fetch")
@@ -2278,7 +2282,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         result: JSON.stringify({ rightHand, boss, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [] }, discoveryHealth }),
         finishedAt: new Date().toISOString(),
       });
-      await persistEarlyTerminalAuditSnapshot();
+      await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
       return { phase: 1, ingested: 0, enriched: materialized, contactsFound: 0, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
     }
     while (true) {
@@ -2326,7 +2330,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           result: JSON.stringify({ discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0 }, discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length), control: { turns: controlTurns, maxControlTurns, safetyCeiling: true } }),
           finishedAt: new Date().toISOString(),
         });
-        await persistEarlyTerminalAuditSnapshot();
+        await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
       const previousAcceptedAction = priorAction;
@@ -2601,7 +2605,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           // A status-writeable but temporarily unreadable job still records at least one error.
         }
         await updateJob(atlasJobId, { status: "failed", errors: Math.max(1, priorErrorCount), progress: 3, total: 4, atlasPhase: 3, atlasPhaseTotal: 4, outcome: "incomplete", message: terminalMessage, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns }, discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length), control: { turns: controlTurns, decision } }), finishedAt: new Date().toISOString() });
-        await persistEarlyTerminalAuditSnapshot();
+        await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
       finalControlAction = decision.action;
@@ -2971,7 +2975,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             }),
             finishedAt: new Date().toISOString(),
           });
-          await persistEarlyTerminalAuditSnapshot();
+          await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
           return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
         }
 
@@ -3072,7 +3076,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               }),
               finishedAt: new Date().toISOString(),
             });
-            await persistEarlyTerminalAuditSnapshot();
+            await persistEarlyTerminalAuditSnapshot({ completedTargetInvestigations: researched, explicitCardPromotions: contactsFound, controlTurns, finalControlAction, investigatorActionsUsed: investigatorIterationsUsed, latestEvidenceBackedTerminal });
             return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
           }
         }
