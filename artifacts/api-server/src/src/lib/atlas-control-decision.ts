@@ -116,10 +116,14 @@ export function shouldInvokeAtlasRightHandReview(input: {
   // A continued discovery episode with several successful external actions but no
   // review lead or source-backed finding is a consequential strategy decision.
   // Right-hand critiques the trajectory; it does not choose the next route/action.
-  const recentResearchActions = input.trajectoryRecords.slice(-6).filter((record) =>
+  const isSuccessfulExternalResearchAction = (record: typeof input.trajectoryRecords[number]): boolean =>
     record.execution === "success"
-      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"].includes(String(record.action ?? "")),
-  ).length;
+      && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"].includes(String(record.action ?? ""));
+  const recentResearchActions = input.trajectoryRecords.slice(-6).filter(isSuccessfulExternalResearchAction).length;
+  // Trigger on the threshold crossing, not on every later continuation while
+  // the same six-action window still contains three successes. This gives the
+  // independent reviewer a meaningful new trajectory segment to assess.
+  const previousResearchActions = input.trajectoryRecords.slice(-7, -1).filter(isSuccessfulExternalResearchAction).length;
   const hasNamedReviewLead = input.discoveryFindings.some((value) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const finding = value as Record<string, unknown>;
@@ -133,7 +137,8 @@ export function shouldInvokeAtlasRightHandReview(input: {
   if (input.priorAction === "continue_discovery"
     && input.admittedCandidates.length === 0
     && !hasNamedReviewLead
-    && recentResearchActions >= 3) return true;
+    && recentResearchActions >= 3
+    && previousResearchActions < 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
   const stopProposalCount = input.trajectoryRecords.filter((record) => record.action === "done").length;
@@ -568,7 +573,7 @@ export function buildAtlasPinnedControlState(input: {
   activeScope: string | null;
   leadInventory: AtlasControlLeadInventory;
   admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>;
-  findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
+  findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; reviewOnly?: boolean; sourceUrls: string[]; note: string }>;
   missionBudget?: { investigatorActionsUsed: number; investigatorActionsRemaining: number; discoverySearchActionsUsed: number };
 }): string {
   const state = input.leadInventory;
