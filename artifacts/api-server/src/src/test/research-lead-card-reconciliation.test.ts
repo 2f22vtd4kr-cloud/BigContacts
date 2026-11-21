@@ -403,3 +403,49 @@ describe("canonical Atlas organization target selection", () => {
     expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
   });
 });
+
+
+describe("review-only lead persistence boundary", () => {
+  it("keeps review-only person and organization leads available in-run without materializing cards", () => {
+    const personStart = canonicalAtlas.indexOf("async function materializePartialPersonLeadCards");
+    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
+    const pipelineStart = canonicalAtlas.indexOf("export async function runCanonicalAtlasPipeline");
+    const person = canonicalAtlas.slice(personStart, organizationStart);
+    const organization = canonicalAtlas.slice(organizationStart, pipelineStart);
+    const admission = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializeAtlasAdmissions"),
+      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+
+    const personGuard = person.indexOf("finding.reviewOnly === true");
+    const personWrite = person.indexOf("const persisted = await db.transaction");
+    const organizationGuard = organization.indexOf("finding.reviewOnly === true");
+    const organizationWrite = organization.indexOf("const persisted = await db.transaction");
+
+    expect(personGuard).toBeGreaterThanOrEqual(0);
+    expect(personWrite).toBeGreaterThan(personGuard);
+    expect(person.slice(personGuard, personWrite)).toContain("candidates.push");
+    expect(person.slice(personGuard, personWrite)).toContain("continue;");
+    expect(organizationGuard).toBeGreaterThanOrEqual(0);
+    expect(organizationWrite).toBeGreaterThan(organizationGuard);
+    expect(organization.slice(organizationGuard, organizationWrite)).toContain("candidates.push");
+    expect(organization.slice(organizationGuard, organizationWrite)).toContain("continue;");
+
+    // Explicit review-only state cannot be promoted through the strict person
+    // admission path; the unpersisted lead remains available to the control loop.
+    expect(admission).toContain('finding.reviewOnly !== true');
+    expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
+    expect(admission).toContain("const organizationTargets = partialOrganizations.candidates");
+    expect(canonicalAtlas).toContain("reviewOnly: finding.reviewOnly");
+  });
+
+  it("prevents terminal reconciliation from recreating cards from review-only trajectory findings", () => {
+    const organizationStart = reconciler.indexOf("export async function reconcileOrganizationReviewCardsForJob");
+    const personStart = reconciler.indexOf("export async function reconcilePersonReviewCardsForJob");
+    const organization = reconciler.slice(organizationStart, personStart);
+    const person = reconciler.slice(personStart);
+
+    expect(organization).toContain('finding.reviewOnly === true');
+    expect(person).toContain('finding.reviewOnly === true');
+  });
+});
