@@ -363,9 +363,9 @@ type SummaryValidation = {
  * this segment. Only segment-scoped absence statements are safe to summarize.
  */
 function summaryMakesUnfoundedGlobalAbsenceClaim(summary: string): boolean {
-  const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
-  const noSuccessfulActions = /\bno\s+successful\s+actions?\b/i;
-  const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
+  const globalAbsence = /\b(?:no|none|zero)\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
+  const noSuccessfulActions = /\bno\s+successful\s+(?:external\s+)?actions?\b/i;
+  const caseWideAbsence = /\b(?:case|investigation|run|mission)\b[^.!?;\n]{0,80}\b(?:has|had|contains?|shows?|records?)\s+no\s+(?:(?:source|research|tool|external)\s+)?(?:actions?|observations?|sources?|tool calls?|findings?)\b/i;
   const explicitlySegmentScoped = /\b(?:in|within|from)\s+(?:this|the supplied|the provided|this particular)\s+(?:memory\s+)?(?:segment|chunk|excerpt|slice|input|block)\b/i;
   return summary.split(/(?:[.!?]\s+|;\s+|\n+)/).some((clause) =>
     (globalAbsence.test(clause) || noSuccessfulActions.test(clause) || caseWideAbsence.test(clause))
