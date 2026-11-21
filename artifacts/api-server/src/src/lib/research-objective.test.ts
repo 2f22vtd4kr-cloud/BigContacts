@@ -94,7 +94,7 @@ describe("research objective validation", () => {
     });
   });
 
-  it("requires an explicit Boss direction before reusing a scope after a no-action episode", () => {
+  it("requires an explicit advisory hypothesis after a no-action episode without changing accepted scope", () => {
     const baseObjective = "Discover credible owners and operators in privately held businesses.";
     const currentObjective = formatBossDirectedObjective(
       baseObjective,
