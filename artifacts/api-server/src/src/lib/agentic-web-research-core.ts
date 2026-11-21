@@ -5828,6 +5828,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         1_900,
       )
     : "";
+  const discoveryIntelligenceContext = input.mode === "discovery"
+    ? boundInvestigatorPromptSection(
+        "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + (input.intelligenceContext || "No structured intelligence state has been populated yet."),
+        900,
+      )
+    : "";
   const discoveryRetrievalFeedback = input.mode === "discovery"
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
@@ -5877,6 +5883,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     discoveryWorkingMemory,
+    discoveryIntelligenceContext,
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
@@ -6328,6 +6335,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     openDiscoveryGuidance,
     searchActivityGuidance,
     discoveryWorkingMemory,
+    discoveryIntelligenceContext,
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
