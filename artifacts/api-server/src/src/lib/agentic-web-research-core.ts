@@ -4359,11 +4359,11 @@ export function buildEmergencyPriorTrajectoryObservation(
   return [currentObservation, latestRecordContext].filter(Boolean).join("\n\n");
 }
 
-/** Preserve the latest observation in the last-resort prompt without exceeding the provider budget. */
 /**
- * Backward-compatible prompt recovery helper. The supplied size value is only
- * a preference signal; this helper never truncates, rejects, or rewrites the
- * human objective, memory, action contract, observations, or source URLs.
+ * Backward-compatible prompt recovery helper. The preferred size is advisory:
+ * the human objective, memory, action contract and complete URL tokens remain
+ * intact. The newest observation receives a bounded head/tail projection;
+ * omitted detail is unknown and the complete observation remains durable.
  */
 export function appendEmergencyObservationContext(
   basePrompt: string,
