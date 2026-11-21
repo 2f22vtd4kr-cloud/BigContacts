@@ -1062,6 +1062,28 @@ describe("AI-led discovery trajectory oversight", () => {
     })).toBe(false);
   });
 
+  it("does not let an older review-only lead suppress later low-yield oversight", () => {
+    const reviewLead = {
+      value: "Jane Example",
+      personName: "Jane Example",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    };
+    expect(shouldInvokeAtlasRightHandReview({
+      admittedCandidates: [],
+      discoveryFindings: [reviewLead],
+      priorAction: "continue_discovery",
+      rightHandReviewedThroughTurn: 1,
+      trajectoryRecords: [
+        { action: "web_search", turn: 1, execution: "success", findings: [reviewLead] },
+        { action: "visit", turn: 2, execution: "success", findings: [] },
+        { action: "web_search", turn: 3, execution: "success", findings: [] },
+        { action: "registry_search", turn: 4, execution: "success", findings: [] },
+      ],
+    })).toBe(true);
+  });
+
   it("triggers after three new successful actions even when the resumed trajectory is long", () => {
     const prior = Array.from({ length: 10 }, (_, index) => ({
       action: "web_search", turn: index + 1, execution: "success", findings: [],
