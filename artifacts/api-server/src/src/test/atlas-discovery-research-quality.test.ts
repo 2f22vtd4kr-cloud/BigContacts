@@ -4,6 +4,7 @@ import {
   buildDiscoveryRetrievalFeedback,
   buildDiscoveryWorkingMemoryContext,
   buildStepPrompt,
+  parseAgentAction,
   type AgenticTrajectoryRecord,
 } from "../lib/agentic-web-research-core";
 
@@ -122,6 +123,65 @@ describe("AI-led discovery research quality context", () => {
     expect(feedback).toContain(firstUrl);
     expect(feedback).toContain(secondUrl);
     expect(feedback).toContain("no particular route or sequence is prescribed");
+  });
+
+  it("preserves an explicit terminal organization review-card selection without admitting the company", () => {
+    const promotionReason = "Preserve this explicitly selected company as a review-only lead for later verification.";
+    const finding = {
+      vectorType: "other",
+      value: "Acme Holdings",
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: [firstUrl],
+      note: "The same-run search result explicitly names Acme Holdings; operating status and ownership remain unverified.",
+      contactAttribution: "organization",
+      exactQuote: "Acme Holdings",
+      identityAssessment: "unresolved",
+      identityRationale: "Only a search-result name is available; identity and ownership need verification.",
+      hypothesisRelation: "supports",
+      hypothesisRationale: "The result is relevant to the objective but does not establish the underlying claims.",
+      relationshipType: null,
+      temporalStatus: "unclear",
+      interpretationConfidence: 0.55,
+      ambiguityNotes: "Search-result evidence only.",
+      promotionDecision: "promote",
+      promotionReason,
+    };
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null,
+      thought: "Finish this discovery episode while preserving the selected review lead.",
+      hypothesis: "The company may be an objective-relevant operating business.",
+      purpose: "Preserve a named company for target-scoped verification.",
+      expectedInformationGain: 0.7,
+      locale: null, market: null, target: null, targetType: null, profile: null, sources: [], searches: [],
+      findings: [finding],
+    }), ["done"]);
+    expect(parsed?.action).toBe("done");
+    if (parsed?.action !== "done") throw new Error("Expected a parsed terminal discovery action.");
+    expect(parsed.findings[0]).toMatchObject({
+      value: "Acme Holdings",
+      scope: "organization",
+      promotionDecision: "promote",
+      promotionReason,
+    });
+    expect(parsed.findings[0]?.reviewOnly).not.toBe(true);
+
+    const withoutReason = parseAgentAction(JSON.stringify({
+      action: "done",
+      query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null,
+      thought: "Finish without creating a review card.",
+      hypothesis: "The company may be relevant.",
+      purpose: "Complete the research episode.",
+      expectedInformationGain: 0.5,
+      locale: null, market: null, target: null, targetType: null, profile: null, sources: [], searches: [],
+      findings: [{ ...finding, promotionReason: "" }],
+    }), ["done"]);
+    expect(withoutReason?.action).toBe("done");
+    if (withoutReason?.action === "done") {
+      expect(withoutReason.findings[0]?.promotionDecision).toBeUndefined();
+    }
   });
 
   it("keeps lead handoff and adaptive retrieval guidance in the actual bounded Investigator prompt", () => {
