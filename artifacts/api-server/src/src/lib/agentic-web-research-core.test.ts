@@ -1764,6 +1764,13 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE");
     expect(prompt).toContain("FACT_AT_END_SENTINEL");
     expect(prompt).toContain(sourceUrl);
+    expect(prompt).toContain("OBSERVATION PROJECTION");
+    expect(prompt).toContain('"observationCharsOmittedFromPrompt":');
+    const fetchedSourceStart = prompt.indexOf("LAST SUCCESSFUL FETCHED SOURCE");
+    const fetchedSourceEnd = prompt.indexOf("\n\nLEAD FOLLOW-UP", fetchedSourceStart);
+    expect(fetchedSourceStart).toBeGreaterThanOrEqual(0);
+    expect(fetchedSourceEnd).toBeGreaterThan(fetchedSourceStart);
+    expect(prompt.slice(fetchedSourceStart, fetchedSourceEnd).length).toBeLessThan(2_200);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
     expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary|no fixed target, action or tool sequence/i);
