@@ -5290,8 +5290,8 @@ describe("small emergency observation budgets", () => {
     // Search-result and fetched-page observations use bounded prompt projections;
     // full observations remain durable. Complete URLs are admitted atomically,
     // and omitted observation detail is explicitly unknown.
-    // It retains complete observations and atomically admits complete URLs;
-    // any URL omitted from this prompt sample is counted, never prefix-sliced.
+    // Full observations remain in immutable events; this prompt retains a
+    // bounded excerpt and records omitted-character counts. URLs remain atomic.
     const recordTailStart = agenticCoreSource.indexOf("const serializeDurablePromptRecord =");
     const recordTailEnd = agenticCoreSource.indexOf("const latestObservationBoundaryMarkers", recordTailStart);
     expect(recordTailStart).toBeGreaterThanOrEqual(0);
