@@ -125,6 +125,31 @@ describe("Atlas control-plane lead continuity", () => {
     expect(compact).toContain('"visits": 0');
   });
 
+  it("keeps review-only leads visibly distinct in the compact Boss and Right-hand report", () => {
+    const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq",
+      status: "completed",
+      searches: 1,
+      visits: 0,
+      findings: [{
+        vectorType: "person",
+        value: "Jane Example",
+        personName: "Jane Example",
+        role: null,
+        scope: "candidate",
+        reviewOnly: true,
+        sourceUrls: ["https://example.org/jane"],
+        note: "Named in a search result; not fetched or verified.",
+      }],
+    }))) as { findings: Array<{ personName: string | null; reviewOnly: boolean; sourceUrls: string[] }> };
+
+    expect(report.findings[0]).toMatchObject({
+      personName: "Jane Example",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    });
+  });
+
   it("preserves complete source URLs longer than 300 characters in supervisor reports", () => {
     const longUrl = "https://registry.example.test/records/" + "a".repeat(320);
     const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
