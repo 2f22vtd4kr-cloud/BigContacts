@@ -5739,25 +5739,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? "Specialist actions are optional; the model decides by expected information gain."
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
-  const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryCoverageGuidance = boundInvestigatorPromptSection(
-    renderRegistryCoverageGuidance(availableRegistryIds),
-    input.mode === "discovery" ? 1_600 : 2_200,
+    renderRegistryCoverageGuidance(availableRegistryIds.filter((id) => id === "gleif" || id === "companies-house")),
+    180,
   );
-  const registryCapabilityWarnings = [
-    availableRegistryIds.includes("gleif")
-      ? "GLEIF is a legal-entity LEI identity and reported parent-relationship source; it is not a natural-person shareholder, beneficial-owner, personal wealth, or asset register."
-      : "",
-    availableRegistryIds.includes("companies-house")
-      ? "companies-house is the UK Companies House API only; it does not become an Irish or other jurisdiction registry because a query contains a similar hostname or domain."
-      : "",
-    "Match each adapter to its documented jurisdiction and fields before use. A hostname or registry-like name inside a query does not change the adapter's actual coverage. For sources without an integrated adapter, discover them through public web search and fetch only exact URLs observed in this case.",
-  ].filter(Boolean).join(" ");
+  const registryCapabilityWarnings = "Use only schema-listed adapters; jurisdiction and fields are fixed, and query hostnames do not change coverage. GLEIF: entity LEI/parent data, not natural-person shareholders, beneficial ownership, wealth or assets. Companies House: UK only, not Ireland.";
   const compactRegistryGuidance = [
-    `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`,
-    registryCoverageGuidance ? "REGISTRY CAPABILITY MAP (coverage and limits; descriptive, not an itinerary):\n" + registryCoverageGuidance : "",
+    registryCoverageGuidance ? "REGISTRY CAPABILITY MATRIX: " + registryCoverageGuidance : "",
     registryCapabilityWarnings,
-  ].filter(Boolean).join("\n");
+  ].filter(Boolean).join("\\n");
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
   const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
