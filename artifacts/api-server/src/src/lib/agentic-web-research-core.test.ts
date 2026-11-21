@@ -3586,6 +3586,16 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoverySearchLivenessAdvisory(lowYield)).toContain("low-yield results");
     expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not as a reason to fabricate a candidate");
 
+    const lowYieldPageReads = [
+      { ...livenessRecord("visit", "success"), args: { url: "https://registry.example/officers/1" }, observedUrls: ["https://registry.example/officers/1"], findings: [] },
+      { ...livenessRecord("browser_fetch", "success"), args: { url: "https://company.example/leadership" }, observedUrls: ["https://company.example/leadership"], findings: [] },
+    ];
+    const pageReadAdvice = discoverySearchLivenessAdvisory(lowYieldPageReads);
+    expect(pageReadAdvice).toContain("successful page retrievals (2)");
+    expect(pageReadAdvice).toContain("A successful fetch proves access, not relevance or substantive progress");
+    expect(pageReadAdvice).toContain("complete human objective");
+    expect(pageReadAdvice).toContain("not a prescribed next action");
+
     const sameSourceFamily = [
       { ...livenessRecord("visit", "success"), args: { url: "https://example.com/team" }, observedUrls: ["https://example.com/team"] },
       { ...livenessRecord("visit", "success"), args: { url: "https://example.com/about" }, observedUrls: ["https://example.com/about"] },
