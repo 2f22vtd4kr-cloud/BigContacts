@@ -684,7 +684,7 @@ describe("Investigator local Groq token fit", () => {
       "Fetched official SEC PDF: " + sourceUrl,
       "SEC methodology background and repeated explanatory text. ".repeat(1_200),
       "PDF_FACT_SENTINEL: the final section describes the accredited-investor definition and review methodology.",
-    ].join("\\n");
+    ].join("\n");
     const objective = "Identify objective-fit people using public evidence; do not infer wealth from definitions.";
     const prompt = buildStepPrompt({
       targetName: "",
@@ -719,12 +719,12 @@ describe("Investigator local Groq token fit", () => {
 
   it("trims optional context in order and preserves the complete objective, Boss direction, newest observation and action contract", () => {
     const prompt = [
-      "PRIMARY CASE OBJECTIVE:\\nMISSION_SENTINEL: investigate the objective without narrowing the human mission.",
-      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\\nBOSS_DIRECTION_SENTINEL: test the current evidence-backed hypothesis.",
-      "ARCHIVED TRAJECTORY INDEX\\n" + "OLDER_HISTORY_SENTINEL; historical actions remain durable. ".repeat(1_100),
-      "AI-COMPACTED HISTORICAL RESEARCH MEMORY:\\n" + "DURABLE_MEMORY_SENTINEL; model-generated context is advisory. ".repeat(1_100),
-      "CANONICAL EVIDENCE GRAPH STATE:\\n" + "AUXILIARY_STATE_SENTINEL; structured state is contextual. ".repeat(1_100),
-      "LATEST TRAJECTORY RECORD — TURN 19:\\n" + JSON.stringify({
+      "PRIMARY CASE OBJECTIVE:\nMISSION_SENTINEL: investigate the objective without narrowing the human mission.",
+      "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\nBOSS_DIRECTION_SENTINEL: test the current evidence-backed hypothesis.",
+      "ARCHIVED TRAJECTORY INDEX\n" + "OLDER_HISTORY_SENTINEL; historical actions remain durable. ".repeat(1_100),
+      "AI-COMPACTED HISTORICAL RESEARCH MEMORY:\n" + "DURABLE_MEMORY_SENTINEL; model-generated context is advisory. ".repeat(1_100),
+      "CANONICAL EVIDENCE GRAPH STATE:\n" + "AUXILIARY_STATE_SENTINEL; structured state is contextual. ".repeat(1_100),
+      "LATEST TRAJECTORY RECORD — TURN 19:\n" + JSON.stringify({
         turn: 19,
         action: "visit",
         execution: "success",
@@ -732,7 +732,7 @@ describe("Investigator local Groq token fit", () => {
         observation: "NEWEST_OBSERVATION_SENTINEL: preserve the latest source observation.",
       }),
       completeInvestigatorProviderPrompt,
-    ].join("\\n\\n");
+    ].join("\n\n");
 
     const fitted = fitGroqInvestigatorRequestToLocalCeiling({
       model: "openai/gpt-oss-120b",
@@ -754,10 +754,10 @@ describe("Investigator local Groq token fit", () => {
 
   it("fails closed with a distinct typed error when mandatory content alone exceeds the local ceiling", () => {
     const prompt = [
-      "PRIMARY CASE OBJECTIVE:\\nMANDATORY_OBJECTIVE_SENTINEL " + "objective clause ".repeat(12_000),
-      "LATEST TRAJECTORY RECORD — TURN 20:\\nMANDATORY_LATEST_SENTINEL",
+      "PRIMARY CASE OBJECTIVE:\nMANDATORY_OBJECTIVE_SENTINEL " + "objective clause ".repeat(12_000),
+      "LATEST TRAJECTORY RECORD — TURN 20:\nMANDATORY_LATEST_SENTINEL",
       completeInvestigatorProviderPrompt,
-    ].join("\\n\\n");
+    ].join("\n\n");
 
     let failure: unknown;
     try {
@@ -914,7 +914,7 @@ describe("model-owned discovery relevance reasoning", () => {
       actionAllowlist: ["web_search", "visit"],
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
-    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + discoveryPrompt;
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
@@ -1743,9 +1743,9 @@ describe("discovery lead inventory", () => {
     const tavilyUrls = Array.from({ length: 6 }, (_, index) => `https://tavily.example.test/record/${index + 1}`);
     const exaUrls = Array.from({ length: 6 }, (_, index) => `https://exa.example.test/record/${index + 1}`);
     const records = [
-      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
-      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
-      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
+      { turn: 1, model: "test-model", action: "web_search", args: { query: "first", provider: "serper" }, execution: "success", observation: `FIRST_BATCH: official filing names the investor.\nURL: ${serperUrls[0]}`, observedUrls: [], leadUrls: serperUrls, findings: [] },
+      { turn: 2, model: "test-model", action: "web_search", args: { query: "second", provider: "tavily" }, execution: "success", observation: `SECOND_BATCH: transaction report names the buyer.\nURL: ${tavilyUrls[0]}`, observedUrls: [], leadUrls: tavilyUrls, findings: [] },
+      { turn: 3, model: "test-model", action: "web_search", args: { query: "third", provider: "exa" }, execution: "success", observation: `THIRD_BATCH: registry result lists company officers.\nURL: ${exaUrls[0]}`, observedUrls: [], leadUrls: exaUrls, findings: [] },
     ] as AgenticTrajectoryRecord[];
     const state = buildDiscoveryLeadUtilizationState(records);
     expect(state.unfetchedLeadUrlCount).toBe(18);
@@ -2660,7 +2660,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry.",
-    ].join("\\n");
+    ].join("\n");
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "unrelated but model-selected research hypothesis",
       registry: "opencorporates",
@@ -3439,7 +3439,7 @@ Choose each next action yourself from the available capabilities and observed ev
       findings: [],
       mode: "discovery",
     });
-    const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
+    const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
     expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
     expect(modelPrompt).toContain("context, not gates");
     expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
