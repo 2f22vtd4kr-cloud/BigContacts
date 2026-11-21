@@ -229,6 +229,20 @@ describe("Atlas control-plane contract regression", () => {
       reusedCurrentObjective: true,
     });
 
+    const continuedWithHypothesis = resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective: pivot.objective,
+      direction: "Explore public transaction reporting and asset disclosures as an additional route to the same human objective.",
+    });
+    expect(continuedWithHypothesis).toEqual({
+      valid: true,
+      objective: pivot.objective,
+      direction: pivot.objective,
+      reusedCurrentObjective: true,
+      advisory: "Explore public transaction reporting and asset disclosures as an additional route to the same human objective.",
+    });
+
     const invalidPivot = resolveBossDirectedDiscoveryObjective({
       action: "pivot_discovery",
       baseObjective,
@@ -1054,6 +1068,10 @@ describe("Boss-adjudicated opening direction", () => {
 
   it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
+    expect(canonicalDiscoverySource).toContain("BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement):");
+    expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = discoveryObjective;");
+    expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
+    expect(canonicalDiscoverySource).not.toContain("BOSS-APPROVED OPENING RESEARCH QUESTION:");
     expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
     expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
     expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
