@@ -87,6 +87,21 @@ function isConsequentialInvestigatorFinding(value: unknown): boolean {
   return Boolean(identityRationale && (identity === "different_people" || identity === "unresolved"));
 }
 
+export function resolveAtlasRightHandReviewWatermark(controlHistory: unknown): number {
+  if (!Array.isArray(controlHistory)) return 0;
+  let reviewedThroughTurn = 0;
+  for (const entry of controlHistory) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const rightHand = (entry as Record<string, unknown>).rightHand;
+    if (!rightHand || typeof rightHand !== "object" || Array.isArray(rightHand)) continue;
+    const turn = (rightHand as Record<string, unknown>).reviewedThroughTurn;
+    if (typeof turn === "number" && Number.isSafeInteger(turn)) {
+      reviewedThroughTurn = Math.max(reviewedThroughTurn, turn);
+    }
+  }
+  return reviewedThroughTurn;
+}
+
 export function shouldInvokeAtlasRightHandReview(input: {
   admittedCandidates: readonly AtlasAdmittedTargetInput[];
   discoveryFindings: readonly unknown[];
