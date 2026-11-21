@@ -3137,7 +3137,6 @@ export async function callGroqJson(
           lastProviderError = "upstream_token_window_wait_exceeded";
           return { model, raw: "", error: lastProviderError };
         }
-        const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
         dailyEstimatedTokens = estimateGroqInvestigatorDailyReservationTokens(totalRequestChars, completionBudgetForReservation);
         const reservation = await reserveAgenticLlmDailyBudget({
           provider: "groq",
