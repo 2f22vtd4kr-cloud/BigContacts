@@ -5,6 +5,8 @@ const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-resea
 const telemetry = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts", "utf8");
 const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
+const providerGate = fs.readFileSync("artifacts/api-server/src/src/lib/provider-gate.ts", "utf8");
+const failureDiagnostics = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-failure-diagnostics.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -71,6 +73,14 @@ assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
 assert(/const totalPromptChars = systemPromptChars \+ userPromptChars/.test(core) && /const totalRequestChars = totalPromptChars \+ responseFormatChars/.test(core) && /waitForKnownGroqTokenWindow\(\s*quotaAccount,\s*model,\s*promptMeasurement\.totalRequestChars,/s.test(core), "known token-window estimation must include the actual transmitted system/user messages and structured response schema");
 assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core) && /const boundedPrefix = compactPromptSectionPreservingUrlTokens\(/.test(core) && /const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt\.length\)/.test(core), "provider-bound prompt softly compacts auxiliary context while preserving mandatory evidence and the shared provider-size estimate");
+
+assert(/export function fitGroqInvestigatorRequestToLocalCeiling[\\s\\S]*?getGroqTokenRequest\\(/.test(core) && /getGroqTokenRequestLimit\\(input\.model\\)/.test(core) && /prompt_exceeds_local_ceiling/.test(core), "canonical Investigator request fitting uses the provider gate's exact structured estimator and effective token ceiling");
+assert(/const fittedRequest = fitGroqInvestigatorRequestToLocalCeiling[\\s\\S]*?emitInvestigatorProviderRequestAudit\\(/.test(core), "exact prompt fit and typed fail-closed refusal occur before request audit and provider egress");
+assert(/ARCHIVED TRAJECTORY INDEX[\\s\\S]*?AI-COMPACTED HISTORICAL RESEARCH MEMORY[\\s\\S]*?COMPACTED HISTORICAL RESEARCH CONTEXT[\\s\\S]*?CANONICAL EVIDENCE GRAPH STATE/.test(core), "optional context is compacted in the required older-history, durable-memory, auxiliary-state order");
+assert(/searchActions\.has\(record\.action\) \? 640 : 1_200/.test(core) && /compactEmergencyTrajectoryObservation\(record\.observation, 1_200\)/.test(core) && /recentActions: intelligenceState\.recentActions\.map/.test(core) && /atomicEvidence: intelligenceState\.atomicEvidence\.map/.test(core) && /const historyForMemory = history\.map/.test(core), "fetched observations are bounded in trajectory, structured intelligence and history memory projections while full events remain durable");
+assert(/prompt_exceeds_local_ceiling/.test(providerGate) && /role_budget_exhausted/.test(providerGate) && /cooldown/.test(providerGate) && /getGroqTokenRequestLimit/.test(providerGate) && /providerRequestedTokens/.test(telemetry) && /providerTokenLimit/.test(telemetry), "local prompt oversize, role budget, cooldown and provider budget diagnostics remain distinct and report requested tokens/ceiling");
+assert(/daily_token_budget_exhausted/.test(failureDiagnostics) && /prompt_exceeds_local_ceiling/.test(failureDiagnostics) && /local_provider_role_budget_exhausted/.test(failureDiagnostics), "daily budget exhaustion, prompt oversize and role budget exhaustion remain distinct failure classes");
+
 const promptBudgetTest = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.test.ts", "utf8");
 assert(/4,000 is the preferred compaction target, not a hard ceiling/.test(promptBudgetTest) && /expect\(userPrompt\.length\)\.toBeLessThanOrEqual\(4_500\)/.test(promptBudgetTest), "the 4,000-character target remains advisory while a bounded 4,500-character ceiling protects complete mandatory prompt context");
 assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
