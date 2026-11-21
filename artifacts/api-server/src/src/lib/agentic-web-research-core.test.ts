@@ -45,6 +45,9 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticCoreSource).toContain("pageArtifactPersistenceAvailable?: boolean");
     expect(agenticCoreSource).toContain("pageContentPersistence");
     expect(agenticCoreSource).toContain("pageObservationSha256");
+    expect(agenticCoreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds)");
+    expect(agenticCoreSource).toContain("GLEIF is a legal-entity LEI identity and reported parent-relationship source");
+    expect(agenticCoreSource).toContain("companies-house is the UK Companies House API only");
     expect(agenticCoreSource).toContain("complete_immutable_observation_event");
     expect(agenticCoreSource).toContain("input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable");
     expect(agenticCoreSource).toContain("if (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) return record;");
