@@ -11,7 +11,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
-import { classifyExternalProvider, getGroqTokenRequest, reconcileGroqTokenResponse, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { classifyExternalProvider, getGroqTokenRequest, getGroqTokenRequestLimit, ProviderQuotaError, reconcileGroqTokenResponse, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory, shouldUpdateInvestigatorResearchMemory } from "./investigation-context-compaction";
@@ -2758,6 +2758,78 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   };
 }
 
+function compactInvestigatorPromptSectionBody(prompt: string, heading: string, maxBodyChars: number, marker: string): string {
+  const headingAt = prompt.indexOf(heading);
+  if (headingAt < 0) return prompt;
+  const bodyStart = prompt.indexOf("\\n", headingAt);
+  if (bodyStart < 0) return prompt;
+  const nextSection = prompt.indexOf("\\n\\n", bodyStart + 1);
+  const bodyEnd = nextSection < 0 ? prompt.length : nextSection;
+  const body = prompt.slice(bodyStart + 1, bodyEnd);
+  if (body.length <= maxBodyChars) return prompt;
+  const bounded = compactPromptSectionPreservingUrlTokens(body, maxBodyChars, marker);
+  return prompt.slice(0, bodyStart + 1) + bounded + prompt.slice(bodyEnd);
+}
+
+/**
+ * Fit a model-owned Investigator request against the same structured-character
+ * estimator and effective token ceiling used by the provider gate. Only optional
+ * context is reduced, in order: older trajectory history, semantic memory, then
+ * auxiliary intelligence/control text. The human objective, accepted Boss
+ * direction, current action/schema contract and newest observation are never
+ * reduced. Full source observations remain in immutable case events.
+ */
+export function fitGroqInvestigatorRequestToLocalCeiling(input: {
+  model: string;
+  prompt: string;
+  cognitiveTask: ResearchCognitiveTask;
+  actionAllowlist?: readonly string[];
+  promptMode?: "discovery" | "target";
+  responseFormatOverride?: Record<string, unknown>;
+  completionTokens?: number;
+}): { prompt: string; requestBody: Record<string, unknown>; requestedTokens: number; limitTokens: number } {
+  let fittedPrompt = input.prompt;
+  const completionTokens = Number.isFinite(input.completionTokens)
+    ? Math.max(1, Math.floor(input.completionTokens!))
+    : groqInvestigatorCompletionBudget(input.cognitiveTask);
+  const build = () => {
+    const requestBody = buildGroqInvestigatorRequestBody({
+      model: input.model,
+      prompt: fittedPrompt,
+      cognitiveTask: input.cognitiveTask,
+      actionAllowlist: input.actionAllowlist,
+      promptMode: input.promptMode,
+    });
+    requestBody.max_completion_tokens = completionTokens;
+    if (input.responseFormatOverride) requestBody.response_format = input.responseFormatOverride;
+    const request = getGroqTokenRequest("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
+    if (!request) throw new Error("Unable to estimate the structured Groq Investigator request before egress.");
+    return { requestBody, requestedTokens: request.reservedTokens };
+  };
+  const limitTokens = getGroqTokenRequestLimit(input.model);
+  let measured = build();
+  const reductions = [
+    { heading: "ARCHIVED TRAJECTORY INDEX", chars: 420, marker: "[OLDER HISTORY COMPACTED: omitted detail is unknown; complete trajectory remains durable]" },
+    { heading: "AI-COMPACTED HISTORICAL RESEARCH MEMORY", chars: 420, marker: "[DURABLE MEMORY PROJECTION COMPACTED: omitted detail is unknown; case events remain authoritative]" },
+    { heading: "CANONICAL EVIDENCE GRAPH STATE", chars: 180, marker: "[AUXILIARY STATE COMPACTED: omitted detail is unknown; durable evidence remains authoritative]" },
+    { heading: "CURRENT CONTROL / OVERSIGHT CONTEXT", chars: 160, marker: "[AUXILIARY CONTROL CONTEXT COMPACTED: current objective and accepted Boss scope remain authoritative]" },
+  ];
+  for (const reduction of reductions) {
+    if (measured.requestedTokens <= limitTokens) break;
+    const nextPrompt = compactInvestigatorPromptSectionBody(fittedPrompt, reduction.heading, reduction.chars, reduction.marker);
+    if (nextPrompt === fittedPrompt) continue;
+    fittedPrompt = nextPrompt;
+    measured = build();
+  }
+  if (measured.requestedTokens > limitTokens) {
+    throw new ProviderQuotaError("prompt_exceeds_local_ceiling", "groq", 0, "tokens", measured.requestedTokens, limitTokens);
+  }
+  return { prompt: fittedPrompt, requestBody: measured.requestBody, requestedTokens: measured.requestedTokens, limitTokens };
+}
+
 type GroqRateLimitSnapshot = {
   remainingTokens: number | null;
   resetTokensMs: number | null;
@@ -2918,7 +2990,7 @@ export async function callGroqJson(
   signal: AbortSignal,
   cognitiveTask: ResearchCognitiveTask = "identity_resolution",
   investigatorCapability?: InvestigatorCapability,
-  onLocalProviderGateFailure?: (kind: "local_provider_cooldown" | "local_provider_budget_exhausted", model: string) => void,
+  onLocalProviderGateFailure?: (kind: "local_provider_cooldown" | "local_provider_role_budget_exhausted" | "local_provider_budget_exhausted" | "prompt_exceeds_local_ceiling", model: string) => void,
   jobId?: string | null,
   caseId?: number | null,
   actionAllowlist?: readonly string[],
@@ -2998,14 +3070,26 @@ export async function callGroqJson(
       };
       try {
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist, promptMode);
-        const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
-        const maxUserPromptChars = investigatorUserPromptBudget(systemPromptChars);
-        const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, workingPrompt, actionAllowlist, promptMode);
-        const providerBoundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, promptMode, model, actionAllowlist);
-        const userPromptChars = promptEnvelopeChars + providerBoundedPrompt.length;
+        const completionBudgetForReservation = completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask);
+        const fittedRequest = fitGroqInvestigatorRequestToLocalCeiling({
+          model,
+          prompt: workingPrompt,
+          cognitiveTask,
+          actionAllowlist,
+          promptMode: requestPromptMode,
+          responseFormatOverride: responseFormat.type !== "none" ? responseFormat : undefined,
+          completionTokens: completionBudgetForReservation,
+        });
+        workingPrompt = fittedRequest.prompt;
+        const requestBody = fittedRequest.requestBody;
+        const requestMessages = Array.isArray(requestBody.messages) ? requestBody.messages as Array<{ role?: string; content?: unknown }> : [];
+        const systemContent = typeof requestMessages[0]?.content === "string" ? requestMessages[0].content : "";
+        const userContent = typeof requestMessages[1]?.content === "string" ? requestMessages[1].content : "";
+        const systemPromptChars = systemContent.length || INVESTIGATOR_SYSTEM_PROMPT().length;
+        const userPromptChars = userContent.length;
         const originalPromptChars = baseOriginalPromptChars + promptEnvelopeChars;
         const promptReductionChars = Math.max(0, originalPromptChars - userPromptChars);
-        const responseFormatChars = responseFormat.type === "none" ? 0 : JSON.stringify(responseFormat).length;
+        const responseFormatChars = requestBody.response_format ? JSON.stringify(requestBody.response_format).length : 0;
         const totalPromptChars = systemPromptChars + userPromptChars;
         const totalRequestChars = totalPromptChars + responseFormatChars;
         promptMeasurement = {
@@ -3017,7 +3101,7 @@ export async function callGroqJson(
           totalPromptChars,
           responseFormatChars,
           totalRequestChars,
-          estimatedPromptTokens: groqPromptTokenEstimate(totalRequestChars),
+          estimatedPromptTokens: Math.max(0, fittedRequest.requestedTokens - completionBudgetForReservation),
           estimatedMessagePromptTokens: groqPromptTokenEstimate(totalPromptChars),
           estimatedOriginalMessagePromptTokens: groqPromptTokenEstimate(systemPromptChars + originalPromptChars),
         };
@@ -3025,7 +3109,7 @@ export async function callGroqJson(
           quotaAccount,
           model,
           promptMeasurement.totalRequestChars,
-          completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+          completionBudgetForReservation,
           signal,
         );
         if (quotaReadiness === "token_window_wait_exceeded") {
@@ -3042,11 +3126,6 @@ export async function callGroqJson(
         dailyReservationDate = reservation.usageDate;
         dailyReservationTokens = reservation.reservedTokens;
         dailyBudgetTokens = reservation.dailyBudgetTokens;
-        const requestBody = {
-          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist, promptMode: requestPromptMode }),
-          max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
-          ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
-        };
         emitInvestigatorProviderRequestAudit({
           model,
           cognitiveTask,
@@ -3447,7 +3526,13 @@ export async function callGroqJson(
           throw new Error("cancelled");
         }
         const localProviderGateFailure = isLocalProviderQuotaError(error)
-          ? (error.code === "cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted")
+          ? error.code === "cooldown"
+            ? "local_provider_cooldown"
+            : error.code === "role_budget_exhausted"
+              ? "local_provider_role_budget_exhausted"
+              : error.code === "prompt_exceeds_local_ceiling"
+                ? "prompt_exceeds_local_ceiling"
+                : "local_provider_budget_exhausted"
           : null;
         const dailyBudgetFailure = error instanceof AgenticDailyTokenBudgetError ? error : null;
         const failureClass = dailyBudgetFailure?.code ?? localProviderGateFailure ?? classifyThrownProviderError(error);
@@ -3466,7 +3551,7 @@ export async function callGroqJson(
         // signal for this role. Do not waste the remaining key/model matrix on
         // calls that the gate will reject before reaching Groq.
         if (isLocalProviderQuotaError(error)) {
-          onLocalProviderGateFailure?.(localProviderGateFailure === "local_provider_cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted", model);
+          if (localProviderGateFailure) onLocalProviderGateFailure?.(localProviderGateFailure, model);
           if (isLocalProviderQuotaError(error)) return null;
         }
         break;
@@ -3507,7 +3592,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
         return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
       }
     }
-    let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
+    let localProviderGateFailure: "local_provider_cooldown" | "local_provider_role_budget_exhausted" | "local_provider_budget_exhausted" | "prompt_exceeds_local_ceiling" | null = null;
     let localProviderGateModel: string | null = null;
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration, originalPromptChars ?? prompt.length, promptMode)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
@@ -5772,7 +5857,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
   const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
-    const marker = "[SEARCH OBSERVATION COMPACTED; omitted text is unknown; URLs preserved separately]";
+    const marker = "[OBSERVATION PROJECTION: omitted text is unknown; full observation remains in immutable case events; exact URLs are preserved separately]";
     if (normalized.length <= maxChars) return normalized;
     const matchingRecord = input.trajectoryRecords.find(
       (record) => typeof record.observation === "string" && record.observation.trim() === normalized,
@@ -5813,9 +5898,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // action; otherwise the latest-record envelope can reintroduce the full
     // provider response after the historical carry-forward copy is compacted.
     // Fetched-page observations remain complete.
-    const boundedObservation = searchActions.has(record.action)
-      ? compactDurablePromptObservation(rawObservation)
-      : rawObservation;
+    const boundedObservation = compactDurablePromptObservation(
+      rawObservation,
+      searchActions.has(record.action) ? 640 : 1_200,
+    );
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
     const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
