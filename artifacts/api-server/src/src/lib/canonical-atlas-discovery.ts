@@ -2699,7 +2699,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         repeatedRejectedPivotCount = 0;
         failureStage = "orchestration";
         const directedObjective = resolvedObjective.objective;
-        const continuationAdvisory = resolvedObjective.advisory ?? undefined;
+        const continuationAdvisory = resolvedObjective.advisory
+          ? "BOSS CONTINUATION HYPOTHESIS (non-binding; not an accepted scope or source requirement): " + resolvedObjective.advisory
+          : undefined;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({ totalIterationCeiling: discoveryIterationCeiling, investigatorIterationsUsed });
         if (remainingInvestigatorIterations <= 0) {
