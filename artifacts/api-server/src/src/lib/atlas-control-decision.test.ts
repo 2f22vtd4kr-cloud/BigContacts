@@ -984,7 +984,7 @@ describe("AI-led discovery trajectory oversight", () => {
     ];
     expect(shouldInvokeAtlasRightHandReview({
       admittedCandidates: [],
-      discoveryFindings: [],
+      discoveryFindings: [{ value: "https://example.com/article", personName: null, scope: "candidate" }],
       priorAction: "continue_discovery",
       trajectoryRecords: records,
     })).toBe(true);
