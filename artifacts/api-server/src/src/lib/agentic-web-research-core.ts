@@ -6310,7 +6310,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF (required model judgment): inspect actual title/snippet/URL pairs. On each non-terminal action, include every named objective-relevant person/org you select for verification in findings[] with exact same-run URL, scope and uncertainty; never admit a lead. Where the active schema requires promotion fields, set them to null. Use [] only when no observed named lead merits review; never infer names from URL slugs or promote every result."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Preserve model-selected provisional person/org leads in findings[] on non-terminal actions with exact same-run URLs, scope and uncertainty; review-only, never admitted. Set promotion fields to null where required; never infer names from URL slugs or promote every result."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
