@@ -205,6 +205,39 @@ describe("immutable Investigator trajectory replay", () => {
     });
   });
 
+  it("preserves review-only lead state through durable trajectory replay", () => {
+    const records = replayInvestigatorTrajectoryEvents([{
+      id: 36,
+      eventType: "tool_observation",
+      payload: JSON.stringify({
+        runId: "run-review-lead",
+        turn: 2,
+        action: "web_search",
+        args: { query: "objective-fit public people" },
+        execution: "success",
+        observation: "A search result names Jane Example but has not been fetched.",
+        observedUrls: ["https://example.org/jane"],
+        findings: [{
+          vectorType: "person",
+          value: "Jane Example",
+          personName: "Jane Example",
+          role: null,
+          scope: "candidate",
+          sourceUrls: ["https://example.org/jane"],
+          note: "Named in a same-run search result; role and fit remain unverified.",
+          reviewOnly: true,
+        }],
+      }),
+    }]);
+
+    expect(records[0].findings[0]).toMatchObject({
+      personName: "Jane Example",
+      scope: "candidate",
+      reviewOnly: true,
+      sourceUrls: ["https://example.org/jane"],
+    });
+  });
+
   it("keeps equal turn numbers from different durable runs distinct", () => {
     const records = replayInvestigatorTrajectoryEvents([
       { id: 20, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", execution: "success", observedUrls: ["https://a.example/"], findings: [] }) },
