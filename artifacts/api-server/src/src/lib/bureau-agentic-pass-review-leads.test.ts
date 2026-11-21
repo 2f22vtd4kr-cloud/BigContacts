@@ -20,8 +20,6 @@ describe("review-only Investigator leads", () => {
     const fetchedObservation: AgenticTrajectoryRecord[] = [{
       turn: 1,
       model: "test-investigator",
-      turn: 1,
-      model: "test-investigator",
       action: "visit",
       args: { url: sourceUrl },
       execution: "success",
