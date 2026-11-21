@@ -120,9 +120,16 @@ export function shouldInvokeAtlasRightHandReview(input: {
     record.execution === "success"
       && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "browser_fetch", "domain_lookup", "harvest_domain"].includes(String(record.action ?? "")),
   ).length;
+  const hasNamedReviewLead = input.discoveryFindings.some((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const finding = value as Record<string, unknown>;
+    return finding.scope === "candidate"
+      ? typeof finding.personName === "string" && Boolean(finding.personName.trim())
+      : finding.scope === "organization" && typeof finding.value === "string" && Boolean(finding.value.trim());
+  });
   if (input.priorAction === "continue_discovery"
     && input.admittedCandidates.length === 0
-    && input.discoveryFindings.length === 0
+    && !hasNamedReviewLead
     && recentResearchActions >= 3) return true;
   const latestFailure = String(latest?.failureDomain ?? "") + " " + String(latest?.failureKind ?? "");
   if (/contradiction|identity_collision|identity_ambiguity/i.test(latestFailure)) return true;
