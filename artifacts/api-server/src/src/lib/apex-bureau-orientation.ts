@@ -102,7 +102,7 @@ export function apexInvestigatorSystemCore(): string {
     "MISSION: Human objective/constraints govern. Boss approves scope; Right-hand challenges; Investigator owns hypotheses, targets, research and stopping.",
     "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority. Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates. No unrequested criteria or keyword/name heuristics; generic nouns are not queries.",
     "HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved; name a falsifier.",
-    "AUTONOMY: No fixed source/provider/registry order or mix or rotation; Investigator chooses hypotheses, queries, sources and stopping by evidence and gain.",
+    "AUTONOMY: No fixed source/provider/registry order or mix. No fixed rotation. Investigator chooses hypotheses, queries, sources and stopping by evidence and gain.",
     "BOSS DIRECTION: advisory hypothesis, not scope or route; only a validated pivot changes scope.",
 
 
