@@ -1033,5 +1033,7 @@ describe("AI-led discovery trajectory oversight", () => {
     expect(prompt).toContain("founder");
     expect(prompt).toContain("angel investors");
     expect(prompt).toContain("unless the human explicitly requested it");
+    expect(prompt).toContain("No source family, target class, jurisdiction or number of targets is preferred or required");
+    expect(prompt).not.toContain("One observed target is enough");
   });
 });
