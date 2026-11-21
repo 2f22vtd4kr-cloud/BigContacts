@@ -519,7 +519,7 @@ describe("AI investigation context compaction", () => {
       JSON.stringify({ turn: 7, action: "visit", execution: "success", observedUrls: [fetchedUrl] }),
       "SEARCH-ONLY LEAD: " + unvisitedUrl,
       "TRAJECTORY OBSERVATION: the leadership page was fetched; the investor lead remains unvisited.",
-    ].join("\\n");
+    ].join("\n");
     const invalid = "No page was fetched in the case; an unvisited search lead remains: " + unvisitedUrl + ".";
     const corrected = "The leadership page was fetched (source: " + fetchedUrl + "); the investor lead remains unvisited (lead URL: " + unvisitedUrl + ").";
     rightHandMocks.runGroqRightHandFreeJson
