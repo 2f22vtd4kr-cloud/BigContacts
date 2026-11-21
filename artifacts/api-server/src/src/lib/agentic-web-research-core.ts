@@ -5759,7 +5759,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactRegistryGuidance,
     searchActivityGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: findings[] may include same-run person/org leads with exact name/URL and rationale/uncertainty. Assets remain source-backed observations, not person/org cards."
+      ? "DISCOVERY LEAD HANDOFF: findings[] may include provisional same-run person/org leads with exact name/URL and rationale/uncertainty. Assets remain source-backed observations, not person/org cards."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
