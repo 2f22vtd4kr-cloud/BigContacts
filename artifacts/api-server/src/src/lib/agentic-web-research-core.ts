@@ -5740,7 +5740,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const availableRegistryIds = getAvailableRegistryIdsForPrompt();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
-  const compactRegistryGuidance = `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`;
+  const registryCoverageGuidance = boundInvestigatorPromptSection(
+    renderRegistryCoverageGuidance(availableRegistryIds),
+    input.mode === "discovery" ? 1_600 : 2_200,
+  );
+  const registryCapabilityWarnings = [
+    availableRegistryIds.includes("gleif")
+      ? "GLEIF is a legal-entity LEI identity and reported parent-relationship source; it is not a natural-person shareholder, beneficial-owner, personal wealth, or asset register."
+      : "",
+    availableRegistryIds.includes("companies-house")
+      ? "companies-house is the UK Companies House API only; it does not become an Irish or other jurisdiction registry because a query contains a similar hostname or domain."
+      : "",
+    "Match each adapter to its documented jurisdiction and fields before use. A hostname or registry-like name inside a query does not change the adapter's actual coverage. For sources without an integrated adapter, discover them through public web search and fetch only exact URLs observed in this case.",
+  ].filter(Boolean).join(" ");
+  const compactRegistryGuidance = [
+    `CALLABLE REGISTRY IDS: ${registryIdList}. Runtime-attested only. Never invent IDs. Treat records as leads until interpreted.`,
+    registryCoverageGuidance ? "REGISTRY CAPABILITY MAP (coverage and limits; descriptive, not an itinerary):\n" + registryCoverageGuidance : "",
+    registryCapabilityWarnings,
+  ].filter(Boolean).join("\n");
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
   const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
@@ -7224,6 +7241,14 @@ record.args = {
     pageArtifactAvailable: page.fromRetainedArtifact || Boolean(page.pageText && page.pageSha256),
     pageArtifactDurable: Boolean((input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable) && (page.fromRetainedArtifact || (page.pageText && page.pageSha256))),
   } : {}),
+  ...(page.status === "success" ? {
+    pageContentPersistence: page.fromRetainedArtifact || Boolean(page.pageText && page.pageSha256)
+      ? "retained_page_artifact"
+      : /\[(?:PAGE|PDF) (?:OBSERVATION )?TRUNCATED/i.test(page.observation)
+        ? "truncated_observation_only"
+        : "complete_immutable_observation_event",
+    pageObservationSha256: createHash("sha256").update(page.observation).digest("hex"),
+  } : {}),
 };
 record.execution = page.status;
 if (page.status !== "success") {
@@ -7287,7 +7312,7 @@ if (retainedBrowserPage) {
   const sourceVerified = retainedBrowserPage.sourceVerified === true;
   record.execution = sourceVerified ? "success" : "partial";
   record.observedUrls = sourceVerified ? [normalizedUrl(retainedBrowserPage.sourceUrl) ?? normalizedUrl(action.url) ?? action.url] : [];
-  record.args = { ...record.args, pageReadOffset, pageReadNextOffset, pageHasMore, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: Boolean(input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable), sourceVerificationStatus: retainedBrowserPage.sourceVerified ? "verified_final_url" : "unverified_final_url" };
+  record.args = { ...record.args, pageReadOffset, pageReadNextOffset, pageHasMore, pageReadSource: "retained_fetch_artifact", pageArtifactAvailable: true, pageArtifactDurable: Boolean(input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable), pageContentPersistence: "retained_page_artifact", sourceVerificationStatus: retainedBrowserPage.sourceVerified ? "verified_final_url" : "unverified_final_url" };
   const suffix = pageHasMore
     ? "\n[MORE PAGE CONTENT RETAINED. Request this exact URL again to read the next section; no network request will be made.]"
     : pageReadOffset >= retainedBrowserPage.text.length
@@ -7328,6 +7353,17 @@ ${communityText}${communityObservationSource ? "\n" + COMMUNITY_SOURCE_OBSERVATI
 record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "error";
 if (!result.html) { record.failureDomain = "external_page_fetch"; record.failureKind = "request_failure"; }
 record.observation = lastObservation;
+if (result.html) {
+  record.args = {
+    ...record.args,
+    pageContentPersistence: browserPageRetained
+      ? "new_retained_page_artifact"
+      : browserHasMore
+        ? "truncated_observation_only"
+        : "complete_immutable_observation_event",
+    pageObservationSha256: createHash("sha256").update(record.observation).digest("hex"),
+  };
+}
 record.observedUrls = result.html && observedBrowserUrl ? [observedBrowserUrl] : [];
 if (browserPageRetained && browserPageKey) {
   record.pageArtifact = {
