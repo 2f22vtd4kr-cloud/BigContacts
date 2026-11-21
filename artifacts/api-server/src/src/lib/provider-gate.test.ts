@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getGroqTokenMaxWaitMs, getGroqTokenWindowSnapshot, reconcileGroqTokenWindowFromBody } from "./provider-gate";
+import { getGroqTokenMaxWaitMs, getGroqTokenRequestLimit, getGroqTokenWindowSnapshot, reconcileGroqTokenWindowFromBody } from "./provider-gate";
 
 const original = process.env.APEX_GROQ_TPM_MAX_WAIT_MS;
 
@@ -19,6 +19,21 @@ describe("Groq token-window wait budget", () => {
     expect(getGroqTokenMaxWaitMs()).toBe(15_000);
     process.env.APEX_GROQ_TPM_MAX_WAIT_MS = "999999";
     expect(getGroqTokenMaxWaitMs()).toBe(120_000);
+  });
+});
+
+describe("Groq effective request ceiling", () => {
+  it("uses the configured default until the provider reports a limit, then uses that observed limit", () => {
+    const model = "test-limit-" + Math.random().toString(36).slice(2);
+    expect(getGroqTokenRequestLimit(model)).toBe(7_000);
+    const key = "groq-model:" + model;
+    const body = JSON.stringify({ usage: { total_tokens: 800 } });
+    const response = new Response(body, {
+      status: 200,
+      headers: { "x-ratelimit-limit-tokens": "12000", "x-ratelimit-remaining-tokens": "11200" },
+    });
+    reconcileGroqTokenWindowFromBody(key, { createdAt: Date.now(), reservedTokens: 900 }, response, body);
+    expect(getGroqTokenRequestLimit(model)).toBe(12_000);
   });
 });
 
