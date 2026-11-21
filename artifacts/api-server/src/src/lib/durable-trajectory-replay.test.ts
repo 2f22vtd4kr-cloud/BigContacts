@@ -169,6 +169,39 @@ describe("immutable Investigator trajectory replay", () => {
     expect(records[1].observation).toContain("no source conclusion");
   });
 
+  it("replays requested versus executed action provenance without collapsing normalization", () => {
+    const records = replayInvestigatorTrajectoryEvents([{
+      id: 35,
+      eventType: "tool_observation",
+      payload: JSON.stringify({
+        runId: "run-browser-fallback",
+        turn: 1,
+        action: "visit",
+        args: {
+          url: "https://registry.example/team",
+          requestedAction: "browser_fetch",
+          normalizationReason: "browser_provider_unavailable",
+          provider: "playwright",
+        },
+        execution: "success",
+        observation: "Fetched the page through the visit fallback.",
+        observedUrls: ["https://registry.example/team"],
+        findings: [],
+      }),
+    }]);
+
+    expect(records[0]).toMatchObject({
+      action: "visit",
+      execution: "success",
+      args: {
+        requestedAction: "browser_fetch",
+        normalizationReason: "browser_provider_unavailable",
+        url: "https://registry.example/team",
+      },
+      durableEventId: 35,
+    });
+  });
+
   it("keeps equal turn numbers from different durable runs distinct", () => {
     const records = replayInvestigatorTrajectoryEvents([
       { id: 20, eventType: "tool_observation", payload: JSON.stringify({ runId: "run-a", turn: 1, action: "visit", execution: "success", observedUrls: ["https://a.example/"], findings: [] }) },
