@@ -1224,6 +1224,8 @@ describe("canonical early terminal reconciliation", () => {
     expect(earlyTerminalReturns.length).toBeGreaterThanOrEqual(7);
     expect(canonicalDiscoverySource).not.toMatch(/await clearActiveJobIfOwned\(lockKey, atlasJobId\);\s*return \{ phase:/);
     expect(canonicalDiscoverySource).toContain("activeJobLockReleased,");
+    expect(canonicalDiscoverySource).toContain("terminalAuditLockReleased = activeJobLockReleased;");
+    expect(canonicalDiscoverySource).toContain("terminalAuditLockReleased = terminalAuditLockReleased === true || failureLockReleaseSucceeded;");
     expect(canonicalDiscoverySource).toContain("admittedTargetCount,");
     expect(canonicalDiscoverySource).toContain("materializedCardCount: materialized,");
     expect(canonicalDiscoverySource).toContain("evidenceRows,");
