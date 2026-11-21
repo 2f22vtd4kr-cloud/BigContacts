@@ -302,7 +302,7 @@ export function buildDiscoveryLeadUtilizationState(
         const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i);
         if (!urlMatch?.[1]) continue;
         const candidate = normalize(urlMatch[1]);
-        if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
+        if (!candidate || !unresolvedLeadKeys.has(candidate.key)) continue;
         const previousLine = observationLines[index - 1] ?? "";
         const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines: string[] = [];
@@ -5775,12 +5775,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         findings: input.findings,
         priorContext: input.priorContext,
         mode: input.mode,
-        maxChars: input.mode === "discovery" ? 900 : 3_000,
+        maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 900 : 700,
+    input.mode === "discovery" ? 150 : 700,
   );
   const activeDiscoveryScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
   const discoveryWorkingRecords = input.mode === "discovery"
@@ -5790,9 +5790,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : [];
   const discoveryWorkingMemory = input.mode === "discovery"
     ? boundInvestigatorPromptSection(
-        buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
+        "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
         1_900,
-        "[DISCOVERY WORKING MEMORY BOUNDED: omitted details remain in durable case events; search snippets are unverified and omitted content is unknown]",
       )
     : "";
   const discoveryRetrievalFeedback = input.mode === "discovery"
@@ -5843,7 +5842,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryWorkingMemory,
     discoveryRetrievalFeedback,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF (required model judgment): inspect actual title/snippet/URL pairs and page observations. On every non-terminal action, put each named person or organization you judge relevant enough for target-scoped verification into findings[] with exact same-run source URL, correct scope, stated role only when observed, and explicit uncertainty. Do not authorize promotion; set promotionDecision/promotionReason to null where the active schema requires them. Use [] only when no observed named lead merits review. Do not extract names from URL slugs, promote every result, or turn assets into person/company cards."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect actual title/snippet/URL pairs and page observations. On every non-terminal action, include each objective-relevant provisional person/organization lead you select for target-scoped verification in findings[] with exact same-run source URL, correct scope, stated role only when observed, and explicit uncertainty. Never authorize admission; set promotionDecision/promotionReason to null where the active schema requires them. Use [] only when no observed named lead merits review. Do not extract names from URL slugs, promote every result, or turn assets into person/company cards."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6119,8 +6118,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; leave promotionDecision/promotionReason null where the active schema requires them; never authorize admission. Use [] only when no observed named lead merits review. done uses source-backed claims."
-        : "Every discovery action MUST include useful same-run person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
+        ? "On every non-terminal discovery action, findings[] MUST include each model-selected objective-relevant provisional named person/org lead explicitly visible in the same-run observation, with its exact corresponding URL and uncertainty; leave promotionDecision/promotionReason null where the active schema requires them; never authorize admission. Use [] only when no observed named lead merits review. done uses source-backed claims."
+        : "Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
