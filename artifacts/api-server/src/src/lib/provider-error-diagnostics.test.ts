@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { classifyThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
+
+describe("local provider failure classification", () => {
+  it("distinguishes a permanently oversized request from temporary role/provider quota limits", () => {
+    const oversized = Object.assign(new Error("groq prompt exceeds local ceiling"), {
+      name: "ProviderQuotaError",
+      code: "prompt_exceeds_local_ceiling",
+    });
+    const roleBudget = Object.assign(new Error("groq role budget exhausted"), {
+      name: "ProviderQuotaError",
+      code: "role_budget_exhausted",
+    });
+    const cooldown = Object.assign(new Error("groq cooldown"), {
+      name: "ProviderQuotaError",
+      code: "cooldown",
+    });
+
+    expect(classifyThrownProviderError(oversized)).toBe("request_size");
+    expect(classifyThrownProviderError(roleBudget)).toBe("rate_limited");
+    expect(classifyThrownProviderError(cooldown)).toBe("rate_limited");
+  });
+});
 
 describe("safe thrown-error summaries", () => {
   it("includes a bounded allowlisted JavaScript runtime preview", () => {
