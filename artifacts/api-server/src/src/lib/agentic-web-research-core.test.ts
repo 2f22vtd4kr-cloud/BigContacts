@@ -56,7 +56,7 @@ describe("retained fetched-page continuation persistence boundary", () => {
     expect(agenticWrapperSource).toContain("attachDurableFetchedPageArtifacts(records");
     expect(targetRunnerSource).toContain("attachDurableFetchedPageArtifacts(sourceRecords");
     expect(targetRunnerSource).toContain("kind: \"fetched_page_artifact_chunk\"");
-    expect(bureauAgenticPassSource).toContain("observation: record.observation ?? null");
+    expect(bureauAgenticPassSource).toContain("observation:record.observation??null");
     expect(bureauAgenticPassSource).toContain("if (record.pageArtifact)");
     expect(intelligenceReplaySource).toContain("const sourceTurn = Number.isSafeInteger(payload.turn)");
   });
