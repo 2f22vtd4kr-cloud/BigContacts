@@ -5828,7 +5828,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : [];
   const hasDiscoveryWorkingMemory = discoveryWorkingRecords.some((record) => {
     const args = record.args ?? {};
-    return searchActions.has(record.action)
+    return ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
       || (record.findings?.length ?? 0) > 0
       || typeof args.hypothesis === "string" && Boolean(args.hypothesis.trim())
       || typeof args.purpose === "string" && Boolean(args.purpose.trim());
