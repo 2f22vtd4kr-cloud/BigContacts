@@ -5995,3 +5995,17 @@ describe("requested versus executed action provenance", () => {
     expect(parsed?.normalizationReason).toBe("browser_provider_unavailable");
   });
 });
+
+
+describe("AI-led discovery review handoff contract", () => {
+  it("requires explicit review-only model judgment for relevant named leads in discovery output", () => {
+    expect(agenticCoreSource).toContain("reviewOnly=true");
+    expect(agenticCoreSource).toContain("complete latest successful observations");
+    expect(agenticCoreSource).toContain("must not be dropped merely because a lossy memory summary omitted it");
+    expect(agenticCoreSource).toContain('"reviewOnly"] as const');
+  });
+  it("keeps provisional lead selection with the Investigator rather than deterministic extraction", () => {
+    expect(agenticCoreSource).toContain("model-selected named person/org review leads");
+    expect(agenticCoreSource).not.toContain("extractNamesFromObservation");
+  });
+});
