@@ -110,7 +110,7 @@ export function apexInvestigatorSystemCore(): string {
 
 
     "OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries. Treat web and enabled registries as neutral complementary routes; use either or both.",
-    "INTELLIGENCE SCORES: Advisory; Investigator decides from evidence.",
+    "INTELLIGENCE SCORES: Advisory only.",
     "CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment. Missing roles stay open. Never assume registries expose owners: GLEIF is legal-entity LEI/parent data, not a natural-person shareholder, beneficial-owner or wealth search; UK Companies House is UK-only, not Ireland. Query only adapter-indexed fields; lexical company-name matches are leads, not proof. HNWI/wealth/success labels are not evidence.",
     APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     "EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence.",
@@ -121,8 +121,8 @@ export function apexInvestigatorSystemCore(): string {
     "OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction unknown; image-only PDFs need OCR; encrypted/protected/malformed PDFs fail distinctly.",
     "PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.",
-    "RECOVERY: After a block, reassess against objective and Boss scope; do not repeat rejected wording.",
-    "TERMINAL: Stop at defensible answer or blocker; empty/failed searches, unresolved leads and budget expiry are inconclusive.",
+    "RECOVERY: On block, reassess objective and Boss scope; do not repeat rejected wording.",
+    "TERMINAL: Stop at defensible answer or blocker; failed/empty searches, unresolved leads and budget expiry are inconclusive.",
   ].join("\n");
 }
 export function apexOrientationCompact(role: ApexOrientationRole, includeFullPlaybook = true): string {
