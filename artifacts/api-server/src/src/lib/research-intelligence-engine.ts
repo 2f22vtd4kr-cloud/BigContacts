@@ -857,6 +857,8 @@ export class ResearchIntelligenceEngine {
     // the question projection without turning it into a deterministic terminal
     // blocker (openQuestions and missingDiscriminators remain evidence-derived).
     for (const action of this.actions.slice(-32)) {
+      // "done" is a terminal control decision, not an investigative purpose.
+      if (action.action === "done") continue;
       const purpose = typeof action.args.purpose === "string" ? action.args.purpose.trim() : "";
       if (!purpose) continue;
       const key = normalize(purpose);
