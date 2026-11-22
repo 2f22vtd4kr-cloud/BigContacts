@@ -145,7 +145,7 @@ export function sanitizeOperatorVisibleReplay(replay: ResearchCaseReplay): Resea
     if (!value || typeof value !== "object") return value;
     const result: Record<string, unknown> = {};
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      if (privateKeys.has(key.toLowerCase().replace(/[\\s-]/g, "_"))) continue;
+      if (privateKeys.has(key.toLowerCase().replace(/[- ]/g, "_"))) continue;
       result[key] = scrub(child);
     }
     return result;
