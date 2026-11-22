@@ -153,6 +153,27 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(record.providerErrorType).toBe("tokens");
   });
 
+  it("preserves explicit Groq TPD exhaustion as a provider diagnostic, not a local budget flag", () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    recordAgenticLlmAttempt({
+      provider: "groq",
+      model: "openai/gpt-oss-120b",
+      promptChars: 120,
+      status: 429,
+      success: false,
+      retryIndex: 1,
+      reason: "upstream_token_quota_exhausted",
+      providerErrorCode: "upstream_token_quota_exhausted",
+      budgetExhausted: false,
+    });
+    const record = JSON.parse(String(output.mock.calls[0]?.[0]));
+    expect(record).toMatchObject({
+      reason: "upstream_token_quota_exhausted",
+      providerErrorCode: "upstream_token_quota_exhausted",
+      budgetExhausted: false,
+    });
+  });
+
   it("hashes provider-controlled diagnostic text instead of writing it to logs", () => {
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
     const secretCode = "alice@example.com Authorization: Bearer PRIVATE_PROVIDER_DETAIL";
@@ -300,6 +321,52 @@ describe("Investigator LLM telemetry privacy", () => {
         completionTokens: 0, totalTokens: 600, estimatedTokens: 600, reservedTokens: 0,
       });
       await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 401, env }))
+        .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
+    } finally {
+      await db.delete(agenticLlmDailyUsageTable).where(where);
+    }
+  });
+
+  (process.env.DATABASE_URL ? it : it.skip)("does not let a stale provider TPD marker block remaining local daily budget", async () => {
+    const [{ db, agenticLlmDailyUsageTable }, { and, eq }] = await Promise.all([
+      import("@workspace/db"),
+      import("drizzle-orm"),
+    ]);
+    const provider = "groq-test-ledger-provider-tpd";
+    const model = "openai/gpt-oss-20b-provider-tpd-test";
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const env = { ...process.env, APEX_GROQ_DAILY_TOKEN_BUDGET_20B: "180000" } as NodeJS.ProcessEnv;
+    const where = and(
+      eq(agenticLlmDailyUsageTable.usageDate, usageDate),
+      eq(agenticLlmDailyUsageTable.provider, provider),
+      eq(agenticLlmDailyUsageTable.model, model),
+    );
+    await db.delete(agenticLlmDailyUsageTable).where(where);
+    try {
+      // Reproduce the legacy row written by the prior TPD/local-budget conflation:
+      // the provider returned a daily TPD 429 while only 15,257 local tokens were used.
+      await db.insert(agenticLlmDailyUsageTable).values({
+        usageDate,
+        provider,
+        model,
+        totalTokens: 15_257,
+        dailyBudgetTokens: 180_000,
+        budgetExhausted: true,
+        lastProviderStatus: "429",
+        lastProviderErrorCode: "rate_limit_exceeded",
+      });
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 3_171, env }))
+        .resolves.toMatchObject({ reservedTokens: 3_171, dailyBudgetTokens: 180_000 });
+      const [recovered] = await db.select().from(agenticLlmDailyUsageTable).where(where).limit(1);
+      expect(recovered).toMatchObject({
+        totalTokens: 15_257,
+        reservedTokens: 3_171,
+        dailyBudgetTokens: 180_000,
+        budgetExhausted: false,
+      });
+      // The local numeric ceiling remains authoritative even though the stale
+      // boolean marker no longer blocks requests that fit.
+      await expect(reserveAgenticLlmDailyBudget({ provider, model, estimatedTokens: 165_000, env }))
         .rejects.toMatchObject({ code: "daily_token_budget_exhausted" });
     } finally {
       await db.delete(agenticLlmDailyUsageTable).where(where);
