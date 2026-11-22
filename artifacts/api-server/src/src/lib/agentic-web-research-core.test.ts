@@ -1781,7 +1781,7 @@ describe("Investigator prompt URL integrity", () => {
     const fetchedSourceEnd = prompt.indexOf("\n\nLEAD FOLLOW-UP", fetchedSourceStart);
     expect(fetchedSourceStart).toBeGreaterThanOrEqual(0);
     expect(fetchedSourceEnd).toBeGreaterThan(fetchedSourceStart);
-    expect(prompt.slice(fetchedSourceStart, fetchedSourceEnd).length).toBeLessThan(2_200);
+    expect(prompt.slice(fetchedSourceStart, fetchedSourceEnd).length).toBeLessThan(3_500);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
     expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a fixed tool sequence|not a mandated next action|no fixed itinerary|no fixed target, action or tool sequence/i);
@@ -2328,7 +2328,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=(?:serper|tavily|exa|unavailable)/i);
-    expect(modelPrompt).toContain("Omit provider for a healthy runtime default.");
+    expect(modelPrompt).toContain("web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
@@ -4371,6 +4371,55 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
   });
 
+  it("does not silently downgrade browser_fetch when the model omits its required provider", () => {
+    vi.stubEnv("SCRAPFLY_API_KEY", "test-scrapfly-key");
+    vi.stubEnv("ZENROWS_API_KEY", "test-zenrows-key");
+    try {
+      const raw = JSON.stringify({
+        action: "browser_fetch",
+        query: null,
+        provider: null,
+        url: "https://example.com/team",
+        email: null,
+        username: null,
+        domain: null,
+        registry: null,
+        thought: null,
+        hypothesis: "The page may expose a useful public organization or person route.",
+        purpose: "Use the configured browser retrieval capability to inspect the source.",
+        expectedInformationGain: 0.5,
+        locale: null,
+        market: null,
+        target: null,
+        targetType: null,
+        profile: null,
+        sources: null,
+        searches: null,
+        findings: [],
+      });
+      expect(parseAgentAction(raw, ["browser_fetch"])).toBeNull();
+      expect(describeAgentActionParseFailure(raw, ["browser_fetch"])).toBe(
+        "invalid_action_arguments action=browser_fetch invalid=provider",
+      );
+      expect(buildActionParseFailureObservation("invalid_action_arguments action=browser_fetch invalid=provider"))
+        .toContain('"provider" must be exactly one of the currently configured values');
+      const prompt = buildStepPrompt({
+        targetName: "",
+        objective: "Inspect a promising public source for objective-fit leads.",
+        history: [],
+        trajectoryRecords: [],
+        lastObservation: "",
+        findings: [],
+        mode: "discovery",
+        actionAllowlist: ["browser_fetch"],
+      });
+      expect(prompt).toContain("web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.");
+      expect(prompt).toContain("provider must be an explicit listed configured value; null is invalid.");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("rejects invalid parallel search cardinality and entries instead of silently rewriting the model action", () => {
     const searches = (count: number) => Array.from({ length: count }, (_, index) => ({
       query: `model-query-${index + 1}`,
@@ -5101,6 +5150,16 @@ describe("single fetched page organization identity", () => {
     expect(articlePublisher).toBeNull();
   });
 
+  it("does not mistake the first organization in a directory ItemList for the page identity", () => {
+    const url = "https://www.openvc.app/investor-lists/angel-investors";
+    const directoryPage = [
+      "<html><head><title>List of Angel Investors for Startups</title></head><body>",
+      '<script type="application/ld+json">{"@type":"CollectionPage","mainEntity":{"@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"Organization","name":"Invest Blue","url":"https://www.openvc.app/investor-lists/angel-investors"}}]}}</script>',
+      "</body></html>",
+    ].join("");
+    expect(extractObservedOrganizationIdentity(directoryPage, url)).toBeNull();
+  });
+
   it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
     expect(agenticCoreSource).toContain("buildDiscoverySourceAttribution");
     expect(agenticCoreSource).toContain("observedPageIdentity: communityObservationSource ? null : page.pageIdentity ?? null");
@@ -5110,6 +5169,53 @@ describe("single fetched page organization identity", () => {
 });
 
 describe("latest fetched source evidence survives emergency Investigator compaction", () => {
+  it("samples fetched-page context across the retained page window and exposes its continuation cursor", () => {
+    const sourceUrl = "https://www.openvc.app/investor-lists/angel-investors";
+    const observation = "PAGE_START_SENTINEL " + "A".repeat(8_000)
+      + " MIDDLE_DIRECTORY_LEAD_SENTINEL: WIT Angels Club and Golden Seeds are listed here. "
+      + "B".repeat(6_900)
+      + "C".repeat(1_200)
+      + " LATE_DIRECTORY_LEAD_SENTINEL: a later organization is listed here."
+      + "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run.]";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find objective-fit people and organizations using attributable public evidence.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 3,
+        model: "openai/gpt-oss-120b",
+        action: "visit",
+        execution: "success",
+        args: {
+          url: sourceUrl,
+          hypothesis: "The directory contains named objective-fit investor leads.",
+          purpose: "Inspect source-listed organizations and people.",
+          pageReadOffset: 0,
+          pageReadNextOffset: 16_000,
+          pageHasMore: true,
+          pageReadSource: "retained_fetch_artifact",
+        },
+        observation,
+        observedUrls: [sourceUrl],
+        leadUrls: [],
+        findings: [],
+      }],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
+    });
+
+    expect(prompt).toContain("PAGE EXCERPT 2");
+    expect(prompt).toContain("MIDDLE_DIRECTORY_LEAD_SENTINEL");
+    expect(prompt).toContain("LATE_DIRECTORY_LEAD_SENTINEL");
+    expect(prompt).toContain('"pageReadOffset":0');
+    expect(prompt).toContain('"pageReadNextOffset":16000');
+    expect(prompt).toContain('"pageHasMore":true');
+    expect(prompt).not.toContain("PAGE CONTENT CONTINUES");
+    expect(prompt).not.toContain(observation);
+  });
+
   it("keeps a source fact near the end of a long successful page observation", () => {
     const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const compact = compactEmergencyTrajectoryObservation(observation, 700);
@@ -5344,7 +5450,9 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("observedUrlsOmittedFromPromptCount");
     expect(durableTail).toContain("leadUrlsOmittedFromPromptCount");
     expect(durableTail).toContain("const boundedObservation = compactDurablePromptObservation(");
-    expect(durableTail).toContain("searchActions.has(record.action) ? 640 : 1_200,");
+    expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
+    expect(durableTail).toContain('record.execution === "success"');
+    expect(durableTail).toContain("? 1_600");
     expect(durableTail).not.toContain(": rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");

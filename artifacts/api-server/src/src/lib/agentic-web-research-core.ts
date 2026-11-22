@@ -1188,7 +1188,8 @@ export function extractObservedOrganizationIdentity(
     if (object["@graph"]) addObjects(object["@graph"], depth + 1);
     if (object.mainEntity) addObjects(object.mainEntity, depth + 1);
     if (object.mainEntityOfPage) addObjects(object.mainEntityOfPage, depth + 1);
-    if (object.itemListElement) addObjects(object.itemListElement, depth + 1);
+    // ItemList children are listed subjects, not the identity of the page.
+    // Do not relabel a directory page as its first listed organization.
     if (object.publisher) addObjects(object.publisher, depth + 1);
   };
   for (const script of scripts) {
@@ -2396,6 +2397,10 @@ function normalizeRecoverableBrowserFetchAction(raw: string): string {
     // ordinary visit fallback is only for a genuinely stale/unavailable label;
     // unconditionally rewriting this action silently disables browser escalation.
     if (action !== "browser_fetch" || !url || !isSafeHttpUrl(url)) return raw;
+    // A null/omitted provider is not a stale provider label. Preserve the action
+    // so local validation can ask the model to choose an explicitly configured
+    // browser provider instead of silently downgrading its recovery decision.
+    if (!provider) return raw;
     if (getAvailableBrowserFetchProviders().some((configuredProvider) => configuredProvider === provider)) return raw;
     return JSON.stringify({ ...value, action: "visit", provider: null, requestedAction: "browser_fetch", requestedProvider: provider || null, normalizationReason: "browser_provider_unavailable" });
   } catch {
@@ -2836,7 +2841,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
         : "Discovery: put provisional person/org leads in findings[] on every non-terminal action. Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted for web_search; browser_fetch requires an explicit configured provider. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
@@ -5889,7 +5894,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields.";
   const configuredSearchProviders = getConfiguredSearchProviders();
-  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
+  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.";
   const modelOwnedScopeGuidance = input.mode === "discovery"
     ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. No fixed target, action or tool sequence."
     : "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
@@ -5986,9 +5991,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : null;
   const compactLatestArgs = (args: Record<string, unknown>): Record<string, unknown> => {
     const orderedKeys = [
-      "searches", "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
-      "expectedInformationGain", "target", "targetType", "profile",
-    ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5);
+      ...[
+        "searches", "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
+        "expectedInformationGain", "target", "targetType", "profile",
+      ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5),
+      ...["pageReadOffset", "pageReadNextOffset", "pageHasMore", "pageReadSource"]
+        .filter((key) => Object.prototype.hasOwnProperty.call(args, key)),
+    ];
     const entries: Array<[string, unknown]> = [];
     for (const key of orderedKeys) {
       const value = args[key];
@@ -6024,7 +6033,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const latestFetchedSourceClaimMarker = latestSuccessfulFetchRecord
     ? (() => {
         const raw = typeof latestSuccessfulFetchRecord.observation === "string"
-          ? latestSuccessfulFetchRecord.observation.replaceAll("  ", " ").trim()
+          ? latestSuccessfulFetchRecord.observation
+              .replace(/\n?\[(?:MORE PAGE CONTENT RETAINED|PAGE CONTENT CONTINUES|PDF CONTENT CONTINUES|END OF RETAINED PAGE CONTENT)[^\]]*\]/gi, "")
+              .replaceAll("  ", " ")
+              .trim()
           : "";
         const breaks = [...raw.matchAll(/[.!?]\s+/g)];
         const lastBreak = breaks.at(-1);
@@ -6037,6 +6049,44 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       })()
     : "";
   const promptLeadUtilizationState = buildDiscoveryLeadUtilizationState(input.trajectoryRecords);
+  const compactFetchedPageObservation = (raw: string, maxChars: number): string => {
+    const source = raw
+      .replace(/\n?\[(?:MORE PAGE CONTENT RETAINED|PAGE CONTENT CONTINUES|PDF CONTENT CONTINUES|END OF RETAINED PAGE CONTENT)[^\]]*\]/gi, "")
+      .trim();
+    if (source.length <= maxChars) return source;
+    const marker = "[OBSERVATION PROJECTION: fetched-page verbatim excerpts sampled across this page window; omitted text is unknown; full observation remains in immutable case events]";
+    const labelReserve = 180;
+    const perWindow = Math.max(120, Math.floor((maxChars - marker.length - labelReserve - 4) / 3));
+    const maxStart = Math.max(0, source.length - perWindow);
+    const rawStarts = [0, Math.floor(maxStart / 2), maxStart];
+    const urlSpans = [...source.matchAll(/https?:\/\/[^\s"'<>]+/giu)].map((match) => {
+      const start = match.index ?? 0;
+      return { start, end: start + match[0].length };
+    });
+    const excerpts = rawStarts.map((rawStart, index) => {
+      let start = rawStart;
+      let end = Math.min(source.length, start + perWindow);
+      for (const span of urlSpans) {
+        if (span.start < start && span.end > start) start = span.end;
+        if (span.start < end && span.end > end) end = span.start;
+      }
+      if (start > 0) {
+        const nextSpace = source.indexOf(" ", start);
+        if (nextSpace > start && nextSpace - start <= 80) start = nextSpace + 1;
+      }
+      if (end < source.length) {
+        const previousSpace = source.lastIndexOf(" ", end);
+        if (previousSpace > start && end - previousSpace <= 80) end = previousSpace;
+      }
+      const text = source.slice(start, Math.max(start, end)).trim();
+      return text ? "[PAGE EXCERPT " + (index + 1) + " chars=" + start + "-" + end + "] " + text : "";
+    }).filter(Boolean);
+    const projection = [marker, ...excerpts].join("\n");
+    return projection.length <= maxChars
+      ? projection
+      : compactPromptSectionPreservingUrlTokens(projection, maxChars, marker);
+  };
+
   const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
     const normalized = typeof value === "string" ? value.trim() : "";
     const marker = "[OBSERVATION PROJECTION: omitted text is unknown; full observation remains in immutable case events; exact URLs are preserved separately]";
@@ -6044,6 +6094,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const matchingRecord = input.trajectoryRecords.find(
       (record) => typeof record.observation === "string" && record.observation.trim() === normalized,
     );
+    if (matchingRecord
+      && matchingRecord.execution === "success"
+      && (matchingRecord.action === "visit" || matchingRecord.action === "browser_fetch")) {
+      return compactFetchedPageObservation(normalized, maxChars);
+    }
     const providerBalancedObservation = matchingRecord
       ? promptLeadUtilizationState.unfetchedLeadObservations.find(
           (item) => item.turn === matchingRecord.turn && item.action === matchingRecord.action,
@@ -6080,10 +6135,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // action; otherwise the latest-record envelope can reintroduce the full
     // provider response after the historical carry-forward copy is compacted.
     // Fetched-page observations are projected to a bounded head/tail excerpt; the complete source remains in immutable case events.
-    const boundedObservation = compactDurablePromptObservation(
-      rawObservation,
-      searchActions.has(record.action) ? 640 : 1_200,
-    );
+    const observationBudget = searchActions.has(record.action)
+      ? 640
+      : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
+        ? 1_600
+        : 1_200;
+    const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
     const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
@@ -6184,6 +6241,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("web_search") ? (availableActions.includes("parallel_web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; parallel_web_search uses searches[] items." : "For web_search, put one query in the root query field and an optional provider in the root provider field.") : "",
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
+    availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "Discovery findings[]: include only model-selected same-run named person/org leads with exact source URLs, scope and uncertainty; non-terminal leads remain review-only. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
