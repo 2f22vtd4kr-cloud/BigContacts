@@ -360,9 +360,9 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
     }
     const result = await db.execute(sql`
       INSERT INTO public.agentic_llm_daily_usage
-        (usage_date, provider, model, reserved_tokens, daily_budget_tokens)
+        (usage_date, provider, model, reserved_tokens, daily_budget_tokens, budget_exhausted)
       VALUES
-        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens})
+        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens}, ${estimatedTokens >= dailyBudgetTokens})
       ON CONFLICT (usage_date, provider, model) DO UPDATE
         SET reserved_tokens = public.agentic_llm_daily_usage.reserved_tokens + EXCLUDED.reserved_tokens,
             daily_budget_tokens = EXCLUDED.daily_budget_tokens,
