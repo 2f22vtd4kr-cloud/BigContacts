@@ -129,7 +129,7 @@ describe("Investigator LLM telemetry privacy", () => {
   it("records the pre-compaction prompt length at the provider call boundary", () => {
     const investigator = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
     expect(investigator).toContain("onPromptMeasurement: capturePromptMeasurement");
-    expect(investigator).toContain("originalPromptChars: providerBoundedPrompt.length");
+    expect(investigator).toContain("originalPromptChars: providerBoundedPromptWithReviewHandoff.length");
     expect(investigator).toContain("finalPromptChars: value.length");
     expect(investigator).toContain("promptMeasurement.originalPromptChars");
     expect(investigator).toContain("originalPromptChars ?? prompt.length");
