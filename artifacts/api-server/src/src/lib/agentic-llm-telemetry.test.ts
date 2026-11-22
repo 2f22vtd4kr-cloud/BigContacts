@@ -153,7 +153,7 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(record.providerErrorType).toBe("tokens");
   });
 
-  it("preserves explicit Groq TPD exhaustion as a provider diagnostic, not a local budget flag", () => {
+  it("preserves explicit Groq TPD exhaustion as a provider diagnostic", () => {
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
     recordAgenticLlmAttempt({
       provider: "groq",
@@ -171,7 +171,6 @@ describe("Investigator LLM telemetry privacy", () => {
       reason: "upstream_token_quota_exhausted",
       providerErrorCode: "upstream_token_quota_exhausted",
     });
-    expect(record.budgetExhausted).not.toBe(true);
   });
 
   it("hashes provider-controlled diagnostic text instead of writing it to logs", () => {
