@@ -341,8 +341,20 @@ export class ResearchIntelligenceEngine {
         // Separate identity and value mentions are review evidence, not a supported composed claim.
         const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
         const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
-        const wholeClaimSupported = finding.reviewOnly !== true && (!finding.personName
-          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || (["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "") && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim()))));
+        const wholeClaimSupported = finding.reviewOnly !== true && (
+          !finding.personName
+          || (
+            source.binding === "identity_and_value"
+            && (
+              !requiresPersonAttribution
+              || (
+                ["person_specific", "direct_personal", "professional_person_specific"].includes(finding.contactAttribution ?? "")
+                && finding.identityAssessment === "same_person"
+                && Boolean(finding.identityRationale?.trim())
+              )
+            )
+          )
+        );
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
