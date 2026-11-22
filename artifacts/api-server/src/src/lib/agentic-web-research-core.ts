@@ -2811,7 +2811,34 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     : availableActionsMatch
       ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
       : getModelSelectableAgentActions();
-  if (model && structuredActionResponseFormat(model, actionAllowlist, _promptMode).type !== "json_schema") {
+  const providerSchema = model ? structuredActionResponseFormat(model, actionAllowlist, _promptMode) : null;
+  if (providerSchema?.type === "json_schema") {
+    const schema = providerSchema.json_schema?.schema as {
+      required?: string[];
+      properties?: Record<string, { items?: { required?: string[] } }>;
+    } | undefined;
+    const rootRequired = new Set(schema?.required ?? []);
+    const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
+    const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
+    const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+    const requiredRootFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
+    const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
+    const requiredFindingFields = supportsFindings
+      ? reviewLeadOnlyFindings
+        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]
+        : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+      : [];
+    const searchRequired = new Set(schema?.properties?.searches?.items?.required ?? []);
+    const findingsRequired = new Set(schema?.properties?.findings?.items?.required ?? []);
+    const completeSchemaPresent = requiredRootFields.every((field) => rootRequired.has(field))
+      && requiredSearchFields.every((field) => searchRequired.has(field))
+      && requiredFindingFields.every((field) => findingsRequired.has(field));
+    if (!completeSchemaPresent) {
+      throw new Error("Cannot send an Investigator request without its complete provider-enforced root and nested action schema.");
+    }
+    return normalized;
+  }
+  if (model && providerSchema?.type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
