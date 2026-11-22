@@ -43,6 +43,24 @@ import {
 export { getAgenticLlmHealth };
 const MAX_PROMPT_URL_CHARS = 512;
 const RECENT_OBSERVATION_COMPACTION_MAX_CHARS = 1_200;
+const AI_HISTORICAL_MEMORY_PROMPT_CHARS = 900;
+const AI_HISTORICAL_MEMORY_PROMPT_MARKER = "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]";
+
+/**
+ * buildStepPrompt intentionally places a bounded excerpt of model-written
+ * historical memory into the prompt. Compare against that exact representation,
+ * not the full source summary: the latter is expected not to appear verbatim.
+ */
+export function hasBoundedAiHistoricalMemory(prompt: string, memory: string): boolean {
+  const source = typeof memory === "string" ? memory.trim() : "";
+  if (!source) return false;
+  const bounded = compactPromptSectionPreservingUrlTokens(
+    source,
+    AI_HISTORICAL_MEMORY_PROMPT_CHARS,
+    AI_HISTORICAL_MEMORY_PROMPT_MARKER,
+  );
+  return Boolean(bounded) && prompt.includes(bounded);
+}
 
 const DURABLE_EXACT_URL_INVENTORY_HEADING = "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):";
 
@@ -5759,7 +5777,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const rawAiHistoricalMemory = input.aiCompactedHistoricalContext?.trim() ?? "";
   const aiHistoricalMemory = rawAiHistoricalMemory
-    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, 900, "[AI MEMORY BOUNDED: omitted context is unknown, not negative evidence; durable case evidence remains authoritative]")
+    ? compactPromptSectionPreservingUrlTokens(rawAiHistoricalMemory, AI_HISTORICAL_MEMORY_PROMPT_CHARS, AI_HISTORICAL_MEMORY_PROMPT_MARKER)
     : "";
   const authoritativeCaseObjective = buildAuthoritativeCaseObjectiveBlock(input.objective);
   const activeBossDirection = extractBossPivotDirectionForCompactPrompt(input.objective)
@@ -7172,7 +7190,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // omit that optional historical projection for this model turn with an
       // explicit unknown/omission marker. The objective, action contract,
       // current structured intelligence and durable event ledger remain intact.
-      if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
+      if (aiCompactedHistoricalContext && !hasBoundedAiHistoricalMemory(prompt, aiCompactedHistoricalContext)) {
         const shorterMemory = await compactInvestigationContextWithFallback({
           rawContext: aiCompactedHistoricalContext,
           maxChars: 900,
@@ -7228,7 +7246,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           emit("ai_context_compaction_unavailable", { status: "error", summary: message });
           return resultBase("unavailable", i, "UNEXPECTED_ERROR", message);
         }
-        if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
+        if (aiCompactedHistoricalContext && !hasBoundedAiHistoricalMemory(prompt, aiCompactedHistoricalContext)) {
           historicalMemoryDegradationNote = "Historical memory was omitted from this model turn because even the bounded summary could not fit beside the mandatory objective and action contract. The complete source history remains durable; omissions are unknown, not negative evidence.";
           aiCompactedHistoricalContext = "";
           emit("ai_context_compaction_degraded", { status: "partial", summary: historicalMemoryDegradationNote });
