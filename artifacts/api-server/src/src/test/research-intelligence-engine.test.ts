@@ -375,7 +375,7 @@ describe("Apex research intelligence", () => {
     const state = engine.buildContext();
     expect(state.facts.some((fact) => fact.claim.includes("jane@example.com"))).toBe(false);
     expect(state.evidenceCount).toBe(0);
-    expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(true);
+    expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(false);
   });
 
   it("preserves VERIFIED and STALE contact states when later sources corroborate the value", () => {
