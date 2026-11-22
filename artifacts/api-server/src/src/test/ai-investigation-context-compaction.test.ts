@@ -1377,6 +1377,9 @@ describe("AI investigation context compaction", () => {
     const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("Do not compress a fetched page into a generic statement that it contains no verifiable names");
     expect(prompt).toContain("keep fetched-page names distinct from unverified search snippets");
+    expect(prompt).toContain(sourceUrl);
+    expect(prompt).toContain("Alex Example");
+    expect(prompt).toContain("Dana Sample");
   });
 
 });
