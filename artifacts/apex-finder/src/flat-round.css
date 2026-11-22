@@ -49,6 +49,19 @@
 .atlas-round .atlas-outline-btn { color:var(--round-ink)!important; background:#fff!important; border:1px solid var(--round-line)!important; }
 .atlas-round input, .atlas-round textarea, .atlas-round select { background:#fff!important; color:var(--round-ink)!important; border-color:var(--round-line)!important; }
 .atlas-round [class*="rounded-full"][class*="border"] { box-shadow:none; }
+.atlas-round .atlas-dashboard-hero { padding-block:32px; border-bottom:1px solid var(--round-line); background:transparent!important; }
+.atlas-round .atlas-dashboard-hero-copy h1 { color:var(--round-ink)!important; font-weight:500; }
+.atlas-round .atlas-dashboard-hero-copy p { color:var(--round-ink-2)!important; }
+.atlas-round .atlas-dashboard-hero-copy > div { color:var(--round-green)!important; }
+.atlas-round .atlas-home-actions { padding:16px; background:linear-gradient(#fff,#fff) padding-box,repeating-conic-gradient(#C8321E 0 25%,#FAFAF8 0 50%) 0/16px 16px border-box!important; border:8px solid transparent; border-radius:10px; box-shadow:none!important; }
+.atlas-round .atlas-home-primary-row { width:100%; }
+.atlas-round .atlas-home-launch { width:100%; }
+.atlas-round .atlas-dashboard-wide { min-width:0; }
+.atlas-round .atlas-dashboard-wide h2, .atlas-round .atlas-dashboard-wide h3 { color:var(--round-ink)!important; }
+.atlas-round .atlas-dashboard-wide [data-testid^="ops-"] { background:#fff!important; border-color:var(--round-line)!important; }
+.atlas-round .atlas-dashboard-wide [data-testid^="ops-"] div { color:var(--round-ink-2); }
+.atlas-round .atlas-dashboard-wide [data-testid^="stat-"] { background:#fff!important; }
+.atlas-round .atlas-round-mobile-toggle { min-width:44px; min-height:44px; }
 .atlas-round .atlas-round-content h1, .atlas-round .atlas-round-content h2, .atlas-round .atlas-round-content h3 { letter-spacing:-.035em; }
 @media (max-width:1100px) { .atlas-round-header { gap:12px; } .atlas-round-primary { gap:0; } .atlas-round-navlink { padding:0 8px; } .atlas-round-status { display:none; } }
 @media (max-width:760px) {

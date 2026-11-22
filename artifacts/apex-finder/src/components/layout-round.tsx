@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Activity, BookOpen, ChevronDown, Database, GitCompare, Menu, Network, Search, Settings2, Telescope, X, Crosshair } from "lucide-react";
 import { ApiKeyHealth } from "@/components/api-key-health";
@@ -28,12 +28,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
+  const mobileWasOpen = useRef(false);
   const active = (href: string) => href === "/" ? location === "/" : location === href || location.startsWith(href + "/");
   const title = primaryNav.find((item) => active(item.href))?.name
     ?? utilityNav.find((item) => active(item.href))?.name
     ?? (location.startsWith("/profile/") ? "Person dossier" : "Apex Atlas");
   useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
   useEffect(() => { setMobileOpen(false); }, [location]);
+  useEffect(() => {
+    if (mobileOpen) {
+      mobileWasOpen.current = true;
+      const closeOnEscape = (event: KeyboardEvent) => {
+        if (event.key === "Escape") setMobileOpen(false);
+      };
+      window.addEventListener("keydown", closeOnEscape);
+      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-nav a")?.focus();
+      return () => window.removeEventListener("keydown", closeOnEscape);
+    }
+    if (mobileWasOpen.current) {
+      mobileToggleRef.current?.focus();
+      mobileWasOpen.current = false;
+    }
+    return undefined;
+  }, [mobileOpen]);
 
   const NavItems = ({ mobile = false }: { mobile?: boolean }) => (
     <>
@@ -63,7 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button className="atlas-round-more" type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>
             More <ChevronDown />
           </button>
-          <button className="atlas-round-mobile-toggle" type="button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
+          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-nav" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
             {mobileOpen ? <X /> : <Menu />}
           </button>
         </div>
@@ -72,7 +90,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           return <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon />{item.name}</Link>;
         })}</div>}
       </header>
-      {mobileOpen && <nav className="atlas-round-mobile-nav" aria-label="Mobile navigation"><NavItems mobile />{utilityNav.map(item => {
+      {mobileOpen && <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Mobile navigation"><NavItems mobile />{utilityNav.map(item => {
         const Icon = item.icon;
         return <Link key={item.href} href={item.href} className="atlas-round-navlink is-mobile"><Icon /><span>{item.name}</span></Link>;
       })}</nav>}
