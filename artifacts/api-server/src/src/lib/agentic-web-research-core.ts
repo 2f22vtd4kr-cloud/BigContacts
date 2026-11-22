@@ -481,7 +481,7 @@ export function buildDiscoveryRetrievalFeedback(records: readonly AgenticTraject
     "DISCOVERY RETRIEVAL ADAPTATION (control feedback, not negative evidence or a fixed itinerary):",
     "A failed or blocked fetch does not disprove the lead or establish that the source lacks information.",
     "Do not repeat the same inaccessible URL/action without a materially changed retrieval hypothesis. Choose a materially different permitted evidence route, another relevant lead, or revise the hypothesis according to expected information gain.",
-    "Respect scope and safety blocks; do not bypass them. You own the provider, source-family, query and next-action choice; no particular route or sequence is prescribed.",
+    "Respect scope and safety blocks. Do not bypass them. You own the provider, source-family, query and next-action choice; no particular route or sequence is prescribed.",
     JSON.stringify({ failedLeadUrls: state.failedLeadUrls, blockedLeadUrls: state.blockedLeadUrls }),
   ].join("\n");
 }
