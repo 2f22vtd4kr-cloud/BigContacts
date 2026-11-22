@@ -520,7 +520,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
     expect(submitted).toContain("Non-done actions require non-empty hypothesis/purpose");
-    expect(submitted).toContain("expectedInformationGain finite [0,1]");
+    expect(submitted).toContain("finite expectedInformationGain [0,1]");
     expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(submitted).toContain("Include every key");
     expect(submitted).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
@@ -924,7 +924,7 @@ describe("Groq Investigator runtime contract", () => {
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("Inspect same-run observations. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
-    expect(strictUser).toContain("review-only");
+    expect(strictUser).toContain("reviewOnly=true");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
     const strictFindings = strictSchema.findings as {
