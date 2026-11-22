@@ -6174,7 +6174,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const observationBudget = searchActions.has(record.action)
       ? 640
       : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-        ? 1_600
+        ? 1_200
         : 1_200;
     const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
@@ -6280,8 +6280,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true, exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
+        ? "Discovery: inspect latest successful observations, not only compact summaries. For each named objective-fit person/org, decide whether target review is warranted; if yes, emit findings[] with reviewOnly=true, exact source URL, scope, observed role and uncertainty. Do not promote/admit leads. On done, report source-backed claims only; a selected organization may remain review-only, never admitted."
+        : "Inspect same-run observations on every discovery action. Include model-selected person/org leads worth review in findings[] with reviewOnly=true, exact URL, scope and uncertainty; compact summaries do not prove a name absent. Use [] when none merits review; never admit these leads."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6294,7 +6294,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
     + (supportsSearchArrays ? " searches[] required keys: query, provider, registry, locale, market, purpose." : "")
     + (supportsFindings ? " findings[] required keys: " + requiredFindingFieldNames.join(", ") + "; null for unused fields." : "")
-    + " Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1]. For every non-done action, hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1; if omitted, use concise rationale and 0.5. These fields support audit/telemetry and must never block an otherwise valid action. "
+    + " Non-done actions require non-empty hypothesis/purpose and finite expectedInformationGain [0,1] (default concise rationale and 0.5). These telemetry fields never block otherwise valid actions. "
     + actionShapeGuidance + " Local parser enforces action-specific values and evidence rules.";
   const requiredFieldNames = topLevelFields;
   const requiredSearchFieldNames = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] as const : [] as const;
