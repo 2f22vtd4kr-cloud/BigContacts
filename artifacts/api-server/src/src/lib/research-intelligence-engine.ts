@@ -103,6 +103,8 @@ export interface IntelligenceAction {
   urls: string[];
   findingCount: number;
   useful: boolean;
+  /** True only when fetched evidence supports a claim-grade finding; optional for legacy projections. */
+  claimGradeUseful?: boolean;
   informationGain: number;
   findingNames: string[];
   findingRoles: string[];
@@ -246,7 +248,7 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null; reviewOnly?: boolean }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const sourceAttribution = input.args?.sourceAttribution && typeof input.args.sourceAttribution === "object"
       ? input.args.sourceAttribution as Record<string, unknown>
@@ -290,6 +292,7 @@ export class ResearchIntelligenceEngine {
     const findings: typeof candidateFindings = [];
     const admittedFindingEvidenceIds = new Set<string>();
     let useful = false;
+    let claimGradeUseful = false;
     for (const finding of candidateFindings) {
       const value = String(finding.value ?? "").trim();
       if (!value) continue;
@@ -338,7 +341,7 @@ export class ResearchIntelligenceEngine {
         // Separate identity and value mentions are review evidence, not a supported composed claim.
         const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
         const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
-        const wholeClaimSupported = !finding.personName
+        const wholeClaimSupported = finding.reviewOnly !== true && (!finding.personName
           || (source.binding === "identity_and_value" && (!requiresPersonAttribution || (["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "") && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim()))));
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
@@ -356,7 +359,10 @@ export class ResearchIntelligenceEngine {
           ambiguityNotes: finding.ambiguityNotes ?? null,
           supports: wholeClaimSupported && finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
         });
-        if (wholeClaimSupported) admittedFindingEvidenceIds.add(evidenceId);
+        if (wholeClaimSupported) {
+          claimGradeUseful = true;
+          admittedFindingEvidenceIds.add(evidenceId);
+        }
       }
       const valueSourceUrls = supportedSources
         .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
@@ -389,7 +395,7 @@ export class ResearchIntelligenceEngine {
         + Math.min(0.35, urls.length * 0.07)
         + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
-    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
+    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, claimGradeUseful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
     // Recompute live contradictions before hypothesis support is linked or ranked.
     this.reconcileContradictions();
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
@@ -872,7 +878,7 @@ export class ResearchIntelligenceEngine {
         importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : null,
         uncertainty: null,
         discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
-        status: action.useful ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
+        status: (action.claimGradeUseful ?? action.useful) ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
       });
     }
     const researchQuestions = [...researchQuestionMap.values()].slice(-24);
