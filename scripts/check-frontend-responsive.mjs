@@ -47,9 +47,9 @@ const checks = [
   ["legacy mobile drawer closes on Escape and restores focus", /key === "Escape"/.test(layout) && /mobileMenuButtonRef\.current\?\.focus/.test(layout)],
   ["legacy skip link reaches the main landmark", /href="#main-content"/.test(layout) && /id="main-content"/.test(layout)],
   ["legacy collapsed desktop nav releases the content column", /desktopNavOpen \? "lg:pl-\[250px\]" : "lg:pl-0"/.test(layout) && /desktopNavOpen \? "lg:pl-\[274px\]" : "lg:pl-6"/.test(layout)],
-  ["legacy shell remains separately available", /export \{ Layout \}/.test(read(files.layout)) && fs.existsSync(files.legacyLayout)],
+  ["legacy shell remains separately available and switchable", fs.existsSync(files.legacyLayout) && /onSwitchToRound/.test(read(files.legacyLayout))],
 
-  ["Flat Round shell is the default exported layout", /export \{ Layout \} from "\.\/layout-round"/.test(read(files.layout))],
+  ["Flat Round is the default and legacy is a live rollback", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /switchMode\("legacy"\)/.test(read(files.layout)) && /switchMode\("round"\)/.test(read(files.layout))],
   ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
   ["Flat Round shell exposes mobile navigation and More utilities", /atlas-round-mobile-nav/.test(roundLayout) && /atlas-round-more-menu/.test(roundLayout)],
   ["Flat Round shell includes safe-area and constrained responsive layout", /safe-area-inset/.test(roundCss) && /min-width:0|min-w-0/.test(roundCss + roundLayout)],

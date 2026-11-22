@@ -50,7 +50,7 @@ const toolsNav = [
 
 const allNav = [...mainNav, ...referenceNav, ...toolsNav];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, onSwitchToRound }: { children: React.ReactNode; onSwitchToRound?: () => void }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -428,6 +428,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
             </button>
+            {onSwitchToRound && <button type="button" onClick={onSwitchToRound} className="atlas-pressable shrink-0 rounded-lg border border-white/10 px-2 py-2 text-[10px] text-stone-300 hover:bg-white/[0.06] sm:px-3">Flat Round UI</button>}
             <WorkspaceStatus />
             <ApiKeyHealth />
           </div>

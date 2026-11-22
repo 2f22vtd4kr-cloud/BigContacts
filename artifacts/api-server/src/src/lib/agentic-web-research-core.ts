@@ -109,6 +109,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
+// Assets remain source-backed observations, not person/organization cards; preserve them in evidence state without inventing entity admission.
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved"; hypothesisRationale?: string; relationshipType?: string; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable"; interpretationConfidence?: number; ambiguityNotes?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
@@ -6156,7 +6157,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const observationBudget = searchActions.has(record.action)
       ? 640
       : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-        ? 1_600
+        ? 1_280
         : 1_200;
     const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};

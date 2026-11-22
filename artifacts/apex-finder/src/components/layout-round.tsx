@@ -24,7 +24,7 @@ const utilityNav = [
   { name: "Intel terminal", href: "/research", icon: Crosshair },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
   const [location] = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -88,12 +88,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {moreOpen && <div className="atlas-round-more-menu">{utilityNav.map(item => {
           const Icon = item.icon;
           return <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon />{item.name}</Link>;
-        })}</div>}
+        })}<button type="button" className="atlas-round-more-option" onClick={() => { setMoreOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></div>}
       </header>
       {mobileOpen && <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Mobile navigation"><NavItems mobile />{utilityNav.map(item => {
         const Icon = item.icon;
         return <Link key={item.href} href={item.href} className="atlas-round-navlink is-mobile"><Icon /><span>{item.name}</span></Link>;
-      })}</nav>}
+      })}<button type="button" className="atlas-round-navlink is-mobile" onClick={() => onSwitchToLegacy?.()}>Classic interface</button></nav>}
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
         <div className="atlas-round-page-meta"><span>APEX ATLAS</span><span className="atlas-round-meta-dot">/</span><strong>{title}</strong></div>
         <div className="atlas-round-content">{children}</div>
