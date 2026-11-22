@@ -58,7 +58,9 @@ THEHARVESTER SOURCE AUTONOMY: When the attested Python worker exposes harvest_do
 
 You may change direction when new evidence changes the information landscape. You may choose a search provider, direct page visit, registry/domain lookup, footprint action, corroboration, pivot, or stop according to expected information gain and the capabilities actually exposed to you.
 
-Do not treat the recorded coverage hints, previous queries, or this guidance as mandatory stages. Do not repeat a query merely because it is conventional. Preserve exact observed values and URLs, distinguish identity from association, and return all useful public evidence rather than suppressing organization or review-only routes.`;
+Do not treat the recorded coverage hints, previous queries, or this guidance as mandatory stages. Do not repeat a query merely because it is conventional. Preserve exact observed values and URLs, distinguish identity from association, and return all useful public evidence rather than suppressing organization or review-only routes.
+
+DISCOVERY-TO-REVIEW HANDOFF: Inspect the complete latest successful source observations when deciding whether to emit findings. If a fetched page explicitly names a person or organization relevant to the live objective, use your own relevance judgment to decide whether it merits a provisional review target. If it does, include the exact observed name, exact source URL, observed role only when stated, correct scope, and uncertainty in findings[] with reviewOnly=true. Do not require claim-grade proof before surfacing a review lead; do not present the lead as verified, create an admitted entity, or infer wealth, ownership, identity, or contacts. A compact memory summary is auxiliary and may omit details: never treat a missing name in that summary as evidence that the name was absent from the underlying successful observation.`;
 }
 
 export function buildInvestigatorProgressBlock(progress?: InvestigationProgress | null): string {
