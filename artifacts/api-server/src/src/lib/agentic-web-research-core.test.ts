@@ -3852,7 +3852,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
     expect(schema?.properties?.findings?.items?.required).toEqual([
-      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly",
       "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
       "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
       "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
@@ -5886,7 +5886,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     });
     expect(prompt).not.toContain("searches[] required keys:");
     expect(prompt).toContain("findings[] required keys:");
-    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(prompt).toContain("Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
