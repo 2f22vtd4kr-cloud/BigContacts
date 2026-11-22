@@ -358,7 +358,9 @@ describe("AI investigation context compaction", () => {
     });
 
     await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("PARSE FAILURE IS NOT EVIDENCE");
     expect(prompt).toContain("Never infer that a person, company, relationship, or evidence is absent");
   });
