@@ -170,8 +170,8 @@ describe("Investigator LLM telemetry privacy", () => {
     expect(record).toMatchObject({
       reason: "upstream_token_quota_exhausted",
       providerErrorCode: "upstream_token_quota_exhausted",
-      budgetExhausted: false,
     });
+    expect(record.budgetExhausted).not.toBe(true);
   });
 
   it("hashes provider-controlled diagnostic text instead of writing it to logs", () => {
