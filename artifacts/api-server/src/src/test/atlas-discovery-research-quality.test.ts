@@ -116,6 +116,20 @@ describe("AI-led discovery research quality context", () => {
     }));
   });
 
+  it("never treats a search-result finding as answering its research purpose", () => {
+    const searchRecord: AgenticTrajectoryRecord = {
+      ...records[0]!,
+      findings: [{ ...records[0]!.findings[0]!, reviewOnly: undefined }],
+    };
+    const memory = JSON.parse(buildDiscoveryWorkingMemoryContext([searchRecord])) as {
+      unresolvedResearchQuestions: Array<{ question: string; status: "open" | "blocked" }>;
+    };
+    expect(memory.unresolvedResearchQuestions).toContainEqual(expect.objectContaining({
+      question: "Identify a current operating company and a source-backed decision-maker",
+      status: "open",
+    }));
+  });
+
   it("tells the Investigator to adapt retrieval without treating failures as disproof or prescribing a route", () => {
     const feedback = buildDiscoveryRetrievalFeedback(records);
     expect(feedback).toContain("does not disprove the lead");
