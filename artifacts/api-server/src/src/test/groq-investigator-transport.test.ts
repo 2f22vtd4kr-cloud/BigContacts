@@ -269,6 +269,27 @@ describe("Groq Investigator HTTP transport recovery", () => {
     expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
   });
 
+  it("records explicit tokens-per-day exhaustion without poisoning the local daily budget", async () => {
+    transportMocks.responses.push(groqResponse(429, {
+      error: {
+        message: "Rate limit reached for model openai/gpt-oss-120b on tokens per day (TPD): Limit 200000, Used 199753, Requested 3171.",
+        type: "tokens",
+        code: "rate_limit_exceeded",
+      },
+    }));
+
+    const result = await callTransport();
+
+    expect(result?.error).toBe("upstream_token_quota_exhausted");
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    expect(transportMocks.recordAttempt).toHaveBeenCalledTimes(1);
+    expect(transportMocks.recordAttempt.mock.calls[0]?.[0]).toMatchObject({
+      budgetExhausted: false,
+      reason: "upstream_token_quota_exhausted",
+      providerErrorCode: "upstream_token_quota_exhausted",
+    });
+  });
+
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {
     transportMocks.responses.push(groqResponse(400, {
       error: {
