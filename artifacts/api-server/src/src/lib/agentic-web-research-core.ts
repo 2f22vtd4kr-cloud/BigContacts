@@ -4118,11 +4118,16 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown>; required?: string[] } };
     const findingItems = findingSchema.items;
     if (findingItems) {
+      const existingProperties = Object.entries(findingItems.properties ?? {});
+      const noteIndex = existingProperties.findIndex(([name]) => name === "note");
+      const beforeNote = noteIndex >= 0 ? Object.fromEntries(existingProperties.slice(0, noteIndex + 1)) : {};
+      const afterNote = noteIndex >= 0 ? Object.fromEntries(existingProperties.slice(noteIndex + 1)) : {};
       findingItems.properties = {
-        ...(findingItems.properties ?? {}),
+        ...beforeNote,
         reviewOnly: reviewLeadOnlyFindings
           ? { type: "boolean", enum: [true] }
           : { type: ["boolean", "null"], enum: [true, null] },
+        ...afterNote,
       };
       findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly"])];
     }
