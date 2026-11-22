@@ -523,6 +523,26 @@ describe("Groq Investigator runtime contract", () => {
 
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).not.toContain("reviewOnly=true");
+
+    const terminalOnlyPrompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover evidence-backed public research leads.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Ready to reconcile terminal discovery.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["done"],
+    });
+    const terminalOnlyBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt: terminalOnlyPrompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["done"],
+      promptMode: "discovery",
+    });
+    const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(terminalOnlyUser).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
