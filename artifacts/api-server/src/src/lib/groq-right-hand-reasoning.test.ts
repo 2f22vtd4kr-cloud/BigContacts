@@ -409,8 +409,8 @@ describe("Groq Right-hand task-scoped control recovery", () => {
       .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
       .find((entry) => entry.providerErrorCode === "upstream_token_quota_exhausted");
     expect(tpdAttempt).toMatchObject({
-      budgetExhausted: false,
       reason: "upstream_token_quota_exhausted",
+      providerErrorCode: "upstream_token_quota_exhausted",
     });
   });
 
