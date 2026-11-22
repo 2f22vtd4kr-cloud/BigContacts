@@ -268,7 +268,7 @@ describe("Apex research intelligence", () => {
     expect(state.sourceFamilyDiversity).toBe(2);
   });
 
-  it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
+  it("keeps evidence and contradictions while preserving failed retrievals as unknown", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The registry explicitly attributes the directorship to Alex." }] });
     engine.recordAction({ turn: 2, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "This independent source records a different directorship and contradicts the Alpha hypothesis." }] });
@@ -277,7 +277,8 @@ describe("Apex research intelligence", () => {
     expect(state.evidenceCount).toBeGreaterThan(0);
     expect(state.sourceDiversity).toBeGreaterThanOrEqual(2);
     expect(state.contradictions.length).toBeGreaterThan(0);
-    expect(state.negativeFindings.length).toBeGreaterThan(0);
+    // The HTTP 404 below is a retrieval failure, not negative source evidence.
+    expect(state.negativeFindings).toHaveLength(0);
     expect(state.provenanceDigest).toHaveLength(64);
     expect(state.missionBriefs.map((brief) => brief.mission)).toEqual(["identity", "organization", "contact", "disproof"]);
   });
