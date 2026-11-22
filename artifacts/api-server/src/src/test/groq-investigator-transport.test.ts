@@ -38,7 +38,7 @@ const strictInvestigatorPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
-  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 
 function groqResponse(status: number, body: unknown): Response {
@@ -270,6 +270,27 @@ describe("Groq Investigator HTTP transport recovery", () => {
     expect(retried.ok).toBe(true);
     expect(retried.sampleSummary[0]).toMatchObject({ passedSamples: 3, failedSamples: 0, cacheHit: false });
     expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(6);
+  });
+
+  it("records explicit tokens-per-day exhaustion without poisoning the local daily budget", async () => {
+    transportMocks.responses.push(groqResponse(429, {
+      error: {
+        message: "Rate limit reached for model openai/gpt-oss-120b on tokens per day (TPD): Limit 200000, Used 199753, Requested 3171.",
+        type: "tokens",
+        code: "rate_limit_exceeded",
+      },
+    }));
+
+    const result = await callTransport();
+
+    expect(result?.error).toBe("upstream_token_quota_exhausted");
+    expect(transportMocks.safeOutboundFetch).toHaveBeenCalledTimes(1);
+    expect(transportMocks.recordAttempt).toHaveBeenCalledTimes(1);
+    expect(transportMocks.recordAttempt.mock.calls[0]?.[0]).toMatchObject({
+      budgetExhausted: false,
+      reason: "upstream_token_quota_exhausted",
+      providerErrorCode: "upstream_token_quota_exhausted",
+    });
   });
 
   it("fails fast on an invalid_request_error response_format HTTP 400 without a retry", async () => {
