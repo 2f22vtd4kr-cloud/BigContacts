@@ -279,6 +279,7 @@ export function buildDiscoveryLeadUtilizationState(
   // Preserve title/snippet context for every lead that has not been fetched
   // successfully, including failed and blocked attempts. A failed retrieval is
   // unresolved, not a reason to erase the original search observation.
+  const unfetchedLeadKeys = new Set(unfetched.map(([key]) => key));
   const unresolvedLeadKeys = new Set(newestFirst.filter(([key]) => !fetched.has(key)).map(([key]) => key));
   const unfetchedLeadObservations = [...records]
     .filter((record) => record.execution === "success" && searchActions.has(record.action))
@@ -374,7 +375,10 @@ export function buildDiscoveryLeadUtilizationState(
       return [{
         turn: record.turn,
         action: record.action,
-        leadUrlCount: urls.length,
+        leadUrlCount: urls.filter((rawUrl) => {
+          const candidate = normalize(rawUrl);
+          return candidate !== null && unfetchedLeadKeys.has(candidate.key);
+        }).length,
         observation: boundedResultContext,
       }];
     })
@@ -482,7 +486,7 @@ export function buildDiscoveryRetrievalFeedback(records: readonly AgenticTraject
     "A failed or blocked fetch does not disprove the lead or establish that the source lacks information.",
     "Do not repeat the same inaccessible URL/action without a materially changed retrieval hypothesis. Choose a materially different permitted evidence route, another relevant lead, or revise the hypothesis according to expected information gain.",
     "Respect scope and safety blocks. Do not bypass them. You own the provider, source-family, query and next-action choice; no particular route or sequence is prescribed.",
-    JSON.stringify({ failedLeadUrls: state.failedLeadUrls, blockedLeadUrls: state.blockedLeadUrls }),
+    JSON.stringify({ failedLeadUrls: state.failedLeadUrls.slice(0, 4), blockedLeadUrls: state.blockedLeadUrls.slice(0, 4) }),
   ].join("\n");
 }
 
@@ -5825,13 +5829,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryWorkingMemory = input.mode === "discovery"
     ? boundInvestigatorPromptSection(
         "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
-        1_300,
+        1_000,
       )
     : "";
   const discoveryIntelligenceContext = input.mode === "discovery"
     ? boundInvestigatorPromptSection(
         "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + (input.intelligenceContext || "No structured intelligence state has been populated yet."),
-        650,
+        500,
       )
     : "";
   const discoveryRetrievalFeedback = input.mode === "discovery"
@@ -5887,7 +5891,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action. Inspect actual same-run title/snippet/URL observations; include each objective-relevant named lead you select for verification with exact URL, scope and uncertainty. Never admit it; set promotion fields null where required. Use [] only when no lead merits review. Never infer names from URL slugs or promote every result. Assets remain source-backed observations, not person/org cards."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action with exact same-run URLs, scope and uncertainty; review-only, never admitted. Assets remain source-backed observations, not person/org cards."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
