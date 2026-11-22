@@ -370,11 +370,9 @@ export class ResearchIntelligenceEngine {
         this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
     }
-    if (!useful && input.execution !== "success") {
-      const negative = `${input.action} produced no usable evidence (${input.execution})`;
-      this.negativeFindings.add(negative);
-      this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
-    }
+    // Retrieval failures and preflight blocks are unknown, not negative
+    // findings. A missing observation cannot disprove the research hypothesis;
+    // only explicit source-backed negative observations may populate this set.
     if (observationIsFetchedSource) {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), ...sourceMetadataForUrl(url), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
