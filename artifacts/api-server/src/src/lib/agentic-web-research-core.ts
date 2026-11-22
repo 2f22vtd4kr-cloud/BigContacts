@@ -6192,9 +6192,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? { observedUrlsOmittedFromPromptCount: rawObservedUrls.length - observedUrls.length }
         : {}),
       ...(leadUrls.length ? { leadUrls } : {}),
-      ...(rawLeadUrls.length > leadUrls.length
-        ? { leadUrlsOmittedFromPromptCount: rawLeadUrls.length - leadUrls.length }
-        : {}),
+      leadUrlsOmittedFromPromptCount: Math.max(0, rawLeadUrls.length - leadUrls.length),
       observation: boundedObservation,
       ...(rawObservation.length > boundedObservation.length
         ? { observationCharsOmittedFromPrompt: rawObservation.length - boundedObservation.length }
