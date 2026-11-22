@@ -2277,9 +2277,6 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
   for (const rawFinding of Array.isArray(rawFindings) ? rawFindings : []) {
     if (!rawFinding || typeof rawFinding !== "object" || Array.isArray(rawFinding)) continue;
     const f = rawFinding as Record<string, unknown>;
-    // Only the model's explicit reviewOnly=true selection creates a provisional
-    // lead. Claim-grade terminal findings must not be duplicated as review cards.
-    if (f.reviewOnly !== true) continue;
     const rawVector = cleanText(f.vectorType, 30).toLowerCase();
     const vector = (["email", "phone", "linkedin", "website", "other", "social"].includes(rawVector)
       ? rawVector
