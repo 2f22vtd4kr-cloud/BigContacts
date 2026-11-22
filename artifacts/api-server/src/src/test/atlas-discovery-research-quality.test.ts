@@ -117,9 +117,11 @@ describe("AI-led discovery research quality context", () => {
   });
 
   it("never treats a search-result finding as answering its research purpose", () => {
+    const searchFinding = { ...records[0]!.findings[0]! };
+    delete searchFinding.reviewOnly;
     const searchRecord: AgenticTrajectoryRecord = {
       ...records[0]!,
-      findings: [{ ...records[0]!.findings[0]!, reviewOnly: undefined }],
+      findings: [searchFinding],
     };
     const memory = JSON.parse(buildDiscoveryWorkingMemoryContext([searchRecord])) as {
       unresolvedResearchQuestions: Array<{ question: string; status: "open" | "blocked" }>;
