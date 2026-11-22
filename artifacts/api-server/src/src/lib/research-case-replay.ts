@@ -134,6 +134,30 @@ function requireReferencedEvent(
  * chain. Replay validates those edges instead of treating copied URLs/values
  * in mutable projections as sufficient provenance.
  */
+/** Remove private model-reasoning fields from operator-facing replay projections.
+ * The append-only event payload remains untouched and authoritative; this is a
+ * presentation boundary, not a mutation of forensic evidence.
+ */
+export function sanitizeOperatorVisibleReplay(replay: ResearchCaseReplay): ResearchCaseReplay {
+  const privateKeys = new Set(["thought", "chain_of_thought", "chainofthought", "internal_reasoning", "internalreasoning", "reasoning_trace"]);
+  const scrub = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(scrub);
+    if (!value || typeof value !== "object") return value;
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (privateKeys.has(key.toLowerCase().replace(/[\\s-]/g, "_"))) continue;
+      result[key] = scrub(child);
+    }
+    return result;
+  };
+  return {
+    ...replay,
+    latestDecision: replay.latestDecision ? scrub(replay.latestDecision) as Record<string, unknown> : null,
+    latestObservation: replay.latestObservation ? scrub(replay.latestObservation) as Record<string, unknown> : null,
+    latestDirective: replay.latestDirective ? scrub(replay.latestDirective) as Record<string, unknown> : null,
+  };
+}
+
 export function replayResearchCaseEvents(events: ResearchReplayEvent[]): ResearchCaseReplay {
   const violations: string[] = [];
   const ordered = [...events].sort((a, b) => {
