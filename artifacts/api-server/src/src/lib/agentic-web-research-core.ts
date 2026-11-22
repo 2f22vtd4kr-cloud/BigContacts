@@ -316,7 +316,7 @@ export function buildDiscoveryLeadUtilizationState(
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
-          .slice(0, 220);
+          .slice(0, 160);
         if (excerpt && !resultExcerpts.some((item) => item.provider === currentProvider && item.excerpt === excerpt)) {
           resultExcerpts.push({ provider: currentProvider, url: candidate.url, excerpt });
         }
@@ -350,7 +350,7 @@ export function buildDiscoveryLeadUtilizationState(
       for (const provider of providers) {
         const matching = resultExcerpts.filter((item) => item.provider === provider);
         const last = matching.at(-1);
-        if (last && last !== matching[0] && selectedExcerpts.length < 6 && !selectedExcerpts.some((item) => item.url === last.url) && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 820) {
+        if (providers.length === 1 && last && last !== matching[0] && selectedExcerpts.length < 2 && !selectedExcerpts.some((item) => item.url === last.url)) {
           selectedExcerpts.push(last);
         }
       }
@@ -5816,9 +5816,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
-  const cognitiveState = boundInvestigatorPromptSection(
+  const cognitiveState = input.mode === "discovery" ? "" : boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 150 : 700,
+    700,
   );
   const activeDiscoveryScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
   const discoveryWorkingRecords = input.mode === "discovery"
@@ -5826,15 +5826,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? record.pivotScopeKey === activeDiscoveryScopeKey || !record.pivotScopeKey
         : !record.pivotScopeKey)
     : [];
-  const discoveryWorkingMemory = input.mode === "discovery"
+  const hasDiscoveryWorkingMemory = discoveryWorkingRecords.some((record) => {
+    const args = record.args ?? {};
+    return searchActions.has(record.action)
+      || (record.findings?.length ?? 0) > 0
+      || typeof args.hypothesis === "string" && Boolean(args.hypothesis.trim())
+      || typeof args.purpose === "string" && Boolean(args.purpose.trim());
+  });
+  const discoveryWorkingMemory = input.mode === "discovery" && hasDiscoveryWorkingMemory
     ? boundInvestigatorPromptSection(
         "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
         1_000,
       )
     : "";
-  const discoveryIntelligenceContext = input.mode === "discovery"
+  const discoveryIntelligenceContext = input.mode === "discovery" && input.intelligenceContext?.trim()
     ? boundInvestigatorPromptSection(
-        "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + (input.intelligenceContext || "No structured intelligence state has been populated yet."),
+        "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + input.intelligenceContext,
         500,
       )
     : "";
@@ -5873,7 +5880,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields.";
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
-  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
+  const modelOwnedScopeGuidance = input.mode === "discovery"
+    ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; respect explicit geographic constraints. No fixed target, tool or action sequence."
+    : "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order." : "";
   const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
@@ -5901,7 +5910,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // state/history can be compacted independently without erasing memory.
     aiHistoricalMemorySection,
     "",
-    "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
+    input.mode === "discovery" ? "" : "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
     cognitiveState,
     "",
     workingContext,
@@ -6167,8 +6176,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery: put provisional person/org leads in findings[] on every non-terminal action. Include each model-selected objective-relevant named lead from the same-run observation with exact URL, scope and uncertainty; leave promotion fields null where required and never admit it. Use [] only when no lead merits review. done uses source-backed claims; you may explicitly select a same-run organization for a review-only card with promotionDecision=promote and a reason. This is not company admission; search_result_lead remains unverified."
-        : "Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
+        ? "Discovery findings[]: include only model-selected same-run named person/org leads with exact source URLs, scope and uncertainty; non-terminal leads remain review-only. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+        : "Every discovery action MUST include model-selected same-run named person/org leads in findings[] with exact URLs, scope and uncertainty; review-only, never admitted."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
