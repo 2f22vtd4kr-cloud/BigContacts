@@ -86,6 +86,10 @@ describe("ResearchIntelligenceEngine", () => {
       findings: [],
     });
     const legacy = original.buildContext();
+    legacy.negativeFindings = [
+      "visit produced no usable evidence (http_error)",
+      "Official source explicitly states that no public direct contact route is listed",
+    ];
     const hypothesis = legacy.hypotheses.find((item) => item.label === "Jane Example is CFO");
     expect(hypothesis).toBeDefined();
     hypothesis!.missingDiscriminators = ["verify Jane's current CFO role"];
@@ -94,6 +98,7 @@ describe("ResearchIntelligenceEngine", () => {
     resumed.restoreContext(legacy);
     const state = resumed.buildContext();
     expect(state.openQuestions).not.toContain("verify Jane's current CFO role");
+    expect(state.negativeFindings).toEqual(["Official source explicitly states that no public direct contact route is listed"]);
     expect(state.hypotheses.find((item) => item.label === "Jane Example is CFO")?.missingDiscriminators).not.toContain("verify Jane's current CFO role");
     expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
   });
