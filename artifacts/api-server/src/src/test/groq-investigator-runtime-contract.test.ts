@@ -26,10 +26,11 @@ function assertGroqStrictSchemaNode(node: unknown): void {
 
 const completeInvestigatorProviderPrompt = [
   "OUTPUT CONTRACT: JSON object only.",
-  "ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted.",
-  "Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1.",
-  "Discovery: inspect the complete same-run observations on every action. Include each objective-relevant named person/org lead the model judges worth target-scoped review in findings[] with reviewOnly=true, exact observed name and source URL, scope, stated role only when observed, and uncertainty. Do not drop a relevant name from a successful fetched page merely because a compact memory summary omitted it. Use [] only when no named lead merits review. These are review-only, never admissions.",
-  "Findings use vectorType, value, personName, role, scope, sourceUrls, note and reviewOnly; each provisional discovery lead must set reviewOnly=true.",
+  "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
+  "Include every key; use null for unused scalar fields and [] for unused arrays.",
+  "searches[] required keys: query, provider, registry, locale, market, purpose.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1].",
 ].join("\\n\\n");
 
 describe("Groq Investigator runtime contract", () => {
@@ -43,8 +44,8 @@ describe("Groq Investigator runtime contract", () => {
     const preserved = boundInvestigatorProviderPrompt(prompt, 4_800, "discovery");
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
-    expect(preserved).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
-    expect(preserved).toContain("Findings use vectorType, value, personName, role, scope, sourceUrls, note and reviewOnly");
+    expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(preserved).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution");
   });
 
   it("keeps the preferred user prompt within the 10,000-character schema-inclusive request target", () => {
@@ -524,7 +525,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Include every key");
     expect(submitted).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
     expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
-    expect(submitted).toContain("Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true");
+    expect(submitted).toContain("Discovery findings[]: inspect the complete latest successful observations, not only the compact summary.");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
@@ -942,41 +943,6 @@ describe("Groq Investigator runtime contract", () => {
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(twentyBUser).toContain("Discovery: inspect the complete same-run observations on every action.");
     expect(twentyBUser).toContain("reviewOnly=true");
-  });
-
-  it("only creates provisional leads when the model explicitly marks reviewOnly=true", () => {
-    const base = {
-      action: "web_search",
-      query: "objective-fit organization example",
-      hypothesis: "A named organization may be relevant.",
-      purpose: "Find an observed organization lead.",
-      expectedInformationGain: 0.5,
-      findings: [{
-        vectorType: "other",
-        value: "Example Organization",
-        personName: null,
-        role: null,
-        scope: "organization",
-        sourceUrls: ["https://example.org/about"],
-        note: "Observed organization name; relevance remains to be verified.",
-      }],
-    };
-    const selected = parseAgentAction(JSON.stringify({
-      ...base,
-      findings: [{ ...base.findings[0], reviewOnly: true }],
-    }), ["web_search"]);
-    expect(selected?.partialFindings).toHaveLength(1);
-    expect(selected?.partialFindings?.[0]).toMatchObject({
-      value: "Example Organization",
-      scope: "organization",
-      reviewOnly: true,
-    });
-
-    const unselected = parseAgentAction(JSON.stringify({
-      ...base,
-      findings: [{ ...base.findings[0], reviewOnly: null }],
-    }), ["web_search"]);
-    expect(unselected?.partialFindings).toHaveLength(0);
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
