@@ -5859,7 +5859,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
-    ? "TERMINAL REVIEW-CARD HANDOFF: On done, you may explicitly preserve a model-selected same-run organization lead as a durable review-only card by setting promotionDecision=promote and a non-empty promotionReason, with the exact observed source URL and uncertainty. This is only a review card, not company admission or claim-grade evidence; if its only source is a search result, search_result_lead remains unverified. Never do it automatically or for every lead."
+    ? "TERMINAL REVIEW CARD: On done, explicitly select only a same-run organization lead for a durable review-only card with promotionDecision=promote, non-empty promotionReason, exact observed source URL and uncertainty. This is not company admission or claim-grade evidence; search_result_lead remains unverified. Never auto-promote."
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
