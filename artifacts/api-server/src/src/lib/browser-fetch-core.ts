@@ -11,16 +11,20 @@ export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwrig
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Report the actual browser provider used after the model-selected preference. */
-export function buildBrowserFetchProviderTelemetry(requestedProvider: BrowserProvider, actualProvider: string): {
+export function buildBrowserFetchProviderTelemetry(requestedProvider: BrowserProvider, actualProvider: string, attemptedProviders: readonly string[] = []): {
   requestedProvider: string;
   actualProvider: string;
+  attemptedProviders: string[];
   providerFallback: string[];
 } {
   const actual = actualProvider.trim() || "unknown";
+  const attempts = [...new Set(attemptedProviders.map((provider) => provider.trim()).filter(Boolean))];
+  const fallbacks = attempts.length ? attempts.filter((provider) => provider !== requestedProvider) : actual !== requestedProvider ? [actual] : [];
   return {
     requestedProvider,
     actualProvider: actual,
-    providerFallback: actual !== requestedProvider ? [actual] : [],
+    attemptedProviders: attempts.length ? attempts : [requestedProvider, ...(actual !== requestedProvider ? [actual] : [])],
+    providerFallback: fallbacks,
   };
 }
 
@@ -302,7 +306,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     return { html: null, observedUrl: null };
   }
 }
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[] }> {
   throwIfAborted(options.signal);
   const availableProviders = getAvailableBrowserFetchProviders();
   if (!availableProviders.includes(options.provider)) {
@@ -339,12 +343,14 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   // investigation. Once it fails, continue through configured browser providers
   // so a transient anti-bot/provider outage cannot strand every registry lead.
   const fallback = attempts.filter(([provider]) => provider !== options.provider && availableProviders.includes(provider));
+  const attemptedProviders: string[] = [];
   for (const [provider, fn] of [...selected, ...fallback]) {
     throwIfAborted(options.signal);
+    attemptedProviders.push(provider);
     const result = await fn();
     if (result.html && !isChallengeHtml(result.html)) {
       logger.info({ url: sanitizeUrlForEvidence(url), provider, bytes: result.html.length, scope, sourceUrlVerified: Boolean(result.observedUrl) }, "browser_fetch ok");
-      return { html: result.html, provider, observedUrl: result.observedUrl };
+      return { html: result.html, provider, observedUrl: result.observedUrl, ...(attemptedProviders.length > 1 ? { attemptedProviders } : {}) };
     }
     if (result.html && isChallengeHtml(result.html)) logger.debug({ url: sanitizeUrlForEvidence(url), provider }, "browser_fetch challenge for model-selected provider");
   }

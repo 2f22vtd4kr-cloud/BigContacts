@@ -1344,4 +1344,33 @@ describe("AI investigation context compaction", () => {
     expect(String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[1]?.[0] ?? ""))
       .toContain("summary_asserts_global_absence_from_partial_segment");
   });
+  it("asks the AI compactor to preserve objective-relevant named leads from successful fetched pages", async () => {
+    const sourceUrl = "https://registry.example.test/investors";
+    const source = [
+      "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:",
+      "Find relevant technology investors and their professional affiliations.",
+      "COMPLETE PRIOR TURN HISTORY:",
+      "Successful browser_fetch observation at " + sourceUrl + ":",
+      "Fetched page explicitly names Alex Example as an angel investor and Dana Sample as a venture partner.",
+      "Search snippets are unverified leads and must remain distinct from fetched observations.",
+      "BACKGROUND: " + "historical context. ".repeat(700),
+    ].join("\n\n");
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({ summary: "The fetched page names Alex Example as an angel investor and Dana Sample as a venture partner. Source: " + sourceUrl }),
+      error: null,
+      attempts: [],
+    });
+    await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      trustedSourceContext: "LATEST ACTION METADATA (preserve turn/action/result distinction):\n" + JSON.stringify([{ action: "browser_fetch", execution: "success", observedUrls: [sourceUrl] }]),
+      maxChars: 1_200,
+      jobId: "job-preserve-fetched-names",
+      turn: 1,
+    });
+    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    expect(prompt).toContain("Do not compress a fetched page into a generic statement that it contains no verifiable names");
+    expect(prompt).toContain("keep fetched-page names distinct from unverified search snippets");
+  });
+
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayResearchCaseEvents } from "../lib/research-case-replay";
+import { replayResearchCaseEvents, sanitizeOperatorVisibleReplay } from "../lib/research-case-replay";
 import { resolveMonotonicResearchCaseIteration } from "../lib/research-case-event-iteration";
 
 describe("research case replay", () => {
@@ -147,5 +147,17 @@ describe("research case replay", () => {
     expect(replay.eventCount).toBe(2);
     expect(replay.lastEventType).toBe("control_objective");
     expect(replay.violations).toEqual([]);
+  }); 
+  it("strips private model reasoning from operator replay without mutating the source projection", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 88, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-11-22T00:00:00Z" },
+      { id: 2, caseId: 88, iteration: 1, actorRole: "head_investigator", eventType: "decision", status: "recorded", summary: "Selected search", payload: JSON.stringify({ action: "web_search", thought: "PRIVATE_THOUGHT_SENTINEL", nested: { chain_of_thought: "PRIVATE_NESTED_SENTINEL", publicRationale: "Search the named source." } }), createdAt: "2026-11-22T00:00:01Z" },
+    ]);
+    const safe = sanitizeOperatorVisibleReplay(replay);
+    expect(JSON.stringify(safe)).not.toContain("PRIVATE_THOUGHT_SENTINEL");
+    expect(JSON.stringify(safe)).not.toContain("PRIVATE_NESTED_SENTINEL");
+    expect(safe.latestDecision).toMatchObject({ action: "web_search", nested: { publicRationale: "Search the named source." } });
+    expect(replay.latestDecision).toMatchObject({ thought: "PRIVATE_THOUGHT_SENTINEL" });
   });
+
 });

@@ -17,14 +17,16 @@ const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>
 
 describe("hosted browser fetch final-URL provenance", () => {
   it("records the actual provider when a selected provider falls back", () => {
-    expect(buildBrowserFetchProviderTelemetry("scrapfly", "zenrows")).toEqual({
+    expect(buildBrowserFetchProviderTelemetry("scrapfly", "zenrows", ["scrapfly", "zenrows"])).toEqual({
       requestedProvider: "scrapfly",
       actualProvider: "zenrows",
+      attemptedProviders: ["scrapfly", "zenrows"],
       providerFallback: ["zenrows"],
     });
-    expect(buildBrowserFetchProviderTelemetry("scrapfly", "scrapfly")).toEqual({
+    expect(buildBrowserFetchProviderTelemetry("scrapfly", "scrapfly", ["scrapfly"])).toEqual({
       requestedProvider: "scrapfly",
       actualProvider: "scrapfly",
+      attemptedProviders: ["scrapfly"],
       providerFallback: [],
     });
   });
@@ -107,6 +109,15 @@ describe("hosted browser fetch final-URL provenance", () => {
     expect(safeOutboundFetch).not.toHaveBeenCalled();
   });
 
+
+  it("records the complete selected-provider fallback chain when the preferred provider yields no usable page", async () => {
+    vi.mocked(safeOutboundFetch)
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(new Response(html, { headers: { "Zr-Final-Url": "https://research.example/final" } }));
+    const result = await browserFetchHtml("https://research.example/article", { provider: "scrapfly", scope: "fallback-chain-audit" });
+    expect(result.provider).toBe("zenrows");
+    expect(result.attemptedProviders).toEqual(["scrapfly", "zenrows"]);
+  });
   it("preserves Scrapfly's provider-reported final URL only after public-URL validation", async () => {
     vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
       result: { content: html, url: "https://research.example/article/final" },

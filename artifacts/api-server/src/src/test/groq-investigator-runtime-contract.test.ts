@@ -918,7 +918,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(strictUser).toContain("Every discovery action MUST include model-selected same-run named person/org leads in findings[]");
+    expect(strictUser).toContain("Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true");
     expect(strictUser).toContain("review-only");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
@@ -931,8 +931,8 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(twentyBUser).toContain("Every discovery action MUST include useful same-run provisional person/org leads in findings[]");
-    expect(twentyBUser).toContain("sourceUrls");
+    expect(twentyBUser).toContain("Every discovery action MUST inspect the complete same-run observations on every action");
+    expect(twentyBUser).toContain("reviewOnly=true");
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {

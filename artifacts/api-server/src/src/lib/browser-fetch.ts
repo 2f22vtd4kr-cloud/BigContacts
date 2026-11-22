@@ -8,7 +8,7 @@ export { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFet
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[] }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   if (!isBrowserFetchProviderAvailable(options.provider)) {
     return { html: "", provider: "provider_unavailable", observedUrl: null };
