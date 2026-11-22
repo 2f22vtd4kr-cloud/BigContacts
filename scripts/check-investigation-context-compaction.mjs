@@ -23,7 +23,7 @@ const preservesBoundedLatestEvidence = stepPromptBuilder.includes("serializeDura
   && stepPromptBuilder.includes("const boundedObservation = compactDurablePromptObservation(")
   && stepPromptBuilder.includes("const observationBudget = searchActions.has(record.action)")
   && stepPromptBuilder.includes('record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")')
-  && stepPromptBuilder.includes("? 1_600")
+  && stepPromptBuilder.includes("? 1_280")
   && stepPromptBuilder.includes("const compactFetchedPageObservation = (raw: string, maxChars: number): string => {")
   && stepPromptBuilder.includes("const rawStarts = [0, Math.floor(maxStart / 2), maxStart];")
   && stepPromptBuilder.includes("PAGE EXCERPT")
