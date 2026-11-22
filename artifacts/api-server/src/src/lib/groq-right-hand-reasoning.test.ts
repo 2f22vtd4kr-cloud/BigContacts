@@ -368,6 +368,52 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies[0].reasoning_effort).toBe("medium");
   });
 
+  it("records explicit TPD exhaustion as provider capacity, not local daily budget exhaustion", async () => {
+    const telemetryLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    const chatBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] });
+      }
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      chatBodies.push(body);
+      if (body.model === "openai/gpt-oss-120b") {
+        return groqResponse(429, {
+          error: {
+            message: "Rate limit reached for model openai/gpt-oss-120b on tokens per day (TPD): Limit 200000, Used 199753, Requested 3171.",
+            type: "tokens",
+            code: "rate_limit_exceeded",
+          },
+        });
+      }
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Review the compact durable discovery state and advise the Boss.",
+      "Return one short JSON control decision.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-control-tpd-test", caseId: 44 },
+      requestOptions,
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(chatBodies.map((body) => body.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    const tpdAttempt = telemetryLog.mock.calls
+      .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
+      .find((entry) => entry.providerErrorCode === "upstream_token_quota_exhausted");
+    expect(tpdAttempt).toMatchObject({
+      budgetExhausted: false,
+      reason: "upstream_token_quota_exhausted",
+    });
+  });
+
   it("treats a token-rate-limit response as rate pressure, not as completion-budget exhaustion", async () => {
     const chatBodies: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
