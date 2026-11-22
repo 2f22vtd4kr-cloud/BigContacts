@@ -202,7 +202,10 @@ describe("Groq Investigator HTTP transport recovery", () => {
     expect(twentyBRequest.response_format).toBeUndefined();
     expect(twentyBRequest.messages[1].content).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     expect(oneTwentyBRequest.response_format.type).toBe("json_schema");
-    expect(oneTwentyBRequest.messages[1].content).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBRequest.messages[1].content).toContain("provider-enforced strict response schema");
+    expect(oneTwentyBRequest.messages[1].content).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(oneTwentyBRequest.response_format.json_schema.schema.required).toContain("findings");
+    expect(oneTwentyBRequest.response_format.json_schema.schema.properties.findings.items.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "scope", "sourceUrls"]));
     expect(oneTwentyBRequest.messages[1].content).toContain("provider");
     expect(oneTwentyBRequest.messages[1].content).not.toContain('provider="serper"');
     expect(oneTwentyBRequest.messages[1].content).not.toContain("provider=null");

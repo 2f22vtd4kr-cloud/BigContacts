@@ -109,6 +109,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
+// Assets remain source-backed observations, not person/organization cards; preserve them in evidence state without inventing entity admission.
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown"; exactQuote?: string; identityAssessment?: "same_person" | "different_people" | "unresolved"; identityRationale?: string; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved"; hypothesisRationale?: string; relationshipType?: string; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable"; interpretationConfidence?: number; ambiguityNotes?: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
@@ -2810,7 +2811,35 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     : availableActionsMatch
       ? availableActionsMatch[1]!.split(" | ").map((action) => action.trim().replace(/\.$/, "")).filter(Boolean)
       : getModelSelectableAgentActions();
-  if (model && structuredActionResponseFormat(model, actionAllowlist, _promptMode).type !== "json_schema") {
+  const providerSchema = model ? structuredActionResponseFormat(model, actionAllowlist, _promptMode) : null;
+  if (providerSchema?.type === "json_schema") {
+    const schemaContainer = providerSchema.json_schema as { schema?: {
+      required?: string[];
+      properties?: Record<string, { items?: { required?: string[] } }>;
+    } } | undefined;
+    const schema = schemaContainer?.schema;
+    const rootRequired = new Set(schema?.required ?? []);
+    const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
+    const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
+    const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+    const requiredRootFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
+    const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
+    const requiredFindingFields = supportsFindings
+      ? reviewLeadOnlyFindings
+        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]
+        : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+      : [];
+    const searchRequired = new Set(schema?.properties?.searches?.items?.required ?? []);
+    const findingsRequired = new Set(schema?.properties?.findings?.items?.required ?? []);
+    const completeSchemaPresent = requiredRootFields.every((field) => rootRequired.has(field))
+      && requiredSearchFields.every((field) => searchRequired.has(field))
+      && requiredFindingFields.every((field) => findingsRequired.has(field));
+    if (!completeSchemaPresent) {
+      throw new Error("Cannot send an Investigator request without its complete provider-enforced root and nested action schema.");
+    }
+    return normalized;
+  }
+  if (model && providerSchema?.type !== "json_schema") {
     const outputIndex = normalized.lastIndexOf("ACTION-SPECIFIC OUTPUT CONTRACT:");
     const contract = outputIndex >= 0 ? normalized.slice(outputIndex) : "";
     if (!contract || !/action-specific required fields/i.test(contract)) {
@@ -2875,16 +2904,38 @@ export function buildModelSpecificInvestigatorPrompt(model: string, prompt: stri
   return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist, promptMode);
 }
 
+function compactStrictSchemaOutputContract(prompt: string): string {
+  // The newest durable record is appended after the authored output contract.
+  // Bound the lookup to that trusted prefix so source text cannot impersonate it.
+  const latestRecordTailStart = prompt.indexOf("\n\nLATEST TRAJECTORY RECORD — TURN");
+  const trustedPrefixEnd = latestRecordTailStart >= 0 ? latestRecordTailStart : prompt.length;
+  const start = prompt.lastIndexOf("OUTPUT CONTRACT:", trustedPrefixEnd);
+  if (start < 0) return prompt;
+  const boundaries = [
+    "DISCOVERY MODE:",
+    "PROVIDERS:",
+    "MODEL-OWNED SCOPE:",
+    "OPEN DISCOVERY:",
+    "SPECIALIST OSINT:",
+    "PRE-LAUNCH CONTRACT PROBE:",
+  ].map((heading) => prompt.indexOf("\n\n" + heading, start + "OUTPUT CONTRACT:".length))
+    .filter((index) => index >= 0);
+  const end = boundaries.length ? Math.min(...boundaries) : prompt.length;
+  const compact = "OUTPUT CONTRACT: Return one JSON action object only. The provider-enforced strict response schema defines every required top-level and nested field; follow it exactly. Model-selected discovery review leads remain provisional and are never admitted.";
+  return prompt.slice(0, start) + compact + prompt.slice(end);
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
   const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist, inferredMode);
-  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
+  const providerPrompt = responseFormat.type === "json_schema" ? compactStrictSchemaOutputContract(modelSpecificPrompt) : modelSpecificPrompt;
+  const boundedPrompt = boundInvestigatorProviderPrompt(providerPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
-  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
@@ -5933,7 +5984,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] as a review-only, non-admitted lead with the exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6156,7 +6207,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const observationBudget = searchActions.has(record.action)
       ? 640
       : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-        ? 1_600
+        ? 1_280
         : 1_200;
     const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
@@ -6262,8 +6313,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true, exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
+        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with the exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] as review-only, non-admitted leads with exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6438,7 +6489,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] as a review-only, non-admitted lead with the exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,

@@ -5,7 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
-const layout = read("artifacts/apex-finder/src/components/layout.tsx");
+const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const reactor = read("artifacts/apex-finder/src/pages/reactor.tsx");
 const mobile = read("artifacts/apex-finder/src/components/mobile-reactor-flow.tsx");
 const css = read("artifacts/apex-finder/src/index.css");

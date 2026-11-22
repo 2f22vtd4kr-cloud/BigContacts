@@ -117,7 +117,7 @@ export function apexInvestigatorSystemCore(): string {
     "CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown. Personal promotion requires same-source person+value quote; company/press/IR are not personal.",
     "TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.",
     "PRIVACY: Public/professional only; no private, residential, sensitive or intimate data.",
-    "OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message. Fetched claims need exactQuote+URL; search-only is review-only.",
+    "OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request. Fetched claims need exactQuote+URL; search-only is review-only.",
     "FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML. Failed extraction unknown; image-only PDFs need OCR; encrypted/protected/malformed PDFs fail distinctly.",
     "PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.",
     "RECOVERY: On block, reassess objective/Boss scope; never repeat rejected wording.",

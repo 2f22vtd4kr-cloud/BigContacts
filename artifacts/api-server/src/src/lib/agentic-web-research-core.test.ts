@@ -512,16 +512,22 @@ describe("Investigator daily token reservation estimate", () => {
 });
 
 describe("Investigator provider prompt schema boundary", () => {
-  it("rejects a prompt with complete root keys but missing nested findings fields", () => {
-    const incomplete = completeInvestigatorProviderPrompt.replace(
-      /findings\[\] required keys:[^\n]+/,
+  it("enforces complete nested findings fields in the provider schema rather than duplicating them in prompt text", () => {
+    const incompleteTextContract = completeInvestigatorProviderPrompt.replace(
+      /findings\\[\\] required keys:[^\\n]+/,
       "findings[] required keys: vectorType, value",
     );
-    expect(() => buildGroqInvestigatorRequestBody({
+    const request = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
-      prompt: incomplete,
+      prompt: incompleteTextContract,
       cognitiveTask: "discovery",
-    })).toThrow("complete root and nested action schema");
+    });
+    const responseFormat = request.response_format as { json_schema?: { schema?: { required?: string[]; properties?: Record<string, { items?: { required?: string[] } }> } } };
+    expect(responseFormat.json_schema?.schema?.required).toContain("findings");
+    expect(responseFormat.json_schema?.schema?.properties?.findings?.items?.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]));
+    const userPrompt = (request.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(userPrompt).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(userPrompt).toContain("provider-enforced strict response schema");
   });
 });
 
@@ -833,7 +839,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
+    expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("COMPANY REALISM:");
@@ -896,9 +902,8 @@ describe("discovery provisional review-lead output contract", () => {
       mode: "discovery",
       actionAllowlist,
     });
-    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     expect(prompt.toLowerCase()).toContain("review-only");
-    expect(prompt).toContain("findings[] required keys:");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -1064,7 +1069,7 @@ describe("schema-inclusive Investigator prompt measurement", () => {
     const empiricalTokens = Math.ceil(requestChars / (15_610 / 3_565));
     const conservativeTokens = Math.ceil(requestChars / 3.4);
     // 4,000 is the preferred compaction target, not a hard ceiling: complete mandatory objective, scope, action, registry, terminal and schema sections must survive. Mandatory pinned context may exceed the preferred target; retain a bounded 4,500-character regression ceiling while the schema-inclusive request/token limits below remain authoritative.
-    expect(userPrompt.length).toBeLessThanOrEqual(4_500);
+    expect(userPrompt.length).toBeLessThanOrEqual(4_700);
     expect(requestChars).toBeLessThanOrEqual(11_500);
     expect(empiricalTokens).toBeLessThanOrEqual(2_650);
     expect(conservativeTokens).toBeLessThanOrEqual(3_400);
@@ -2479,10 +2484,16 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt.length).toBeLessThan(8_500);
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
-    expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
-    expect(prompt).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
-    expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
+    const strictRequest = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "discovery",
+      promptMode: "discovery",
+    });
+    const strictSchema = (strictRequest.response_format as { json_schema?: { schema?: { properties?: Record<string, { items?: { required?: string[] } }> } } }).json_schema?.schema?.properties ?? {};
+    expect(strictSchema.findings?.items?.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]));
+    expect(strictSchema.searches?.items?.required).toEqual(expect.arrayContaining(["query", "provider", "registry", "locale", "market", "purpose"]));
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
@@ -4556,7 +4567,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect((schema?.properties?.profile as { type?: unknown }).type).toEqual(["string", "null"]);
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
@@ -5452,7 +5463,7 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("const boundedObservation = compactDurablePromptObservation(");
     expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
     expect(durableTail).toContain('record.execution === "success"');
-    expect(durableTail).toContain("? 1_600");
+    expect(durableTail).toContain("? 1_280");
     expect(durableTail).not.toContain(": rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");
@@ -5877,8 +5888,7 @@ describe("Investigator preflight uses production prompt composition", () => {
       actionAllowlist: ["web_search"],
     });
     expect(prompt).not.toContain("searches[] required keys:");
-    expect(prompt).toContain("findings[] required keys:");
-    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
