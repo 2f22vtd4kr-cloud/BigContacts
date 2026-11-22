@@ -3838,6 +3838,7 @@ Choose each next action yourself from the available capabilities and observed ev
       model: "openai/gpt-oss-120b",
       prompt: completeInvestigatorProviderPrompt + "\n\nchoose the next research action", 
       cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
     });
     expect(body.response_format).toBeTruthy();
     expect(body.messages).toHaveLength(2);
@@ -3882,6 +3883,7 @@ Choose each next action yourself from the available capabilities and observed ev
       model: "openai/gpt-oss-120b",
       prompt,
       cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
