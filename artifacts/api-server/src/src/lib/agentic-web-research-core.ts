@@ -189,7 +189,7 @@ export type DiscoveryLeadUtilizationState = {
   blockedLeadUrlCount: number;
   /** Case-wide, deduplicated URLs that have not had a fetch action or a preflight block yet. */
   unfetchedLeadUrls: string[];
-  /** Bounded raw search-result context for unvisited leads; untrusted lead text, never fetched evidence. */
+  /** Bounded raw search-result context for leads not yet fetched successfully; untrusted lead text, never fetched evidence. */
   unfetchedLeadObservations: Array<{ turn: number; action: string; leadUrlCount: number; observation: string }>;
   /** Fetch attempts that ended without a complete successful observation, including partial fetches. */
   failedLeadUrls: Array<{
@@ -216,9 +216,9 @@ export type DiscoveryLeadUtilizationState = {
  */
 export function buildDiscoveryLeadUtilizationState(
   records: readonly AgenticTrajectoryRecord[],
-  maxUnfetchedUrls = 20,
-  maxFailedUrls = 8,
-  maxBlockedUrls = 8,
+  maxUnfetchedUrls = 32,
+  maxFailedUrls = 12,
+  maxBlockedUrls = 12,
 ): DiscoveryLeadUtilizationState {
   const normalize = (raw: unknown): { key: string; url: string } | null => {
     if (typeof raw !== "string" || !raw.trim()) return null;
@@ -276,19 +276,23 @@ export function buildDiscoveryLeadUtilizationState(
 
   const newestFirst = [...leads.entries()].sort((a, b) => b[1].turn - a[1].turn);
   const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key) && !blocked.has(key));
-  const unfetchedKeys = new Set(unfetched.map(([key]) => key));
+  // Preserve title/snippet context for every lead that has not been fetched
+  // successfully, including failed and blocked attempts. A failed retrieval is
+  // unresolved, not a reason to erase the original search observation.
+  const unfetchedLeadKeys = new Set(unfetched.map(([key]) => key));
+  const unresolvedLeadKeys = new Set(newestFirst.filter(([key]) => !fetched.has(key)).map(([key]) => key));
   const unfetchedLeadObservations = [...records]
     .filter((record) => record.execution === "success" && searchActions.has(record.action))
     .reverse()
     .flatMap((record) => {
       const urls = (record.leadUrls ?? []).filter((rawUrl) => {
         const candidate = normalize(rawUrl);
-        return candidate !== null && unfetchedKeys.has(candidate.key);
+        return candidate !== null && unresolvedLeadKeys.has(candidate.key);
       });
       if (!urls.length) return [];
       const observation = typeof record.observation === "string" ? record.observation.trim() : "";
       const observationLines = observation.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const resultExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      const resultExcerpts: Array<{ provider: string | null; url: string; excerpt: string }> = [];
       const actionProvider = typeof record.args?.provider === "string" && record.args.provider.trim()
         ? record.args.provider.trim().toLowerCase()
         : null;
@@ -299,7 +303,7 @@ export function buildDiscoveryLeadUtilizationState(
         const urlMatch = observationLines[index]?.match(/\bURL:\s*(https?:\/\/\S+)/i);
         if (!urlMatch?.[1]) continue;
         const candidate = normalize(urlMatch[1]);
-        if (!candidate || !unfetchedKeys.has(candidate.key)) continue;
+        if (!candidate || !unresolvedLeadKeys.has(candidate.key)) continue;
         const previousLine = observationLines[index - 1] ?? "";
         const title = /^(?:URL:|https?:\/\/)/i.test(previousLine) ? "" : previousLine;
         const snippetLines: string[] = [];
@@ -312,9 +316,9 @@ export function buildDiscoveryLeadUtilizationState(
         const excerpt = [urlMatch[1], title, ...snippetLines]
           .filter(Boolean)
           .join(" — ")
-          .slice(0, 108);
+          .slice(0, 160);
         if (excerpt && !resultExcerpts.some((item) => item.provider === currentProvider && item.excerpt === excerpt)) {
-          resultExcerpts.push({ provider: currentProvider, excerpt });
+          resultExcerpts.push({ provider: currentProvider, url: candidate.url, excerpt });
         }
       }
       // Preserve representative context from providers the Investigator actually
@@ -330,15 +334,23 @@ export function buildDiscoveryLeadUtilizationState(
           })
         : [];
       const providers = [...new Set([...providerOrder, ...resultExcerpts.flatMap((item) => item.provider ? [item.provider] : [])])];
-      const selectedExcerpts: Array<{ provider: string | null; excerpt: string }> = [];
+      const selectedExcerpts: Array<{ provider: string | null; url: string; excerpt: string }> = [];
       for (const provider of providers) {
         const matching = resultExcerpts.filter((item) => item.provider === provider);
         if (matching.length) selectedExcerpts.push(matching[0]!);
+        // Preserve exact title/snippet pairs for failed and blocked leads,
+        // not just the first/last result from a provider.
+        for (const item of matching) {
+          const candidate = normalize(item.url);
+          if (!candidate || (!attempts.has(candidate.key) && !blocked.has(candidate.key))) continue;
+          if (!selectedExcerpts.some((selected) => selected.url === item.url)) selectedExcerpts.push(item);
+          if (selectedExcerpts.length >= 6) break;
+        }
       }
       for (const provider of providers) {
         const matching = resultExcerpts.filter((item) => item.provider === provider);
         const last = matching.at(-1);
-        if (last && last !== matching[0] && selectedExcerpts.reduce((sum, item) => sum + item.excerpt.length, 0) < 420) {
+        if (providers.length === 1 && last && last !== matching[0] && selectedExcerpts.length < 2 && !selectedExcerpts.some((item) => item.url === last.url)) {
           selectedExcerpts.push(last);
         }
       }
@@ -351,7 +363,7 @@ export function buildDiscoveryLeadUtilizationState(
         ? "[UNVERIFIED SEARCH RESULT URL/TITLE/SNIPPET PAIRS; not fetched evidence] " + selectedExcerpts
             .map((item) => (item.provider ? `provider=${item.provider}: ` : "") + item.excerpt)
             .join(" <LEAD_RESULT> ")
-            .slice(0, 520)
+            .slice(0, 900)
       : [
           actionProvider ? `provider=${actionProvider}:` : "",
           compactPromptSectionPreservingUrlTokens(
@@ -363,11 +375,14 @@ export function buildDiscoveryLeadUtilizationState(
       return [{
         turn: record.turn,
         action: record.action,
-        leadUrlCount: urls.length,
+        leadUrlCount: urls.filter((rawUrl) => {
+          const candidate = normalize(rawUrl);
+          return candidate !== null && unfetchedLeadKeys.has(candidate.key);
+        }).length,
         observation: boundedResultContext,
       }];
     })
-    .slice(0, 3);
+    .slice(0, 6);
   const failed = newestFirst.flatMap(([key, lead]) => {
     const attempt = attempts.get(key);
     if (!attempt || fetched.has(key)) return [];
@@ -401,6 +416,88 @@ export function buildDiscoveryLeadUtilizationState(
     failedLeadUrls: failed.slice(0, Math.max(0, Math.min(20, Math.trunc(maxFailedUrls)))),
     blockedLeadUrls: blockedLeads.slice(0, Math.max(0, Math.min(20, Math.trunc(maxBlockedUrls)))),
   };
+}
+
+/**
+ * Rebuild a bounded, structured discovery working set from the durable
+ * trajectory. This is model context, not an admission rule: search snippets
+ * remain unverified, review leads remain provisional, and failures remain
+ * unknown rather than negative evidence.
+ */
+export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTrajectoryRecord[]): string {
+  const state = buildDiscoveryLeadUtilizationState(records, 32, 12, 12);
+  const recentIntent = records.slice(-10).flatMap((record) => {
+    const hypothesis = typeof record.args?.hypothesis === "string" ? record.args.hypothesis.trim() : "";
+    const purpose = typeof record.args?.purpose === "string" ? record.args.purpose.trim() : "";
+    if (!hypothesis && !purpose) return [];
+    return [{
+      turn: record.turn, action: record.action, execution: record.execution,
+      hypothesis: hypothesis.slice(0, 240) || null, purpose: purpose.slice(0, 240) || null,
+    }];
+  });
+  const unresolvedQuestionMap = new Map<string, { turn: number; question: string; status: "open" | "blocked"; action: string }>();
+  for (const record of records.slice(-32)) {
+    // A terminal done purpose describes stopping, not an unresolved research question.
+    if (record.action === "done") continue;
+    const purpose = typeof record.args?.purpose === "string" ? record.args.purpose.trim() : "";
+    if (!purpose) continue;
+    const isSearchLeadAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
+    const hasClaimFinding = !isSearchLeadAction && record.action !== "done"
+      && (record.findings ?? []).some((finding) => finding.reviewOnly !== true);
+    const status = record.execution === "success" && hasClaimFinding
+      ? "answered"
+      : ["blocked", "http_error", "timeout", "error", "cancelled"].includes(record.execution)
+        ? "blocked"
+        : "open";
+    if (status === "answered") continue;
+    const key = purpose.toLocaleLowerCase("en-US").replace(/\s+/g, " ").slice(0, 500);
+    unresolvedQuestionMap.set(key, {
+      turn: record.turn, question: purpose.slice(0, 300), status, action: record.action,
+    });
+  }
+  const unresolvedResearchQuestions = [...unresolvedQuestionMap.values()].slice(-12);
+  const reviewLeads = records.flatMap((record) => (record.findings ?? [])
+    .filter((finding) => finding.reviewOnly === true)
+    .map((finding) => ({
+      turn: record.turn, scope: finding.scope,
+      name: finding.scope === "candidate" ? finding.personName : finding.value,
+      role: finding.role ?? null, sourceUrls: (finding.sourceUrls ?? []).slice(0, 3),
+      uncertainty: finding.note.slice(0, 220),
+    }))).slice(-12);
+  return JSON.stringify({
+    leadInventory: {
+      searchResultLeadUrlCount: state.searchResultLeadUrlCount,
+      successfullyFetchedLeadUrlCount: state.successfullyFetchedLeadUrlCount,
+      unfetchedLeadUrlCount: state.unfetchedLeadUrlCount,
+      failedLeadUrlCount: state.failedLeadUrlCount,
+      blockedLeadUrlCount: state.blockedLeadUrlCount,
+      // Exact URLs in the durable trajectory remain authoritative. Keep a
+      // small current URL sample here so titles/snippets are not crowded out.
+      unfetchedLeadUrls: state.unfetchedLeadUrls.slice(0, 4),
+      unfetchedLeadUrlOmittedCount: Math.max(0, state.unfetchedLeadUrls.length - 4),
+      unverifiedTitleSnippetPairs: state.unfetchedLeadObservations.slice(0, 2).map((item, index) => ({
+        turn: item.turn, action: item.action, leadUrlCount: item.leadUrlCount,
+        observation: item.observation.slice(0, index === 0 ? 800 : 250),
+      })),
+    },
+    retrievalOutcomes: { failedLeadUrls: state.failedLeadUrls, blockedLeadUrls: state.blockedLeadUrls },
+    modelAuthoredResearchIntent: recentIntent,
+    unresolvedResearchQuestions,
+    provisionalReviewLeads: reviewLeads,
+  });
+}
+
+/** Explicitly feed failed/blocked retrievals back into model-owned route choice. */
+export function buildDiscoveryRetrievalFeedback(records: readonly AgenticTrajectoryRecord[]): string | null {
+  const state = buildDiscoveryLeadUtilizationState(records, 32, 12, 12);
+  if (!state.failedLeadUrls.length && !state.blockedLeadUrls.length) return null;
+  return [
+    "DISCOVERY RETRIEVAL ADAPTATION (control feedback, not negative evidence or a fixed itinerary):",
+    "A failed or blocked fetch does not disprove the lead or establish that the source lacks information.",
+    "Do not repeat the same inaccessible URL/action without a materially changed retrieval hypothesis. Choose a materially different permitted evidence route, another relevant lead, or revise the hypothesis according to expected information gain.",
+    "Respect scope and safety blocks. Do not bypass them. You own the provider, source-family, query and next-action choice; no particular route or sequence is prescribed.",
+    JSON.stringify({ failedLeadUrls: state.failedLeadUrls.slice(0, 4), blockedLeadUrls: state.blockedLeadUrls.slice(0, 4) }),
+  ].join("\n");
 }
 
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
@@ -2454,7 +2551,23 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
         temporalStatus: ["current","historical","unclear","not_applicable"].includes(cleanText(f.temporalStatus, 30)) ? cleanText(f.temporalStatus, 30) as AgenticFinding["temporalStatus"] : undefined,
         interpretationConfidence: typeof f.interpretationConfidence === "number" && Number.isFinite(f.interpretationConfidence) ? Math.max(0, Math.min(1, f.interpretationConfidence)) : undefined,
         ambiguityNotes: cleanText(f.ambiguityNotes, 800) || undefined,
-        promotionDecision: scope === "candidate" && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution) && exactQuote && f.identityAssessment === "same_person" && Boolean(cleanText(f.identityRationale, 800)) && f.promotionDecision === "promote" ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
+        // A company may be explicitly selected for a durable review-only card
+        // without being admitted as a verified company. The terminal reconciler
+        // preserves search_result_lead provenance; fetched-source/target gates
+        // remain separate and unchanged.
+        promotionDecision: (
+          scope === "candidate"
+          && ["person_specific","direct_personal","professional_person_specific"].includes(contactAttribution)
+          && exactQuote
+          && f.identityAssessment === "same_person"
+          && Boolean(cleanText(f.identityRationale, 800))
+          && f.promotionDecision === "promote"
+        ) || (
+          scope === "organization"
+          && f.promotionDecision === "promote"
+          && Boolean(cleanText(f.promotionReason, 500))
+          && sourceUrls.length > 0
+        ) ? "promote" : f.promotionDecision === "reject" ? "reject" : undefined,
         promotionReason: cleanText(f.promotionReason, 500) || undefined,
       });
     }
@@ -2719,8 +2832,8 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
       ? allowed.has("done")
-        ? "Non-terminal discovery may return review-only person/org leads in findings[]; promotion requires same-case fetched evidence; done uses source-backed findings."
-        : "Discovery: include useful same-run person/org leads in findings[] with exact name/URL, scope, role and rationale/uncertainty; [] if none."
+        ? "On every non-terminal discovery action, MUST include each objective-relevant provisional named person/org lead selected from same-run observations in findings[] with exact source URL and uncertainty; these remain review-only and are never admitted. done uses source-backed claims; you may explicitly select a same-run organization lead for a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
+        : "Discovery: put provisional person/org leads in findings[] on every non-terminal action. Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
   return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted to use the configured healthy runtime default. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
@@ -5713,10 +5826,41 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         maxChars: input.mode === "discovery" ? 350 : 3_000,
         recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
       });
-  const cognitiveState = boundInvestigatorPromptSection(
+  const cognitiveState = input.mode === "discovery" ? "" : boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    input.mode === "discovery" ? 150 : 700,
+    700,
   );
+  const activeDiscoveryScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
+  const discoveryWorkingRecords = input.mode === "discovery"
+    ? input.trajectoryRecords.filter((record) => activeDiscoveryScopeKey
+        ? record.pivotScopeKey === activeDiscoveryScopeKey || !record.pivotScopeKey
+        : !record.pivotScopeKey)
+    : [];
+  const hasDiscoveryWorkingMemory = discoveryWorkingRecords.some((record) => {
+    const args = record.args ?? {};
+    return ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
+      || (record.findings?.length ?? 0) > 0
+      || typeof args.hypothesis === "string" && Boolean(args.hypothesis.trim())
+      || typeof args.purpose === "string" && Boolean(args.purpose.trim());
+  });
+  const discoveryWorkingMemory = input.mode === "discovery" && hasDiscoveryWorkingMemory
+    ? boundInvestigatorPromptSection(
+        "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
+        1_300,
+      )
+    : "";
+  const discoveryIntelligenceContext = input.mode === "discovery" && input.intelligenceContext?.trim()
+    ? boundInvestigatorPromptSection(
+        "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + input.intelligenceContext,
+        500,
+      )
+    : "";
+  const discoveryRetrievalFeedback = input.mode === "discovery"
+    ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
+    : "";
+  const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
+    ? "TERMINAL REVIEW CARD: On done, explicitly select only a same-run organization lead for a durable review-only card with promotionDecision=promote, non-empty promotionReason, exact observed source URL and uncertainty. This is not company admission or claim-grade evidence; search_result_lead remains unverified. Never auto-promote."
+    : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
   const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
@@ -5746,7 +5890,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields.";
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
-  const modelOwnedScopeGuidance = "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
+  const modelOwnedScopeGuidance = input.mode === "discovery"
+    ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. No fixed target, action or tool sequence."
+    : "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order." : "";
   const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
   const searchActivityGuidance = input.mode === "discovery" && discoverySearchActionsUsed > 0
@@ -5759,8 +5905,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActionsGuidance,
     compactRegistryGuidance,
     searchActivityGuidance,
+    discoveryWorkingMemory,
+    discoveryIntelligenceContext,
+    discoveryRetrievalFeedback,
+    terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: findings[] may include provisional same-run person/org leads with exact name/URL and rationale/uncertainty. Assets remain source-backed observations, not person/org cards."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action with exact same-run URLs, scope and uncertainty; review-only, never admitted. Assets remain source-backed observations, not person/org cards."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -5770,7 +5920,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // state/history can be compacted independently without erasing memory.
     aiHistoricalMemorySection,
     "",
-    "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
+    input.mode === "discovery" ? "" : "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
     cognitiveState,
     "",
     workingContext,
@@ -6036,8 +6186,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Non-terminal discovery actions carry provisional people/orgs in findings[] with observed names/URLs and relevance/uncertainty; done uses source-backed claims."
-        : "Discovery: put provisional person/org leads in findings[] with observed names/URLs; review-only."
+        ? "Discovery findings[]: include only model-selected same-run named person/org leads with exact source URLs, scope and uncertainty; non-terminal leads remain review-only. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+        : "Every discovery action MUST include model-selected same-run named person/org leads in findings[] with exact URLs, scope and uncertainty; review-only, never admitted."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6207,8 +6357,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     modelOwnedScopeGuidance,
     openDiscoveryGuidance,
     searchActivityGuidance,
+    discoveryWorkingMemory,
+    discoveryIntelligenceContext,
+    discoveryRetrievalFeedback,
+    terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: keep model-selected leads in findings[] on non-terminal actions; URLs, uncertainty; review-only."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action with exact same-run URLs, scope and uncertainty; review-only, never admitted. Assets remain source-backed observations, not person/org cards."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
@@ -6658,7 +6812,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   if (input.priorIntelligenceContext) intelligence.restoreContext(sanitizeObservableValue(input.priorIntelligenceContext));
   let intelligenceRecordedTurn = priorTurnOffset;
   const syncIntelligence = () => { const latest = records[records.length - 1]; if (!latest || latest.turn <= intelligenceRecordedTurn) return; intelligence.recordAction({ turn: latest.turn, action: latest.action, args: sanitizeObservableValue(latest.args), execution: latest.execution, observation: sanitizeUrlsInText(latest.observation ?? ""), urls: latest.observedUrls.map((url) => sanitizeUrlForEvidence(url)).filter((url) => !url.startsWith("[")), findings: sanitizeObservableValue(latest.findings), predictedInformationGain: typeof latest.args.expectedInformationGain === "number" ? latest.args.expectedInformationGain : undefined }); intelligenceRecordedTurn = latest.turn; };
-  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, partialFindings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records.map((record) => {
+  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.stoppingAssessment.unresolvedQuestions, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, partialFindings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records.map((record) => {
       // One-action wrappers persist the normalized record immediately after
       // this return. Preserve the bounded page artifact for that awaited
       // checkpoint; callers without a durable callback never receive page text.
@@ -6677,7 +6831,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             ? "Current structured intelligence is represented in the compacted historical context above (AI semantic summary or complete verbatim historical context). Use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative."
             : renderIntelligenceContext(intelligenceState);
         return [base, historicalMemoryDegradationNote].filter(Boolean).join("\n\n");
-      }; const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
+      }; const lastAction = records.at(-1)?.action; const outstandingResearchQuestions = [...new Set([...intelligenceState.openQuestions, ...intelligenceState.researchQuestions.filter((question) => question.status === "open" || question.status === "blocked").map((question) => question.question)])]; const nextMovePriority = outstandingResearchQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && outstandingResearchQuestions.length > 0) ? "falsify" : outstandingResearchQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : outstandingResearchQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition";
       const allPromptRecords = sanitizeObservableValue(
         [...priorTrajectoryRecords, ...records]
           .map((record) => {

@@ -103,6 +103,8 @@ export interface IntelligenceAction {
   urls: string[];
   findingCount: number;
   useful: boolean;
+  /** True only when fetched evidence supports a claim-grade finding; optional for legacy projections. */
+  claimGradeUseful?: boolean;
   informationGain: number;
   findingNames: string[];
   findingRoles: string[];
@@ -246,7 +248,7 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string; exactQuote?: string | null; contactAttribution?: "person_specific" | "direct_personal" | "professional_person_specific" | "department" | "shared_inbox" | "assistant_intermediary" | "generic_contact_form" | "organization" | "unknown" | null; identityAssessment?: "same_person" | "different_people" | "unresolved" | null; identityRationale?: string | null; hypothesisRelation?: "supports" | "contradicts" | "unrelated" | "ambiguous" | "unresolved" | null; hypothesisRationale?: string | null; relationshipType?: string | null; temporalStatus?: "current" | "historical" | "unclear" | "not_applicable" | null; interpretationConfidence?: number | null; ambiguityNotes?: string | null; reviewOnly?: boolean }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const sourceAttribution = input.args?.sourceAttribution && typeof input.args.sourceAttribution === "object"
       ? input.args.sourceAttribution as Record<string, unknown>
@@ -290,6 +292,7 @@ export class ResearchIntelligenceEngine {
     const findings: typeof candidateFindings = [];
     const admittedFindingEvidenceIds = new Set<string>();
     let useful = false;
+    let claimGradeUseful = false;
     for (const finding of candidateFindings) {
       const value = String(finding.value ?? "").trim();
       if (!value) continue;
@@ -338,8 +341,20 @@ export class ResearchIntelligenceEngine {
         // Separate identity and value mentions are review evidence, not a supported composed claim.
         const isPersonalContactVector = ["email", "phone", "linkedin", "website", "social"].includes(vector);
         const requiresPersonAttribution = Boolean(finding.personName) && isPersonalContactVector;
-        const wholeClaimSupported = !finding.personName
-          || (source.binding === "identity_and_value" && (!requiresPersonAttribution || (["person_specific","direct_personal","professional_person_specific"].includes(finding.contactAttribution ?? "") && finding.identityAssessment === "same_person" && Boolean(finding.identityRationale?.trim()))));
+        const wholeClaimSupported = finding.reviewOnly !== true && (
+          !finding.personName
+          || (
+            source.binding === "identity_and_value"
+            && (
+              !requiresPersonAttribution
+              || (
+                ["person_specific", "direct_personal", "professional_person_specific"].includes(finding.contactAttribution ?? "")
+                && finding.identityAssessment === "same_person"
+                && Boolean(finding.identityRationale?.trim())
+              )
+            )
+          )
+        );
         const evidenceId = this.recordEvidence({
           kind: wholeClaimSupported ? "finding" : "observation",
           claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
@@ -356,7 +371,10 @@ export class ResearchIntelligenceEngine {
           ambiguityNotes: finding.ambiguityNotes ?? null,
           supports: wholeClaimSupported && finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
         });
-        if (wholeClaimSupported) admittedFindingEvidenceIds.add(evidenceId);
+        if (wholeClaimSupported) {
+          claimGradeUseful = true;
+          admittedFindingEvidenceIds.add(evidenceId);
+        }
       }
       const valueSourceUrls = supportedSources
         .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
@@ -370,11 +388,9 @@ export class ResearchIntelligenceEngine {
         this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
     }
-    if (!useful && input.execution !== "success") {
-      const negative = `${input.action} produced no usable evidence (${input.execution})`;
-      this.negativeFindings.add(negative);
-      this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
-    }
+    // Retrieval failures and preflight blocks are unknown, not negative
+    // findings. A missing observation cannot disprove the research hypothesis;
+    // only explicit source-backed negative observations may populate this set.
     if (observationIsFetchedSource) {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), ...sourceMetadataForUrl(url), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
@@ -391,7 +407,7 @@ export class ResearchIntelligenceEngine {
         + Math.min(0.35, urls.length * 0.07)
         + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
-    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
+    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, claimGradeUseful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
     // Recompute live contradictions before hypothesis support is linked or ranked.
     this.reconcileContradictions();
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
@@ -518,7 +534,12 @@ export class ResearchIntelligenceEngine {
       const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
       this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, attributionSourceUrls, sourceHosts });
     }
-    for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
+    for (const negative of context.negativeFindings) {
+      // Older projections incorrectly encoded transport/preflight failures as
+      // negative findings. Strip those on replay; they are unknown outcomes.
+      if (/\bproduced no usable evidence\s*\([a-z0-9_-]+\)\s*$/i.test(negative)) continue;
+      this.negativeFindings.add(negative);
+    }
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
     for (const node of context.sourceLineage) {
       const canonical = canonicalUrl(node.canonicalUrl);
@@ -854,6 +875,8 @@ export class ResearchIntelligenceEngine {
     // the question projection without turning it into a deterministic terminal
     // blocker (openQuestions and missingDiscriminators remain evidence-derived).
     for (const action of this.actions.slice(-32)) {
+      // "done" is a terminal control decision, not an investigative purpose.
+      if (action.action === "done") continue;
       const purpose = typeof action.args.purpose === "string" ? action.args.purpose.trim() : "";
       if (!purpose) continue;
       const key = normalize(purpose);
@@ -867,11 +890,22 @@ export class ResearchIntelligenceEngine {
         importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : null,
         uncertainty: null,
         discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
-        status: action.useful ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
+        status: (action.claimGradeUseful ?? action.useful) ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
       });
     }
     const researchQuestions = [...researchQuestionMap.values()].slice(-24);
-    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
+    // Reconcile the control-facing unresolved count across evidence-derived
+    // gaps and model-authored research purposes that remain open/blocked.
+    // The latter are not facts or negative findings, but must not vanish from
+    // the frontier/oversight summary when no hypothesis exists yet.
+    const unresolvedQuestionKeys = new Set([
+      ...openQuestions,
+      ...researchQuestions
+        .filter((question) => question.status === "open" || question.status === "blocked")
+        .map((question) => question.question),
+    ].map(normalize).filter(Boolean));
+    const unresolvedQuestionCount = unresolvedQuestionKeys.size;
+    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: unresolvedQuestionCount, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
     const discovery = buildDiscoveryIntelligence({
@@ -890,9 +924,9 @@ export class ResearchIntelligenceEngine {
       sourceFamilyDiversity,
       repeatedSourceFamilies,
     });
-    const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
+    const missionBriefs = this.buildMissionBriefs([...new Set([...openQuestions, ...researchQuestions.filter((question) => question.status === "open" || question.status === "blocked").map((question) => question.question)])], facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, actionYieldStats: [...this.actionYield.entries()].map(([action, stat]) => [action, { ...stat }]), sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, actionYieldStats: [...this.actionYield.entries()].map(([action, stat]) => [action, { ...stat }]), sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: unresolvedQuestionCount, recommendation: unresolvedQuestionCount > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {

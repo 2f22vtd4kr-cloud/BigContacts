@@ -37,10 +37,13 @@ describe("ResearchIntelligenceEngine", () => {
     engine.recordAction({ turn: 2, action: "visit", args: { hypothesis }, execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", sourceUrls: ["https://news.example.com/b"] }] });
     const state = engine.buildContext(); expect(state.contradictions.length).toBeGreaterThan(0); expect(state.openQuestions.some((question) => question.startsWith("Resolve contradiction:"))).toBe(true);
   });
-  it("records negative findings and feedback without fabricating success", () => {
+  it("keeps failed retrievals out of negative findings without fabricating success", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-3", target: "No Contact", objective: "Find a public contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] }); engine.recordFeedback({ outcome: "bounced", value: "old@example.com" });
-    const state = engine.buildContext(); expect(state.negativeFindings.length).toBeGreaterThan(0); expect(state.stoppingAssessment.recommendation).toBe("continue");
+    const state = engine.buildContext();
+    // HTTP 404 is a retrieval outcome, not proof that no contact exists.
+    expect(state.negativeFindings).toHaveLength(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
   });
   it("bounds rendered intelligence state before it can become provider prompt input", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-bound", target: "Bounded Target", objective: "Find public evidence" });
@@ -71,6 +74,53 @@ describe("ResearchIntelligenceEngine", () => {
     expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
   });
 
+  it("keeps fetched review-only findings from resolving claim-grade research questions", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "review-only-question",
+      target: "Example Operating Company",
+      objective: "identify a source-backed operating company",
+    });
+    const sourceUrl = "https://example.com/about";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      args: { purpose: "Verify the company's operating status" },
+      urls: [sourceUrl],
+      observation: "Example Operating Company is an operating business providing logistics services.",
+      findings: [{
+        vectorType: "other",
+        value: "an operating business",
+        sourceUrls: [sourceUrl],
+        reviewOnly: true,
+      }],
+    });
+    const state = engine.buildContext();
+    expect(state.recentActions[0]?.useful).toBe(true);
+    expect(state.recentActions[0]?.claimGradeUseful).toBe(false);
+    expect(state.researchQuestions.find((item) => item.question === "Verify the company's operating status")?.status).toBe("open");
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+  });
+
+  it("does not report the terminal done purpose as an unresolved research question", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "done-purpose",
+      target: "Example Company",
+      objective: "Identify a real operating company",
+    });
+    engine.recordAction({
+      turn: 1,
+      action: "done",
+      args: { purpose: "Complete the research episode" },
+      execution: "success",
+      urls: [],
+      findings: [],
+    });
+    const state = engine.buildContext();
+    expect(state.researchQuestions).toHaveLength(0);
+    expect(state.stoppingAssessment.unresolvedQuestions).toBe(0);
+  });
+
   it("cleans the legacy action-purpose blocker when restoring durable context", () => {
     const original = new ResearchIntelligenceEngine({ executionId: "legacy-purpose", target: "Jane Example", objective: "Verify the person's role" });
     original.recordAction({
@@ -83,6 +133,11 @@ describe("ResearchIntelligenceEngine", () => {
       findings: [],
     });
     const legacy = original.buildContext();
+    legacy.negativeFindings = [
+      "visit produced no usable evidence (http_error)",
+      "visit produced no usable evidence (parse_failure)",
+      "Official source explicitly states that no public direct contact route is listed",
+    ];
     const hypothesis = legacy.hypotheses.find((item) => item.label === "Jane Example is CFO");
     expect(hypothesis).toBeDefined();
     hypothesis!.missingDiscriminators = ["verify Jane's current CFO role"];
@@ -91,6 +146,7 @@ describe("ResearchIntelligenceEngine", () => {
     resumed.restoreContext(legacy);
     const state = resumed.buildContext();
     expect(state.openQuestions).not.toContain("verify Jane's current CFO role");
+    expect(state.negativeFindings).toEqual(["Official source explicitly states that no public direct contact route is listed"]);
     expect(state.hypotheses.find((item) => item.label === "Jane Example is CFO")?.missingDiscriminators).not.toContain("verify Jane's current CFO role");
     expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
   });

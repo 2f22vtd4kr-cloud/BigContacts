@@ -965,9 +965,9 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(modelPrompt).toContain("Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates.");
-    expect(modelPrompt).toContain("Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate.");
-    expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
+    expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates.");
+    expect(modelPrompt).toContain("Locale guides language; market is evidence-led, not a gate.");
+    expect(modelPrompt).toContain("Respect explicit geography; otherwise follow objective fit.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
@@ -2218,7 +2218,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
+    expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF");
@@ -2486,7 +2486,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toMatch(/search-only is review-only; promote only with same-case fetched evidence./);
+    expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -4045,7 +4045,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("LONG_RESULT_SNIPPET ".repeat(2_000));
     expect(prompt).toContain("not evidence or a mandated next action");
     expect(apexInvestigatorSystemCore()).toContain("visit handles text/PDF; browser_fetch handles HTML.");
-    expect(apexInvestigatorSystemCore()).toContain("image-only PDFs need OCR or another readable source; encrypted, protected and malformed PDFs are distinct failures.");
+    expect(apexInvestigatorSystemCore()).toMatch(/image-only PDFs need OCR; encrypted\/protected\/malformed PDFs fail distinctly/i);
     expect(prompt).not.toContain("must visit");
   });
 
@@ -4980,8 +4980,8 @@ describe("PDF prompt capability contract", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
 
     expect(apexInvestigatorSystemCore()).toContain("FETCH: Use exact fetched text/URL. visit handles text/PDF; browser_fetch handles HTML.");
-    expect(modelPrompt).toMatch(/image-only PDFs need OCR or another readable source/i);
-    expect(modelPrompt).toMatch(/encrypted, protected and malformed PDFs are distinct failures/i);
+    expect(apexInvestigatorSystemCore()).toMatch(/image-only PDFs need OCR/i);
+    expect(modelPrompt).toMatch(/encrypted\/protected\/malformed PDFs fail distinctly/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
@@ -5140,7 +5140,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(modelPrompt).toContain("search-only is review-only; promote only with same-case fetched evidence.");
+    expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
@@ -5833,7 +5833,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(apexOrientationFor("investigator")).toContain("Assets remain source-backed observations, not person/organization cards.");
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
-    expect(prompt).toContain("search-only is review-only");
+    expect(prompt).toMatch(/search-only is review-only/i);
     expect(agenticCoreSource).toContain("Assets remain source-backed observations");
   });
   it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {

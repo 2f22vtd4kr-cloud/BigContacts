@@ -202,6 +202,40 @@ describe("Apex research intelligence", () => {
     expect(question?.status).toBe("open");
     expect(question?.importance).toBe(0.8);
     expect(question?.uncertainty).toBeNull();
+    // Search-only discovery has no claim-grade facts yet, but the stated
+    // research purpose is still unresolved and must not disappear from the
+    // terminal/oversight summary merely because no hypothesis was formed.
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
+    expect(state.frontier.unresolvedPressure).toBeGreaterThan(0);
+    expect(state.missionBriefs.some((brief) => brief.evidenceGap.includes("Verify a real operating company"))).toBe(true);
+  });
+
+  it("keeps failed and blocked retrieval questions unresolved in the oversight metric", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "blocked-retrieval-question",
+      target: "Example Operating Company",
+      objective: "verify current operating status and decision-maker identity",
+    });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "blocked",
+      args: {
+        url: "https://example.com/leadership",
+        purpose: "Verify the company's current decision-maker from a public source",
+        hypothesis: "A leadership page may identify the current decision-maker",
+      },
+      urls: [],
+      observation: "The requested retrieval was blocked before outbound access.",
+      findings: [],
+    });
+    const state = engine.buildContext();
+    expect(state.researchQuestions.some((question) => question.status === "blocked")).toBe(true);
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
+    expect(state.frontier.unresolvedPressure).toBeGreaterThan(0);
+    expect(state.negativeFindings).toHaveLength(0);
   });
 
   it("answers a research question only after a fetched source binds a useful finding", () => {
@@ -234,7 +268,7 @@ describe("Apex research intelligence", () => {
     expect(state.sourceFamilyDiversity).toBe(2);
   });
 
-  it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
+  it("keeps evidence and contradictions while preserving failed retrievals as unknown", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"], exactQuote: "Alex Example is director of Alpha", hypothesisRelation: "supports", hypothesisRationale: "The registry explicitly attributes the directorship to Alex." }] });
     engine.recordAction({ turn: 2, action: "visit", execution: "success", args: { hypothesis: "Alex Example is director of Alpha" }, urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"], exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", hypothesisRationale: "This independent source records a different directorship and contradicts the Alpha hypothesis." }] });
@@ -243,7 +277,8 @@ describe("Apex research intelligence", () => {
     expect(state.evidenceCount).toBeGreaterThan(0);
     expect(state.sourceDiversity).toBeGreaterThanOrEqual(2);
     expect(state.contradictions.length).toBeGreaterThan(0);
-    expect(state.negativeFindings.length).toBeGreaterThan(0);
+    // The HTTP 404 below is a retrieval failure, not negative source evidence.
+    expect(state.negativeFindings).toHaveLength(0);
     expect(state.provenanceDigest).toHaveLength(64);
     expect(state.missionBriefs.map((brief) => brief.mission)).toEqual(["identity", "organization", "contact", "disproof"]);
   });
@@ -340,7 +375,7 @@ describe("Apex research intelligence", () => {
     const state = engine.buildContext();
     expect(state.facts.some((fact) => fact.claim.includes("jane@example.com"))).toBe(false);
     expect(state.evidenceCount).toBe(0);
-    expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(true);
+    expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(false);
   });
 
   it("preserves VERIFIED and STALE contact states when later sources corroborate the value", () => {
