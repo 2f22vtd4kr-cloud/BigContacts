@@ -6486,7 +6486,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // objective, active Boss direction, current action schema, and newest durable
   // act envelope. URL tokens are retained whole; omitted middle context is
   // explicitly unknown and remains in the immutable event ledger.
-  const providerBoundedPromptBeforeReviewHandoff = [
+  const providerBoundedPrompt = [
     preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
     assignment,
     providerGuidance,
@@ -6496,7 +6496,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
   ].filter(Boolean).join("\n\n");
-  const providerBoundedPrompt = explicitDiscoveryReviewHandoffText
+  const providerBoundedPromptWithReviewHandoff = explicitDiscoveryReviewHandoffText
     && !providerBoundedPromptBeforeReviewHandoff.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
     ? (() => {
         const outputContractAt = providerBoundedPromptBeforeReviewHandoff.indexOf("OUTPUT CONTRACT:");
@@ -6507,7 +6507,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : providerBoundedPromptBeforeReviewHandoff;
   const reportPromptMeasurement = (value: string): string => {
     input.onPromptMeasurement?.({
-      originalPromptChars: providerBoundedPrompt.length,
+      originalPromptChars: providerBoundedPromptWithReviewHandoff.length,
       finalPromptChars: value.length,
     });
     return value;
@@ -6519,11 +6519,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     investigatorUserPromptBudget(INVESTIGATOR_SYSTEM_PROMPT().length),
     4_000,
   );
-  if (providerBoundedPrompt.length <= userPromptBudget) return reportPromptMeasurement(providerBoundedPrompt);
+  if (providerBoundedPromptWithReviewHandoff.length <= userPromptBudget) return reportPromptMeasurement(providerBoundedPromptWithReviewHandoff);
 
-  const outputContractIndex = providerBoundedPrompt.lastIndexOf("OUTPUT CONTRACT:");
-  if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPrompt);
-  const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex).trim();
+  const outputContractIndex = providerBoundedPromptWithReviewHandoff.lastIndexOf("OUTPUT CONTRACT:");
+  if (outputContractIndex < 0) return reportPromptMeasurement(providerBoundedPromptWithReviewHandoff);
+  const mandatorySuffix = providerBoundedPromptWithReviewHandoff.slice(outputContractIndex).trim();
   const pinnedContext = [
     authoritativeCaseObjective,
     activeBossScopeSection,
@@ -6545,7 +6545,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     latestRecordTail,
     aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
-  let optionalPrefix = providerBoundedPrompt.slice(0, outputContractIndex).trim();
+  let optionalPrefix = providerBoundedPromptWithReviewHandoff.slice(0, outputContractIndex).trim();
   for (const section of pinnedContext) optionalPrefix = optionalPrefix.replace(section, "").trim();
   const marker = "[AUXILIARY CONTEXT BOUND: omitted auxiliary context is unknown, not negative evidence; complete objective, Boss scope, action allowlist, schema and newest durable evidence remain authoritative.]";
   let boundedPinnedContext = [...pinnedContext];
@@ -6577,7 +6577,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const boundedPrefix = compactPromptSectionPreservingUrlTokens(optionalPrefix, prefixBudget, marker);
   const boundedPrompt = [boundedPrefix, requiredTail].filter(Boolean).join("\n\n");
   if (!hasCompleteSchema(boundedPrompt) || (latestRecordTail && !boundedPrompt.includes(latestRecordTail))) {
-    return reportPromptMeasurement(providerBoundedPrompt);
+    return reportPromptMeasurement(providerBoundedPromptWithReviewHandoff);
   }
   return reportPromptMeasurement(boundedPrompt);
 }
