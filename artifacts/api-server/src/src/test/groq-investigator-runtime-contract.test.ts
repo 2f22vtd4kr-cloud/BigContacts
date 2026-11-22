@@ -923,6 +923,11 @@ describe("Groq Investigator runtime contract", () => {
     expect(strictUser).toContain("review-only");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
+    const strictFindings = strictSchema.findings as {
+      items?: { required?: string[]; properties?: Record<string, { type?: string | string[]; enum?: unknown[] }> };
+    };
+    expect(strictFindings.items?.required).toContain("reviewOnly");
+    expect(strictFindings.items?.properties?.reviewOnly).toMatchObject({ type: "boolean", enum: [true] });
 
     const twentyBBody = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
@@ -934,6 +939,41 @@ describe("Groq Investigator runtime contract", () => {
     const twentyBUser = (twentyBBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(twentyBUser).toContain("Discovery: inspect the complete same-run observations on every action.");
     expect(twentyBUser).toContain("reviewOnly=true");
+  });
+
+  it("only creates provisional leads when the model explicitly marks reviewOnly=true", () => {
+    const base = {
+      action: "web_search",
+      query: "objective-fit organization example",
+      hypothesis: "A named organization may be relevant.",
+      purpose: "Find an observed organization lead.",
+      expectedInformationGain: 0.5,
+      findings: [{
+        vectorType: "other",
+        value: "Example Organization",
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: ["https://example.org/about"],
+        note: "Observed organization name; relevance remains to be verified.",
+      }],
+    };
+    const selected = parseAgentAction(JSON.stringify({
+      ...base,
+      findings: [{ ...base.findings[0], reviewOnly: true }],
+    }), ["web_search"]);
+    expect(selected?.partialFindings).toHaveLength(1);
+    expect(selected?.partialFindings?.[0]).toMatchObject({
+      value: "Example Organization",
+      scope: "organization",
+      reviewOnly: true,
+    });
+
+    const unselected = parseAgentAction(JSON.stringify({
+      ...base,
+      findings: [{ ...base.findings[0], reviewOnly: null }],
+    }), ["web_search"]);
+    expect(unselected?.partialFindings).toHaveLength(0);
   });
 
   it("recursively strictifies every 120B Investigator action-allowlist schema variant", () => {
