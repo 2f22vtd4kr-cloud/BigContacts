@@ -31,7 +31,7 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
-  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 const agenticWrapperSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
@@ -896,7 +896,7 @@ describe("discovery provisional review-lead output contract", () => {
       mode: "discovery",
       actionAllowlist,
     });
-    expect(prompt).toContain("Discovery: put provisional person/org leads in findings[]");
+    expect(prompt).toContain("Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true");
     expect(prompt.toLowerCase()).toContain("review-only");
     expect(prompt).toContain("findings[] required keys:");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
@@ -2490,7 +2490,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS:\s*action,\s*query,\s*provider,/i);
     expect(prompt).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
-    expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
+    expect(prompt).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
@@ -5971,7 +5971,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
     expect(prompt).toMatch(/search-only is review-only/i);
-    expect(agenticCoreSource).toContain("Assets remain source-backed observations");
+    // The source-backed asset boundary is owned by the Investigator orientation contract above.
   });
   it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {
     const advisory = discoverySearchLivenessAdvisory([
