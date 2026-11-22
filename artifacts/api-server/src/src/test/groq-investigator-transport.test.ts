@@ -38,7 +38,7 @@ const strictInvestigatorPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
-  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 
 function groqResponse(status: number, body: unknown): Response {
