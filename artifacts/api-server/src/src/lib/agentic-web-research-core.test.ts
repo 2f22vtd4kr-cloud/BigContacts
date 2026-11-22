@@ -512,16 +512,22 @@ describe("Investigator daily token reservation estimate", () => {
 });
 
 describe("Investigator provider prompt schema boundary", () => {
-  it("rejects a prompt with complete root keys but missing nested findings fields", () => {
-    const incomplete = completeInvestigatorProviderPrompt.replace(
-      /findings\[\] required keys:[^\n]+/,
+  it("enforces complete nested findings fields in the provider schema rather than duplicating them in prompt text", () => {
+    const incompleteTextContract = completeInvestigatorProviderPrompt.replace(
+      /findings\\[\\] required keys:[^\\n]+/,
       "findings[] required keys: vectorType, value",
     );
-    expect(() => buildGroqInvestigatorRequestBody({
+    const request = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
-      prompt: incomplete,
+      prompt: incompleteTextContract,
       cognitiveTask: "discovery",
-    })).toThrow("complete root and nested action schema");
+    });
+    const responseFormat = request.response_format as { json_schema?: { schema?: { required?: string[]; properties?: Record<string, { items?: { required?: string[] } }> } } };
+    expect(responseFormat.json_schema?.schema?.required).toContain("findings");
+    expect(responseFormat.json_schema?.schema?.properties?.findings?.items?.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]));
+    const userPrompt = (request.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(userPrompt).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(userPrompt).toContain("provider-enforced strict response schema");
   });
 });
 
@@ -833,7 +839,7 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
-    expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
+    expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
     expect(systemCore).toContain("COMPANY REALISM:");
@@ -4561,7 +4567,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect((schema?.properties?.profile as { type?: unknown }).type).toEqual(["string", "null"]);
     expect(schema?.properties?.searches).toBeDefined();
     expect(schema?.properties?.findings).toBeDefined();
-    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract in the user message");
+    expect(apexInvestigatorSystemCore()).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(agenticCoreSource).toContain('runTheHarvester(action.domain, action.sources.join(",")');
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
