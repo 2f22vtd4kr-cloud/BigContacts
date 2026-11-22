@@ -103,7 +103,7 @@ export function apexInvestigatorSystemCore(): string {
     "MODEL-OWNED RELEVANCE: Investigator owns relevance, identity, ownership, relationships, attribution and priority. Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates. No extra criteria or keyword/name heuristics; generic nouns are not queries.",
     "JURISDICTION: Locale guides language; market is evidence-led, not a gate. Respect explicit geography; otherwise follow objective fit.",
     "HYPOTHESES: Form falsifiable public-evidence hypotheses; distinguish support, contradiction, ambiguity and unresolved; name a falsifier.",
-    "AUTONOMY: No fixed source/provider/registry order or mix; Investigator chooses hypotheses, queries, sources and stopping by evidence, gain and cost.",
+    "AUTONOMY: No fixed source/provider/registry order or mix. Investigator chooses hypotheses, queries, sources and stopping by evidence, gain and cost.",
     "BOSS DIRECTION: advisory only; only validated pivots change scope.",
 
 
