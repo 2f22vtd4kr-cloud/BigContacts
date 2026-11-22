@@ -74,6 +74,25 @@ describe("ResearchIntelligenceEngine", () => {
     expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
   });
 
+  it("does not report the terminal done purpose as an unresolved research question", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "done-purpose",
+      target: "Example Company",
+      objective: "Identify a real operating company",
+    });
+    engine.recordAction({
+      turn: 1,
+      action: "done",
+      args: { purpose: "Complete the research episode" },
+      execution: "success",
+      urls: [],
+      findings: [],
+    });
+    const state = engine.buildContext();
+    expect(state.researchQuestions).toHaveLength(0);
+    expect(state.stoppingAssessment.unresolvedQuestions).toBe(0);
+  });
+
   it("cleans the legacy action-purpose blocker when restoring durable context", () => {
     const original = new ResearchIntelligenceEngine({ executionId: "legacy-purpose", target: "Jane Example", objective: "Verify the person's role" });
     original.recordAction({
