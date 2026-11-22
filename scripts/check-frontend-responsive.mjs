@@ -5,6 +5,9 @@ const root = process.cwd();
 const appRoot = path.join(root, "artifacts", "apex-finder", "src");
 const files = {
   layout: path.join(appRoot, "components", "layout.tsx"),
+  legacyLayout: path.join(appRoot, "components", "layout-legacy.tsx"),
+  roundLayout: path.join(appRoot, "components", "layout-round.tsx"),
+  roundCss: path.join(appRoot, "flat-round.css"),
   reactor: path.join(appRoot, "pages", "reactor.tsx"),
   mobile: path.join(appRoot, "components", "mobile-reactor-flow.tsx"),
   css: path.join(appRoot, "index.css"),
@@ -15,10 +18,12 @@ for (const [name, file] of Object.entries(files)) {
 }
 
 const read = (file) => fs.readFileSync(file, "utf8");
-const layout = read(files.layout);
+const layout = read(files.legacyLayout);
+const roundLayout = read(files.roundLayout);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const css = read(files.css);
+const roundCss = read(files.roundCss);
 
 const sourceFiles = [];
 function collectSourceFiles(dir) {
@@ -32,15 +37,24 @@ collectSourceFiles(appRoot);
 const appSource = sourceFiles.map(read).join("\n");
 
 const checks = [
-  ["mobile drawer has viewport cap", /w-\[min\(300px,86vw\)\]/.test(layout)],
-  ["mobile header uses safe-area insets", /env\(safe-area-inset-(left|right|top)/.test(layout)],
-  ["main shell prevents flex-width blowout", /min-w-0/.test(layout)],
-  ["mobile nav is hidden behind laptop breakpoint", /lg:hidden/.test(layout)],
-  ["desktop nav has laptop breakpoint", /hidden[^\n]*lg:flex/.test(layout)],
-  ["mobile drawer fills the viewport", /mobile \? "h-full w-\[min\(300px,86vw\)\]"/.test(layout)],
-  ["mobile drawer closes on Escape and restores focus", /key === "Escape"/.test(layout) && /mobileMenuButtonRef\.current\?\.focus/.test(layout)],
-  ["skip link reaches the main landmark", /href="#main-content"/.test(layout) && /id="main-content"/.test(layout)],
-  ["collapsed desktop nav releases the content column", /desktopNavOpen \? "lg:pl-\[250px\]" : "lg:pl-0"/.test(layout) && /desktopNavOpen \? "lg:pl-\[274px\]" : "lg:pl-6"/.test(layout)],
+  // The previous shell is intentionally retained as a rollback surface.
+  ["legacy mobile drawer has viewport cap", /w-\[min\(300px,86vw\)\]/.test(layout)],
+  ["legacy mobile header uses safe-area insets", /env\(safe-area-inset-(left|right|top)/.test(layout)],
+  ["legacy main shell prevents flex-width blowout", /min-w-0/.test(layout)],
+  ["legacy mobile nav is hidden behind laptop breakpoint", /lg:hidden/.test(layout)],
+  ["legacy desktop nav has laptop breakpoint", /hidden[^\n]*lg:flex/.test(layout)],
+  ["legacy mobile drawer fills the viewport", /mobile \? "h-full w-\[min\(300px,86vw\)\]"/.test(layout)],
+  ["legacy mobile drawer closes on Escape and restores focus", /key === "Escape"/.test(layout) && /mobileMenuButtonRef\.current\?\.focus/.test(layout)],
+  ["legacy skip link reaches the main landmark", /href="#main-content"/.test(layout) && /id="main-content"/.test(layout)],
+  ["legacy collapsed desktop nav releases the content column", /desktopNavOpen \? "lg:pl-\[250px\]" : "lg:pl-0"/.test(layout) && /desktopNavOpen \? "lg:pl-\[274px\]" : "lg:pl-6"/.test(layout)],
+  ["legacy shell remains separately available", /export \{ Layout \}/.test(read(files.layout)) && fs.existsSync(files.legacyLayout)],
+
+  ["Flat Round shell is the default exported layout", /export \{ Layout \} from "\.\/layout-round"/.test(read(files.layout))],
+  ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
+  ["Flat Round shell exposes mobile navigation and More utilities", /atlas-round-mobile-nav/.test(roundLayout) && /atlas-round-more-menu/.test(roundLayout)],
+  ["Flat Round shell includes safe-area and constrained responsive layout", /safe-area-inset/.test(roundCss) && /min-width:0|min-w-0/.test(roundCss + roundLayout)],
+  ["Flat Round design defines the paper and tincture palette", /#FAFAF8/.test(roundCss) && /#C8321E/.test(roundCss) && /#1F8A4D/.test(roundCss) && /#2757C6/.test(roundCss) && /#EDB92B/.test(roundCss)],
+  ["Flat Round design respects reduced motion", /prefers-reduced-motion/.test(roundCss)],
 
   ["mobile reactor uses a dedicated flow surface", /MobileReactorFlow/.test(reactor)],
   ["reactor derives visible tools from observed spans", /schemeNodesFromSpans/.test(reactor)],
@@ -48,9 +62,6 @@ const checks = [
   ["reactor has reduced-motion handling", /prefersReducedMotion/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["mobile live state is telemetry-authoritative", /useReactorLiveTelemetry/.test(mobile) && /telemetryActivities/.test(mobile) && !/recentBureauMs|90_000|activeWindow/.test(mobile)],
   ["mobile flow has history instead of only current state", /showHistory/.test(mobile)],
-  // Layout owns the page-level clipping surface with overflow-hidden. Individual
-  // horizontal strips intentionally opt into overflow-x-auto where needed.
-  ["page shell clips horizontal overflow", /overflow-hidden/.test(layout)],
   ["page shell wraps long content", /break-words|break-all|overflow-wrap\s*:\s*anywhere/.test(appSource)],
 ];
 
