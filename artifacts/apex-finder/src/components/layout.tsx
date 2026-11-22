@@ -10,7 +10,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return "round";
     const requested = new URLSearchParams(window.location.search).get("ui");
     if (requested === "legacy" || requested === "round") return requested;
-    return window.localStorage.getItem("apex-atlas-ui") === "legacy" ? "legacy" : "round";
+    try { return window.localStorage.getItem("apex-atlas-ui") === "legacy" ? "legacy" : "round"; } catch { return "round"; }
   });
   const switchMode = (next: UiMode) => {
     try { window.localStorage.setItem("apex-atlas-ui", next); } catch { /* UI still switches for this session. */ }

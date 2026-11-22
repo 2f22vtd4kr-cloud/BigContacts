@@ -898,7 +898,6 @@ describe("discovery provisional review-lead output contract", () => {
     });
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     expect(prompt.toLowerCase()).toContain("review-only");
-    expect(discoveryFormat.json_schema?.schema?.properties?.findings).toBeDefined();
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -5883,7 +5882,6 @@ describe("Investigator preflight uses production prompt composition", () => {
       actionAllowlist: ["web_search"],
     });
     expect(prompt).not.toContain("searches[] required keys:");
-    expect(discoveryFormat.json_schema?.schema?.properties?.findings).toBeDefined();
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
