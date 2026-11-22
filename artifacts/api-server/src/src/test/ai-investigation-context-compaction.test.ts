@@ -377,7 +377,9 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
 
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("hard limit of 1200 characters");
     expect(prompt).toContain("Aim at or below 780 characters");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
