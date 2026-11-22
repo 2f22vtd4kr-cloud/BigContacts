@@ -2277,6 +2277,9 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
   for (const rawFinding of Array.isArray(rawFindings) ? rawFindings : []) {
     if (!rawFinding || typeof rawFinding !== "object" || Array.isArray(rawFinding)) continue;
     const f = rawFinding as Record<string, unknown>;
+    // Only the model's explicit reviewOnly=true selection creates a provisional
+    // lead. Claim-grade terminal findings must not be duplicated as review cards.
+    if (f.reviewOnly !== true) continue;
     const rawVector = cleanText(f.vectorType, 30).toLowerCase();
     const vector = (["email", "phone", "linkedin", "website", "other", "social"].includes(rawVector)
       ? rawVector
@@ -4114,10 +4117,22 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
   const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
   const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
+  if (promptMode === "discovery") {
+    const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown> } };
+    const findingItems = findingSchema.items;
+    if (findingItems) {
+      findingItems.properties = {
+        ...(findingItems.properties ?? {}),
+        reviewOnly: reviewLeadOnlyFindings
+          ? { type: "boolean", enum: [true] }
+          : { type: ["boolean", "null"], enum: [true, null] },
+      };
+    }
+  }
   if (reviewLeadOnlyFindings) {
     const findingSchema = schemaProperties.findings as { description?: string; items?: { description?: string; properties?: Record<string, unknown> } };
     const findingItems = findingSchema.items;
-    const reviewLeadFields = new Set(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]);
+    const reviewLeadFields = new Set(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly"]);
     delete findingSchema.description;
     if (findingItems) delete findingItems.description;
     for (const field of Object.keys(findingItems?.properties ?? {})) {
