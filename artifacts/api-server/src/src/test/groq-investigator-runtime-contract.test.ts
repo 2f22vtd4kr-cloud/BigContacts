@@ -940,7 +940,7 @@ describe("Groq Investigator runtime contract", () => {
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
+    expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(strictUser).toContain("review-only");
     expect(strictUser).toContain("reviewOnly=true");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
