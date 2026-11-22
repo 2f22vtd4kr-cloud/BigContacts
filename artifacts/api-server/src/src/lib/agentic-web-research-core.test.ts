@@ -6017,7 +6017,7 @@ describe("requested versus executed action provenance", () => {
 describe("AI-led discovery review handoff contract", () => {
   it("requires explicit review-only model judgment for relevant named leads in discovery output", () => {
     expect(agenticCoreSource).toContain("reviewOnly=true");
-    expect(agenticCoreSource).toContain("Inspect latest successful observations.");
+    expect(agenticCoreSource).toContain("Inspect complete latest successful same-run observations, not only the compact summary.");
     expect(agenticCoreSource).toContain("Do not drop a relevant name from a successful fetched page merely because a compact memory summary omitted it.");
     expect(agenticCoreSource).toContain('"reviewOnly"] as const');
   });
