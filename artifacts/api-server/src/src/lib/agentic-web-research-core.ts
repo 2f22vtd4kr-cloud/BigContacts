@@ -4118,7 +4118,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
   const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
   if (promptMode === "discovery") {
-    const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown> } };
+    const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown>; required?: string[] } };
     const findingItems = findingSchema.items;
     if (findingItems) {
       findingItems.properties = {
@@ -4127,6 +4127,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
           ? { type: "boolean", enum: [true] }
           : { type: ["boolean", "null"], enum: [true, null] },
       };
+      findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly"])];
     }
   }
   if (reviewLeadOnlyFindings) {
