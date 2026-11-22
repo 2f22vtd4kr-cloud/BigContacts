@@ -2936,7 +2936,21 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist, inferredMode);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
   const providerPrompt = responseFormat.type === "json_schema" ? compactStrictSchemaOutputContract(modelSpecificPrompt) : modelSpecificPrompt;
-  const boundedPrompt = boundInvestigatorProviderPrompt(providerPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
+  const explicitDiscoveryReviewHandoff = inferredMode === "discovery"
+    && Array.isArray(actionAllowlist)
+    && actionAllowlist.some((action) => action !== "done")
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+    : "";
+  const promptWithDiscoveryReviewHandoff = explicitDiscoveryReviewHandoff
+    && !providerPrompt.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
+    ? (() => {
+        const outputContractAt = providerPrompt.indexOf("OUTPUT CONTRACT:");
+        return outputContractAt >= 0
+          ? providerPrompt.slice(0, outputContractAt).trimEnd() + "\\n\\n" + explicitDiscoveryReviewHandoff + "\\n\\n" + providerPrompt.slice(outputContractAt)
+          : providerPrompt + "\\n\\n" + explicitDiscoveryReviewHandoff;
+      })()
+    : providerPrompt;
+  const boundedPrompt = boundInvestigatorProviderPrompt(promptWithDiscoveryReviewHandoff, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   return {
