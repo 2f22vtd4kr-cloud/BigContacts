@@ -5933,7 +5933,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action with exact same-run URLs, scope and uncertainty; review-only, never admitted. Assets remain source-backed observations, not person/org cards."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6438,7 +6438,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Discovery: put provisional person/org leads in findings[] on every non-terminal action with exact same-run URLs, scope and uncertainty; review-only, never admitted. Assets remain source-backed observations, not person/org cards."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
