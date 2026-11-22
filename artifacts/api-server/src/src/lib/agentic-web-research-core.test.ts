@@ -903,7 +903,7 @@ describe("discovery provisional review-lead output contract", () => {
       actionAllowlist,
     });
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
@@ -2494,7 +2494,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
@@ -5893,7 +5893,7 @@ describe("Investigator preflight uses production prompt composition", () => {
     });
     expect(prompt).not.toContain("searches[] required keys:");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
