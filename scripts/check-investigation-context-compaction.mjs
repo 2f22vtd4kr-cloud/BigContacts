@@ -47,7 +47,7 @@ const checks = [
   ["mounted durable context has its own bounded section", /priorContext\?: string/.test(source) && /PRIOR DURABLE CASE CONTEXT/.test(source) && /trim\(input\.priorContext, 1_000\)/.test(source)],
   ["explicit model-facing context budget override exists", /maxChars\?: number/.test(source) && /input\.maxChars/.test(source)],
   ["canonical Investigator prompt requests a bounded working-context layer", /maxChars: input\.mode === "discovery" \? 350 : 3_000/.test(core)],
-  ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(\s*input\.intelligenceContext[\s\S]*?input\.mode === "discovery" \? 150 : 700/.test(core)],
+  ["canonical Investigator prompt reserves one bounded intelligence-state layer without duplicating it in discovery mode", /const cognitiveState = input\.mode === "discovery" \? "" : boundInvestigatorPromptSection\(/.test(core) && /const discoveryIntelligenceContext = input\.mode === "discovery" && input\.intelligenceContext\?\.trim\(\)[\s\S]*?500,/.test(core)],
   ["current findings retain both early and recent entries", /headTail\(input\.findings, 6\)/.test(source)],
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["shared URL-safe reducer enforces requested prompt bounds", /export function compactPromptSectionPreservingUrlTokens/.test(source) && /const limit = Math\.max\(0, requested\)/.test(source) && /source\.length <= limit/.test(source) && /return source\.slice\(0, limit\)/.test(source)],
