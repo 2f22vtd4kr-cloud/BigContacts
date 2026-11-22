@@ -80,7 +80,7 @@ const jobTelemetry = new Map<string, JobTelemetry>();
 const MAX_JOB_TELEMETRY_ENTRIES = 256;
 
 const SAFE_REASONS = new Set([
-  "upstream_quota_exhausted", "upstream_rate_limited", "request_size", "provider_rejected",
+  "upstream_quota_exhausted", "upstream_token_quota_exhausted", "upstream_rate_limited", "request_size", "provider_rejected",
   "empty_response", "exception", "timeout", "cancelled", "network_error", "rate_limited",
   "daily_token_budget_exhausted", "daily_usage_ledger_unavailable",
 ]);
@@ -93,7 +93,7 @@ const SAFE_PROVIDER_DIAGNOSTIC_LABELS = new Set([
   "permission_denied", "permission_error", "quota_exceeded", "rate_limit_error",
   "rate_limit_exceeded", "rate_limited", "resource_exhausted", "requests", "server_error",
   "too_many_requests", "tokens", "unauthenticated", "unauthorized", "unavailable",
-  "unknown", "unsupported_parameter", "prompt_exceeds_local_ceiling", "role_budget_exhausted", "daily_token_budget_exhausted", "budget_exhausted", "cooldown",
+  "unknown", "unsupported_parameter", "prompt_exceeds_local_ceiling", "role_budget_exhausted", "daily_token_budget_exhausted", "upstream_token_quota_exhausted", "budget_exhausted", "cooldown",
 ]);
 
 export type AgenticLlmDailyReservation = {
@@ -265,7 +265,7 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
       estimatedTokens: estimated,
       reservedTokens: 0,
       dailyBudgetTokens: budget,
-      budgetExhausted: event.budgetExhausted === true,
+      budgetExhausted: budget > 0 && total >= budget,
       lastProviderStatus: String(event.status),
       lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
       lastJobId: event.jobId ?? null,
@@ -295,7 +295,9 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
         estimatedTokens: sql`${table.estimatedTokens} + ${estimated}`,
         reservedTokens: sql`GREATEST(${table.reservedTokens} - ${reservationTokens}, 0)`,
         dailyBudgetTokens: budget > 0 ? budget : table.dailyBudgetTokens,
-        budgetExhausted: sql`${table.budgetExhausted} OR ${event.budgetExhausted === true}`,
+        budgetExhausted: budget > 0
+          ? sql`${table.totalTokens} + ${total} + GREATEST(${table.reservedTokens} - ${reservationTokens}, 0) >= ${budget}`
+          : false,
         lastProviderStatus: String(event.status),
         lastProviderErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
         lastJobId: event.jobId ?? table.lastJobId,
@@ -322,7 +324,9 @@ async function persistDailyUsageEvent(event: Attempt): Promise<void> {
 
 /**
  * Atomically reserve the estimated prompt+completion allowance before a model
- * request. Provider-reported daily exhaustion is also sticky for the UTC day.
+ * request. The local exhaustion flag is derived only from this ledger's actual
+ * usage plus reservations; upstream provider TPD is recorded separately as a
+ * provider error and must not block Boss/Right-hand reservations.
  */
 async function reserveAgenticLlmDailyBudgetUnlocked(input: {
   provider: string;
@@ -345,8 +349,9 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
     ]);
     const table = agenticLlmDailyUsageTable;
     // The atomic INSERT/ON CONFLICT reservation below is the source of truth.
-    // A pre-read is both racy and unnecessary: the WHERE clause also rejects
-    // rows already marked budget_exhausted.
+    // Provider TPD is a separate upstream constraint, not this local budget.
+    // Numeric usage+reservation accounting is authoritative; a stale historical
+    // budget_exhausted marker must never block a smaller request that still fits.
     if (dailyBudgetTokens <= 0) return { usageDate, reservedTokens: 0, dailyBudgetTokens: 0 };
     if (estimatedTokens > dailyBudgetTokens) {
       // This request is too large for the configured ceiling; that does not
@@ -355,15 +360,17 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
     }
     const result = await db.execute(sql`
       INSERT INTO public.agentic_llm_daily_usage
-        (usage_date, provider, model, reserved_tokens, daily_budget_tokens)
+        (usage_date, provider, model, reserved_tokens, daily_budget_tokens, budget_exhausted)
       VALUES
-        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens})
+        (${usageDate}::date, ${input.provider}, ${canonicalizeAgenticLlmBudgetModel(input.model)}, ${estimatedTokens}, ${dailyBudgetTokens}, ${estimatedTokens >= dailyBudgetTokens})
       ON CONFLICT (usage_date, provider, model) DO UPDATE
         SET reserved_tokens = public.agentic_llm_daily_usage.reserved_tokens + EXCLUDED.reserved_tokens,
             daily_budget_tokens = EXCLUDED.daily_budget_tokens,
+            budget_exhausted = public.agentic_llm_daily_usage.total_tokens
+              + public.agentic_llm_daily_usage.reserved_tokens
+              + EXCLUDED.reserved_tokens >= EXCLUDED.daily_budget_tokens,
             updated_at = now()
-        WHERE public.agentic_llm_daily_usage.budget_exhausted = false
-          AND public.agentic_llm_daily_usage.total_tokens
+        WHERE public.agentic_llm_daily_usage.total_tokens
               + public.agentic_llm_daily_usage.reserved_tokens
               + EXCLUDED.reserved_tokens <= EXCLUDED.daily_budget_tokens
       RETURNING id
