@@ -903,7 +903,7 @@ describe("discovery provisional review-lead output contract", () => {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
     const discoveryFindingProperties = (discoveryFormat.json_schema?.schema?.properties?.findings as { items?: { properties?: Record<string, unknown> } } | undefined)?.items?.properties ?? {};
-    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
+    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
     const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -927,6 +927,7 @@ describe("discovery provisional review-lead output contract", () => {
         scope: "candidate",
         sourceUrls: ["https://example.com/investors"],
         note: "Named in the observed source; role and relevance require verification.",
+        reviewOnly: true,
       }],
     }), ["web_search"]);
     expect(parsed?.partialFindings).toHaveLength(1);
@@ -1913,6 +1914,7 @@ describe("partial model findings", () => {
       scope: "organization",
       sourceUrls: ["https://example.com/ownership"],
       note: "The fetched source names the company; ownership remains unverified.",
+      reviewOnly: true,
       promotionDecision: null,
       promotionReason: null,
     };
@@ -1951,6 +1953,7 @@ describe("partial model findings", () => {
         scope: "candidate",
         sourceUrls: ["https://example.com/leadership"],
         note: "Candidate claim from a non-terminal action.",
+        reviewOnly: true,
         promotionDecision: "promote",
         promotionReason: "The output claims an ownership role.",
       }],
@@ -1986,6 +1989,7 @@ describe("partial model findings", () => {
         scope: "candidate",
         sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
         note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+        reviewOnly: true,
         promotionDecision: null,
         promotionReason: null,
       }],
@@ -2021,6 +2025,7 @@ describe("partial model findings", () => {
         scope: "organization",
         sourceUrls: ["https://northstarcasino.si/"],
         note: "Investigator-selected organization lead.",
+        reviewOnly: true,
         promotionDecision: null,
         promotionReason: null,
       }],
@@ -2057,6 +2062,7 @@ describe("partial model findings", () => {
           scope: "candidate",
           sourceUrls: ["https://example.org/profile"],
           note: "Investigator-selected person lead.",
+          reviewOnly: true,
         },
         {
           vectorType: "other",
@@ -2066,6 +2072,7 @@ describe("partial model findings", () => {
           scope: "organization",
           sourceUrls: ["https://example.org/company"],
           note: "Investigator-selected organization lead.",
+          reviewOnly: true,
         },
       ],
     }), ["web_search"]);
@@ -2080,7 +2087,7 @@ describe("partial model findings", () => {
         { vectorType: "email", value: "contact@northstarcasino.si", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business email." },
         { vectorType: "phone", value: "+386 1 555 0100", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business phone." },
         { vectorType: "website", value: "https://northstarcasino.si/", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public company website." },
-        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead." },
+        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead.", reviewOnly: true },
       ],
       thought: "Preserve the company lead and keep contact facts separate.",
     }), ["done"]);
@@ -2100,6 +2107,7 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "The fetched source supports a review lead only.",
+      reviewOnly: true,
       promotionDecision: null,
       promotionReason: null,
     };
