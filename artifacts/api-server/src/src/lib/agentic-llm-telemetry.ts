@@ -366,6 +366,9 @@ async function reserveAgenticLlmDailyBudgetUnlocked(input: {
       ON CONFLICT (usage_date, provider, model) DO UPDATE
         SET reserved_tokens = public.agentic_llm_daily_usage.reserved_tokens + EXCLUDED.reserved_tokens,
             daily_budget_tokens = EXCLUDED.daily_budget_tokens,
+            budget_exhausted = public.agentic_llm_daily_usage.total_tokens
+              + public.agentic_llm_daily_usage.reserved_tokens
+              + EXCLUDED.reserved_tokens >= EXCLUDED.daily_budget_tokens,
             updated_at = now()
         WHERE public.agentic_llm_daily_usage.total_tokens
               + public.agentic_llm_daily_usage.reserved_tokens
