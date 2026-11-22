@@ -2879,7 +2879,7 @@ const GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE = "PROMPT SIZE TARGET (ADVISORY, NO
 export function buildInvestigatorOutputContractForModel(model: string, strictContract: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
   if (structuredActionResponseFormat(model, actionAllowlist, promptMode).type === "json_schema") return strictContract;
   const allowed = new Set(actionAllowlist ?? getModelSelectableAgentActions());
-  const explicitActionAllowlist = Array.isArray(actionAllowlist) && actionAllowlist.length > 0;
+  const explicitActionAllowlist = Array.isArray(actionAllowlist) && actionAllowlist.some((action) => action !== "done");
   const shapes = [
     allowed.has("web_search") ? (allowed.has("parallel_web_search") ? "web_search uses the root query and optional root provider; parallel_web_search uses searches[] items with query and may omit provider to use the configured healthy runtime default." : "web_search uses the root query and optional root provider.") : "",
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
@@ -5843,7 +5843,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
-  const explicitDiscoveryReviewTurn = input.mode === "discovery" && Array.isArray(input.actionAllowlist) && input.actionAllowlist.length > 0;
+  const explicitDiscoveryReviewTurn = input.mode === "discovery" && Array.isArray(input.actionAllowlist) && input.actionAllowlist.some((action) => action !== "done");
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
@@ -5962,7 +5962,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
     ? selectableActions
     : selectableActions.filter((action) => action !== "browser_fetch");
-  const explicitActionAllowlist = Array.isArray(input.actionAllowlist) && input.actionAllowlist.length > 0;
+  const explicitActionAllowlist = Array.isArray(input.actionAllowlist) && input.actionAllowlist.some((action) => action !== "done");
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
   const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
