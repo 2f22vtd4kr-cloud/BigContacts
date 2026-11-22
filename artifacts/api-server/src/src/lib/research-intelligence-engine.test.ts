@@ -37,7 +37,7 @@ describe("ResearchIntelligenceEngine", () => {
     engine.recordAction({ turn: 2, action: "visit", args: { hypothesis }, execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", exactQuote: "Alex Example is director of Beta", hypothesisRelation: "contradicts", sourceUrls: ["https://news.example.com/b"] }] });
     const state = engine.buildContext(); expect(state.contradictions.length).toBeGreaterThan(0); expect(state.openQuestions.some((question) => question.startsWith("Resolve contradiction:"))).toBe(true);
   });
-  it("records negative findings and feedback without fabricating success", () => {
+  it("keeps failed retrievals out of negative findings without fabricating success", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-3", target: "No Contact", objective: "Find a public contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] }); engine.recordFeedback({ outcome: "bounced", value: "old@example.com" });
     const state = engine.buildContext();
