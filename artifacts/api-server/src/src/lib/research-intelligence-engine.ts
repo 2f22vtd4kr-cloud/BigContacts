@@ -516,7 +516,12 @@ export class ResearchIntelligenceEngine {
       const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
       this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, attributionSourceUrls, sourceHosts });
     }
-    for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
+    for (const negative of context.negativeFindings) {
+      // Older projections incorrectly encoded transport/preflight failures as
+      // negative findings. Strip those on replay; they are unknown outcomes.
+      if (/\\bproduced no usable evidence\\s*\\((?:blocked|http_error|timeout|error|cancelled)\\)\\s*$/i.test(negative)) continue;
+      this.negativeFindings.add(negative);
+    }
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
     for (const node of context.sourceLineage) {
       const canonical = canonicalUrl(node.canonicalUrl);
