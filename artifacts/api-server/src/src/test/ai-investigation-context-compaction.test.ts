@@ -1359,7 +1359,7 @@ describe("AI investigation context compaction", () => {
       "Successful browser_fetch observation at " + sourceUrl + ":",
       "Fetched page explicitly names Alex Example as an angel investor and Dana Sample as a venture partner.",
       "Search snippets are unverified leads and must remain distinct from fetched observations.",
-      "BACKGROUND: " + "historical context. ".repeat(700),
+      "BACKGROUND: " + "historical context. ".repeat(450),
     ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
