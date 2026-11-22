@@ -2939,7 +2939,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const explicitDiscoveryReviewHandoff = inferredMode === "discovery"
     && Array.isArray(actionAllowlist)
     && actionAllowlist.some((action) => action !== "done")
-    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
     : "";
   const promptWithDiscoveryReviewHandoff = explicitDiscoveryReviewHandoff
     && !providerPrompt.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
@@ -6021,7 +6021,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     explicitDiscoveryReviewTurn
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6357,7 +6357,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? explicitActionAllowlist
           ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
           : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6532,7 +6532,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     explicitDiscoveryReviewTurn
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
