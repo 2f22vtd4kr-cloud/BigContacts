@@ -5858,6 +5858,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const emergencyAvailableBrowserProviders = getAvailableBrowserFetchProviders();
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const explicitDiscoveryReviewTurn = input.mode === "discovery" && Array.isArray(input.actionAllowlist) && input.actionAllowlist.some((action) => action !== "done");
+  const explicitDiscoveryReviewHandoffText = explicitDiscoveryReviewTurn
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+    : "";
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
@@ -6020,9 +6023,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryIntelligenceContext,
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
-    explicitDiscoveryReviewTurn
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
-      : "",
+    explicitDiscoveryReviewHandoffText,
     "CAPABILITIES:",
     capabilityGuidance,
     terminalContractGuidance,
@@ -6485,7 +6486,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // objective, active Boss direction, current action schema, and newest durable
   // act envelope. URL tokens are retained whole; omitted middle context is
   // explicitly unknown and remains in the immutable event ledger.
-  const providerBoundedPrompt = [
+  const providerBoundedPromptBeforeReviewHandoff = [
     preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join("\n\n")),
     assignment,
     providerGuidance,
@@ -6495,6 +6496,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     compactWorkerCapabilityGuidance,
     conditionalSpecialistCapabilityGuidance,
   ].filter(Boolean).join("\n\n");
+  const providerBoundedPrompt = explicitDiscoveryReviewHandoffText
+    && !providerBoundedPromptBeforeReviewHandoff.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
+    ? (() => {
+        const outputContractAt = providerBoundedPromptBeforeReviewHandoff.indexOf("OUTPUT CONTRACT:");
+        return outputContractAt >= 0
+          ? providerBoundedPromptBeforeReviewHandoff.slice(0, outputContractAt).trimEnd() + "\n\n" + explicitDiscoveryReviewHandoffText + "\n\n" + providerBoundedPromptBeforeReviewHandoff.slice(outputContractAt)
+          : providerBoundedPromptBeforeReviewHandoff + "\n\n" + explicitDiscoveryReviewHandoffText;
+      })()
+    : providerBoundedPromptBeforeReviewHandoff;
   const reportPromptMeasurement = (value: string): string => {
     input.onPromptMeasurement?.({
       originalPromptChars: providerBoundedPrompt.length,
@@ -6531,9 +6541,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryIntelligenceContext,
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
-    explicitDiscoveryReviewTurn
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
-      : "",
+    explicitDiscoveryReviewHandoffText,
     latestRecordTail,
     aiHistoricalMemorySection,
   ].filter((section): section is string => Boolean(section) && !mandatorySuffix.includes(section));
