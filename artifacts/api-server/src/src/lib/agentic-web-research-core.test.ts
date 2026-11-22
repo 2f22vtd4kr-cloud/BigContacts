@@ -2328,8 +2328,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=(?:serper|tavily|exa|unavailable)/i);
-    expect(modelPrompt).toContain("For web_search, provider may be omitted to use the healthy runtime default.");
-    expect(modelPrompt).toContain("For browser_fetch, choose one listed configured provider explicitly; provider is required.");
+    expect(modelPrompt).toContain("web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
@@ -4403,7 +4402,7 @@ Choose each next action yourself from the available capabilities and observed ev
         "invalid_action_arguments action=browser_fetch invalid=provider",
       );
       expect(buildActionParseFailureObservation("invalid_action_arguments action=browser_fetch invalid=provider"))
-        .toContain("provider must be exactly one of the currently configured values");
+        .toContain('"provider" must be exactly one of the currently configured values');
       const prompt = buildStepPrompt({
         targetName: "",
         objective: "Inspect a promising public source for objective-fit leads.",
@@ -4414,8 +4413,8 @@ Choose each next action yourself from the available capabilities and observed ev
         mode: "discovery",
         actionAllowlist: ["browser_fetch"],
       });
-      expect(prompt).toContain("For browser_fetch, choose one listed configured provider explicitly; provider is required.");
-      expect(prompt).toContain("provider cannot be null or omitted");
+      expect(prompt).toContain("web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.");
+      expect(prompt).toContain("provider must be an explicit listed configured value; null is invalid.");
     } finally {
       vi.unstubAllEnvs();
     }
@@ -5451,7 +5450,9 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("observedUrlsOmittedFromPromptCount");
     expect(durableTail).toContain("leadUrlsOmittedFromPromptCount");
     expect(durableTail).toContain("const boundedObservation = compactDurablePromptObservation(");
-    expect(durableTail).toContain("searchActions.has(record.action) ? 640 : 1_200,");
+    expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
+    expect(durableTail).toContain('record.execution === "success"');
+    expect(durableTail).toContain("? 1_600");
     expect(durableTail).not.toContain(": rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");

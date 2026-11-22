@@ -2841,7 +2841,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
         : "Discovery: put provisional person/org leads in findings[] on every non-terminal action. Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
-  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted for web_search to use the configured healthy runtime default; browser_fetch requires an explicit provider selected from the currently configured browser providers. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
+  return "OUTPUT CONTRACT: JSON object only. ACTION-SPECIFIC OUTPUT CONTRACT: include action and the action-specific required fields only; unused keys may be omitted. Include thought, hypothesis, purpose and expectedInformationGain when applicable; hypothesis and purpose must be non-empty strings and expectedInformationGain must be a finite number from 0 to 1. provider may be null or omitted for web_search; browser_fetch requires an explicit configured provider. " + shapes + (promptMode === "discovery" ? " Findings use vectorType, value, personName, role, scope, sourceUrls and note; person leads use exact name/value with candidate scope, organizations exact value with organization scope. Never infer identity, role, wealth, ownership or relationships." : "") + " Local parser, action allowlist, evidence and authorization checks remain authoritative.";
 }
 
 export function buildModelSpecificInvestigatorPrompt(model: string, prompt: string, actionAllowlist?: readonly string[], promptMode: "discovery" | "target" = "target"): string {
@@ -5894,7 +5894,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields.";
   const configuredSearchProviders = getConfiguredSearchProviders();
-  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. For web_search, provider may be omitted to use the healthy runtime default. For browser_fetch, choose one listed configured provider explicitly; provider is required.";
+  const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. web_search provider optional (runtime default); browser_fetch requires an explicit configured provider.";
   const modelOwnedScopeGuidance = input.mode === "discovery"
     ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. No fixed target, action or tool sequence."
     : "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
@@ -6138,7 +6138,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const observationBudget = searchActions.has(record.action)
       ? 640
       : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-        ? 2_400
+        ? 1_600
         : 1_200;
     const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
@@ -6241,7 +6241,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("web_search") ? (availableActions.includes("parallel_web_search") ? "For web_search, put one query in the root query field and an optional provider in the root provider field; parallel_web_search uses searches[] items." : "For web_search, put one query in the root query field and an optional provider in the root provider field.") : "",
     availableActions.includes("parallel_web_search") ? "For parallel_web_search, put model-selected queries in searches[]; each item requires query and may include provider, locale, market and purpose." : "",
     availableActions.includes("parallel_registry_search") ? "For parallel_registry_search, put model-selected registry queries in searches[]; each item requires query and registry." : "",
-    availableActions.includes("browser_fetch") ? "For browser_fetch, include provider explicitly as one of the configured browser providers listed above; unlike web_search, provider cannot be null or omitted." : "",
+    availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? "Discovery findings[]: include only model-selected same-run named person/org leads with exact source URLs, scope and uncertainty; non-terminal leads remain review-only. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
