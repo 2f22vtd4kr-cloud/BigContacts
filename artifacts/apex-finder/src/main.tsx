@@ -6,6 +6,7 @@ import { installApiFetchErrorNotifications } from "@/lib/api-json";
 import App from "./App";
 import "./index.css";
 import "./responsive-shell.css";
+import "./flat-round.css";
 
 installApiFetchErrorNotifications();
 
