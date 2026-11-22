@@ -966,8 +966,8 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates.");
-    expect(modelPrompt).toContain("Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate.");
-    expect(modelPrompt).toContain("Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence.");
+    expect(modelPrompt).toContain("Locale guides language; market is evidence-led, not a gate.");
+    expect(modelPrompt).toContain("Respect explicit geography; otherwise follow objective fit.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
     expect(modelPrompt).toContain("Human objective/constraints govern.");
     expect(modelPrompt).toMatch(/Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence/i);
