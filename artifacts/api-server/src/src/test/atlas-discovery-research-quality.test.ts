@@ -106,7 +106,7 @@ describe("AI-led discovery research quality context", () => {
       status: "open",
     }));
     expect(memory.unresolvedResearchQuestions).toContainEqual(expect.objectContaining({
-      question: "Verify the company's current decision-maker from a public source",
+      question: "Verify company identity from an accessible source",
       status: "blocked",
     }));
     expect(memory.provisionalReviewLeads).toContainEqual(expect.objectContaining({
