@@ -2813,10 +2813,11 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
       : getModelSelectableAgentActions();
   const providerSchema = model ? structuredActionResponseFormat(model, actionAllowlist, _promptMode) : null;
   if (providerSchema?.type === "json_schema") {
-    const schema = providerSchema.json_schema?.schema as {
+    const schemaContainer = providerSchema.json_schema as { schema?: {
       required?: string[];
       properties?: Record<string, { items?: { required?: string[] } }>;
-    } | undefined;
+    } } | undefined;
+    const schema = schemaContainer?.schema;
     const rootRequired = new Set(schema?.required ?? []);
     const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
     const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
