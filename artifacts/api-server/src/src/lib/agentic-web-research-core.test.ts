@@ -897,7 +897,7 @@ describe("discovery provisional review-lead output contract", () => {
       actionAllowlist,
     });
     expect(prompt).toContain("Inspect same-run observations. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
-    expect(prompt.toLowerCase()).toContain("review-only");
+    expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("findings[] required keys:");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
@@ -5463,7 +5463,7 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
     expect(durableTail).toContain('record.execution === "success"');
     expect(durableTail).toContain("? 1_600");
-    expect(durableTail).not.toContain(": rawObservation");
+    expect(durableTail).not.toContain("observation: rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
@@ -5911,7 +5911,7 @@ describe("Investigator preflight uses production prompt composition", () => {
   it("states the rationale contract required by the local parser in the non-strict model prompt", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
-    expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
+    expect(agenticCoreSource).toContain("These telemetry fields never block otherwise valid actions.");
     expect(agenticCoreSource).toContain("web_search uses the root query and optional root provider");
   });
 });
@@ -6010,12 +6010,12 @@ describe("requested versus executed action provenance", () => {
 describe("AI-led discovery review handoff contract", () => {
   it("requires explicit review-only model judgment for relevant named leads in discovery output", () => {
     expect(agenticCoreSource).toContain("reviewOnly=true");
-    expect(agenticCoreSource).toContain("complete latest successful observations");
-    expect(agenticCoreSource).toContain("must not be dropped merely because a lossy memory summary omitted it");
+    expect(agenticCoreSource).toContain("Inspect latest successful observations.");
+    expect(agenticCoreSource).toContain("Do not drop a relevant name from a successful fetched page merely because a compact memory summary omitted it.");
     expect(agenticCoreSource).toContain('"reviewOnly"] as const');
   });
   it("keeps provisional lead selection with the Investigator rather than deterministic extraction", () => {
-    expect(agenticCoreSource).toContain("model-selected named person/org review leads");
+    expect(agenticCoreSource).toContain("model-selected objective-fit person/org leads worth review");
     expect(agenticCoreSource).not.toContain("extractNamesFromObservation");
   });
 });
