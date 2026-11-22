@@ -2488,6 +2488,7 @@ Choose each next action yourself from the available capabilities and observed ev
       priorContext: "Durable lead and provenance context. ".repeat(200),
       intelligenceContext: "Bounded research intelligence state. ".repeat(200),
       mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "domain_lookup", "done"],
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
@@ -5341,7 +5342,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
     expect(agenticCoreSource).toContain("const providerBoundedPrompt = [");
     expect(agenticCoreSource).toContain("preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join");
-    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
+    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPromptWithReviewHandoff);");
   });
 });
 
