@@ -903,7 +903,7 @@ describe("discovery provisional review-lead output contract", () => {
       actionAllowlist,
     });
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(prompt).toContain("Inspect complete latest successful observations. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
