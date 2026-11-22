@@ -2328,7 +2328,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(modelPrompt).toMatch(/PROVIDERS: web_search=(?:serper|tavily|exa|unavailable)/i);
-    expect(modelPrompt).toContain("Omit provider for a healthy runtime default.");
+    expect(modelPrompt).toContain("For web_search, provider may be omitted to use the healthy runtime default.");
+    expect(modelPrompt).toContain("For browser_fetch, choose one listed configured provider explicitly; provider is required.");
     expect(modelPrompt).toMatch(/visit handles text\/PDF; browser_fetch handles HTML/i);
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
