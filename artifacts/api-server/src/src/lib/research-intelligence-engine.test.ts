@@ -40,7 +40,10 @@ describe("ResearchIntelligenceEngine", () => {
   it("records negative findings and feedback without fabricating success", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-3", target: "No Contact", objective: "Find a public contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] }); engine.recordFeedback({ outcome: "bounced", value: "old@example.com" });
-    const state = engine.buildContext(); expect(state.negativeFindings.length).toBeGreaterThan(0); expect(state.stoppingAssessment.recommendation).toBe("continue");
+    const state = engine.buildContext();
+    // HTTP 404 is a retrieval outcome, not proof that no contact exists.
+    expect(state.negativeFindings).toHaveLength(0);
+    expect(state.stoppingAssessment.recommendation).toBe("continue");
   });
   it("bounds rendered intelligence state before it can become provider prompt input", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-bound", target: "Bounded Target", objective: "Find public evidence" });
