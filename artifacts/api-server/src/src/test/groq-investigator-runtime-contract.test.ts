@@ -535,7 +535,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", undefined, "discovery") as {
       json_schema?: { schema?: {
         required?: string[];
         properties?: {
