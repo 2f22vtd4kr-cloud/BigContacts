@@ -200,6 +200,7 @@ describe("Groq Boss token-window recovery", () => {
 
   it("skips short-window retries for explicit TPD exhaustion and falls back to the next Boss model", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-boss-tpd-quota-key";
+    const telemetryLog = vi.spyOn(console, "log").mockImplementation(() => {});
     const chatModels: string[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
       const body = JSON.parse(String(init?.body));
@@ -243,6 +244,10 @@ describe("Groq Boss token-window recovery", () => {
     expect(result.error).toBeNull();
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const tpdAttempt = telemetryLog.mock.calls
+      .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
+      .find((entry) => entry.providerErrorCode === "upstream_token_quota_exhausted");
+    expect(tpdAttempt).toMatchObject({ budgetExhausted: false, reason: "upstream_token_quota_exhausted" });
   });
 
   it("waits through a bounded 46-second token reset and retries the same Boss model", async () => {
