@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Activity, BookOpen, ChevronDown, Database, GitCompare, Menu, Network, Search, Settings2, Telescope, X, Crosshair } from "lucide-react";
 import { ApiKeyHealth } from "@/components/api-key-health";
+import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
@@ -10,7 +11,7 @@ const primaryNav = [
   { name: "Ledger", href: "/profiles", icon: Database },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
-  { name: "Reactor", href: "/reactor", icon: Activity },
+  { name: "Reactor", href: "/reactor", icon: ReactorMark },
 ];
 const utilityNav = [
   { name: "Field manual", href: "/manual", icon: BookOpen },
