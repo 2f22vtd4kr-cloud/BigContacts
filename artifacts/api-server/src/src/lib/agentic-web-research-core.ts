@@ -437,6 +437,8 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
   });
   const unresolvedQuestionMap = new Map<string, { turn: number; question: string; status: "open" | "blocked"; action: string }>();
   for (const record of records.slice(-32)) {
+    // A terminal done purpose describes stopping, not an unresolved research question.
+    if (record.action === "done") continue;
     const purpose = typeof record.args?.purpose === "string" ? record.args.purpose.trim() : "";
     if (!purpose) continue;
     const isSearchLeadAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
