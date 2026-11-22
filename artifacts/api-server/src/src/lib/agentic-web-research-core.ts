@@ -5846,7 +5846,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryWorkingMemory = input.mode === "discovery" && hasDiscoveryWorkingMemory
     ? boundInvestigatorPromptSection(
         "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
-        1_600,
+        1_300,
       )
     : "";
   const discoveryIntelligenceContext = input.mode === "discovery" && input.intelligenceContext?.trim()
