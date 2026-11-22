@@ -5859,7 +5859,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
-    ? "TERMINAL REVIEW-CARD HANDOFF: On done, you may explicitly preserve a model-selected same-run organization lead as a durable review-only card by setting promotionDecision=promote and a non-empty promotionReason, with the exact observed source URL and uncertainty. This is only a review card, not company admission or claim-grade evidence; never do it automatically or for every lead."
+    ? "TERMINAL REVIEW-CARD HANDOFF: On done, you may explicitly preserve a model-selected same-run organization lead as a durable review-only card by setting promotionDecision=promote and a non-empty promotionReason, with the exact observed source URL and uncertainty. This is only a review card, not company admission or claim-grade evidence; if its only source is a search result, search_result_lead remains unverified. Never do it automatically or for every lead."
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -5891,7 +5891,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const configuredSearchProviders = getConfiguredSearchProviders();
   const providerGuidance = "PROVIDERS: web_search=" + (configuredSearchProviders.join("|") || "unavailable") + "; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Omit provider for a healthy runtime default.";
   const modelOwnedScopeGuidance = input.mode === "discovery"
-    ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; respect explicit geographic constraints. No fixed target, tool or action sequence."
+    ? "MODEL-OWNED SCOPE: Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. Respect explicit geographic constraints. No fixed target, action or tool sequence."
     : "MODEL-OWNED SCOPE: Infer countries, sectors, organisations, people and asset types from the objective and evidence; do not use deterministic admission gates. Locale guides language; market is an evidence-backed jurisdiction hypothesis, not a human-only gate. Respect explicit geographic constraints; otherwise choose jurisdictions by objective fit and evidence. No fixed target, action or tool sequence.";
   const openDiscoveryGuidance = input.mode === "discovery" ? "OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order." : "";
   const targetModeGuidance = input.mode === "target" ? "TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence." : "";
