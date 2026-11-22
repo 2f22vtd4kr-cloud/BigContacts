@@ -2877,7 +2877,11 @@ export function buildModelSpecificInvestigatorPrompt(model: string, prompt: stri
 }
 
 function compactStrictSchemaOutputContract(prompt: string): string {
-  const start = prompt.lastIndexOf("OUTPUT CONTRACT:");
+  // The newest durable record is appended after the authored output contract.
+  // Bound the lookup to that trusted prefix so source text cannot impersonate it.
+  const latestRecordTailStart = prompt.indexOf("\n\nLATEST TRAJECTORY RECORD — TURN");
+  const trustedPrefixEnd = latestRecordTailStart >= 0 ? latestRecordTailStart : prompt.length;
+  const start = prompt.lastIndexOf("OUTPUT CONTRACT:", trustedPrefixEnd);
   if (start < 0) return prompt;
   const boundaries = [
     "DISCOVERY MODE:",
