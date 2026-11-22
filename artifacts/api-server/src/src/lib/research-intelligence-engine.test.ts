@@ -74,6 +74,34 @@ describe("ResearchIntelligenceEngine", () => {
     expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
   });
 
+  it("keeps fetched review-only findings from resolving claim-grade research questions", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "review-only-question",
+      target: "Example Operating Company",
+      objective: "identify a source-backed operating company",
+    });
+    const sourceUrl = "https://example.com/about";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      args: { purpose: "Verify the company's operating status" },
+      urls: [sourceUrl],
+      observation: "Example Operating Company is an operating business providing logistics services.",
+      findings: [{
+        vectorType: "other",
+        value: "an operating business",
+        sourceUrls: [sourceUrl],
+        reviewOnly: true,
+      }],
+    });
+    const state = engine.buildContext();
+    expect(state.recentActions[0]?.useful).toBe(true);
+    expect(state.recentActions[0]?.claimGradeUseful).toBe(false);
+    expect(state.researchQuestions.find((item) => item.question === "Verify the company's operating status")?.status).toBe("open");
+    expect(state.stoppingAssessment.unresolvedQuestions).toBeGreaterThan(0);
+  });
+
   it("does not report the terminal done purpose as an unresolved research question", () => {
     const engine = new ResearchIntelligenceEngine({
       executionId: "done-purpose",
