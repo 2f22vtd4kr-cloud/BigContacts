@@ -254,7 +254,7 @@ describe("AI-led discovery research quality context", () => {
       mode: "discovery",
       actionAllowlist: ["web_search", "done"],
     });
-    expect(prompt).toContain("TERMINAL REVIEW-CARD HANDOFF");
+    expect(prompt).toContain("TERMINAL REVIEW CARD");
     expect(prompt).toContain("promotionDecision=promote");
     expect(prompt).toContain("not company admission");
     expect(prompt).toContain("search_result_lead remains unverified");
