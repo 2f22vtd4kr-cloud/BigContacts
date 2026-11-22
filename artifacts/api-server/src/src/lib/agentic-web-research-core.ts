@@ -439,7 +439,9 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
   for (const record of records.slice(-32)) {
     const purpose = typeof record.args?.purpose === "string" ? record.args.purpose.trim() : "";
     if (!purpose) continue;
-    const hasClaimFinding = (record.findings ?? []).some((finding) => finding.reviewOnly !== true);
+    const isSearchLeadAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
+    const hasClaimFinding = !isSearchLeadAction && record.action !== "done"
+      && (record.findings ?? []).some((finding) => finding.reviewOnly !== true);
     const status = record.execution === "success" && hasClaimFinding
       ? "answered"
       : ["blocked", "http_error", "timeout", "error", "cancelled"].includes(record.execution)
