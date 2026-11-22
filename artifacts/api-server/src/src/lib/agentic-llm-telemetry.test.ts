@@ -171,6 +171,7 @@ describe("Investigator LLM telemetry privacy", () => {
       reason: "upstream_token_quota_exhausted",
       providerErrorCode: "upstream_token_quota_exhausted",
     });
+    output.mockRestore();
   });
 
   it("hashes provider-controlled diagnostic text instead of writing it to logs", () => {
