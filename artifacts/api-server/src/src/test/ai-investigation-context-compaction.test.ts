@@ -936,7 +936,9 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("one chunk or segment of a larger case memory");
     expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
     expect(prompt).toContain("unverified search leads");
