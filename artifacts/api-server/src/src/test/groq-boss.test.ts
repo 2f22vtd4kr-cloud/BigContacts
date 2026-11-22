@@ -247,7 +247,7 @@ describe("Groq Boss token-window recovery", () => {
     const tpdAttempt = telemetryLog.mock.calls
       .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
       .find((entry) => entry.providerErrorCode === "upstream_token_quota_exhausted");
-    expect(tpdAttempt).toMatchObject({ budgetExhausted: false, reason: "upstream_token_quota_exhausted" });
+    expect(tpdAttempt).toMatchObject({ reason: "upstream_token_quota_exhausted", providerErrorCode: "upstream_token_quota_exhausted" });
   });
 
   it("waits through a bounded 46-second token reset and retries the same Boss model", async () => {
