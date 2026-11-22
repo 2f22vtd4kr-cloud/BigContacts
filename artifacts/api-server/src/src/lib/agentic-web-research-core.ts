@@ -2876,16 +2876,34 @@ export function buildModelSpecificInvestigatorPrompt(model: string, prompt: stri
   return prompt.slice(0, outputAt) + buildInvestigatorOutputContractForModel(model, prompt.slice(outputAt), actionAllowlist, promptMode);
 }
 
+function compactStrictSchemaOutputContract(prompt: string): string {
+  const start = prompt.lastIndexOf("OUTPUT CONTRACT:");
+  if (start < 0) return prompt;
+  const boundaries = [
+    "DISCOVERY MODE:",
+    "PROVIDERS:",
+    "MODEL-OWNED SCOPE:",
+    "OPEN DISCOVERY:",
+    "SPECIALIST OSINT:",
+    "PRE-LAUNCH CONTRACT PROBE:",
+  ].map((heading) => prompt.indexOf("\n\n" + heading, start + "OUTPUT CONTRACT:".length))
+    .filter((index) => index >= 0);
+  const end = boundaries.length ? Math.min(...boundaries) : prompt.length;
+  const compact = "OUTPUT CONTRACT: Return one JSON action object only. The provider-enforced strict response schema defines every required top-level and nested field; follow it exactly. Model-selected discovery review leads remain provisional and are never admitted.";
+  return prompt.slice(0, start) + compact + prompt.slice(end);
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[]; promptMode?: "discovery" | "target" }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = investigatorUserPromptBudget(systemPrompt.length);
   const inferredMode = input.promptMode ?? "discovery";
   const modelSpecificPrompt = buildModelSpecificInvestigatorPrompt(model, prompt, actionAllowlist, inferredMode);
-  const boundedPrompt = boundInvestigatorProviderPrompt(modelSpecificPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
+  const providerPrompt = responseFormat.type === "json_schema" ? compactStrictSchemaOutputContract(modelSpecificPrompt) : modelSpecificPrompt;
+  const boundedPrompt = boundInvestigatorProviderPrompt(providerPrompt, maxUserPromptChars, inferredMode, model, actionAllowlist);
   const modelPrompt = [GROQ_INVESTIGATOR_PROMPT_SIZE_GUIDANCE, boundedPrompt].filter(Boolean).join("\n\n");
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
-  const responseFormat = structuredActionResponseFormat(model, actionAllowlist, inferredMode);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),

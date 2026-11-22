@@ -5457,7 +5457,7 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("const boundedObservation = compactDurablePromptObservation(");
     expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
     expect(durableTail).toContain('record.execution === "success"');
-    expect(durableTail).toContain("? 1_600");
+    expect(durableTail).toContain("? 1_280");
     expect(durableTail).not.toContain(": rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");
