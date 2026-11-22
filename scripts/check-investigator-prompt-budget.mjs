@@ -20,14 +20,14 @@ assert(/const cognitiveState = input\.mode === "discovery" \? "" : boundInvestig
   && /const discoveryWorkingMemory = input\.mode === "discovery" && hasDiscoveryWorkingMemory[\s\S]*?1_300,/.test(core),
   "discovery intelligence is included once, only when populated, and working memory remains compact while target-stage state retains its larger bound");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), input\.mode === "discovery" \? \(availablePythonActions\.size > 0 \? 450 : 350\) : \(availablePythonActions\.size > 0 \? 2_200 : 1_000\)\)/.test(core), "discovery capability guidance is compact while target research retains the larger attested worker inventory");
-assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core), "preferred prompt size is advisory; the complete action schema and bounded newest evidence projection are preserved independently of that target");
+assert(/const providerBoundedPrompt = \[[\s\S]*?preserveFetchedClaimAtProviderBoundary\(/.test(core) && /return reportPromptMeasurement\(providerBoundedPromptWithReviewHandoff\)/.test(core), "preferred prompt size is advisory; the complete action schema and bounded newest evidence projection are preserved independently of that target");
 assert(/PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000/.test(core) && /PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000/.test(core) && /INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000/.test(core), "the schema-inclusive preferred request/user prompt targets reserve the observed strict response schema overhead");
 assert(/function investigatorUserPromptBudget\(systemPromptChars: number\)/.test(core) && /PREFERRED_INVESTIGATOR_REQUEST_CHARS - systemChars - INVESTIGATOR_SCHEMA_OVERHEAD_CHARS/.test(core), "one shared helper derives the provider-safe user-message budget including structured schema overhead");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPrompt.length\)/.test(core), "request-body construction uses the shared system-aware prompt budget");
 assert(/const userPromptBudget = Math.min\([\s\S]*?investigatorUserPromptBudget\(INVESTIGATOR_SYSTEM_PROMPT\(\)\.length\)/.test(core), "step prompt budget must account for the exact system message transmitted to Groq");
 assert(/const maxUserPromptChars = investigatorUserPromptBudget\(systemPromptChars\)/.test(core), "live transport uses the shared system-aware prompt budget");
 const providerBoundedPromptStart = core.indexOf("const providerBoundedPrompt = [");
-const providerBoundedPromptEnd = core.indexOf("const mandatorySuffix = providerBoundedPrompt.slice(outputContractIndex)", providerBoundedPromptStart);
+const providerBoundedPromptEnd = core.indexOf("const mandatorySuffix = providerBoundedPromptWithReviewHandoff.slice(outputContractIndex)", providerBoundedPromptStart);
 const providerBoundedPromptSource = providerBoundedPromptStart >= 0 && providerBoundedPromptEnd > providerBoundedPromptStart
   ? core.slice(providerBoundedPromptStart, providerBoundedPromptEnd)
   : "";
@@ -37,7 +37,7 @@ const appendsBoundedLatestEvidenceEnvelope = providerBoundedPromptSource.include
   && providerBoundedPromptSource.includes("modelOwnedScopeGuidance")
   && providerBoundedPromptSource.includes("compactWorkerCapabilityGuidance")
   && /return (?:reportPromptMeasurement\(boundedPrompt\)|boundedPrompt);/.test(core)
-  && /return (?:reportPromptMeasurement\(providerBoundedPrompt\)|providerBoundedPrompt);/.test(core)
+  && /return (?:reportPromptMeasurement\(providerBoundedPromptWithReviewHandoff\)|providerBoundedPromptWithReviewHandoff);/.test(core)
   && /const latestRecordTail = \[/.test(core)
   && core.includes("const boundedObservation = compactDurablePromptObservation(")
   && core.includes("observationCharsOmittedFromPrompt");
