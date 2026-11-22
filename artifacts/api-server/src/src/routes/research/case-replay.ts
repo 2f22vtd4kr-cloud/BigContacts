@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asc, eq } from "drizzle-orm";
 import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
-import { replayResearchCaseEvents } from "../../lib/research-case-replay";
+import { replayResearchCaseEvents, sanitizeOperatorVisibleReplay } from "../../lib/research-case-replay";
 
 const router = Router();
 const MAX_REPLAY_EVENTS = 5_000;
@@ -46,7 +46,7 @@ router.get("/research/bureau/cases/:caseId/replay", async (req, res): Promise<vo
 
   res.json({
     caseId,
-    replay,
+    replay: sanitizeOperatorVisibleReplay(replay),
     eventLimit: MAX_REPLAY_EVENTS,
     truncated: rows.length >= MAX_REPLAY_EVENTS,
     source: "research_case_events",
