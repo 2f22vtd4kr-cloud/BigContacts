@@ -107,6 +107,7 @@ describe("ResearchIntelligenceEngine", () => {
     const legacy = original.buildContext();
     legacy.negativeFindings = [
       "visit produced no usable evidence (http_error)",
+      "visit produced no usable evidence (parse_failure)",
       "Official source explicitly states that no public direct contact route is listed",
     ];
     const hypothesis = legacy.hypotheses.find((item) => item.label === "Jane Example is CFO");
