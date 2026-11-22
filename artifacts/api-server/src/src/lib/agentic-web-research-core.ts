@@ -5951,7 +5951,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect latest successful observations. Emit model-selected objective-fit person/org leads worth review in findings[] as reviewOnly=true with exact source URL, scope and uncertainty. Compact summaries do not prove names absent; leads remain provisional, never admitted."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6286,8 +6286,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery: inspect latest successful observations, not only compact summaries. For each named objective-fit person/org, decide whether target review is warranted; if yes, emit findings[] with reviewOnly=true, exact source URL, scope, observed role and uncertainty. Do not promote/admit leads. On done, report source-backed claims only; a selected organization may remain review-only, never admitted."
-        : "Inspect same-run observations on every discovery action. Include model-selected person/org leads worth review in findings[] with reviewOnly=true, exact URL, scope and uncertainty; compact summaries do not prove a name absent. Use [] when none merits review; never admit these leads."
+        ? "Discovery: inspect latest fetched observations, not summaries. For a named objective-fit person/org worth review, add findings[] with reviewOnly=true, exact source URL, scope, observed role and uncertainty; never admit it. On done, report only source-backed claims; selected orgs may remain review-only."
+        : "Inspect same-run observations. Add model-selected person/org leads worth review to findings[] as reviewOnly=true with exact URL, scope and uncertainty; summaries do not prove names absent. Use [] if none merits review; never admit."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6462,7 +6462,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect latest successful observations. Emit model-selected objective-fit person/org leads worth review in findings[] as reviewOnly=true with exact source URL, scope and uncertainty. Compact summaries do not prove names absent; leads remain provisional, never admitted."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
