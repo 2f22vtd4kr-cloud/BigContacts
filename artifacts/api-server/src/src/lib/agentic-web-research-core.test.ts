@@ -5140,7 +5140,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(modelPrompt).toMatch(/Use exact fetched text\/URL/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
-    expect(apexOrientationFor("investigator")).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
+    expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
     expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
