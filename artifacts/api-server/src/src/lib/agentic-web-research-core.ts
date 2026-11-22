@@ -6497,14 +6497,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     conditionalSpecialistCapabilityGuidance,
   ].filter(Boolean).join("\n\n");
   const providerBoundedPromptWithReviewHandoff = explicitDiscoveryReviewHandoffText
-    && !providerBoundedPromptBeforeReviewHandoff.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
+    && !providerBoundedPrompt.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
     ? (() => {
-        const outputContractAt = providerBoundedPromptBeforeReviewHandoff.indexOf("OUTPUT CONTRACT:");
+        const outputContractAt = providerBoundedPrompt.indexOf("OUTPUT CONTRACT:");
         return outputContractAt >= 0
-          ? providerBoundedPromptBeforeReviewHandoff.slice(0, outputContractAt).trimEnd() + "\n\n" + explicitDiscoveryReviewHandoffText + "\n\n" + providerBoundedPromptBeforeReviewHandoff.slice(outputContractAt)
-          : providerBoundedPromptBeforeReviewHandoff + "\n\n" + explicitDiscoveryReviewHandoffText;
+          ? providerBoundedPrompt.slice(0, outputContractAt).trimEnd() + "\n\n" + explicitDiscoveryReviewHandoffText + "\n\n" + providerBoundedPrompt.slice(outputContractAt)
+          : providerBoundedPrompt + "\n\n" + explicitDiscoveryReviewHandoffText;
       })()
-    : providerBoundedPromptBeforeReviewHandoff;
+    : providerBoundedPrompt;
   const reportPromptMeasurement = (value: string): string => {
     input.onPromptMeasurement?.({
       originalPromptChars: providerBoundedPromptWithReviewHandoff.length,
