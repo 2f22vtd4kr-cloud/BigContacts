@@ -517,6 +517,7 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
+    expect(submitted).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");

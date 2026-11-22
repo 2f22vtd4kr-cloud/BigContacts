@@ -5984,7 +5984,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] as a review-only, non-admitted lead with the exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     "CAPABILITIES:",
     capabilityGuidance,
@@ -6313,8 +6313,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true, exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
+        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with the exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] as review-only, non-admitted leads with exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
@@ -6489,7 +6489,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryRetrievalFeedback,
     terminalReviewCardGuidance,
     input.mode === "discovery"
-      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] with reviewOnly=true, exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
+      ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations. If a fetched page names an objective-relevant person or organization that merits target-scoped review, include the model-selected lead in findings[] as a review-only, non-admitted lead with the exact observed URL, scope and uncertainty. A lossy memory summary is not evidence that a name was absent. Leads remain provisional and are never admitted."
       : "",
     latestRecordTail,
     aiHistoricalMemorySection,
