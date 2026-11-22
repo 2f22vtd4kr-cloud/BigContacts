@@ -519,13 +519,13 @@ describe("Groq Investigator runtime contract", () => {
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
-    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty");
+    expect(submitted).toContain("Non-done actions require non-empty hypothesis/purpose");
     expect(submitted).toContain("expectedInformationGain finite [0,1]");
     expect(submitted).toContain("use null for unused scalar fields and [] for unused arrays");
     expect(submitted).toContain("Include every key");
     expect(submitted).toContain("searches[] required keys: query, provider, registry, locale, market, purpose.");
     expect(submitted).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason;");
-    expect(submitted).toContain("Discovery findings[]: inspect the complete latest successful observations, not only the compact summary.");
+    expect(submitted).toContain("Discovery: inspect latest fetched observations, not summaries.");
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
@@ -923,7 +923,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(strictUser).toContain("Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true");
+    expect(strictUser).toContain("Inspect same-run observations. Add model-selected person/org leads worth review to findings[] as reviewOnly=true");
     expect(strictUser).toContain("review-only");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
