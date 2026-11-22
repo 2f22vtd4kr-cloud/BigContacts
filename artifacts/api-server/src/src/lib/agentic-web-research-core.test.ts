@@ -2259,6 +2259,7 @@ describe("Investigator prompt architecture", () => {
       lastObservation: "",
       findings: [],
       mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "domain_lookup", "done"],
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
