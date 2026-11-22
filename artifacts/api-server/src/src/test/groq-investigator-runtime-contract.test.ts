@@ -240,8 +240,12 @@ describe("Groq Investigator runtime contract", () => {
     expect(twentyBUser).toContain("unused keys may be omitted");
     expect(twentyBUser).toContain("provider may be null or omitted");
     expect(twentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(oneTwentyBUser).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(oneTwentyBUser).toContain("Include every key");
+    expect(oneTwentyBUser).toContain("provider-enforced strict response schema");
+    expect(oneTwentyBUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    const strictFormat = oneTwentyB.response_format as { type?: string; json_schema?: { schema?: { required?: string[]; properties?: Record<string, { items?: { required?: string[] } }> } } };
+    expect(strictFormat.type).toBe("json_schema");
+    expect(strictFormat.json_schema?.schema?.required).toEqual(expect.arrayContaining(["action", "query", "findings"]));
+    expect(strictFormat.json_schema?.schema?.properties?.findings?.items?.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]));
     const llamaUser = (llama.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(llamaUser).toContain("ACTION-SPECIFIC OUTPUT CONTRACT");
     expect(llamaUser).not.toContain("ALL REQUIRED TOP-LEVEL FIELDS");
