@@ -469,8 +469,14 @@ export function buildDiscoveryWorkingMemoryContext(records: readonly AgenticTraj
       unfetchedLeadUrlCount: state.unfetchedLeadUrlCount,
       failedLeadUrlCount: state.failedLeadUrlCount,
       blockedLeadUrlCount: state.blockedLeadUrlCount,
-      unfetchedLeadUrls: state.unfetchedLeadUrls,
-      unverifiedTitleSnippetPairs: state.unfetchedLeadObservations,
+      // Exact URLs in the durable trajectory remain authoritative. Keep a
+      // small current URL sample here so titles/snippets are not crowded out.
+      unfetchedLeadUrls: state.unfetchedLeadUrls.slice(0, 4),
+      unfetchedLeadUrlOmittedCount: Math.max(0, state.unfetchedLeadUrls.length - 4),
+      unverifiedTitleSnippetPairs: state.unfetchedLeadObservations.slice(0, 2).map((item, index) => ({
+        turn: item.turn, action: item.action, leadUrlCount: item.leadUrlCount,
+        observation: item.observation.slice(0, index === 0 ? 800 : 250),
+      })),
     },
     retrievalOutcomes: { failedLeadUrls: state.failedLeadUrls, blockedLeadUrls: state.blockedLeadUrls },
     modelAuthoredResearchIntent: recentIntent,
@@ -5838,7 +5844,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryWorkingMemory = input.mode === "discovery" && hasDiscoveryWorkingMemory
     ? boundInvestigatorPromptSection(
         "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
-        1_000,
+        1_600,
       )
     : "";
   const discoveryIntelligenceContext = input.mode === "discovery" && input.intelligenceContext?.trim()
