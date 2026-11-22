@@ -412,6 +412,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
       reason: "upstream_token_quota_exhausted",
       providerErrorCode: "upstream_token_quota_exhausted",
     });
+    telemetryLog.mockRestore();
   });
 
   it("treats a token-rate-limit response as rate pressure, not as completion-budget exhaustion", async () => {
