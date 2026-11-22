@@ -2855,7 +2855,7 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     allowed.has("parallel_registry_search") ? "parallel_registry_search uses searches[] items with query and registry." : "",
     promptMode === "discovery"
       ? allowed.has("done")
-        ? "On every non-terminal discovery action, MUST include each objective-relevant provisional named person/org lead selected from same-run observations in findings[] with exact source URL and uncertainty; these remain review-only and are never admitted. done uses source-backed claims; you may explicitly select a same-run organization lead for a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
+        ? "On every non-terminal discovery action, inspect the full same-run observations and include each objective-relevant named person/org lead the model judges worth target-scoped review in findings[] with reviewOnly=true, exact observed source URL and uncertainty; these remain review-only and are never admitted. A relevant named entity in a successfully fetched page must not be dropped merely because a lossy memory summary omitted it. done uses source-backed claims; you may explicitly select a same-run organization lead for a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
         : "Discovery: put provisional person/org leads in findings[] on every non-terminal action. Every discovery action MUST include useful same-run provisional person/org leads in findings[] with exact observed names and corresponding URLs, scope, stated role when observed, and uncertainty; use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
@@ -6262,15 +6262,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     availableActions.includes("browser_fetch") ? "For browser_fetch, provider must be an explicit listed configured value; null is invalid." : "",
     input.mode === "discovery"
       ? availableActions.includes("done")
-        ? "Discovery findings[]: include only model-selected same-run named person/org leads with exact source URLs, scope and uncertainty; non-terminal leads remain review-only. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "Every discovery action MUST include model-selected same-run named person/org leads in findings[] with exact URLs, scope and uncertainty; review-only, never admitted."
+        ? "Discovery findings[]: inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+        : "Every discovery action MUST inspect same-run observations and include model-selected named person/org review leads in findings[] with reviewOnly=true, exact URLs, scope and uncertainty. A successful fetched page with relevant named entities must not be represented as having no names solely because the compact memory omitted them. Use [] only when the model judges no named lead merits review; review-only, never admitted."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
   const requiredFindingFieldNames = supportsFindings
     ? reviewLeadOnlyFindings
-      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"] as const
-      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly"] as const
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", ...(input.mode === "discovery" ? ["reviewOnly"] : []), "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"] as const
     : [] as const;
   const requiredOutputSchema = "OUTPUT CONTRACT: JSON object only. ALL REQUIRED TOP-LEVEL FIELDS: " + topLevelFields.join(", ") + ". Include every key; use null for unused scalar fields"
     + (supportsSearchArrays || supportsFindings ? " and [] for unused arrays." : ".")
