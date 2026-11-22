@@ -116,6 +116,19 @@ describe("AI-led discovery research quality context", () => {
     }));
   });
 
+  it("does not turn the terminal done purpose into an unresolved research question", () => {
+    const terminalRecord: AgenticTrajectoryRecord = {
+      ...records[0]!,
+      action: "done",
+      args: { purpose: "Complete the research episode" },
+      findings: [],
+    };
+    const memory = JSON.parse(buildDiscoveryWorkingMemoryContext([terminalRecord])) as {
+      unresolvedResearchQuestions: Array<{ question: string }>;
+    };
+    expect(memory.unresolvedResearchQuestions).toHaveLength(0);
+  });
+
   it("never treats a search-result finding as answering its research purpose", () => {
     const searchFinding = { ...records[0]!.findings[0]! };
     delete searchFinding.reviewOnly;
