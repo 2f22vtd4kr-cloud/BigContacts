@@ -65,9 +65,10 @@ function routeTier(route: ContactRouteView, boardMode = false): { label: string;
     return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
   }
   const validation = String(route.validationStatus ?? "").toLowerCase();
-  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#2757C6" };
-  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#1F8A4D" };
-  return { label: "In review", title: "Source context or attribution still needs review", color: "#EDB92B" };
+  if (/disputed|rejected/.test(validation)) return { label: "Disputed", title: "This public route carries a dispute or rejection note", color: "#C8321E" };
+  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#1D4FAE" };
+  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#17713E" };
+  return { label: "In review", title: "Source context or attribution still needs review", color: "#7A5600" };
 }
 
 function markColor(mark?: string, boardMode = false): string {
@@ -169,6 +170,8 @@ export function ContactSurface({
   }
 
   const primary = routes[0]!;
+  const primaryTier = routeTier(primary, boardMode);
+  const primaryTierPattern = primaryTier.label === "Verified" ? "supported" : primaryTier.label === "Corroborated" ? "corroborated" : primaryTier.label === "In review" ? "review" : null;
   const rest = routes.slice(1, density === "row" ? 4 : 8);
   const overflow = routes.length - 1 - rest.length;
   const PrimaryIcon = iconFor(String(primary.vectorType ?? ""), primary.mark);
@@ -209,12 +212,18 @@ export function ContactSurface({
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <span
-          className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"
-          style={{ color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
+          className={boardMode ? "atlas-contact-route-mark" : "inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"}
+          style={boardMode ? { color: markColor(primary.mark, boardMode) } : { color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
         >
           {primary.label || primary.mark || primary.vectorType}
         </span>
-        <span className="inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground" title={routeTier(primary, boardMode).title}>{routeTier(primary, boardMode).label}</span>
+        {boardMode && primaryTierPattern && <span className={"atlas-evidence-pattern is-" + primaryTierPattern} aria-hidden="true" />}
+        {boardMode && primaryTier.label === "Disputed" && <AlertTriangle className="atlas-evidence-disputed-mark" aria-hidden="true" />}
+        <span
+          className={boardMode ? "atlas-contact-route-status" : "inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground"}
+          style={boardMode ? { color: primaryTier.color } : undefined}
+          title={primaryTier.title}
+        >{primaryTier.label}</span>
         {primary.source && primary.source !== "entity" ? (
           <span className="truncate text-[10px] text-muted-foreground max-w-[120px]" title={primary.source}>
             {primary.source}
@@ -249,8 +258,5 @@ export function ContactSurface({
       </div>
     </div>
   );
-  if (!boardMode) return content;
-  const tier = routeTier(primary, true).label;
-  const pattern = tier === "Verified" ? "supported" : tier === "Corroborated" ? "corroborated" : "review";
-  return <div className={"atlas-route-pattern-card is-" + pattern}>{content}</div>;
+  return content;
 }
