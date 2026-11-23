@@ -637,6 +637,11 @@
   background-size: 12px 12px;
 }
 .atlas-round .atlas-evidence-pattern.is-disputed {
+  border-radius:50%;
+  background-color:#C8321E;
+  background-image:none;
+}
+.atlas-round .atlas-evidence-pattern.is-corroborated {
   background-color: #2757C6;
   background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'/%3E%3C/svg%3E");
   background-size: 32px 24px;
@@ -717,12 +722,18 @@
   background-image:radial-gradient(circle,#FAFAF8 1.15px,transparent 1.3px);
   background-size:12px 12px;
 }
-.atlas-route-pattern-card.is-disputed,
+.atlas-route-pattern-card.is-disputed {
+  background-color:#F8E7E3;
+  background-image:none;
+  border:1px solid rgba(200,50,30,.28);
+  padding:11px;
+}
 .atlas-route-pattern-card.is-corroborated {
   background-color:#2757C6;
   background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%204%20-8%204%200%2012%20S8%2020%2016%2012%20S24%204%2032%2012%20S40%2020%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'%20stroke-linecap='round'/%3E%3C/svg%3E");
   background-size:32px 24px;
 }
+.atlas-evidence-disputed-mark { width:14px; height:14px; flex:0 0 14px; color:#C8321E; stroke-width:1.5; }
 .atlas-route-pattern-card.is-review {
   background-color:#F8E8B7;
   background-image:repeating-linear-gradient(135deg,#EDB92B 0 8px,#F8E8B7 8px 16px);
