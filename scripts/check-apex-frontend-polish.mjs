@@ -61,6 +61,7 @@ const checks = [
   ["active shell avoids a redundant, invented footer tagline", !roundLayout.includes("atlas-round-footer")],
   ["board pages avoid redundant breadcrumbs and let the designed page title lead", !boardPageFrame.includes("breadcrumb") && !boardPageFrame.includes("Apex Atlas /")],
   ["display tracking follows the board while small labels remain untracked", flatRound.includes("letter-spacing:-.035em") && !flatRound.includes("letter-spacing:-.045em") && !flatRound.includes("letter-spacing:-.025em") && !flatRound.includes("text-transform:uppercase")],
+  ["active board meta type never falls below eleven pixels", !/font-size:\s*(8|9|10)px|font:\s*\d+\s*(8|9|10)px/.test(flatRound) && flatRound.includes(' [class*="text-[10px]"]') && flatRound.includes("font-size:11px!important;")],
   ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;") && flatRound.includes(".atlas-round .atlas-home-board-console .atlas-home-actions")],
 
   ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
