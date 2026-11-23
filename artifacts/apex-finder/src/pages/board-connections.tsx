@@ -16,24 +16,16 @@ export default function BoardConnectionsPage() {
         <section className="atlas-connections-console" aria-labelledby="atlas-contacts-console-title">
           <div className="atlas-connections-heading">
             <h2 id="atlas-contacts-console-title">Contacts console</h2>
-            <span>0 contacts</span>
-          </div>
-          <div className="atlas-connections-search" aria-disabled="true">
-            <span>Search your contacts</span>
-          </div>
-          <div className="atlas-connections-tabs" aria-label="Contact filters">
-            <span className="is-active">All 0</span>
-            <span>With routes 0</span>
-            <span>No route 0</span>
+            <span>Contact source unavailable</span>
           </div>
           <div className="atlas-connections-empty">
-            <strong>No personal contacts are connected.</strong>
-            <p>Contacts are yours. Atlas links them to people only through a recorded public source. It will not invent a contact or infer a route from a name match.</p>
+            <strong>No personal contact source is connected.</strong>
+            <p>This workspace has no user-owned contacts source. Atlas cannot calculate contact counts or routes until one is connected, and will not invent a contact or infer a path from a name match.</p>
           </div>
           <div className="atlas-connections-counts">
-            <div><strong>0</strong><span>Contacts</span></div>
+            <div><strong>—</strong><span>Contact source</span></div>
             <div><strong>{isLoading ? "—" : isError ? "—" : linkCount.toLocaleString()}</strong><span>Recorded links</span></div>
-            <div><strong>0</strong><span>Routes</span></div>
+            <div><strong>—</strong><span>Verified routes</span></div>
           </div>
           {isError && <button type="button" className="atlas-connections-retry" onClick={() => void refetch()}>Retry link count</button>}
         </section>
@@ -44,12 +36,12 @@ export default function BoardConnectionsPage() {
               <h2 id="atlas-routes-title">Routes through your contacts</h2>
               <p>Complete, source-backed paths only</p>
             </div>
-            <span>0 routes</span>
+            <span>Unavailable</span>
           </div>
           <div className="atlas-connections-route-empty">
             <div className="atlas-connections-route-mark"><Route aria-hidden="true" /></div>
-            <strong>No complete route yet.</strong>
-            <p>When a contact is linked to a person by a public record, the route and its evidence will appear here.</p>
+            <strong>Routes cannot be calculated yet.</strong>
+            <p>Connect a user-owned contact source first. Complete paths will appear here only when public records support every link.</p>
           </div>
           <div className="atlas-connections-legend" aria-label="Evidence status legend">
             <span><i className="is-verified" />Verified</span>
