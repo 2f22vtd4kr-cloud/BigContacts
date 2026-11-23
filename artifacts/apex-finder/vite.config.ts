@@ -18,6 +18,7 @@ export default defineConfig({
     "import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS": JSON.stringify(
       process.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true" ||
       process.env.VERCEL_ENV === "preview" ||
+      process.env.CONTEXT === "deploy-preview" ||
       process.env.NODE_ENV === "development"
         ? "true"
         : "false",
