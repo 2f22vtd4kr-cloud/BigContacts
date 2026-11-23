@@ -822,3 +822,40 @@ html:has(.atlas-round-shell),
 body:has(.atlas-round-shell) {
   background:#FAFAF8!important;
 }
+
+
+.atlas-round-main { position:relative; }
+.atlas-round-desktop-status {
+  position:absolute;
+  top:28px;
+  right:32px;
+  z-index:8;
+}
+.atlas-round-status {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--round-ink-2);
+  font:400 12px/1.4 "Geist Mono",ui-monospace,monospace;
+  white-space:nowrap;
+}
+.atlas-round-status-dot { width:7px; height:7px; flex:0 0 7px; border-radius:50%; }
+.atlas-round-status-dot.is-loading { background:#74747A; }
+.atlas-round-status-dot.is-ready { background:#1F8A4D; }
+.atlas-round-status-dot.is-researching { background:#2757C6; }
+.atlas-round-status-dot.is-limited,
+.atlas-round-status-dot.is-degraded,
+.atlas-round-status-dot.is-queued { background:#EDB92B; }
+.atlas-round-status-dot.is-offline { background:#C8321E; }
+.atlas-round-status-short { display:none; }
+@media (max-width:760px) {
+  .atlas-round-desktop-status { display:none; }
+  .atlas-round-mobile-status { margin-left:auto; margin-right:8px; }
+}
+@media (min-width:761px) {
+  .atlas-round-mobile-status { display:none; }
+}
+@media (max-width:480px) {
+  .atlas-round-status-full { display:none; }
+  .atlas-round-status-short { display:inline; }
+}
