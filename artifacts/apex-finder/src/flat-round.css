@@ -64,6 +64,7 @@
 .atlas-round .atlas-round-mobile-toggle { min-width:44px; min-height:44px; }
 .atlas-round .atlas-round-content h1 { letter-spacing:-.035em; }
 @media (max-width:1100px) { .atlas-round-header { gap:12px; } .atlas-round-primary { gap:0; } .atlas-round-navlink { padding:0 8px; } .atlas-round-status { display:none; } }
+@media (max-width:760px) { .atlas-round .atlas-board-page-grid,.atlas-round .atlas-board-discover .atlas-board-page-grid,.atlas-round .atlas-board-reactor .atlas-board-page-grid { grid-template-columns:minmax(0,1fr); gap:24px; } .atlas-round .atlas-board-page-grid > .atlas-board-page-intro { grid-column:1; } }
 @media (max-width:760px) {
  .atlas-round-header { min-height:60px; padding-inline:16px; gap:12px; }
  .atlas-round-primary { display:none; }
@@ -680,11 +681,26 @@
 }
 
 
+/* Split board pages share a full-width introduction and a real two-column work surface. */
+.atlas-round .atlas-board-page-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); gap:32px 36px; align-items:start; }
+.atlas-round .atlas-board-page-grid > .atlas-board-page-intro { grid-column:1 / -1; min-width:0; }
+.atlas-round .atlas-board-discover .atlas-board-page-grid { grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); }
+.atlas-round .atlas-board-reactor .atlas-board-page-grid { grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); }
+.atlas-round .atlas-reactor-run-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin:0; padding:12px 0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-reactor-run-metrics > div { display:flex; min-width:0; flex-direction:column; gap:6px; padding:0 12px; }
+.atlas-round .atlas-reactor-run-metrics > div:first-child { padding-left:0; }
+.atlas-round .atlas-reactor-run-metrics > div + div { border-left:1px solid var(--round-line); }
+.atlas-round .atlas-reactor-run-metrics strong { color:var(--round-ink); font:500 20px/1.1 "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+.atlas-round .atlas-reactor-run-metrics span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-last-step { margin:12px 0 0; color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
+
 /* Board navigation correction: persistent desktop sidebar, off-canvas mobile drawer. */
 .atlas-round-shell { display:flex; min-height:100dvh; min-width:0; background:var(--round-paper); }
 .atlas-round-sidebar { position:sticky; top:0; z-index:90; display:flex; width:240px; min-width:240px; height:100dvh; flex-direction:column; padding:24px 16px 16px; border-right:1px solid var(--round-line); background:var(--round-paper); }
 .atlas-round-sidebar-brand { padding:4px 8px 28px; border-bottom:1px solid var(--round-line); }
 .atlas-round-sidebar-brand .atlas-round-wordmark { color:var(--round-ink); text-decoration:none; }
+.atlas-round .atlas-round-sidebar-brand .atlas-round-wordmark,.atlas-round .atlas-round-mobile-header .atlas-round-wordmark { display:inline-flex; flex-direction:row; align-items:center; gap:8px; }
+.atlas-round .atlas-round-brand-mark { display:block; width:24px!important; height:24px!important; min-width:24px; min-height:24px; flex:0 0 24px; }
 .atlas-round-sidebar-brand .atlas-round-wordmark strong { font:500 20px/1.1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-round-sidebar-nav { display:flex; flex-direction:column; gap:4px; padding-top:24px; }
 .atlas-round-sidebar-label { padding:0 8px 8px; color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:0; }
