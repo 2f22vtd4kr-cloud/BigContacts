@@ -686,7 +686,7 @@
 .atlas-round .atlas-board-discover .atlas-board-page-grid { grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); }
 .atlas-round .atlas-board-reactor .atlas-board-page-grid { grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); }
 .atlas-round .atlas-reactor-run-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin:0; padding:12px 0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); }
-.atlas-round .atlas-reactor-run-metrics > div { display:flex; min-width:0; flex-direction:column; gap:6px; padding:0 12px; }
+.atlas-round .atlas-reactor-run-metrics > div { display:flex; min-width:0; flex-direction:column; gap:8px; padding:0 12px; }
 .atlas-round .atlas-reactor-run-metrics > div:first-child { padding-left:0; }
 .atlas-round .atlas-reactor-run-metrics > div + div { border-left:1px solid var(--round-line); }
 .atlas-round .atlas-reactor-run-metrics strong { color:var(--round-ink); font:500 20px/1.1 "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
