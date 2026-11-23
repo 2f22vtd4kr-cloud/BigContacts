@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ReactorMark } from "@/components/reactor-mark";
+import { ApexAtlasMark } from "@/components/apex-atlas-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
 
 const primaryNav = [
@@ -56,7 +57,7 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
     <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
       <header className="atlas-round-mobile-header">
-        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
+        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark className="atlas-round-brand-mark" /><strong>Apex Atlas</strong></Link>
         <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
           aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
           aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
