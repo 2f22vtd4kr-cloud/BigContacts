@@ -131,7 +131,7 @@ describe("current Apex UI contract", () => {
     expect(boardDiscover).toContain('className="atlas-discover-layout"');
     expect(boardDiscover).toContain('className="atlas-discover-search"');
     expect(deepSearch).toContain('className="atlas-discover-search-console"');
-    expect(deepSearch).toContain('backgroundClip: "padding-box"');
+    expect(deepSearch).toContain('className="atlas-discover-search-console-inner"');
     expect(boardReactor).toContain('className="atlas-reactor-board-layout"');
     expect(boardReactor).toContain('className="atlas-reactor-run-metrics"');
     expect(boardCss).toContain(".atlas-round .atlas-reactor-board-layout");
