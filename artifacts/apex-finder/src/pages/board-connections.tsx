@@ -3,7 +3,7 @@ import { Route } from "lucide-react";
 
 export default function BoardConnectionsPage() {
   const { data: stats, isLoading, isError, refetch } = useGetDashboardStats();
-  const linkCount = Number(stats?.totalRelationships ?? 0);
+  const linkCount = stats?.totalRelationships == null ? null : Number(stats.totalRelationships);
 
   return (
     <div className="atlas-board-page atlas-board-connections">
@@ -18,13 +18,13 @@ export default function BoardConnectionsPage() {
             <h2 id="atlas-contacts-console-title">Contacts console</h2>
             <span>Contact source unavailable</span>
           </div>
-          <div className="atlas-connections-empty">
+          <div className="atlas-connections-empty" role="status" aria-live="polite">
             <strong>No personal contact source is connected.</strong>
             <p>This workspace has no user-owned contacts source. Atlas cannot calculate contact counts or routes until one is connected, and will not invent a contact or infer a path from a name match.</p>
           </div>
           <div className="atlas-connections-counts">
             <div><strong>—</strong><span>Contact source</span></div>
-            <div><strong>{isLoading ? "—" : isError ? "—" : linkCount.toLocaleString()}</strong><span>Recorded links</span></div>
+            <div><strong>{isLoading || isError || linkCount == null ? "—" : linkCount.toLocaleString()}</strong><span>Recorded links</span></div>
             <div><strong>—</strong><span>Verified routes</span></div>
           </div>
           {isError && <button type="button" className="atlas-connections-retry" onClick={() => void refetch()}>Retry link count</button>}
