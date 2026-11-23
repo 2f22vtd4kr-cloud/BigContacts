@@ -79,6 +79,7 @@ require(router.includes('path="/network/graph"'), "The full relationship graph m
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook"), "Reactor board must use the shared normalized live-telemetry store");
 require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor={false}'), "Reactor run console must preserve the board 25-person objective controls");
+require(reactor.includes('"/api/healthz"') && reactor.includes("onRetryApi") && reactor.includes("API down"), "Reactor must expose a verified API-down state with retry");
 require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
 require(router.includes('path="/reactor/topology"'), "The original Reactor topology must remain reachable as a secondary utility");
 require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile"), "Card must retain the live evidence dossier");
