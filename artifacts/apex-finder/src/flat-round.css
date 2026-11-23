@@ -506,3 +506,21 @@
 .atlas-round .atlas-ledger-view-all { display:inline-flex; align-items:center; justify-content:center; min-height:38px; margin:12px 0 0; padding:0 12px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-view-all:hover { border-color:var(--round-ink); color:var(--round-ink); }
 .atlas-round .atlas-discover-query-count { padding:5px 2px 0; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; text-align:right; }
+
+.atlas-round .atlas-reactor-live-board { display:flex; flex-direction:column; min-width:0; }
+.atlas-round .atlas-reactor-board-event { display:grid; grid-template-columns:92px minmax(0,1fr); gap:14px; padding:14px 0; border-bottom:1px solid var(--round-line); background:transparent; }
+.atlas-round .atlas-reactor-board-event-time { display:flex; flex-direction:column; gap:5px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-event-time span { color:var(--round-ink-2); }
+.atlas-round .atlas-reactor-board-event-content { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:6px; }
+.atlas-round .atlas-reactor-board-event-content strong { color:var(--round-ink); font:500 13px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-reactor-board-event-content p { max-width:680px; margin:0; color:var(--round-ink-2); font:400 11px/1.55 "Geist",sans-serif; }
+.atlas-round .atlas-reactor-board-event-category { padding:3px 6px; border:1px solid var(--round-line); border-radius:3px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-event-category.is-search { border-color:rgba(39,87,198,.28); color:var(--round-blue); }
+.atlas-round .atlas-reactor-board-event-category.is-registry { border-color:rgba(31,138,77,.28); color:var(--round-green); }
+.atlas-round .atlas-reactor-board-event-category.is-browser { border-color:rgba(200,50,30,.24); color:var(--round-red); }
+.atlas-round .atlas-reactor-board-event-category.is-evidence { border-color:rgba(237,185,43,.32); color:#946b00; }
+.atlas-round .atlas-reactor-board-event-sources { display:flex; flex-wrap:wrap; gap:7px; margin-top:2px; }
+.atlas-round .atlas-reactor-board-event-sources a { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; text-decoration:underline; text-underline-offset:2px; }
+@media (max-width:760px) {
+  .atlas-round .atlas-reactor-board-event { grid-template-columns:78px minmax(0,1fr); gap:10px; }
+}
