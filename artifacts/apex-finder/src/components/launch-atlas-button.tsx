@@ -57,7 +57,7 @@ export function LaunchAtlasButton({
   const [limitUnavailable, setLimitUnavailable] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    const base = (import.meta.env.BASE_URL || "/").replace(/\\/$/, "");
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     fetch(`${base}/api/ingest/atlas-config`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Launch configuration unavailable (${response.status}).`);
