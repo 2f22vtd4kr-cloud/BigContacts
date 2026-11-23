@@ -69,7 +69,8 @@ export default function BoardProfilePage() {
       <nav className="atlas-profile-tabs" aria-label="Subject cards">
         {tabs.items.map((entity: any) => {
           const active = Number(entity.id) === activeId;
-          const normalizedType = normalizeEntityType(entity.type);
+          const rawType = String(entity.type ?? "").toLowerCase();
+          const normalizedType = rawType === "company" ? "Corporation" : normalizeEntityType(entity.type);
           const kind = normalizedType === "Corporation" || normalizedType === "Trust" ? "Company" : normalizedType === "Other" ? "Record" : "Person";
           return (
             <Link
