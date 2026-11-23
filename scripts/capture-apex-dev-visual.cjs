@@ -14,10 +14,10 @@ const visualEntities = [
 const visualConnectionPath = {
   found: true,
   path: [
-    { id: "1", label: "Mira Patel", nodeType: "Person", isTarget: true, isCentral: true },
+    { id: "1", label: "Fixture Person Alpha", nodeType: "Person", isTarget: true, isCentral: true },
     { id: "3", label: "Northstar Capital", nodeType: "Organization", isTarget: false, isCentral: false },
     { id: "4", label: "Harbor Ventures", nodeType: "Organization", isTarget: false, isCentral: false },
-    { id: "2", label: "Noah Reed", nodeType: "Person", isTarget: true, isCentral: false },
+    { id: "2", label: "Fixture Person Beta", nodeType: "Person", isTarget: true, isCentral: false },
   ],
   edges: [
     { id: "edge-1", source: "1", target: "3", label: "Founder at", strength: 0.82, evidenceStatus: "supported" },
