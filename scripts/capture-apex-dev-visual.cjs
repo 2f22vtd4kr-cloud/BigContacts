@@ -239,6 +239,7 @@ async function main() {
               display: discover ? getComputedStyle(discover).display : null,
               columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
               inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
+              innerBackground: discover ? getComputedStyle(discover).backgroundImage : null,
               checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
               waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
             } : null,
@@ -257,7 +258,7 @@ async function main() {
             } : null,
           };
         }, boardPage.label);
-        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || !boardDiagnostics.discover?.innerBackground?.includes("linear-gradient") || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
           throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
         }
         if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
