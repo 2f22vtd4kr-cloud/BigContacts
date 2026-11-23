@@ -2141,7 +2141,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             <div className="atlas-card-contact-groups">
               {!isCompanyCard && renderContactGroup("Personal", personalContacts)}
               {renderContactGroup("Organisation", companyContacts, companyPhone, companyPhoneSource)}
-              {(reviewContacts.length > 0 || (!isCompanyCard && reviewPhone)) && (
+              {(reviewContacts.length > 0 || reviewPhone) && (
                 renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)
               )}
             </div>
