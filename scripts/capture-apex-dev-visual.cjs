@@ -77,6 +77,7 @@ async function main() {
         diagnostics,
         browserErrors: browserErrors.slice(0, 20),
         failedRequests: failedRequests.slice(0, 20),
+        viteLog: fs.existsSync("/tmp/apex-vite.log") ? fs.readFileSync("/tmp/apex-vite.log", "utf8").slice(-5000) : "",
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       await page.close();
