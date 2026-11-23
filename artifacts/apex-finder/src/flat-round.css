@@ -316,6 +316,7 @@
 .atlas-round .atlas-ledger-section-heading,.atlas-round .atlas-ledger-register-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:20px; }
 .atlas-round .atlas-ledger-section-heading h2,.atlas-round .atlas-ledger-register-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:0!important; }
 .atlas-round .atlas-ledger-section-heading > span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-section-heading > span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-search { display:flex; min-height:46px; align-items:center; gap:12px; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; }
 .atlas-round .atlas-ledger-search svg { width:15px; height:15px; color:var(--round-ink-3); flex:none; }
 .atlas-round .atlas-ledger-search input { width:100%; min-width:0; min-height:42px; border:0!important; outline:0; padding:0!important; background:transparent!important; color:var(--round-ink)!important; font:400 13px "Geist",sans-serif!important; box-shadow:none!important; }
@@ -335,6 +336,8 @@
 .atlas-round .atlas-ledger-register-heading { padding-bottom:16px; border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-ledger-register-heading p { max-width:440px; margin:8px 0 0; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
 .atlas-round .atlas-ledger-register-heading > span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.atlas-round .atlas-ledger-register-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.atlas-round .atlas-ledger-register-meta strong { color:var(--round-ink); font:500 12px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-table-wrap { width:100%; overflow-x:auto; }
 .atlas-round .atlas-ledger-table { width:100%; border-collapse:collapse; text-align:left; }
 .atlas-round .atlas-ledger-table th { padding:12px 12px; border-bottom:1px solid var(--round-line); color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; letter-spacing:0; }
