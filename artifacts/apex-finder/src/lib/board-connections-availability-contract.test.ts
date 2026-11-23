@@ -16,7 +16,7 @@ describe("board Connections backend projection", () => {
   });
 
   it("does not infer verification states from relationship fields", () => {
-    expect(connectionsSource).toContain("Evidence verification states are not inferred from these fields.");
+    expect(connectionsSource).toContain("This register does not assign evidence-verification labels.");
     expect(connectionsSource).not.toContain("is-verified");
     expect(connectionsSource).not.toContain("is-corroborated");
     expect(connectionsSource).not.toContain("is-review");
