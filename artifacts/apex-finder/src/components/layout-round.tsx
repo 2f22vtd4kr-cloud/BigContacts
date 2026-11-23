@@ -17,6 +17,7 @@ const utilityNav = [
   { name: "System status", href: "/status", icon: Activity },
   { name: "Data sources", href: "/data-sources", icon: Database },
   { name: "Network graph", href: "/network/graph", icon: Network },
+  { name: "Reactor topology", href: "/reactor/topology", icon: Network },
   { name: "Source directory", href: "/osint-tools", icon: Telescope },
   { name: "Persona review", href: "/improvements", icon: Settings2 },
   { name: "Duplicate review", href: "/duplicates", icon: GitCompare },
