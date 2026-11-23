@@ -4,7 +4,7 @@ import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
 
-const primaryNav = [
+function ApexAtlasMark() {\n  return (\n    <svg className="atlas-round-brand-mark" viewBox="0 0 32 36" role="img" aria-label="Apex Atlas shield">\n      <path d="M2.5 2.5H29.5V17.2C29.5 25.1 23.2 30.7 16 34C8.8 30.7 2.5 25.1 2.5 17.2V2.5Z" fill="#EDB92B" stroke="#18181A" strokeWidth="1.25" />\n      <path d="M3.3 3.3H16V17H3.3V3.3Z" fill="#C8321E" />\n      <path d="M16 17H28.7V17.2C28.7 24.6 22.8 29.7 16 32.8V17Z" fill="#C8321E" />\n      <path d="M16 3.3H28.7V17H16V3.3Z" fill="#EDB92B" />\n      <path d="M3.3 17H16V32.8C9.2 29.7 3.3 24.6 3.3 17.2V17Z" fill="#EDB92B" />\n      <path d="M16 3.3V32.8M3.3 17H28.7" fill="none" stroke="#18181A" strokeWidth="1" />\n    </svg>\n  );\n}\n\nconst primaryNav = [
   { name: "Overview", href: "/", icon: House },
   { name: "Ledger", href: "/profiles", icon: Database },
   { name: "Discover", href: "/search", icon: Search },
@@ -56,7 +56,7 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
     <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
       <header className="atlas-round-mobile-header">
-        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
+        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
         <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
           aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
           aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
