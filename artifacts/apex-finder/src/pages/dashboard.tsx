@@ -414,7 +414,8 @@ export default function Dashboard() {
   const apiHealthQuery = useQuery({
     queryKey: ["dashboard", "api-health"],
     queryFn: async () => {
-      const response = await fetch("/api/healthz", { credentials: "include", cache: "no-store" });
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${base}/api/healthz`, { credentials: "include", cache: "no-store" });
       if (!response.ok) throw new Error("Research API unavailable (" + response.status + ").");
       return response.json() as Promise<Record<string, unknown>>;
     },
