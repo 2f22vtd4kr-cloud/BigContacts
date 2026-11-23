@@ -2007,13 +2007,25 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       .slice(0, 5);
     const displayType = displayEntityType(entity);
     const isCompanyCard = displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
-    const companyContacts = Array.isArray((entity as any).contacts)
-      ? (entity as any).contacts.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "organization")
-      : [];
+    const contactRoutes = Array.isArray((entity as any).contacts) ? (entity as any).contacts : [];
+    const personalContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "personal");
+    const companyContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "organization");
+    const reviewContacts = contactRoutes.filter((route: any) => !["personal", "organization"].includes(String(route?.mark ?? "").toLowerCase()));
     const companyPhoneSource = String((entity as any).phoneSource ?? "");
     const companyPhone = /(?:-org$|^EDGAR-Phone$|^EDGAR-Issuer-Phone$|^CompaniesHouse-Phone$)/.test(companyPhoneSource)
       ? e.phone
       : null;
+    const reviewPhone = e.phone && !companyPhone ? e.phone : null;
+    const renderContactGroup = (label: string, contacts: any[], phone: string | null = null, phoneSource = "") => (
+      <div className="atlas-card-contact-group">
+        <span className="atlas-card-contact-label">{label}</span>
+        {contacts.length > 0 || phone ? (
+          <ContactSurface contacts={contacts} phone={phone} phoneSource={phoneSource} density="card" evidenceCount={contactEvidence.length} />
+        ) : (
+          <p className="atlas-card-contact-empty">None recorded.</p>
+        )}
+      </div>
+    );
     const relatedPeople = (relationships as any[])
       .filter((rel) => String(rel.targetType ?? "").toLowerCase() === "entity" && rel.targetName)
       .slice(0, 4);
@@ -2126,15 +2138,13 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             <div className="atlas-card-section-heading">
               <div><h3>Ways to reach</h3><p>Attributable public contact routes</p></div>
             </div>
-            <ContactSurface
-              contacts={isCompanyCard ? companyContacts : (entity as { contacts?: unknown[] }).contacts as never}
-              phone={isCompanyCard ? companyPhone : e.phone}
-              email={isCompanyCard ? null : e.email && !isProtectedEmail(e.email) ? e.email : null}
-              linkedinUrl={isCompanyCard ? null : e.linkedinUrl}
-              phoneSource={isCompanyCard ? companyPhoneSource : (entity as { phoneSource?: string }).phoneSource}
-              density="card"
-              evidenceCount={contactEvidence.length}
-            />
+            <div className="atlas-card-contact-groups">
+              {!isCompanyCard && renderContactGroup("Personal", personalContacts)}
+              {renderContactGroup("Organisation", companyContacts, companyPhone, companyPhoneSource)}
+              {(reviewContacts.length > 0 || (!isCompanyCard && reviewPhone)) && (
+                renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)
+              )}
+            </div>
           </section>
 
           {isCompanyCard && (
