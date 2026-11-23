@@ -78,6 +78,8 @@ require(boardConnections.includes("The people between you") && boardConnections.
 require(router.includes('path="/network/graph"'), "The full relationship graph must remain accessible as a secondary utility");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("atlasState?.recentSpans") && reactor.includes("atlas-reactor-logbook"), "Reactor board must render canonical recorded spans, not simulated activity");
+require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor={false}'), "Reactor run console must preserve the board 25-person objective controls");
+require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
 require(router.includes('path="/reactor/topology"'), "The original Reactor topology must remain reachable as a secondary utility");
 require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile"), "Card must retain the live evidence dossier");
 require(css.includes(".atlas-discover-layout") && css.includes("grid-template-columns:minmax(0,1.15fr)"), "Discover must follow the board's desktop two-column composition");
