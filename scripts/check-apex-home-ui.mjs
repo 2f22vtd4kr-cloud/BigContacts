@@ -31,6 +31,7 @@ require(css.includes("repeating-conic-gradient"), "launch console must use the c
 require(css.includes("repeating-radial-gradient"), "launch console must use the wave field pattern");
 require(css.includes("#FAFAF8") && css.includes("#C8321E") && css.includes("#1F8A4D") && css.includes("#2757C6") && css.includes("#EDB92B"), "CSS must preserve the board's paper and four semantic tinctures");
 require(css.includes("@media (max-width:760px)"), "Home must define the 390px mobile composition");
+require(css.includes(".atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }"), "optional Home status rows must not leave empty grid tracks");
 require(dashboard.includes("complete path is available"), "Home must not imply a relationship route without a complete evidenced path");
 require(launch.includes("launchTargetCount"), "launch console must expose the target-count control");
 require(launch.includes("Math.min(25"), "target-count control must cap at 25");
@@ -48,7 +49,7 @@ require(dashboard.includes("Saved copy remains visible"), "Home must preserve an
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
 const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
 require(objective.length > 0 && objective.length <= 1600, "default mission must fit the canonical 1,600-character launch contract");
-require(launch.includes("maxLength={1_600}"), "launch objective input must preserve the canonical 1,600-character limit");
+require(launch.includes('maxLength={variant === "primary" ? 1_200 : 1_600}'), "Home prompt must match the board 1,200-character limit while non-Home callers retain the 1,600-character API allowance");
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
