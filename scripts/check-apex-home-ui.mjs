@@ -33,7 +33,7 @@ require(css.includes("@media (max-width:760px)"), "Home must define the 390px mo
 require(dashboard.includes("complete path is available"), "Home must not imply a relationship route without a complete evidenced path");
 require(launch.includes("launchTargetCount"), "launch console must expose the target-count control");
 require(launch.includes("Math.min(25"), "target-count control must cap at 25");
-require(launch.includes("targetCount: opts?.targetCount ?? launchTargetCount"), "target-count control must pass its value to the canonical launch function");
+require(launch.includes('targetCount: opts?.targetCount ?? (variant === "primary" ? launchTargetCount : undefined)'), "target-count control must pass its value to the canonical launch function");
 require(launch.includes("button-depth-"), "depth choices must be real interactive controls");
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
