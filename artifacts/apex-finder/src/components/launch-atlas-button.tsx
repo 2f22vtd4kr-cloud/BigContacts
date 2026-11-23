@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
@@ -52,7 +52,7 @@ export function LaunchAtlasButton({
   const [flash, setFlash] = useState(false);
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
   const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? 25)));
-  const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? "");
+  const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? (variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE));
   const { run, refresh } = useAtlasRun(8_000);
 
   const running = (run.active || busy) && run.status !== "paused";
