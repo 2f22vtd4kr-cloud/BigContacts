@@ -72,7 +72,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --filter ./artifacts/api-server... --registry=https://registry.npmjs.org/
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
-      - name: Capture all five board pages on desktop and mobile in a real browser
+      - name: Capture all six board pages on desktop and mobile in a real browser
         if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/fix/apex-atlas-board-sidebar-patterns-2026-11-23' || github.ref == 'refs/heads/fix/apex-atlas-design-board-fidelity' || github.event.pull_request.head.ref == 'fix/apex-atlas-board-sidebar-patterns-2026-11-23' || github.event.pull_request.head.ref == 'fix/apex-atlas-design-board-fidelity')
         run: |
           npm install --global playwright
