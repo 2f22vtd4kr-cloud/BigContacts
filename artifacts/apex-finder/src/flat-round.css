@@ -395,6 +395,20 @@
 }
 
 
+.atlas-round .atlas-connections-tabs button { padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; background:transparent; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; cursor:pointer; }
+.atlas-round .atlas-connections-tabs button.is-active { border-color:var(--round-ink); background:var(--round-raised); color:var(--round-ink); }
+.atlas-round .atlas-connections-record-list { border-top:1px solid var(--round-line); }
+.atlas-round .atlas-connection-record { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-connection-record-main { min-width:0; }
+.atlas-round .atlas-connection-record-names { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--round-ink-2); font:500 13px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-connection-record-names a { color:var(--round-ink); text-decoration:underline; text-decoration-color:var(--round-line); text-underline-offset:3px; }
+.atlas-round .atlas-connection-record-meta { display:flex; flex-wrap:wrap; gap:10px; margin-top:7px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connection-record-note { margin:7px 0 0; color:var(--round-ink-2); font:400 11px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-connection-record time { flex:none; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connections-list-state,.atlas-round .atlas-connections-data-note { color:var(--round-ink-3); font:400 11px/1.6 "Geist",sans-serif; }
+.atlas-round .atlas-connections-data-note { margin-top:14px; }
+@media (max-width:760px) { .atlas-round .atlas-connection-record { flex-direction:column; gap:6px; } }
+
 /* Reactor board: a real event log on the left and the canonical run console on the right. */
 .atlas-round .atlas-reactor-board-shell { width:100%; min-width:0; min-height:640px; color:var(--round-ink); background:transparent; }
 .atlas-round .atlas-reactor-board-layout { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); gap:36px; align-items:start; }
