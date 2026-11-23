@@ -57,7 +57,7 @@ export default function BoardLedgerPage() {
         : [];
     return raw
       .filter((entity: any) => !entity.isHidden)
-      .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(entity.type)))
+      .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(displayEntityType(entity))))
       .map((entity: any) => ({ ...entity, boardEvidenceStatus: evidenceStatus(entity) }))
       .sort((a: any, b: any) => Number(b.bayesianScore ?? 0) - Number(a.bayesianScore ?? 0));
   }, [rawEntities]);
