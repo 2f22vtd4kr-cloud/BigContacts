@@ -667,7 +667,7 @@
 .atlas-round-main-column { flex:1; min-width:0; }
 .atlas-round-main { min-height:100dvh; min-width:0; }
 .atlas-round-content { max-width:1600px; padding:32px clamp(24px,3vw,32px) 40px; }
-.atlas-round-footer { padding-inline:clamp(24px,3vw,32px); }
+.atlas-round-footer { padding-inline:clamp(24px,3vw,32px); font-size:11px; letter-spacing:0; text-transform:none; }
 .atlas-round-mobile-header { display:none; }
 .atlas-round-sidebar-backdrop { display:none; }
 @media (max-width:1000px) and (min-width:761px) {
