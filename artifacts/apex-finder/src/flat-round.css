@@ -638,7 +638,7 @@
 }
 .atlas-round .atlas-evidence-pattern.is-disputed {
   border-radius:50%;
-  background-color:#C8321E;
+  background-color: #C8321E;
   background-image:none;
 }
 .atlas-round .atlas-evidence-pattern.is-corroborated {
@@ -726,7 +726,7 @@
   background-color:#F8E7E3;
   background-image:none;
   border:1px solid rgba(200,50,30,.28);
-  padding:11px;
+  padding:12px;
 }
 .atlas-route-pattern-card.is-corroborated {
   background-color:#2757C6;
@@ -738,3 +738,5 @@
   background-color:#F8E8B7;
   background-image:repeating-linear-gradient(135deg,#EDB92B 0 8px,#F8E8B7 8px 16px);
 }
+
+.atlas-round .atlas-card-claim-status.is-disputed { color:#C8321E; }
