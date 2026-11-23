@@ -51,4 +51,15 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).toContain("utilityNav.map(item =>");
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
+  it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
+    const continuousWaveRows = "M0%204%20C4%200%204%200%208%204%20S12%208%2016%204%20M0%2012%20C4%2016%204%2016%208%2012%20S12%208%2016%2012";
+    expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
+    expect(boardCss).not.toContain("M0%2012%20C4%208%204%208%208%2012");
+  });
+
+  it("draws review bends with a seamless repeating diagonal field", () => {
+    expect(boardCss).toContain("background-image: repeating-linear-gradient(135deg, #EDB92B 0 5px, #F8E8B7 5px 11px)");
+    expect(boardCss).not.toContain("is-review {\\n  background-image: url(");
+  });
+
 });
