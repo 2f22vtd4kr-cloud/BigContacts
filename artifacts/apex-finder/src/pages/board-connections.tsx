@@ -1,10 +1,66 @@
-import { useGetDashboardStats } from "@workspace/api-client-react";
-import { Route, Search, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useListRelationships, type Relationship } from "@workspace/api-client-react";
+import { Link } from "wouter";
+import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 
+type RelationshipFilter = "all" | "entity" | "asset";
+
+function relationshipLabel(value: string) {
+  return value.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function RelationshipRow({ relationship }: { relationship: Relationship }) {
+  const isEntity = relationship.targetType === "Entity";
+  return (
+    <article className="atlas-connection-record">
+      <div className="atlas-connection-record-main">
+        <div className="atlas-connection-record-names">
+          <Link href={`/profile/${relationship.sourceEntityId}`}>{relationship.sourceEntityName || `Entity #${relationship.sourceEntityId}`}</Link>
+          <span aria-hidden="true">→</span>
+          {isEntity
+            ? <Link href={`/profile/${relationship.targetId}`}>{relationship.targetName || `Entity #${relationship.targetId}`}</Link>
+            : <span>{relationship.targetName || `Asset #${relationship.targetId}`}</span>}
+        </div>
+        <div className="atlas-connection-record-meta">
+          <span>{relationshipLabel(relationship.relationshipType)}</span>
+          <span>{isEntity ? "Entity link" : "Asset link"}</span>
+          {typeof relationship.strength === "number" && <span>Strength {relationship.strength.toFixed(2)}</span>}
+        </div>
+        {relationship.notes?.trim() && <p className="atlas-connection-record-note">{relationship.notes}</p>}
+      </div>
+      <time dateTime={relationship.createdAt}>{new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(relationship.createdAt))}</time>
+    </article>
+  );
+}
+
 export default function BoardConnectionsPage() {
-  const { data: stats, isLoading, isError, refetch } = useGetDashboardStats();
-  const linkCount = stats?.totalRelationships == null ? null : Number(stats.totalRelationships);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<RelationshipFilter>("all");
+  const { data, isLoading, isError, refetch } = useListRelationships(undefined, {
+    query: { staleTime: 10_000, refetchOnWindowFocus: true },
+  });
+
+  const relationships = useMemo(() => Array.isArray(data) ? data : [], [data]);
+  const counts = useMemo(() => ({
+    all: relationships.length,
+    entity: relationships.filter((item) => item.targetType === "Entity").length,
+    asset: relationships.filter((item) => item.targetType === "Asset").length,
+  }), [relationships]);
+  const visible = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase();
+    return relationships.filter((item) => {
+      if (filter === "entity" && item.targetType !== "Entity") return false;
+      if (filter === "asset" && item.targetType !== "Asset") return false;
+      if (!needle) return true;
+      return [
+        item.sourceEntityName,
+        item.targetName,
+        item.relationshipType,
+        item.notes,
+      ].some((value) => String(value ?? "").toLocaleLowerCase().includes(needle));
+    });
+  }, [relationships, search, filter]);
 
   return (
     <BoardPageFrame
@@ -12,52 +68,63 @@ export default function BoardConnectionsPage() {
       breadcrumb="Connections"
       split
       title="The people between you"
-      description="Your own contacts, and the routes Atlas has found through them. Every link names the record behind it."
+      description="Recorded links between people, organizations and assets. Each connection is taken from Atlas's relationship register."
     >
-      <section className="atlas-connections-console" aria-labelledby="atlas-contacts-console-title">
-        <div className="atlas-connections-heading">
-          <h2 id="atlas-contacts-console-title">Contacts console</h2>
-          <span className="atlas-connections-source-unavailable"><i aria-hidden="true" />Contact source unavailable</span>
-        </div>
-        <label className="atlas-connections-search" aria-describedby="atlas-contact-source-unavailable">
-          <Search aria-hidden="true" />
-          <input disabled placeholder="Search your contacts" aria-label="Search your contacts" />
-        </label>
-        <div className="atlas-connections-filters" role="group" aria-label="Contact filters">
-          <button type="button" disabled aria-disabled="true">All</button>
-          <button type="button" disabled aria-disabled="true">With routes</button>
-          <button type="button" disabled aria-disabled="true">No route</button>
-        </div>
-        <p id="atlas-contact-source-unavailable" className="atlas-connections-console-note">
-          Contacts are yours. Atlas links them to people only through a recorded source. Connect a user-owned contact source to enable this register.
-        </p>
-        <div className="atlas-connections-counts" aria-label="Contact and route counts">
-          <div><strong>—</strong><span>Contacts</span></div>
-          <div><strong>{isLoading || isError || linkCount == null ? "—" : linkCount.toLocaleString()}</strong><span>Links</span></div>
-          <div><strong>—</strong><span>Routes</span></div>
-        </div>
-        {isError && <button type="button" className="atlas-connections-retry" onClick={() => void refetch()}><RefreshCw aria-hidden="true" /> Retry link count</button>}
-      </section>
-
-      <section className="atlas-connections-routes" aria-labelledby="atlas-routes-title">
-        <div className="atlas-connections-heading">
-          <div>
-            <h2 id="atlas-routes-title">Routes through your contacts</h2>
-            <p>Complete, source-backed paths only</p>
+      <div className="atlas-connections-layout">
+        <section className="atlas-connections-console" aria-labelledby="atlas-contacts-console-title">
+          <div className="atlas-connections-heading">
+            <h2 id="atlas-contacts-console-title">Relationship register</h2>
+            <span>{isLoading ? "Loading" : isError ? "Unavailable" : `${counts.all.toLocaleString()} recorded`}</span>
           </div>
-          <span>Unavailable</span>
-        </div>
-        <div className="atlas-connections-route-empty" role="status" aria-live="polite">
-          <div className="atlas-connections-route-mark"><Route aria-hidden="true" /></div>
-          <strong>Routes are unavailable.</strong>
-          <p>Connect a user-owned contact source. Atlas will show a route only when a public record supports each link; no contacts or paths are inferred from names alone.</p>
-        </div>
-        <div className="atlas-connections-legend" aria-label="Evidence status legend">
-          <span><i className="atlas-evidence-pattern is-verified" aria-hidden="true" />Verified</span>
-          <span><i className="atlas-evidence-pattern is-corroborated" aria-hidden="true" />Corroborated</span>
-          <span><i className="atlas-evidence-pattern is-review" aria-hidden="true" />In review</span>
-        </div>
-      </section>
+          <label className="atlas-connections-search">
+            <Search aria-hidden="true" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names, relationship types or notes" aria-label="Search relationships" />
+          </label>
+          <div className="atlas-connections-tabs" role="group" aria-label="Relationship filters">
+            <button type="button" className={filter === "all" ? "is-active" : ""} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All {counts.all}</button>
+            <button type="button" className={filter === "entity" ? "is-active" : ""} aria-pressed={filter === "entity"} onClick={() => setFilter("entity")}>People / entities {counts.entity}</button>
+            <button type="button" className={filter === "asset" ? "is-active" : ""} aria-pressed={filter === "asset"} onClick={() => setFilter("asset")}>Assets {counts.asset}</button>
+          </div>
+          <div className="atlas-connections-counts" aria-label="Relationship totals">
+            <div><strong>{isLoading ? "—" : isError ? "!" : counts.all.toLocaleString()}</strong><span>Relationships</span></div>
+            <div><strong>{isLoading ? "—" : isError ? "—" : counts.entity.toLocaleString()}</strong><span>Entity links</span></div>
+            <div><strong>{isLoading ? "—" : isError ? "—" : counts.asset.toLocaleString()}</strong><span>Asset links</span></div>
+          </div>
+          {isError && (
+            <div className="atlas-connections-empty" role="alert">
+              <strong>The relationship register could not be loaded.</strong>
+              <p>Atlas could not retrieve the current relationship records. The backend may be unavailable or the request may need operator access.</p>
+              <button type="button" className="atlas-connections-retry" onClick={() => void refetch()}><RefreshCw aria-hidden="true" /> Retry</button>
+            </div>
+          )}
+          {!isLoading && !isError && relationships.length === 0 && (
+            <div className="atlas-connections-empty" role="status">
+              <strong>No relationships have been recorded yet.</strong>
+              <p>This is an empty register, not an unavailable contact source. Relationships will appear when Atlas records them.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="atlas-connections-routes" aria-labelledby="atlas-routes-title">
+          <div className="atlas-connections-heading">
+            <div>
+              <h2 id="atlas-routes-title">Recorded connections</h2>
+              <p>Backend relationship records · newest first</p>
+            </div>
+            <span>{isError ? "Unavailable" : isLoading ? "Loading" : `${visible.length} shown`}</span>
+          </div>
+          <div className="atlas-connections-record-list" aria-live="polite">
+            {isLoading && <p className="atlas-connections-list-state">Loading recorded relationships…</p>}
+            {!isLoading && !isError && visible.length === 0 && relationships.length > 0 && (
+              <p className="atlas-connections-list-state">No recorded relationships match this search.</p>
+            )}
+            {!isLoading && !isError && visible.map((relationship) => (
+              <RelationshipRow key={relationship.id} relationship={relationship} />
+            ))}
+          </div>
+          <p className="atlas-connections-data-note">The relationship API supplies record type, endpoints, strength and notes. Evidence verification states are not inferred from these fields.</p>
+        </section>
+      </div>
     </BoardPageFrame>
   );
 }
