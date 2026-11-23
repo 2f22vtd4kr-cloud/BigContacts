@@ -24,11 +24,18 @@ describe("Flat Round four-pixel spacing grid", () => {
 
   it("uses the intended control and card corner radii", () => {
     const radiusFor = (selector: string) => {
-      const start = boardCss.lastIndexOf(selector + " {");
-      if (start < 0) return undefined;
-      const open = boardCss.indexOf("{", start);
-      const close = boardCss.indexOf("}", open);
-      return boardCss.slice(open + 1, close).match(/border-radius:\s*([^;]+)/)?.[1].trim();
+      let cursor = 0;
+      let radius: string | undefined;
+      while (cursor < boardCss.length) {
+        const start = boardCss.indexOf(selector + " {", cursor);
+        if (start < 0) break;
+        const open = boardCss.indexOf("{", start);
+        const close = boardCss.indexOf("}", open);
+        if (close < 0) break;
+        radius = boardCss.slice(open + 1, close).match(/border-radius:\s*([^;]+)/)?.[1].trim() ?? radius;
+        cursor = close + 1;
+      }
+      return radius;
     };
     expect(radiusFor(".atlas-round-primary")).toBe("16px");
     expect(radiusFor(".atlas-round-navlink")).toBe("6px");
