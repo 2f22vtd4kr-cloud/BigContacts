@@ -11,9 +11,17 @@ import { getLocalRedisStatus, getPermanentClientStatuses, pingRedis } from "../l
 import { getGroqBossStatus, runGroqBossReadiness } from "../lib/groq-boss";
 import { getGroqRightHandStatus, getGroqRightHandLatencyConfig, runGroqRightHandReadiness } from "../lib/groq-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
+import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 const router: IRouter = Router();
 const CACHE_TTL_MS = 15_000;
 let _cached: unknown = null; let _cachedAt = 0;
+router.get("/registry-matrix", (_req, res) => {
+  res.json({
+    sources: REGISTRY_COVERAGE_MATRIX,
+    generatedAt: new Date().toISOString(),
+  });
+});
+
 router.get("/system/source-quality", async (_req,res) => {
   try {
     const [bySource, outcomeSummary] = await Promise.all([
