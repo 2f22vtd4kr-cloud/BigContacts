@@ -74,6 +74,10 @@ export function LaunchAtlasButton({
   }, []);
   const { run, refresh } = useAtlasRun(8_000);
 
+  useEffect(() => {
+    if (objectiveLimit !== null) setLaunchObjective((value) => value.slice(0, objectiveLimit));
+  }, [objectiveLimit]);
+
   const running = (run.active || busy) && run.status !== "paused";
   const inFlight = run.active || busy;
 
@@ -98,6 +102,10 @@ export function LaunchAtlasButton({
       // Health is advisory; canonical launch remains the authoritative gate.
     }
     const objective = launchObjective.trim();
+    if (objectiveLimit === null || objective.length > objectiveLimit) {
+      setStatus("Atlas launch configuration is unavailable or the objective exceeds its current limit. Reload before launching.");
+      return;
+    }
     if (!objective) {
       setStatus("Enter an investigation objective before launching Apex.");
       return;
