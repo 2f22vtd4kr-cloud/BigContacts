@@ -90,12 +90,13 @@ export default function BoardLedgerPage() {
       className="atlas-board-ledger"
       split
       title="Everyone on the register"
-      description="The Ledger is the Bureau’s register. Each person Atlas has found is entered once, with recorded sources and the contact outcome Atlas has established."
+      description="The Ledger is the Bureau’s register. Each person Atlas has found is entered once, with the evidence that stands behind them."
     >
       <div className="atlas-ledger-layout">
         <section className="atlas-ledger-console" aria-labelledby="atlas-ledger-console-title">
           <div className="atlas-ledger-section-heading">
             <h2 id="atlas-ledger-console-title">Register console</h2>
+            <span>Strongest first</span>
           </div>
           <label className="atlas-ledger-search">
             <Search aria-hidden="true" />
@@ -125,10 +126,10 @@ export default function BoardLedgerPage() {
           <div className="atlas-ledger-register-heading">
             <div>
               <h2 id="atlas-ledger-register-title">Register</h2>
-              <p>Atlas API order · contact reachability first. Wealth score remains a separate signal.</p>
+              <p>Every person appears once, with the record behind them.</p>
             </div>
             <div className="atlas-ledger-register-meta">
-              <span>Backend ranked</span>
+              <span>Showing</span>
               <strong>{displayed.length} of {visible.length}</strong>
             </div>
           </div>
@@ -137,7 +138,7 @@ export default function BoardLedgerPage() {
             <div className="atlas-ledger-state" role="status">Loading the register…</div>
           ) : staleDataAvailable ? (
             <div className="atlas-ledger-stale" role="alert">
-              <div><strong>Atlas can’t reach the research API.</strong><span>Showing the saved register. Contact outcomes may be out of date.</span></div>
+              <div><strong>Atlas can’t reach the research API.</strong><span>Showing the saved register. Evidence statuses may be out of date.</span></div>
               <button type="button" onClick={() => void refetch()}><RefreshCw aria-hidden="true" /> Retry</button>
             </div>
           ) : isError && entities.length === 0 ? (
