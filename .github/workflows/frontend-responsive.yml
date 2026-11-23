@@ -13,6 +13,7 @@ on:
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/check-apex-home-ui.mjs"
       - "scripts/check-apex-frontend-polish.mjs"
+      - "scripts/capture-apex-dev-visual.cjs"
       - "scripts/apply-reactor-live-integration.mjs"
       - "scripts/apply-reactor-activity-only.mjs"
       - "scripts/apply-profile-commit-timestamp.mjs"
@@ -32,6 +33,7 @@ on:
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/check-apex-home-ui.mjs"
+      - "scripts/capture-apex-dev-visual.cjs"
       - "scripts/apply-reactor-live-integration.mjs"
       - "scripts/apply-reactor-activity-only.mjs"
       - "scripts/apply-profile-commit-timestamp.mjs"
@@ -70,5 +72,18 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --filter ./artifacts/api-server... --registry=https://registry.npmjs.org/
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
+      - name: Capture Home desktop and mobile in a real browser
+        if: github.event_name == 'push' && github.ref == 'refs/heads/ui/design-board-faithful-2026-11-23'
+        continue-on-error: true
+        run: |
+          npm install --global playwright
+          playwright install chromium
+          pnpm --dir artifacts/apex-finder exec vite --host 127.0.0.1 --port 23695 > /tmp/apex-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:23695/ >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:23695/ >/dev/null
+          NODE_PATH="$(npm root --global)" node scripts/capture-apex-dev-visual.cjs
       - name: Test Reactor page job-poll projection
-        run: pnpm --dir artifacts/api-server exec vitest run --root ../apex-finder src/lib/reactor-page-atlas-poll.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run --root ../apex-finder src/lib/reactor-page-atlas-poll.test.ts src/lib/board-spacing-grid-contract.test.ts

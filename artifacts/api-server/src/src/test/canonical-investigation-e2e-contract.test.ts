@@ -578,6 +578,7 @@ describe("canonical application path is wired to the acceptance proof", () => {
     const dashboardRoute = readApi("src/src/routes/dashboard.ts");
     const entitiesRoute = readApi("src/src/routes/entities.ts");
     const dashboardPage = readFrontend("src/pages/dashboard.tsx");
+    const legacyDashboardPage = readFrontend("src/pages/dashboard-legacy.tsx");
     const frontendRouter = readFrontend("src/router.tsx");
     const profilePage = readFrontend("src/pages/profile.tsx");
     const runtimeWorkflow = readRepo(".github/workflows/apex-canonical-runtime-proof.yml");
@@ -604,9 +605,12 @@ describe("canonical application path is wired to the acceptance proof", () => {
     expect(dashboardRoute).toContain("supportingEventId");
     expect(entitiesRoute).toContain("res.json({\n    ...entity");
     expect(dashboardPage).toContain("/api/dashboard/research-leads?limit=8");
-    expect(dashboardPage).toContain("function ReviewLeadCard(");
-    expect(dashboardPage).toContain("lead.sourceUrls");
-    expect(dashboardPage).toContain('href={`/profile/${lead.entityId}`}');
+    // The board Home intentionally omits the legacy research-lead feed; the
+    // complete evidence-backed lead projection remains available in the classic rollback.
+    expect(dashboardPage).toContain("/api/dashboard/research-leads?limit=8");
+    expect(legacyDashboardPage).toContain("function ReviewLeadCard(");
+    expect(legacyDashboardPage).toContain("lead.sourceUrls");
+    expect(legacyDashboardPage).toContain('href={`/profile/${lead.entityId}`}');
     expect(frontendRouter).toContain('Route path="/profile/:id" component={ProfileRoute}');
     expect(profilePage).toContain("data-testid=\"discovery-evidence-hierarchy\"");
     expect(profilePage).toContain("Source trail");

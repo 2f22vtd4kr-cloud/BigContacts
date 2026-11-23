@@ -51,7 +51,7 @@ const checks = [
 
   ["Flat Round is the default and legacy is a live rollback", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /switchMode\("legacy"\)/.test(read(files.layout)) && /switchMode\("round"\)/.test(read(files.layout))],
   ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
-  ["Flat Round shell exposes mobile navigation and More utilities", /atlas-round-mobile-nav/.test(roundLayout) && /atlas-round-more-menu/.test(roundLayout)],
+  ["Flat Round shell exposes one collapsed mobile menu and desktop More utilities", /atlas-round-mobile-utilities/.test(roundLayout) && /mobileOpen && <nav/.test(roundLayout) && /primaryNav.map\(item =>/.test(roundLayout) && /utilityNav.map\(item =>/.test(roundLayout) && /atlas-round-more-menu/.test(roundLayout) && !/atlas-round-mobile-nav/.test(roundLayout)],
   ["Flat Round shell includes safe-area and constrained responsive layout", /safe-area-inset/.test(roundCss) && /min-width:0|min-w-0/.test(roundCss + roundLayout)],
   ["Flat Round design defines the paper and tincture palette", /#FAFAF8/.test(roundCss) && /#C8321E/.test(roundCss) && /#1F8A4D/.test(roundCss) && /#2757C6/.test(roundCss) && /#EDB92B/.test(roundCss)],
   ["Flat Round design respects reduced motion", /prefers-reduced-motion/.test(roundCss)],

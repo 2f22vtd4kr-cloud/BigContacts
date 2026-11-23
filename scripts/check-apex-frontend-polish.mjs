@@ -6,6 +6,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const files = {
   css: "artifacts/apex-finder/src/index.css",
   dashboard: "artifacts/apex-finder/src/pages/dashboard.tsx",
+  ledger: "artifacts/apex-finder/src/pages/board-ledger.tsx",
   reactor: "artifacts/apex-finder/src/pages/reactor.tsx",
   mobile: "artifacts/apex-finder/src/components/mobile-reactor-flow.tsx",
   replay: "artifacts/apex-finder/src/components/research-replay.tsx",
@@ -18,7 +19,9 @@ for (const [name, file] of Object.entries(files)) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing frontend polish source: ${name}`);
 }
 const css = read(files.css);
+const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
+const ledger = read(files.ledger);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
@@ -52,19 +55,20 @@ const checks = [
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
   ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
   ["tablet desks avoid legacy md geometry", !tabletSurfaces[5].includes("md:w-80") && !tabletSurfaces[0].includes("md:rotate-0")],
-["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
-  ["dashboard rows stay inside the shell canvas", /atlas-dashboard-wide/.test(dashboard) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css) && !/inline-size:\s*100vw/.test(css) && !/atlas-sidebar-offset/.test(css)],
-  ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && /atlas-dashboard-wide/.test(dashboard)],
-  ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
-  ["home CTA has exact matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\) \+ var\(--atlas-command-width\)\)/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css)],
-  ["home depth selector remains subordinate", /--atlas-depth-width:\s*7\.625rem/.test(css) && /grid-template-columns:\s*var\(--atlas-depth-width\) var\(--atlas-command-width\)/.test(css)],
+["Ledger imports its evidence-aware entity display classifier", ledger.includes('import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";') && ledger.includes("normalizeEntityType(displayEntityType(entity))")],
+  ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
+  ["dashboard rows stay inside the shell canvas", /atlas-home-board-grid/.test(dashboard) && /max-width:\s*1600px/.test(flatRound) && /min-width:\s*0/.test(flatRound) && !/inline-size:\s*100vw/.test(flatRound) && !/atlas-sidebar-offset/.test(flatRound)],
+  ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && !dashboard.includes("atlas-sidebar-offset") && /atlas-home-board-grid/.test(dashboard)],
+  ["dashboard hero copy is explicitly start-aligned", /atlas-home-board-intro/.test(dashboard) && /text-align:\s*left/.test(flatRound)],
+  ["home launch console fills its designed column", /atlas-home-board-console/.test(dashboard) && /\.atlas-home-board-console[\s\S]*?width:\s*100%/.test(flatRound) && /grid-template-columns:minmax\(0,1fr\) minmax\(320px/.test(flatRound)],
+  ["home depth selector and target cap remain subordinate to Launch", /atlas-launch-depth/.test(flatRound) && /atlas-launch-target-count/.test(flatRound) && /launchTargetCount/.test(launchButton) && /Math\.min\(25/.test(launchButton)],
   ["all native buttons share the flowing interaction contract", /atlas-button-flow/.test(css) && /atlas-button-lift/.test(css) && /atlas-button-underflow/.test(css) && /button\.atlas-button-flow:not\(\.atlas-launch-cta\)/.test(css) && /triggerButtonFlow/.test(layout) && /document\.addEventListener\("pointerdown"/.test(layout) && /document\.addEventListener\("keydown"/.test(layout)],
   ["button flow has a theme-specific palette", /--atlas-flow-1: #0a3d40/.test(css) && /--atlas-flow-2: #00b3b8/.test(css) && /--atlas-flow-3: #6fd914/.test(css) && /--atlas-flow-4: #9cff1a/.test(css) && /--atlas-flow-1: #083322/.test(css) && /--atlas-flow-2: #0b5c3b/.test(css) && /--atlas-flow-3: #083322/.test(css) && /--atlas-flow-4: #ba9c7b/.test(css)],
   ["global button flow respects reduced motion", /button\.atlas-button-flow[\s\S]*?animation: none !important/.test(css) && /button\.atlas-button-flow[\s\S]*?atlas-button-underflow[\s\S]*?animation: none !important/.test(css)],
   ["launch click lifts and reveals the flowing surface", /@keyframes atlas-underflow/.test(css) && /\.atlas-launch-cta\.atlas-click-flash::before/.test(css) && /\.atlas-launch-cta\.atlas-click-flash,[\s\S]*?\.atlas-launch-glow\.atlas-click-flash\s*\{\s*z-index:\s*20;\s*\}/.test(css) && /translateY\(-3px\) scale\(1\.015\)/.test(css) && /setFlash\(true\);\s*window\.setTimeout\(\(\) => setFlash\(false\), 2800\);/.test(launchButton)],
   ["launch surface uses the supplied light and existing dark palettes", /--atlas-flow-1: #0a3d40/.test(css) && /--atlas-flow-4: #9cff1a/.test(css) && /--atlas-flow-1: #083322/.test(css) && /--atlas-flow-2: #0b5c3b/.test(css) && /--atlas-flow-3: #083322/.test(css) && /--atlas-flow-4: #ba9c7b/.test(css)],
   ["launch interaction respects reduced-motion preferences", /atlas-launch-cta::before,[\s\S]*?atlas-launch-glow::before \{ animation: none !important; transition: none !important; \}/.test(css) && /atlas-launch-cta:active,[\s\S]*?atlas-launch-glow:active \{ transform: none !important; \}/.test(css)],
-  ["Reactor uses product-specific mark", /ReactorMark/.test(dashboard) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
+  ["Reactor uses product-specific mark in board navigation and topology", /ReactorMark/.test(roundLayout) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
   ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /sourceUrlsFor/.test(replay)],
   ["replay is bounded", /slice\(0, 40\)/.test(replay)],
@@ -89,6 +93,9 @@ const checks = [
   ["global error notice actions meet 44px touch targets", (errorNotice.match(/min-h-\[44px\]/g) || []).length >= 2 && /min-w-\[44px\]/.test(errorNotice)],
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
+  ["console wave field uses an overdrawn, seamless 32x24 SVG tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-home-board-console::after\s*\{([^}]+)\}/); return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-repeat:\s*repeat/.test(wave[1]) && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
+  ["evidence wave swatch preserves the same overdrawn, seamless tile", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-disputed"); const wave = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
+  ["supported evidence dots remain discrete high-resolution circles", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-supported"); const dots = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(dots && dots[1].includes("background-color: #1F8A4D") && dots[1].includes("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)") && dots[1].includes("background-size: 12px 12px")); })()],
 ];
 
 let failed = false;

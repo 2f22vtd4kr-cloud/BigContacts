@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const dashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
+const dashboardSource = readFileSync(new URL("../pages/dashboard-legacy.tsx", import.meta.url), "utf8");
 
 describe("dashboard source-card snippet honesty", () => {
   it("renders search snippets as unverified context, separate from fetched page excerpts", () => {
@@ -56,5 +56,28 @@ describe("Western registry seed source-catalogue honesty", () => {
     expect(dataSources).toContain('endpoint: "/api/ingest/faa"');
     expect(dataSources).toContain('id: "land-registry"');
     expect(dataSources).toContain('endpoint: "/api/ingest/land-registry"');
+  });
+});
+
+const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
+
+describe("board Home route projection", () => {
+  it("uses the backend shortest-path endpoint and truthful graph status labels", () => {
+    expect(currentDashboardSource).toContain("Shortest connection path");
+    expect(currentDashboardSource).toContain("useGetConnectionPath");
+    expect(currentDashboardSource).toContain("useListEntities");
+    expect(currentDashboardSource).toContain("Find shortest path");
+    expect(currentDashboardSource).toContain("routeQuery.data.path");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-supported");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-disputed");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-review");
+    expect(currentDashboardSource).toContain("<strong>Supported</strong>");
+    expect(currentDashboardSource).toContain("<strong>Disputed</strong>");
+    expect(currentDashboardSource).not.toContain("Strongest routes");
+    expect(currentDashboardSource).not.toContain("useListRelationships");
+    expect(currentDashboardSource).toContain('label="Relationships" value={stats?.totalRelationships');
+    expect(currentDashboardSource).toContain('label="Assets" value={stats?.totalAssets');
+    expect(currentDashboardSource).not.toContain('label="Routes" value={stats?.totalRelationships');
+    expect(currentDashboardSource).not.toContain('label="Evidence records" value={stats?.totalAssets');
   });
 });

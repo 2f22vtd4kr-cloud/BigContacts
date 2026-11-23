@@ -15,6 +15,6 @@ export default function App() {
     </>
   );
 
-  if (import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;
+  if (import.meta.env.DEV || import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;
   return <OperatorGate>{desk}</OperatorGate>;
 }

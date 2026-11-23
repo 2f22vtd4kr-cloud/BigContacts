@@ -49,23 +49,36 @@ function iconFor(vectorType: string, mark?: string) {
   return User;
 }
 
-function routeTier(route: ContactRouteView): { label: string; title: string; color: string } {
+function routeTier(route: ContactRouteView, boardMode = false): { label: string; title: string; color: string } {
   let context = String(route.contextType ?? "").toLowerCase().replace(/\s+/g, "_");
   if (!context && route.metadata) {
     try { const parsed = JSON.parse(route.metadata) as Record<string, unknown>; context = String(parsed.contextType ?? parsed.contactContext ?? "").toLowerCase().replace(/\s+/g, "_"); } catch {}
   }
-  if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) return { label: "NOT A ROUTE", title: "This context is not used for outreach ranking", color: "#94a3b8" };
-  if (route.mark === "organization") return { label: "PUBLIC COMPANY", title: "Generic corporate route; useful but low-exclusivity", color: "#a78bfa" };
-  const verified = /verified|corroborated|accepted/i.test(String(route.validationStatus ?? ""));
-  const professional = ["professional", "business", "public_professional", "public_business"].includes(context);
-  if (route.mark === "personal" && verified && professional && (route.sourceReliability ?? 0) >= 0.7 && (route.directnessScore ?? 0) >= 0.7 && (route.independentCorroboration ?? 0) >= 1) return { label: "DIRECT PROFESSIONAL", title: "Verified public professional route", color: "#34d399" };
-  return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
+  if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) {
+    return { label: boardMode ? "Not a route" : "NOT A ROUTE", title: "This context is not used for outreach ranking", color: boardMode ? "#74747A" : "#94a3b8" };
+  }
+  if (!boardMode) {
+    if (route.mark === "organization") return { label: "PUBLIC COMPANY", title: "Generic corporate route; useful but low-exclusivity", color: "#a78bfa" };
+    const verified = /verified|corroborated|accepted/i.test(String(route.validationStatus ?? ""));
+    const professional = ["professional", "business", "public_professional", "public_business"].includes(context);
+    if (route.mark === "personal" && verified && professional && (route.sourceReliability ?? 0) >= 0.7 && (route.directnessScore ?? 0) >= 0.7 && (route.independentCorroboration ?? 0) >= 1) return { label: "DIRECT PROFESSIONAL", title: "Verified public professional route", color: "#34d399" };
+    return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
+  }
+  const validation = String(route.validationStatus ?? "").toLowerCase();
+  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#2757C6" };
+  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#1F8A4D" };
+  return { label: "In review", title: "Source context or attribution still needs review", color: "#EDB92B" };
 }
 
-function markColor(mark?: string): string {
-  if (mark === "personal") return "#34d399";
-  if (mark === "organization") return "#a78bfa";
-  return "#94a3b8";
+function markColor(mark?: string, boardMode = false): string {
+  if (!boardMode) {
+    if (mark === "personal") return "#34d399";
+    if (mark === "organization") return "#a78bfa";
+    return "#94a3b8";
+  }
+  if (mark === "personal") return "#1F8A4D";
+  if (mark === "organization") return "#2757C6";
+  return "#74747A";
 }
 
 export function ContactSurface({
@@ -76,6 +89,7 @@ export function ContactSurface({
   phoneSource,
   evidenceCount,
   density = "row",
+  boardMode = false,
   className,
 }: {
   contacts?: ContactRouteView[] | null;
@@ -85,13 +99,14 @@ export function ContactSurface({
   phoneSource?: string | null;
   evidenceCount?: number;
   density?: "row" | "card" | "mobile";
+  boardMode?: boolean;
   className?: string;
 }) {
   const routes: ContactRouteView[] = [];
   const seen = new Set<string>();
   const push = (r: ContactRouteView) => {
     const v = String(r.value ?? "").trim();
-    if (!v || routeTier(r).label === "NOT A ROUTE") return;
+    if (!v || routeTier(r, boardMode).label === (boardMode ? "Not a route" : "NOT A ROUTE")) return;
     const key = `${String(r.vectorType ?? "other").toLowerCase()}|${v.toLowerCase()}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -171,7 +186,7 @@ export function ContactSurface({
       data-route-count={routes.length}
     >
       <div className="flex items-center gap-1.5 min-w-0">
-        <PrimaryIcon className="h-3.5 w-3.5 shrink-0 opacity-70" style={{ color: markColor(primary.mark) }} />
+        <PrimaryIcon className="h-3.5 w-3.5 shrink-0 opacity-70" style={{ color: markColor(primary.mark, boardMode) }} />
         {primaryHref ? (
           <a
             href={primaryHref}
@@ -195,11 +210,11 @@ export function ContactSurface({
       <div className="flex flex-wrap items-center gap-1">
         <span
           className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"
-          style={{ color: markColor(primary.mark), background: markColor(primary.mark) + "22" }}
+          style={{ color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
         >
           {primary.label || primary.mark || primary.vectorType}
         </span>
-        <span className="inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground" title={routeTier(primary).title}>{routeTier(primary).label}</span>
+        <span className="inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground" title={routeTier(primary, boardMode).title}>{routeTier(primary, boardMode).label}</span>
         {primary.source && primary.source !== "entity" ? (
           <span className="truncate text-[10px] text-muted-foreground max-w-[120px]" title={primary.source}>
             {primary.source}

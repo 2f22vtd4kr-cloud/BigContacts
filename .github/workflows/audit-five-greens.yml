@@ -1,7 +1,6 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Certification runs are intentionally push-triggered on the authoritative branch so every fresh tree can earn a new 5/5 streak.
 # Each audit is a fresh checkout of the authoritative branch; the audit itself never patches source.
-# The certification gate itself is part of the final verification tree.
+# Only the latest PR/branch head should consume the five-audit certification queue.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -15,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: five-green-complete-${{ github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
+  group: five-green-complete-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   PNPM_VERSION: 9.15.9
@@ -34,8 +33,47 @@ env:
   APEX_API_AUTH_TOKEN: audit-${{ github.run_id }}-apex-five-green-token
 
 jobs:
+  cancel-stale-runs:
+    name: Cancel stale five-green runs for this PR
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const pullRequest = context.payload.pull_request;
+            if (!pullRequest) {
+              core.info("No pull request context; no stale PR audit runs to cancel.");
+              return;
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "audit-five-greens.yml",
+              per_page: 100,
+            });
+            const staleRuns = data.workflow_runs.filter((run) =>
+              run.id !== context.runId &&
+              run.event === "pull_request" &&
+              ["queued", "in_progress"].includes(run.status) &&
+              (run.pull_requests?.some((item) => item.number === pullRequest.number) ||
+                run.head_branch === pullRequest.head.ref)
+            );
+            core.info(`Cancelling ${staleRuns.length} stale five-green runs for PR #${pullRequest.number}.`);
+            for (const run of staleRuns) {
+              core.info(`Cancelling run ${run.id} for ${run.head_sha}.`);
+              await github.rest.actions.cancelWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              });
+            }
+
   audit-1:
     name: Audit 1 — complete codebase
+    needs: cancel-stale-runs
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps: &audit_steps

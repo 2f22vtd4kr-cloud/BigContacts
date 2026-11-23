@@ -5,7 +5,8 @@
  * (Engine still uses hybrid retrieval + multi-agent pipeline under the hood.)
  */
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { readApiJson } from "@/lib/api-json";
 import {
@@ -53,6 +54,14 @@ interface SearchResponse {
   totalMs: number;
   cached?: boolean;
 }
+
+type DeepSearchProps = {
+  boardMode?: boolean;
+  selectedQuery?: string;
+  onSaveSearch?: (query: string) => void;
+  onSearchCompleted?: (query: string, response: SearchResponse) => void;
+  sourceStatus?: { webSearch?: boolean | null; registries?: boolean | null; footprint?: boolean | null };
+};
 
 // ── Example queries ───────────────────────────────────────────────────────────
 
@@ -269,7 +278,7 @@ const SOURCE_OPTIONS = [
   { label: "OpenCorporates", value: "oc" },
 ];
 
-export default function DeepSearch() {
+export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSearch, onSearchCompleted, sourceStatus }: DeepSearchProps = {}) {
   const [query, setQuery]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -314,6 +323,10 @@ export default function DeepSearch() {
     critic:    result ? "done" : "idle",
   };
 
+  useEffect(() => {
+    if (typeof selectedQuery === "string") setQuery(selectedQuery);
+  }, [selectedQuery]);
+
   const run = async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
@@ -323,7 +336,8 @@ export default function DeepSearch() {
     setResult(null);
 
     try {
-      const resp = await fetch("/api/search/intelligent", {
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+      const resp = await fetch(base + "/api/search/intelligent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -341,7 +355,9 @@ export default function DeepSearch() {
         const err = await resp.json().catch(() => ({}));
         throw new Error((err as any).error ?? `HTTP ${resp.status}`);
       }
-      setResult(await readApiJson(resp));
+      const nextResult = await readApiJson(resp) as SearchResponse;
+      setResult(nextResult);
+      onSearchCompleted?.(trimmed, nextResult);
     } catch (e: any) {
       setError(e.message ?? "Search failed");
     } finally {
@@ -352,6 +368,85 @@ export default function DeepSearch() {
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); run(query); };
 
   const p = result?.pipeline;
+
+  if (boardMode) {
+    const sourceChip = (label: string, available?: boolean | null, unavailableLabel?: string) => (
+      <span className={"atlas-discover-source-chip " + (available === true ? "is-live" : available === false ? "is-unavailable" : "is-checking")}>
+        <i aria-hidden="true" />
+        {available === false && unavailableLabel ? unavailableLabel : label}
+      </span>
+    );
+    return (
+      <div className="atlas-discover-search-console">
+        <div className="atlas-discover-search-heading">
+          <div><h2>Search console</h2><p>Search people, companies, assets and public routes</p></div>
+        </div>
+        <form className="atlas-discover-search-form" onSubmit={handleSubmit}>
+          <label className="atlas-discover-query-field">
+            <span>Investigation query</span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              maxLength={1200}
+              placeholder="Describe who or what Atlas should find"
+              aria-label="Search public records"
+            />
+            <small>{query.length.toLocaleString()} / 1,200</small>
+          </label>
+          <div className="atlas-discover-search-chips" aria-label="Source kinds">
+            {sourceChip("Web search", sourceStatus?.webSearch)}
+            {sourceChip("Registries", sourceStatus?.registries)}
+            {sourceChip("Footprint tools", sourceStatus?.footprint, "Footprint tools unavailable")}
+          </div>
+          <div className="atlas-discover-search-actions">
+            {onSaveSearch && (
+              <button type="button" className="atlas-discover-save-button" onClick={() => onSaveSearch(query)} disabled={!query.trim() || loading}>
+                Save
+              </button>
+            )}
+            <button type="submit" className="atlas-discover-run-button" disabled={loading || !query.trim()} aria-busy={loading}>
+              {loading ? <Loader2 aria-hidden="true" /> : <Search aria-hidden="true" />}
+              {loading ? "Running…" : "Run"}
+            </button>
+          </div>
+        </form>
+        {error && <div className="atlas-discover-search-error" role="alert"><AlertCircle aria-hidden="true" />{error}</div>}
+        {loading && <div className="atlas-discover-search-loading" role="status"><Loader2 aria-hidden="true" />Searching public records…</div>}
+        {result?.isEmpty && !loading && (
+          <div className="atlas-discover-search-empty" role="status">
+            <strong>No matches yet.</strong>
+            <span>Try a broader query. Search results are leads, not verified findings.</span>
+          </div>
+        )}
+        {result && result.results.length > 0 && (
+          <section className="atlas-discover-results" aria-label="Search results">
+            <div className="atlas-discover-results-heading">
+              <strong>{result.results.length} results</strong>
+              <span>Best matches first{result.cached ? " · cached" : ""}</span>
+            </div>
+            {result.results.slice(0, 5).map((item) => (
+              <article className="atlas-discover-result" key={item.id}>
+                <div className="atlas-discover-result-main">
+                  <Link href={"/profile/" + item.id}>{item.name}</Link>
+                  <p>{[item.nationality, item.assetCount ? item.assetCount + " linked records" : "No linked assets"].filter(Boolean).join(" · ")}</p>
+                  {item.sourceRegistries.length > 0 && <span>{item.sourceRegistries.slice(0, 2).join(" · ")}</span>}
+                </div>
+                <div className="atlas-discover-result-score">
+                  <strong>{item.bayesianScore == null ? "—" : item.bayesianScore.toFixed(2)}</strong>
+                  <span>{item.confidence === "high" ? "Strong match" : item.confidence === "medium" ? "Partial match" : "Weak match"}</span>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+        {!result && !loading && !error && (
+          <div className="atlas-discover-search-hint">Apex chooses the tools and sources for each investigation. Only evidence-backed results are promoted to the Ledger.</div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -379,10 +474,18 @@ export default function DeepSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. US private jet owners in Texas, British directors…"
+              maxLength={boardMode ? 1_200 : undefined}
               className="w-full bg-background border border-[#9CFF1A]/12 rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             />
+            {boardMode && <div className="atlas-discover-query-count">{query.length.toLocaleString()} / 1,200</div>}
           </div>
-          <button type="submit" disabled={loading || !query.trim()} className={cn("flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",loading || !query.trim()?"bg-muted text-muted-foreground cursor-not-allowed":"bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(156,255,26,0.3)]")}>{loading?<Loader2 className="w-4 h-4 animate-spin"/>:<Zap className="w-4 h-4"/>}{loading?"Running…":"Search"}</button>
+          <button type="submit" disabled={loading || !query.trim()} className={cn("flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",loading || !query.trim()?"bg-muted text-muted-foreground cursor-not-allowed":"bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(156,255,26,0.3)]")}>{loading?<Loader2 className="w-4 h-4 animate-spin"/>:<Zap className="w-4 h-4"/>}{loading?"Running…":boardMode ? "Run search" : "Search"}</button>
+          {boardMode && onSaveSearch && (
+            <button type="button" onClick={() => onSaveSearch(query)} disabled={!query.trim() || loading}
+              className="atlas-outline-btn inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40">
+              Save search
+            </button>
+          )}
         </form>
 
         <div className="flex items-center gap-2 mt-3">

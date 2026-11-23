@@ -4,7 +4,6 @@ import { Activity, BookOpen, ChevronDown, Database, GitCompare, Menu, Network, S
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
-import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
 const primaryNav = [
   { name: "Overview", href: "/", icon: Crosshair },
@@ -21,6 +20,8 @@ const utilityNav = [
   { name: "Persona review", href: "/improvements", icon: Settings2 },
   { name: "Duplicate review", href: "/duplicates", icon: GitCompare },
   { name: "Workspace activity", href: "/jobs", icon: Activity },
+  { name: "Network graph", href: "/network/graph", icon: Network },
+  { name: "Reactor topology", href: "/reactor/topology", icon: ReactorMark },
   { name: "Intel terminal", href: "/research", icon: Crosshair },
 ];
 
@@ -43,7 +44,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
         if (event.key === "Escape") setMobileOpen(false);
       };
       window.addEventListener("keydown", closeOnEscape);
-      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-nav a")?.focus();
+      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-utilities a")?.focus();
       return () => window.removeEventListener("keydown", closeOnEscape);
     }
     if (mobileWasOpen.current) {
@@ -53,12 +54,12 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
     return undefined;
   }, [mobileOpen]);
 
-  const NavItems = ({ mobile = false }: { mobile?: boolean }) => (
+  const NavItems = () => (
     <>
       {primaryNav.map((item) => {
         const Icon = item.icon;
         return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}
-          className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""} ${mobile ? "is-mobile" : ""}`}>
+          className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""}`}>
           <Icon aria-hidden="true" /> <span>{item.name}</span>
         </Link>;
       })}
@@ -71,17 +72,16 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
       <header className="atlas-round-header">
         <div className="atlas-round-brand">
           <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-mark"><Crosshair /></Link>
-          <Link href="/" className="atlas-round-wordmark"><strong>Apex Atlas</strong><span>PUBLIC RECORDS · RESEARCH BUREAU</span></Link>
+          <Link href="/" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
         </div>
         <nav className="atlas-round-primary" aria-label="Primary navigation"><NavItems /></nav>
         <div className="atlas-round-actions">
           <div className="atlas-round-status"><WorkspaceStatus /></div>
           <div className="atlas-round-health"><ApiKeyHealth /></div>
-          <div className="atlas-round-launch"><LaunchAtlasButton variant="header" /></div>
           <button className="atlas-round-more" type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>
             More <ChevronDown />
           </button>
-          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-nav" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
+          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-utilities" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
             {mobileOpen ? <X /> : <Menu />}
           </button>
         </div>
@@ -90,12 +90,20 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
           return <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon />{item.name}</Link>;
         })}<button type="button" className="atlas-round-more-option" onClick={() => { setMoreOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></div>}
       </header>
-      {mobileOpen && <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Mobile navigation"><NavItems mobile />{utilityNav.map(item => {
-        const Icon = item.icon;
-        return <Link key={item.href} href={item.href} className="atlas-round-navlink is-mobile"><Icon /><span>{item.name}</span></Link>;
-      })}<button type="button" className="atlas-round-navlink is-mobile" onClick={() => onSwitchToLegacy?.()}>Classic interface</button></nav>}
+      {mobileOpen && <nav id="atlas-round-mobile-utilities" className="atlas-round-mobile-utilities" aria-label="Apex Atlas navigation">
+        <div className="atlas-round-mobile-utilities-heading">Pages</div>
+        {primaryNav.map(item => {
+          const Icon = item.icon;
+          return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined} onClick={() => setMobileOpen(false)}><Icon /><span>{item.name}</span></Link>;
+        })}
+        <div className="atlas-round-mobile-utilities-heading">Utilities</div>
+        {utilityNav.map(item => {
+          const Icon = item.icon;
+          return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined} onClick={() => setMobileOpen(false)}><Icon /><span>{item.name}</span></Link>;
+        })}
+        <button type="button" onClick={() => { setMobileOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button>
+      </nav>}
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
-        <div className="atlas-round-page-meta"><span>APEX ATLAS</span><span className="atlas-round-meta-dot">/</span><strong>{title}</strong></div>
         <div className="atlas-round-content">{children}</div>
         <footer className="atlas-round-footer"><span>APEX ATLAS</span><span>Evidence first. Always attributable.</span><span>PUBLIC RECORDS WORKSPACE</span></footer>
       </main>

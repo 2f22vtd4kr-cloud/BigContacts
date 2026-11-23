@@ -251,3 +251,15 @@ For production or any non-development runtime, operator authentication is enable
 The middleware protects data and operational routes; if its configuration is missing, those routes return an auth-not-configured response. Do not describe operator authentication as globally disabled or remove the production preflight requirement.
 
 This mode-specific auth behavior does not alter the canonical research workflow, provider-role/quota behavior, active-job lock, identity, source provenance, evidence/admission, cancellation, or durable persistence guards.
+
+## 2026-11-23 — Design-board frontend architecture (PR #943, in progress)
+
+The supplied Apex Atlas Design Board PDF is the visual source of truth for the new default Flat Round UI. PR [#943](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/943) keeps presentation separate from the research engine and retains layout-legacy.tsx plus the legacy route tree as a user-selectable rollback. This feature branch is not canonical until merged to main.
+
+Flat Round route map: Home /; Ledger /profiles; Discover /search; Connections /network; graph utility /network/graph; Reactor Logbook /reactor; original Reactor topology /reactor/topology; subject Card /profile/:id. The More menu exposes the two utilities; the classic shell remains selectable and ?ui=legacy selects it directly.
+
+The board's visual tokens are Geist/Geist Mono; paper #FAFAF8, card #FFFFFF, raised #F3F3F0; ink #18181A, #55555A, #74747A; gules #C8321E, vert #1F8A4D, azure #2757C6, and or #EDB92B. Checky, waves, dots and bends have semantic evidence meanings. The Home objective still uses the canonical 1,600-character limit and existing launch API. Board pages must render persisted evidence and canonical telemetry only; unavailable contact sources, incomplete routes and API failures remain explicit.
+
+The Reactor Logbook is displayed oldest first/newest last and its Run console uses the existing launch/stop APIs. Card tabs use recently opened persisted entity IDs. The graph and original topology remain separate utilities, not replacements for the board pages.
+
+PR #943 is not merge-ready until full CI and independent audits pass on the exact final head and the actual rendered pages are compared against the PDF at desktop and 390px mobile sizes. Source-level contracts do not constitute visual verification. The Unslop skill is used with attribution to Damir Sokolovsky, CC BY 4.0: https://github.com/heydamir/unslop.

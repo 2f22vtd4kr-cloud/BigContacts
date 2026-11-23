@@ -19,6 +19,8 @@ import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/
 import { readApiJson } from "@/lib/api-json";
 import { parseReactorAtlasPoll } from "@/lib/reactor-page-atlas-poll";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
+import { useReactorLiveTelemetry, type LiveActivity } from "../lib/reactor-live-store";
+import { classifyReactorMethod } from "../lib/reactor-live-model";
 import { ReactorMark } from "../components/reactor-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -57,6 +59,8 @@ interface AutoPipelineScheduler {
 
 interface AtlasLiveState {
   jobId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   runStatus: "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
@@ -1422,7 +1426,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot, boardMode = false, apiAvailable, onRetryApi }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
@@ -1432,7 +1436,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   sessionCount?: number;
   latestStatus?: string;
   launchSlot?: ReactNode;
+  boardMode?: boolean;
+  apiAvailable?: boolean | null;
+  onRetryApi?: () => void;
 }) {
+  const telemetry = useReactorLiveTelemetry();
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
   const AN = (isLive && liveNodes) ? liveNodes : new Set<string>();
@@ -1556,6 +1564,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   /** Phase O — keyboard focus on scheme nodes */
   const [schemeFocusId, setSchemeFocusId] = useState<string | null>(null);
   const [deskQuery, setDeskQuery] = useState("");
+  const [boardLogFilter, setBoardLogFilter] = useState("All");
   const [eventCountPulse, setEventCountPulse] = useState(false);
   const prevEventCountRef = useRef(0);
   useEffect(() => {
@@ -1568,18 +1577,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     }
     prevEventCountRef.current = n;
   }, [deskEvents.length]);
-  const filteredDeskEvents = useMemo(() => {
-    const q = deskQuery.trim().toLowerCase();
-    if (!q) return deskEvents;
-    return deskEvents.filter((e: any) => {
-      const blob = [
-        e.stage, e.status, e.targetName, e.activeToolId,
-        e.prompt, e.inputSummary, e.resultSummary, e.raw,
-        ...(e.toolIds || []),
-      ].filter(Boolean).join(" ").toLowerCase();
-      return blob.includes(q);
-    });
-  }, [deskEvents, deskQuery]);
   const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
   const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
     const idx = schemeNodeIds.indexOf(id);
@@ -1606,6 +1603,162 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       document.getElementById(`scheme-node-${last}`)?.focus();
     }
   }, [schemeNodeIds]);
+
+  const filteredDeskEvents = useMemo(() => {
+    const q = deskQuery.trim().toLowerCase();
+    if (!q) return deskEvents;
+    return deskEvents.filter((e: any) => {
+      const blob = [
+        e.stage, e.status, e.targetName, e.activeToolId,
+        e.prompt, e.inputSummary, e.resultSummary, e.raw,
+        ...(e.toolIds || []),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return blob.includes(q);
+    });
+  }, [deskEvents, deskQuery]);
+
+  if (boardMode) {
+    const logItems = [...telemetry.activities].sort((a, b) => {
+      const at = Date.parse(String(a.startedAt ?? a.endedAt ?? ""));
+      const bt = Date.parse(String(b.startedAt ?? b.endedAt ?? ""));
+      return (Number.isFinite(at) ? at : 0) - (Number.isFinite(bt) ? bt : 0);
+    });
+    const categoryForActivity = (activity: LiveActivity) => {
+      const method = classifyReactorMethod({
+        method: "unknown",
+        provider: [activity.tool, activity.operation, activity.agent].filter(Boolean).join(" "),
+        title: activity.spanType,
+        query: activity.inputSummary,
+        url: activity.target,
+      });
+      return method === "search" ? "Search" : method === "registry" ? "Registry" : method === "browser" ? "Browser" : method === "case" ? "Evidence" : "Notes";
+    };
+    const query = deskQuery.trim().toLowerCase();
+    const filteredBoardItems = logItems.filter((activity) => {
+      const category = categoryForActivity(activity);
+      if (boardLogFilter !== "All" && category !== boardLogFilter) return false;
+      if (!query) return true;
+      return [activity.tool, activity.operation, activity.spanType, activity.agent, activity.target, activity.inputSummary, activity.resultSummary, category]
+        .filter(Boolean).join(" ").toLowerCase().includes(query);
+    });
+    const categories = ["All", "Evidence", "Search", "Registry", "Browser", "Notes"];
+    const countForCategory = (category: string) => category === "All"
+      ? logItems.length
+      : logItems.filter((activity) => categoryForActivity(activity) === category).length;
+    const runStatus = telemetry.runStatus;
+    const statusLabel = apiAvailable === false ? "API down" : apiAvailable === null ? "Checking"
+      : runStatus === "running" || runStatus === "queued" || runStatus === "paused"
+        ? runStatus === "queued" ? "Queued" : runStatus === "paused" ? "Paused" : "Running"
+        : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Stopped" : "Idle";
+    const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ") || atlasState?.atlasTelemetry?.targetName;
+    const telemetryLive = runStatus === "running" || runStatus === "paused";
+    const runInFlight = telemetryLive || runStatus === "queued";
+    const stepCount = atlasState?.recentSpans?.length ?? logItems.length;
+    const sourceUrls = logItems.flatMap((activity) => activity.sourceUrls ?? []);
+    const sourceHosts = new Set<string>();
+    for (const value of sourceUrls) {
+      try { sourceHosts.add(new URL(value).hostname.toLowerCase()); } catch { /* Keep only recorded HTTP URLs. */ }
+    }
+    const sourceCount = typeof atlasState?.atlasTelemetry?.sources === "number"
+      ? atlasState.atlasTelemetry.sources
+      : sourceHosts.size;
+    const createdAt = atlasState?.createdAt ? Date.parse(atlasState.createdAt) : NaN;
+    const endedAt = atlasState?.updatedAt ? Date.parse(atlasState.updatedAt) : NaN;
+    const elapsedEnd = telemetryLive || runStatus === "queued" ? Date.now() : endedAt;
+    const elapsedMs = Number.isFinite(createdAt) && Number.isFinite(elapsedEnd) ? Math.max(0, elapsedEnd - createdAt) : NaN;
+    const elapsedSeconds = Number.isFinite(elapsedMs) ? Math.floor(elapsedMs / 1000) : null;
+    const elapsedLabel = elapsedSeconds == null
+      ? "—"
+      : String(Math.floor(elapsedSeconds / 60)).padStart(2, "0") + ":" + String(elapsedSeconds % 60).padStart(2, "0");
+    const latestStep = logItems[logItems.length - 1];
+    const latestStepAt = latestStep?.endedAt || latestStep?.startedAt;
+    const lastStepLabel = latestStepAt
+      ? (() => {
+          const age = Math.max(0, Math.floor((Date.now() - Date.parse(latestStepAt)) / 1000));
+          return Number.isFinite(age) ? age < 60 ? String(age) + "s ago" : age < 3600 ? String(Math.floor(age / 60)) + "m ago" : String(Math.floor(age / 3600)) + "h ago" : "Time not recorded";
+        })()
+      : "No step recorded yet";
+    return (
+      <>
+        <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
+          <div className="atlas-reactor-board-heading">
+            <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
+            <div className="atlas-reactor-run-status-group">
+              <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase().replace(/\s+/g, "-")}>{statusLabel}</span>
+              {apiAvailable === false && onRetryApi && <button type="button" onClick={() => void onRetryApi()}>Retry</button>}
+            </div>
+          </div>
+          <div className="atlas-reactor-current-run">
+            <span>Current objective</span>
+            <strong>{runTarget || (telemetryLive ? "Research in progress" : "No active target")}</strong>
+            <p>{apiAvailable === false
+              ? "The Reactor API is unreachable. Previously recorded evidence remains available; new run state cannot be verified."
+              : atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : runStatus === "done" ? "This run finished. Its recorded steps remain in the Logbook." : "No run is active. Launch an objective from Overview to begin.")}</p>
+          </div>
+          <div className="atlas-reactor-run-metrics" aria-label="Run metrics">
+            <div><strong>{stepCount || "—"}</strong><span>Steps</span></div>
+            <div><strong>{sourceCount}</strong><span>Sources</span></div>
+            <div><strong>{elapsedLabel}</strong><span>Elapsed</span></div>
+          </div>
+          <dl className="atlas-reactor-run-facts">
+            <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
+            <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
+            <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
+          </dl>
+          <p className="atlas-reactor-last-step">Last step recorded {lastStepLabel}</p>
+          {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
+          {runInFlight ? (
+            <div className="atlas-reactor-run-actions">
+              <button type="button" disabled aria-disabled="true" title="Pause is not supported by the current Atlas run controller">Pause</button>
+              <LaunchAtlasButton variant="header" label="Stop run" navigateToReactor={false} />
+            </div>
+          ) : (
+            <LaunchAtlasButton
+              variant="primary"
+              className="atlas-reactor-launch-slot"
+              navigateToReactor={false}
+            />
+          )}
+          <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
+        </aside>
+
+        <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
+          <div className="atlas-reactor-board-heading">
+            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps in the live record, newest last</p></div>
+            <span className={telemetryLive ? "is-live" : ""}>{telemetryLive ? "Following live" : "Recorded"}</span>
+          </div>
+          <label className="atlas-reactor-log-search">
+            <Search aria-hidden="true" />
+            <input value={deskQuery} onChange={(event) => setDeskQuery(event.target.value)} placeholder="Search this logbook" aria-label="Search this logbook" />
+          </label>
+          <div className="atlas-reactor-log-filters" role="group" aria-label="Filter logbook by event type">
+            {categories.map((category) => (
+              <button key={category} type="button" aria-pressed={boardLogFilter === category} onClick={() => setBoardLogFilter(category)}>
+                {category} <strong>{countForCategory(category)}</strong>
+              </button>
+            ))}
+          </div>
+          {filteredBoardItems.length === 0 ? (
+            <div className="atlas-reactor-log-empty" role="status">
+              <strong>{logItems.length === 0 ? "No recorded steps yet." : "No steps match this view."}</strong>
+              <p>{logItems.length === 0 ? "Launch a run from Overview. Every actual search, page visit and registry check will be recorded here." : "Clear the search or choose another event type."}</p>
+            </div>
+          ) : (
+            <div className="atlas-reactor-log-list" role="log" aria-live={telemetryLive ? "polite" : "off"}>
+              <ReactorLiveSurface
+                events={[]}
+                activities={filteredBoardItems}
+                targetName={atlasState?.currentEntities?.[0] || atlasState?.atlasTelemetry?.targetName}
+                showTopology={false}
+                boardMode
+              />
+            </div>
+          )}
+        </section>
+      </>
+    );
+  }
+
 
   return (
     <div style={{
@@ -2462,8 +2615,19 @@ function useIsMobile() {
 }
 
 // ── Page wrapper ──────────────────────────────────────────────────────────────
-export default function IntelligenceReactorPage() {
+export default function IntelligenceReactorPage({ boardMode = false }: { boardMode?: boolean } = {}) {
   const isMobile = useIsMobile();
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  const checkApi = useCallback(async () => {
+    if (!boardMode) return;
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    try {
+      const response = await fetch(base + "/api/healthz", { credentials: "include", cache: "no-store" });
+      setApiAvailable(response.ok);
+    } catch {
+      setApiAvailable(false);
+    }
+  }, [boardMode]);
 
   // ── Real data for mobile ──────────────────────────────────────────────────
   const [sessions,      setSessions]      = useState<ResearchSession[]>([]);
@@ -2593,6 +2757,8 @@ export default function IntelligenceReactorPage() {
         nextAtlasState = {
           ...structured,
           jobId: atlasPoll.jobId,
+          createdAt: typeof jobData.createdAt === "string" ? jobData.createdAt : undefined,
+          updatedAt: typeof jobData.updatedAt === "string" ? jobData.updatedAt : undefined,
           entityProgress: jobData.entityProgress != null ? Number(jobData.entityProgress) : null,
           entityTotal: jobData.entityTotal != null ? Number(jobData.entityTotal) : null,
           currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
@@ -2755,7 +2921,7 @@ export default function IntelligenceReactorPage() {
   const [totalAssets, setTotalAssets] = useState(0);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || boardMode) return;
     const measure = () => {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
@@ -2766,10 +2932,17 @@ export default function IntelligenceReactorPage() {
     const ro = new ResizeObserver(measure);
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, [isMobile]);
+  }, [isMobile, boardMode]);
+
+  useEffect(() => {
+    if (!boardMode) return;
+    void checkApi();
+    const interval = window.setInterval(() => void checkApi(), 15_000);
+    return () => window.clearInterval(interval);
+  }, [boardMode, checkApi]);
 
   // ── Mobile ────────────────────────────────────────────────────────────────
-  if (isMobile) {
+  if (isMobile && !boardMode) {
     return (
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#111827" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
@@ -2793,6 +2966,27 @@ export default function IntelligenceReactorPage() {
           exhaustedKeys={exhaustedKeys}
         />
       </div>
+    );
+  }
+
+  if (boardMode) {
+    return (
+      <DesktopReactor
+        boardMode
+        apiAvailable={apiAvailable}
+        onRetryApi={checkApi}
+        liveNodes={liveNodes}
+        liveLabel={liveLabel}
+        livePhaseDetail={livePhaseDetail}
+        atlasState={atlasState}
+        scheduler={scheduler}
+        schedulerNow={schedulerNow}
+        isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
+        totalEntities={totalEntities}
+        hotCount={hotCount}
+        totalAssets={totalAssets}
+        sessionCount={sessions.length}
+      />
     );
   }
 
