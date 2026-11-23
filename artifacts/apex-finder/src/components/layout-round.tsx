@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ReactorMark } from "@/components/reactor-mark";
+import { WorkspaceStatus } from "@/components/workspace-status";
 
 const primaryNav = [
   { name: "Overview", href: "/", icon: House },
@@ -77,6 +78,7 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
       </aside>
       <div className="atlas-round-main-column">
         <main id="main-content" tabIndex={-1} className="atlas-round-main">
+          <div className="atlas-round-desktop-status"><WorkspaceStatus compact /></div>
           <div className="atlas-round-content">{children}</div>
             </main>
       </div>
