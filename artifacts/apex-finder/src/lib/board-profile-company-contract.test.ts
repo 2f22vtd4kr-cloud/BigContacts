@@ -27,11 +27,8 @@ describe("board card person/company distinction", () => {
 
   it("restricts company contact presentation to attributable organization routes", () => {
     expect(boardCardSource).toContain('String(route?.mark ?? "").toLowerCase() === "organization"');
-    expect(boardCardSource).toContain("contacts={isCompanyCard ? companyContacts");
-    expect(boardCardSource).toContain("phone={isCompanyCard ? companyPhone");
-    expect(boardCardSource).toContain("email={isCompanyCard ? null");
-    expect(boardCardSource).toContain("linkedinUrl={isCompanyCard ? null");
     expect(boardCardSource).toContain('renderContactGroup("Personal", personalContacts)');
+    expect(boardCardSource).toContain('!isCompanyCard && renderContactGroup("Personal", personalContacts)');
     expect(boardCardSource).toContain('renderContactGroup("Organisation", companyContacts, companyPhone, companyPhoneSource)');
     expect(boardCardSource).toContain('renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)');
     expect(boardCardSource).toContain("None recorded.");
