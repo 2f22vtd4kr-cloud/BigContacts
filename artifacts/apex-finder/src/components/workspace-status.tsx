@@ -230,15 +230,15 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const nextCycle = formatNextCycle(atlas?.scheduler?.nextTriggerAt);
   const refreshedNow = now;
   const compactKeyCount = summary.active;
-  const compactKeys = `${compactKeyCount} ${compactKeyCount === 1 ? "key" : "keys"} live`;
+  const compactKeys = compactKeyCount > 0 ? `, ${compactKeyCount} ${compactKeyCount === 1 ? "key" : "keys"} live` : "";
   const compactFullLabel = state === "ready"
-    ? `Ready, ${compactKeys}`
+    ? `Ready${compactKeys}`
     : state === "researching"
-      ? `Research running, ${compactKeys}`
+      ? `Research running${compactKeys}`
       : state === "researching-degraded"
-        ? `Research limited, ${compactKeys}`
+        ? `Research limited${compactKeys}`
         : state === "queued"
-          ? `Queued, ${compactKeys}`
+          ? `Queued${compactKeys}`
           : state === "degraded"
             ? "Services need attention"
             : state === "offline"
