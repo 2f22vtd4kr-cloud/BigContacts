@@ -45,7 +45,8 @@ function LegacyRoutes() {
         <Route path="/" component={DashboardLegacy} />
         <Route path="/search" component={DeepSearch} />
         <Route path="/profiles" component={EntityLedger} />
-        <Route path="/network" component={GraphViewer} />
+        <Route path="/network/graph" component={GraphViewer} />
+        <Route path="/network" component={BoardConnections} />
         <Route path="/jobs" component={BackgroundJobs} />
         <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/research" component={IntelTerminal} />
