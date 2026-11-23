@@ -71,4 +71,4 @@ jobs:
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
       - name: Test Reactor page job-poll projection
-        run: pnpm --dir artifacts/api-server exec vitest run --root ../apex-finder src/lib/reactor-page-atlas-poll.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run --root ../apex-finder src/lib/reactor-page-atlas-poll.test.ts src/lib/board-spacing-grid-contract.test.ts
