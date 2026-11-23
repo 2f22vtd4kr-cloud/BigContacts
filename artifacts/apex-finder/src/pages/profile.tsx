@@ -231,7 +231,7 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
         <span className={cn("text-[11px] font-mono font-bold", txtCls)}>{score}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all duration-700", barCls)} style={{ width: `${score}%` }} />
+        <div className={cn("h-full rounded-full transition-[width] duration-700", barCls)} style={{ width: `${score}%` }} />
       </div>
     </div>
   );
@@ -276,7 +276,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden mb-2.5">
-        <div className={cn("h-full rounded-full transition-all duration-700", barCls)} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full transition-[width] duration-700", barCls)} style={{ width: `${pct}%` }} />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {fields.map((f) => (
@@ -2437,7 +2437,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                           <button
                             onClick={() => handleDeleteRelationship(rel.id)}
                             disabled={deletingRelId === rel.id}
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-all disabled:opacity-50"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-colors duration-160 disabled:opacity-50"
                             title="Remove relationship"
                           >
                             {deletingRelId === rel.id
