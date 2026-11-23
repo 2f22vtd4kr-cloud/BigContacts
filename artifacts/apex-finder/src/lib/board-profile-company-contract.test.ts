@@ -10,6 +10,7 @@ const boardCardSource = profileSource.slice(boardModeStart, boardModeEnd);
 describe("board card person/company distinction", () => {
   it("labels subject tabs from canonical entity types", () => {
     expect(boardProfileSource).toContain('import { normalizeEntityType } from "@/lib/entity-taxonomy"');
+    expect(boardProfileSource).toContain('rawType === "company" ? "Corporation" : normalizeEntityType(entity.type)');
     expect(boardProfileSource).toContain('normalizedType === "Corporation" || normalizedType === "Trust" ? "Company"');
     expect(boardProfileSource).toContain('normalizedType === "Other" ? "Record" : "Person"');
   });
