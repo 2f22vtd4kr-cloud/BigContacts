@@ -398,8 +398,6 @@
 .atlas-round .atlas-connections-legend i { width:8px; height:8px; border-radius:50%; background:var(--round-green); }
 .atlas-round .atlas-connections-legend i.is-corroborated { background:var(--round-blue); }
 .atlas-round .atlas-connections-legend i.is-review { background:var(--round-gold); }
-.atlas-round .atlas-connections-graph-link { display:inline-flex; align-items:center; gap:8px; margin-top:24px; color:var(--round-ink-2); font:500 11px "Geist",sans-serif; text-decoration:none; }
-.atlas-round .atlas-connections-graph-link svg { width:13px; height:13px; }
 @media (max-width:760px) {
   .atlas-round .atlas-connections-layout { grid-template-columns:minmax(0,1fr); gap:28px; }
   .atlas-round .atlas-connections-counts strong { font-size:20px; }
@@ -459,7 +457,6 @@
 .atlas-round .atlas-reactor-live-note span { display:block; margin-bottom:4px; color:var(--round-blue); font:500 9px "Geist Mono",ui-monospace,monospace; text-transform:uppercase; }
 .atlas-round .atlas-reactor-launch-slot { margin-top:20px; }
 .atlas-round .atlas-reactor-launch-slot button { border-radius:8px!important; box-shadow:none!important; }
-.atlas-round .atlas-reactor-topology-link { display:inline-flex; margin-top:16px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; text-decoration:underline; text-underline-offset:3px; }
 @media (max-width:760px) {
   .atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
   .atlas-round .atlas-reactor-logbook { min-height:420px; }
