@@ -921,7 +921,7 @@ body:has(.atlas-round-shell) {
   padding:20px;
   border:8px solid transparent;
   border-radius:20px;
-  background:linear-gradient(#fff,#fff) padding-box;
+  background:linear-gradient(#fff,#fff) padding-box!important;
 }
 .atlas-round .atlas-discover-search-console::before,
 .atlas-round .atlas-discover-search-console::after {
@@ -1019,7 +1019,6 @@ body:has(.atlas-round-shell) {
   background-size:32px 24px;
 }
 .atlas-round .atlas-ledger-console-inner { position:relative; z-index:1; padding:20px; border-radius:12px; background:#fff; }
-.atlas-round .atlas-ledger-board-console .atlas-ledger-console { padding:8px; border:0; }
 .atlas-round .atlas-ledger-register-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; }
 .atlas-round .atlas-ledger-register-meta span { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-register-meta strong { color:var(--round-ink); font:500 13px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
