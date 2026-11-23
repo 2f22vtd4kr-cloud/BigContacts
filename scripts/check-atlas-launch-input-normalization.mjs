@@ -53,9 +53,12 @@ if (!canonicalLauncher.includes('body.discoveryObjective !== undefined && typeof
   failed = true;
 }
 if (!canonicalDiscovery.includes("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600") ||
-    !launchButton.includes('const objectiveLimit = variant === "primary" ? 1_200 : 1_600;') ||
-    !launchButton.includes("maxLength={objectiveLimit}")) {
-  console.error("ATLAS INPUT NORMALIZATION FAIL: the canonical API must retain its 1,600-character ceiling while Home uses the 1,200-character design-board limit");
+    !canonicalLauncher.includes('router.get("/ingest/atlas-config"') ||
+    !canonicalLauncher.includes("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS") ||
+    !launchButton.includes("/api/ingest/atlas-config") ||
+    !launchButton.includes("maxLength={objectiveLimit ?? undefined}") ||
+    /1_200|1_600/.test(launchButton)) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: the UI must consume the canonical API limit without maintaining a frontend-only character ceiling");
   failed = true;
 }
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
