@@ -51,7 +51,9 @@ const checks = [
 
   ["Flat Round is the default and legacy is a live rollback", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /switchMode\("legacy"\)/.test(read(files.layout)) && /switchMode\("round"\)/.test(read(files.layout))],
   ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
-  ["Flat Round shell exposes one collapsed mobile menu and desktop More utilities", /atlas-round-mobile-utilities/.test(roundLayout) && /mobileOpen && <nav/.test(roundLayout) && /primaryNav.map\(item =>/.test(roundLayout) && /utilityNav.map\(item =>/.test(roundLayout) && /atlas-round-more-menu/.test(roundLayout) && !/atlas-round-mobile-nav/.test(roundLayout)],
+  ["Flat Round shell uses a board-only sidebar and accessible mobile drawer", /atlas-round-sidebar/.test(roundLayout) && /primaryNav.map/.test(roundLayout) && /aria-controls="atlas-round-sidebar"/.test(roundLayout) && /atlas-round-sidebar-backdrop/.test(roundLayout) && !/utilityNav|atlas-round-more-menu|Crosshair/.test(roundLayout)],
+  ["sidebar preserves non-board utility routes without exposing them as navigation", /path="\/network\/graph"/.test(read(path.join(appRoot, "router.tsx"))) && /path="\/reactor\/topology"/.test(read(path.join(appRoot, "router.tsx"))) && !/utilityNav/.test(roundLayout)],
+  ["sidebar has persistent desktop and off-canvas mobile treatments", /\.atlas-round-sidebar \{ position:sticky/.test(roundCss) && /translateX\(-102%\)/.test(roundCss) && /visibility:hidden/.test(roundCss)],
   ["Flat Round shell includes safe-area and constrained responsive layout", /safe-area-inset/.test(roundCss) && /min-width:0|min-w-0/.test(roundCss + roundLayout)],
   ["Flat Round design defines the paper and tincture palette", /#FAFAF8/.test(roundCss) && /#C8321E/.test(roundCss) && /#1F8A4D/.test(roundCss) && /#2757C6/.test(roundCss) && /#EDB92B/.test(roundCss)],
   ["Flat Round design respects reduced motion", /prefers-reduced-motion/.test(roundCss)],
