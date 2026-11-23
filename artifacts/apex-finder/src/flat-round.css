@@ -1049,6 +1049,9 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-reactor-last-step strong { color:var(--round-ink); font:500 13px/1.4 "Geist",sans-serif; }
 .atlas-round .atlas-reactor-topology-link { display:inline-flex; align-items:center; gap:8px; margin-top:16px; color:var(--round-ink-2); font:500 11px "Geist",sans-serif; text-decoration:none; }
 .atlas-round .atlas-reactor-topology-link:hover { color:var(--round-ink); }
+@media (max-width:820px) {
+  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+}
 @media (max-width:760px) {
   .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
   .atlas-round .atlas-discover-search-console { min-height:0; }
