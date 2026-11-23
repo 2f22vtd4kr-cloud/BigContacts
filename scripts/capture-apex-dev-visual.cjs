@@ -25,7 +25,19 @@ async function main() {
         const url = route.request().url();
         let payload = {};
         if (url.endsWith("/api/healthz")) {
-          payload = { status: "ok" };
+          payload = { researchKeysConfigured: false };
+        } else if (url.endsWith("/api/system/status")) {
+          payload = {
+            ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
+            databases: {
+              postgres: { status: "ok", latencyMs: 1 },
+              localRedis: { status: "ok", latencyMs: 1 },
+              upstash: [{ slot: 1, status: "ok", quotaExhausted: false }],
+            },
+            generatedAt: new Date().toISOString(),
+            cached: false,
+            cachedAgoMs: 0,
+          };
         } else if (url.includes("/api/dashboard/stats")) {
           payload = {
             totalEntities: 248,
@@ -33,6 +45,10 @@ async function main() {
             totalAssets: 1412,
             registryShallowRisk: false,
           };
+        } else if (url.includes("/api/dashboard/research-leads")) {
+          payload = { leads: [], sourceLeads: [], activeDiscovery: false };
+        } else if (url.includes("/api/ingest/job/active/atlas-run")) {
+          payload = { active: false, status: "idle" };
         } else if (url.includes("/api/relationships") || url.includes("/api/entities") || url.includes("/api/assets")) {
           payload = [];
         }
