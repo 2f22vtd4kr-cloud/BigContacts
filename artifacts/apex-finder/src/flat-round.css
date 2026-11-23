@@ -356,6 +356,8 @@
 
 
 
+.atlas-round .atlas-ledger-contact-outcome { display:inline-flex; max-width:190px; padding:5px 7px; border:1px solid var(--round-line); border-radius:5px; color:var(--round-ink-2); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; white-space:normal; }
+
 /* Connections board: user-owned contacts and only complete, source-backed routes. */
 .atlas-round .atlas-connections-layout { display:grid; grid-template-columns:minmax(270px,.82fr) minmax(0,1.18fr); gap:48px; align-items:start; }
 .atlas-round .atlas-connections-console,.atlas-round .atlas-connections-routes { min-width:0; border-top:1px solid var(--round-line); }
