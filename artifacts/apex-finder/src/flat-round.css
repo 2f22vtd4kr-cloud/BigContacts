@@ -333,10 +333,7 @@
 .atlas-round .atlas-ledger-person strong { color:var(--round-ink); font:500 12px "Geist",sans-serif; }
 .atlas-round .atlas-ledger-person small { max-width:250px; overflow:hidden; color:var(--round-ink-3); font:400 10px/1.4 "Geist",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
 .atlas-round .atlas-ledger-person > svg { width:12px; height:12px; margin-left:auto; color:var(--round-ink-3); flex:none; }
-.atlas-round .atlas-evidence-pattern { display:inline-block; width:12px; height:12px; flex:none; border-radius:50%; }
-.atlas-round .atlas-evidence-pattern.is-verified { background:var(--round-green); }
-.atlas-round .atlas-evidence-pattern.is-corroborated { border-radius:0; background:repeating-radial-gradient(ellipse at 0 50%,var(--round-blue) 0 1px,transparent 1px 3px); }
-.atlas-round .atlas-evidence-pattern.is-review { border-radius:0; background:repeating-linear-gradient(135deg,var(--round-gold) 0 2px,transparent 2px 4px); }
+.atlas-round .atlas-evidence-pattern { display:inline-block; width:12px; height:12px; flex:none; border-radius:0; background-color:transparent; }
 .atlas-round .atlas-ledger-status { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px "Geist",sans-serif; white-space:nowrap; }
 .atlas-round .atlas-ledger-status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--round-gold); }
 .atlas-round .atlas-ledger-status.is-verified::before { background:var(--round-green); }
