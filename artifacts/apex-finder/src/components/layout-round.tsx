@@ -78,8 +78,7 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
       <div className="atlas-round-main-column">
         <main id="main-content" tabIndex={-1} className="atlas-round-main">
           <div className="atlas-round-content">{children}</div>
-          <footer className="atlas-round-footer"><span>Apex Atlas</span><span>Evidence first, always attributable</span><span>Public records workspace</span></footer>
-        </main>
+            </main>
       </div>
     </div>
   );
