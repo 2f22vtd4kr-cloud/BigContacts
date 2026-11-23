@@ -5,19 +5,9 @@ import { AlertTriangle, ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
 import { normalizeEntityType } from "@/lib/entity-taxonomy";
+import { resolveBoardEvidenceStatus, type BoardEvidenceStatus } from "@/lib/board-ledger-evidence";
 
-type EvidenceStatus = "verified" | "corroborated" | "review" | "disputed";
-
-function evidenceStatus(entity: any): EvidenceStatus {
-  const primaryContact = Array.isArray(entity.contacts) ? entity.contacts[0] : undefined;
-  const validation = String(primaryContact?.validationStatus ?? "").toLowerCase();
-  if (/disputed|rejected/.test(validation)) return "disputed";
-  if (/corroborated/.test(validation)) return "corroborated";
-  if (/verified|accepted/.test(validation)) return "verified";
-  return "review";
-}
-
-function evidenceStatusLabel(status: EvidenceStatus) {
+function evidenceStatusLabel(status: BoardEvidenceStatus) {
   if (status === "verified") return "Verified";
   if (status === "corroborated") return "Corroborated";
   if (status === "disputed") return "Disputed";
@@ -59,7 +49,7 @@ export default function BoardLedgerPage() {
     return raw
       .filter((entity: any) => !entity.isHidden)
       .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(displayEntityType(entity))))
-      .map((entity: any) => ({ ...entity, boardEvidenceStatus: evidenceStatus(entity) }));
+      .map((entity: any) => ({ ...entity, boardEvidenceStatus: resolveBoardEvidenceStatus(entity.contacts) }));
   }, [rawEntities]);
 
   const counts = useMemo(() => ({
