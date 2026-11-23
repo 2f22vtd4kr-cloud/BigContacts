@@ -2043,7 +2043,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <div className="atlas-card-subject-type"><EntityTypeMark type={entity.type} /></div>
               <h2>{e.name}</h2>
               <p>{profileWorkSummary || e.role || e.title || (isCompanyCard ? claimRows[0]?.source || "Company record" : "Role not recorded")}</p>
-              {e.nationality && <span>{e.nationality}</span>}
+              {!isCompanyCard && e.nationality && <span>{e.nationality}</span>}
             </div>
             <div className="atlas-card-subject-score">
               <span className={"atlas-evidence-pattern is-" + evidenceStatus} aria-hidden="true" />
