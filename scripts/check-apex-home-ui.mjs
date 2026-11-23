@@ -72,7 +72,7 @@ require(router.includes("function BoardRoutes") && router.includes("function Leg
 require(router.includes("DashboardLegacy"), "classic rollback must retain the original Overview implementation");
 require(boardFrame.includes("atlas-board-page-intro"), "primary screens must share the board's semantic page frame");
 require(boardLedger.includes("Everyone on the register") && boardLedger.includes("useListEntities") && boardLedger.includes("atlas-ledger-table") && boardLedger.includes("View all "), "Ledger must render a live strongest-first evidence register with a working expand control");
-require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Source register"), "Discover must contain its saved-search and source-register surfaces");
+require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Sources"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
 require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searches must respect the frontend base path");
