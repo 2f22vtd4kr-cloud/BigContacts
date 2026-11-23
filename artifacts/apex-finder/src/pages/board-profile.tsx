@@ -39,6 +39,7 @@ export default function BoardProfilePage() {
   useEffect(() => {
     if (!activeId || !allEntities.some((entity: any) => Number(entity.id) === activeId)) return;
     setRecentIds((current) => {
+      if (current[0] === activeId) return current;
       const next = [activeId, ...current.filter((id) => id !== activeId)].slice(0, 20);
       try { window.localStorage.setItem(RECENT_CARD_KEY, JSON.stringify(next)); } catch { /* Recent tabs remain session-local if storage is unavailable. */ }
       return next;
