@@ -2007,6 +2007,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       .slice(0, 5);
     const displayType = displayEntityType(entity);
     const isCompanyCard = String(entity.type ?? "").toLowerCase() === "company" || displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
+    const boardEntityType = String(entity.type ?? "").toLowerCase() === "company" ? "Corporation" : entity.type;
     const contactRoutes = Array.isArray((entity as any).contacts) ? (entity as any).contacts : [];
     const personalContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "personal");
     const companyContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "organization");
@@ -2052,7 +2053,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
           <header className="atlas-card-subject">
             <div className="atlas-card-avatar" aria-hidden="true">{personInitials || "—"}</div>
             <div className="atlas-card-subject-copy">
-              <div className="atlas-card-subject-type"><EntityTypeMark type={entity.type} /></div>
+              <div className="atlas-card-subject-type"><EntityTypeMark type={boardEntityType} /></div>
               <h2>{e.name}</h2>
               <p>{profileWorkSummary || e.role || e.title || (isCompanyCard ? claimRows[0]?.source || "Company record" : "Role not recorded")}</p>
               {!isCompanyCard && e.nationality && <span>{e.nationality}</span>}
