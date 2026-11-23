@@ -23,7 +23,7 @@ const boardReactor = read("artifacts/apex-finder/src/pages/board-reactor.tsx");
 const boardProfile = read("artifacts/apex-finder/src/pages/board-profile.tsx");
 const deepSearch = read("artifacts/apex-finder/src/pages/deep-search.tsx");
 const liveSurface = read("artifacts/apex-finder/src/components/reactor-live-surface.tsx");
-const systemStatusRoute = read("artifacts/api-server/src/src/routes/system-status.ts");
+const ingestRoutes = read("artifacts/api-server/src/src/routes/ingest.ts");
 
 const failures = [];
 const require = (condition, message) => { if (!condition) failures.push(message); };
@@ -78,7 +78,7 @@ require(boardLedger.includes("Everyone on the register") && boardLedger.includes
 require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Sources"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
 require(boardDiscover.includes("RefreshCw") && boardDiscover.includes('aria-label="Refresh source status"') && boardDiscover.includes("aria-busy={sourcesLoading}"), "Discover source-status refresh control must be explicit and accessible");
-require(systemStatusRoute.includes('router.get("/registry-matrix"') && systemStatusRoute.includes("REGISTRY_COVERAGE_MATRIX"), "Discover registry status endpoint must return the canonical registry matrix");
+require(ingestRoutes.includes('router.get("/registry-matrix"') && ingestRoutes.includes("REGISTRY_COVERAGE_MATRIX"), "Discover registry status endpoint must return the canonical registry matrix");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
 require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searches must respect the frontend base path");
 require(deepSearch.includes("{query.length.toLocaleString()} / 1,200"), "Discover must display the board's live 1,200-character query counter");
