@@ -41,8 +41,9 @@ require(dashboard.includes("/api/dashboard/research-leads?limit=8"), "Home must 
 require(!dashboard.includes("atlas-home-secondary-row"), "Home must not add shortcut buttons absent from the design board");
 require(!dashboard.includes("ScoreboardStrip"), "operator scoreboard must not displace the designed Home composition");
 require(css.includes(".atlas-home-board-grid"), "CSS must define the board's two-column Home layout");
-require(css.includes("repeating-conic-gradient"), "launch console must use the checky field pattern");
-require(css.includes("repeating-radial-gradient"), "launch console must use the wave field pattern");
+require(css.includes("width='16'%20height='16'%20viewBox='0%200%2016%2016'") && css.includes("x='8'%20y='8'%20width='8'%20height='8'"), "launch console must use the crisp 8px SVG checker cells");
+require(css.includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && css.includes("M-8%206%20C0%202%200%202%208%206") && css.includes("M-8%2018%20C0%2014%200%2014%208%2018") && css.includes("background-size: 32px 24px"), "launch console must use the overdrawn, phase-matched SVG wave field");
+require(css.includes("border-radius:20px 0 0 20px") && css.includes("border-radius:0 20px 20px 0"), "split console patterns must round only their outer corners so the wave field is not clipped at the center seam");
 require(css.includes("#FAFAF8") && css.includes("#C8321E") && css.includes("#1F8A4D") && css.includes("#2757C6") && css.includes("#EDB92B"), "CSS must preserve the board's paper and four semantic tinctures");
 require(css.includes("@media (max-width:760px)"), "Home must define the 390px mobile composition");
 require(css.includes(".atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }"), "optional Home status rows must not leave empty grid tracks");
