@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { hasResearchProviderKey } from "../lib/research-key-readiness";
+import { MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS } from "../lib/atlas-launch-defaults";
 
 const router: IRouter = Router();
 
@@ -29,6 +30,7 @@ router.get("/healthz", async (_req, res) => {
     status: "ok",
     redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached },
     researchKeysConfigured,
+    launchLimits: { discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS },
   });
 });
 
