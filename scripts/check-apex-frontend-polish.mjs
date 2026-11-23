@@ -36,6 +36,7 @@ const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-rea
 
 const layout = read("artifacts/apex-finder/src/components/layout-legacy.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
+const boardPageFrame = read("artifacts/apex-finder/src/components/board-page-frame.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
   "artifacts/apex-finder/src/pages/duplicates.tsx",
@@ -56,6 +57,7 @@ const checks = [
   ["tablet board layouts stack before content becomes cramped", flatRound.includes("@media (max-width:1000px) and (min-width:761px)") && flatRound.includes(".atlas-round .atlas-discover-layout,") && flatRound.includes(".atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr);")],
   ["active sidebar contains only quiet board navigation, not status badges", !roundLayout.includes("WorkspaceStatus") && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
   ["active shell avoids a redundant, invented footer tagline", !roundLayout.includes("atlas-round-footer")],
+  ["board pages avoid redundant breadcrumbs and let the designed page title lead", !boardPageFrame.includes("breadcrumb") && !boardPageFrame.includes("Apex Atlas /")],
   ["display tracking follows the board while small labels remain untracked", flatRound.includes("letter-spacing:-.035em") && !flatRound.includes("letter-spacing:-.045em") && !flatRound.includes("letter-spacing:-.025em") && !flatRound.includes("text-transform:uppercase")],
   ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;") && flatRound.includes(".atlas-round .atlas-home-board-console .atlas-home-actions")],
 
