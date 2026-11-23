@@ -189,8 +189,6 @@ export function LaunchAtlasButton({
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
           <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
-          <span className="atlas-home-objective-count">{objectiveLimit === null ? "Loading API limit…" : `${launchObjective.length.toLocaleString()} / ${objectiveLimit.toLocaleString()}`}</span>
-          {limitUnavailable && <span className="text-[11px] leading-relaxed text-destructive" role="alert">The research API launch limit is unavailable. Refresh after the API reconnects.</span>}
         </label>
       )}
       <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
@@ -218,6 +216,8 @@ export function LaunchAtlasButton({
         </button>
         {variant !== "header" && controls}
       </div>
+      {variant !== "header" && <span className="atlas-home-objective-count">{objectiveLimit === null ? "Loading API limit…" : `${launchObjective.length.toLocaleString()} / ${objectiveLimit.toLocaleString()}`}</span>}
+      {variant !== "header" && limitUnavailable && <span className="text-[11px] leading-relaxed text-destructive" role="alert">The research API launch limit is unavailable. Refresh after the API reconnects.</span>}
       {status && <p className={cn("w-full text-[10px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-rose-300" : "text-muted-foreground")} role="status">{status}</p>}
     </div>
   );
