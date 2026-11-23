@@ -40,6 +40,7 @@ async function main() {
       const browserErrors = [];
       const failedRequests = [];
       let currentPath = "/";
+      let routeFixtureMode = false;
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -83,7 +84,7 @@ async function main() {
         } else if (url.endsWith("/api/entities/1")) {
           payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
-          payload = currentPath === "/network" || currentPath === "/profile/1" ? visualEntities : [];
+          payload = (currentPath === "/network" && routeFixtureMode) || currentPath === "/profile/1" ? visualEntities : [];
         } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
@@ -195,6 +196,14 @@ async function main() {
       currentPath = "/network";
       await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
       await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
+      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
+      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
+      routeFixtureMode = true;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".atlas-connections-path-finder select", { timeout: 10_000 });
       const routeSelects = page.locator(".atlas-connections-path-finder select");
       if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
       await routeSelects.nth(0).selectOption("1");
@@ -202,18 +211,12 @@ async function main() {
       await page.getByRole("button", { name: "Find shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
       routeFixtureLoaded = true;
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.waitForTimeout(80);
-      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
-      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
         url: page.url(),
         routeFixtureLoaded,
         pathResultVisible: await page.locator(".atlas-home-route-result").isVisible(),
         browserErrors: browserErrors.slice(0, 20),
-        failedRequests: failedRequests.slice(0, 20),
       })}`);
-      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
 
       for (const boardPage of [
         { path: "/profiles", label: "ledger", heading: "Everyone on the register" },
