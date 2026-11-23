@@ -810,16 +810,7 @@
   cursor:not-allowed;
 }
 
-.atlas-round .atlas-board-page-breadcrumb {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin:0 0 16px;
-  color:var(--round-ink-3);
-  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
-  letter-spacing:0;
-  text-transform:none;
-}
+
 .atlas-round .atlas-board-page-breadcrumb span:first-child { color:var(--round-ink-2); }
 
 .atlas-round .atlas-home-board-console .atlas-home-actions {
