@@ -219,6 +219,21 @@ async function main() {
       ]) {
         await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
         await page.waitForSelector(selector, { timeout: 15000 });
+        if (routeName === "ledger") {
+          const layout = await page.locator(".atlas-ledger-layout").boundingBox();
+          const content = await page.locator(".atlas-board-page-content").boundingBox();
+          if (!layout || !content || layout.width < content.width * 0.95) throw new Error("Ledger register must fill the board content width.");
+        } else if (routeName === "discover") {
+          const search = await page.locator(".atlas-discover-search").boundingBox();
+          const rail = await page.locator(".atlas-discover-rail").boundingBox();
+          if (!search || !rail || (name === "desktop" && search.x + search.width > rail.x + 8)) throw new Error("Discover search console and saved/source rail must occupy distinct columns.");
+        } else if (routeName === "reactor") {
+          const logbook = await page.locator(".atlas-reactor-logbook").boundingBox();
+          const consoleBox = await page.locator(".atlas-reactor-run-console").boundingBox();
+          if (!logbook || !consoleBox) throw new Error("Reactor Logbook and Run console must both render.");
+          if (name === "desktop" && logbook.x + logbook.width > consoleBox.x + 8) throw new Error("Reactor desktop must place Logbook left of Run console.");
+          if (name === "mobile" && logbook.y < consoleBox.y) throw new Error("Reactor mobile must stack Run console before Logbook.");
+        }
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(100);
         const routeShot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
