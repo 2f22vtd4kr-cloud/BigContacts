@@ -2070,6 +2070,17 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             </div>
           </header>
 
+          {!isCompanyCard && (
+            <section className="atlas-card-section atlas-card-route-empty" aria-labelledby="atlas-card-route-title">
+              <div className="atlas-card-section-heading">
+                <div><h3 id="atlas-card-route-title">Route</h3><p>Shortest recorded path to this subject</p></div>
+                <span>Not recorded</span>
+              </div>
+              <p className="atlas-card-empty">No route is stored on this card. Use Connections to calculate the shortest recorded path between two records.</p>
+              <Link href="/network" className="atlas-card-route-link">Find a shortest path <ArrowUpRight className="w-3.5 h-3.5" /></Link>
+            </section>
+          )}
+
           <section className="atlas-card-section atlas-card-claims" aria-labelledby="atlas-card-claims-title">
             <div className="atlas-card-section-heading">
               <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Claim-level evidence from the latest research session.</p></div>
