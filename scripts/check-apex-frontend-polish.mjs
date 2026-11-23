@@ -56,7 +56,7 @@ const checks = [
   ["active sidebar contains only quiet board navigation, not status badges", !roundLayout.includes("WorkspaceStatus") && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
   ["footer copy is sentence case and readable", roundLayout.includes("Evidence first, always attributable") && roundLayout.includes("Public records workspace") && flatRound.includes("font-size:11px; letter-spacing:0; text-transform:none;")],
   ["display tracking follows the board while small labels remain untracked", flatRound.includes("letter-spacing:-.035em") && !flatRound.includes("letter-spacing:-.045em") && !flatRound.includes("letter-spacing:-.025em") && !flatRound.includes("text-transform:uppercase")],
-  ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;")],
+  ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;") && flatRound.includes(".atlas-round .atlas-home-board-console .atlas-home-actions")],
 
   ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
   ["launch controls use named transitions and the board focus color", !launchButton.includes("transition-all") && !launchButton.includes("ring-lime-400") && launchButton.includes("ring-[#2757C6]/50")],
