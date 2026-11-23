@@ -355,6 +355,10 @@
 .atlas-round .atlas-evidence-pattern { display:inline-block; width:12px; height:12px; flex:none; border-radius:0; background-color:transparent; }
 .atlas-round .atlas-ledger-status { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 11px "Geist",sans-serif; white-space:nowrap; }
 .atlas-round .atlas-ledger-status::before { display:none; }
+.atlas-round .atlas-ledger-status.is-verified { color:#17713E; }
+.atlas-round .atlas-ledger-status.is-corroborated { color:#2757C6; }
+.atlas-round .atlas-ledger-status.is-review { color:#7A5600; }
+.atlas-round .atlas-ledger-status.is-disputed { color:#C8321E; }
 .atlas-round .atlas-ledger-status.is-verified::before { background:var(--round-green); }
 .atlas-round .atlas-ledger-status.is-corroborated::before { background:var(--round-blue); }
 .atlas-round .atlas-ledger-score { color:var(--round-ink)!important; font:500 12px "Geist Mono",ui-monospace,monospace!important; font-variant-numeric:tabular-nums; }
