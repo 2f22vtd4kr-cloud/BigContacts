@@ -34,6 +34,7 @@ const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-rea
 
 const layout = read("artifacts/apex-finder/src/components/layout-legacy.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
+const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
   "artifacts/apex-finder/src/pages/duplicates.tsx",
@@ -49,8 +50,7 @@ const checks = [
   ["Flat Round exposes the five product destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
   ["Flat Round preserves utility routes without exposing them in active board navigation", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].every((route) => router.includes(`path="${route}"`)) && !["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].some((route) => roundLayout.includes(`href: "${route}"`))],
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
-  ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.7[0-9]/.test(css)],
-  ["grain is neutral texture-only, not a color treatment", (() => { const grain = css.slice(css.indexOf(".atlas-noise::before"), css.indexOf(".atlas-noise > *")); return grain.includes("fill%3D%22%23fff") && !grain.includes("110,210,255") && !grain.includes("156,255,26") && !grain.includes("fractalNoise") && !grain.includes("feTurbulence"); })()],
+  ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
