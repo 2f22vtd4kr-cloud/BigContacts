@@ -50,6 +50,8 @@ describe("board card person/company distinction", () => {
     expect(profileSource).toContain("useListResearchEvidence");
     expect(boardCardSource).toContain("researchEvidence.filter((entry: any) => Number(entry.entityId) === entityId)");
     expect(boardCardSource).toContain('["supported", "disputed", "review"].includes(rawStatus)');
+    expect(boardCardSource).toContain('const label = rawStatus === "review" ? "In review"');
+    expect(boardCardSource).toContain('replace(/^\\w/, (letter: string) => letter.toUpperCase())');
     expect(boardCardSource).toContain("Contact confidence");
     expect(boardCardSource).not.toContain("sources.length > 1 ? \"corroborated\"");
     expect(boardCardSource).not.toContain("const evidenceStatus = /verified/i.test(evidenceLabel)");
