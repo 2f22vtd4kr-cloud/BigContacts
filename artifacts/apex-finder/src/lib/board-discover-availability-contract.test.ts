@@ -12,7 +12,10 @@ describe("board Discover source availability", () => {
 
   it("requires a production-reviewed registry with an implemented runtime adapter", () => {
     expect(discoverSource).toContain('reviewedRegistries.filter((source) => source.runtimeAdapterImplemented === true)');
-    expect(discoverSource).toContain("const registryLive = availableRegistries.length > 0");
+    expect(discoverSource).toContain("const registryAdapterReady = availableRegistries.length > 0");
     expect(discoverSource).toContain("Production reviewed; runtime adapter unavailable");
+    expect(discoverSource).toContain('status: webConfigured ? "Configured" : "Unavailable"');
+    expect(discoverSource).toContain('status: registryAdapterReady ? "Adapter ready" : "Unavailable"');
+    expect(discoverSource).toContain('status: footprintAvailable ? "Available" : "Unavailable"');
   });
 });
