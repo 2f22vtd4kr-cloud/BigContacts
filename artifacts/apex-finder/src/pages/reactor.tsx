@@ -1423,7 +1423,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot, boardMode = false }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot, boardMode = false, apiAvailable, onRetryApi }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
@@ -1434,6 +1434,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   latestStatus?: string;
   launchSlot?: ReactNode;
   boardMode?: boolean;
+  apiAvailable?: boolean | null;
+  onRetryApi?: () => void;
 }) {
   const telemetry = useReactorLiveTelemetry();
   // Only live job state lights rods. Standby never simulates an entity moving
@@ -1608,8 +1610,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       ? logItems.length
       : logItems.filter((activity) => categoryForActivity(activity) === category).length;
     const runStatus = telemetry.runStatus;
-    const statusLabel = runStatus === "running" || runStatus === "queued" || runStatus === "paused"
-      ? "Running" : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Cancelled" : "Idle";
+    const statusLabel = apiAvailable === false ? "API down" : apiAvailable === null ? "Checking"
+      : runStatus === "running" || runStatus === "queued" || runStatus === "paused"
+        ? "Running" : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Cancelled" : "Idle";
     const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ");
     const telemetryLive = runStatus === "running" || runStatus === "paused";
     return (
@@ -1650,12 +1653,15 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
           <div className="atlas-reactor-board-heading">
             <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
-            <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase()}>{statusLabel}</span>
+            <div className="atlas-reactor-run-status-group">
+              <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase()}>{statusLabel}</span>
+              {apiAvailable === false && onRetryApi && <button type="button" onClick={() => void onRetryApi()}>Retry</button>}
+            </div>
           </div>
           <div className="atlas-reactor-current-run">
             <span>Current run</span>
             <strong>{runTarget || (telemetryLive ? "Research in progress" : "No active target")}</strong>
-            <p>{atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
+            <p>{apiAvailable === false ? "The Reactor API is unreachable. Previously recorded evidence remains available; new run state cannot be verified." : atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
           </div>
           <dl className="atlas-reactor-run-facts">
             <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
@@ -2554,6 +2560,17 @@ function useIsMobile() {
 // ── Page wrapper ──────────────────────────────────────────────────────────────
 export default function IntelligenceReactorPage({ boardMode = false }: { boardMode?: boolean } = {}) {
   const isMobile = useIsMobile();
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  const checkApi = useCallback(async () => {
+    if (!boardMode) return;
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    try {
+      const response = await fetch(base + "/api/healthz", { credentials: "include", cache: "no-store" });
+      setApiAvailable(response.ok);
+    } catch {
+      setApiAvailable(false);
+    }
+  }, [boardMode]);
 
   // ── Real data for mobile ──────────────────────────────────────────────────
   const [sessions,      setSessions]      = useState<ResearchSession[]>([]);
@@ -2858,6 +2875,13 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
     return () => ro.disconnect();
   }, [isMobile, boardMode]);
 
+  useEffect(() => {
+    if (!boardMode) return;
+    void checkApi();
+    const interval = window.setInterval(() => void checkApi(), 15_000);
+    return () => window.clearInterval(interval);
+  }, [boardMode, checkApi]);
+
   // ── Mobile ────────────────────────────────────────────────────────────────
   if (isMobile && !boardMode) {
     return (
@@ -2892,6 +2916,8 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
         <style>{KEYFRAMES}</style>
         <DesktopReactor
           boardMode
+          apiAvailable={apiAvailable}
+          onRetryApi={checkApi}
           liveNodes={liveNodes}
           liveLabel={liveLabel}
           livePhaseDetail={livePhaseDetail}
