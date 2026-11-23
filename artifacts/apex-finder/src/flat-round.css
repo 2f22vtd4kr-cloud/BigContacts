@@ -859,3 +859,21 @@ body:has(.atlas-round-shell) {
   .atlas-round-status-full { display:none; }
   .atlas-round-status-short { display:inline; }
 }
+
+
+.atlas-round .atlas-contact-route-mark {
+  color:var(--round-ink-2);
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-contact-route-status {
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-card-route-link {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:var(--round-ink);
+  font:500 12px/1.4 "Geist",sans-serif;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
