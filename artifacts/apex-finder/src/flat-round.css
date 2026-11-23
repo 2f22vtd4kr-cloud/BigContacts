@@ -883,7 +883,7 @@ body:has(.atlas-round-shell) {
   display:inline-flex;
   max-width:100%;
   align-items:center;
-  gap:6px;
+  gap:8px;
   color:var(--round-ink);
   font:400 11px/1.4 "Geist",sans-serif;
 }
