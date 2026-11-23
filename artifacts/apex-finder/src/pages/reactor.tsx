@@ -1666,7 +1666,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     const elapsedLabel = elapsedSeconds == null
       ? "—"
       : String(Math.floor(elapsedSeconds / 60)).padStart(2, "0") + ":" + String(elapsedSeconds % 60).padStart(2, "0");
-    const latestStep = logItems[0];
+    const latestStep = logItems[logItems.length - 1];
     const latestStepAt = latestStep?.endedAt || latestStep?.startedAt;
     const lastStepLabel = latestStepAt
       ? (() => {
