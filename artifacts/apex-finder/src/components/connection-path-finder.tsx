@@ -123,7 +123,7 @@ export function ConnectionPathFinder() {
           </div>
         )}
         {!findPath && !mock && !entitiesQuery.isLoading && entities.length > 0 && (
-          <p className="atlas-home-route-prompt">Choose a starting record and destination to calculate the shortest warm-introduction path.</p>
+          <p className="atlas-home-route-prompt">Choose a starting record and destination to calculate the shortest recorded path through the relationship graph.</p>
         )}
       </div>
     </section>
