@@ -1051,6 +1051,7 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-reactor-topology-link:hover { color:var(--round-ink); }
 @media (max-width:820px) {
   .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
 }
 @media (max-width:760px) {
   .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
