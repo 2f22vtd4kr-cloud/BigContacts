@@ -2020,7 +2020,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       <div className="atlas-card-contact-group">
         <span className="atlas-card-contact-label">{label}</span>
         {contacts.length > 0 || phone ? (
-          <ContactSurface contacts={contacts} phone={phone} phoneSource={phoneSource} density="card" evidenceCount={contactEvidence.length} />
+          <ContactSurface contacts={contacts} phone={phone} phoneSource={phoneSource} density="card" boardMode evidenceCount={contactEvidence.length} />
         ) : (
           <p className="atlas-card-contact-empty">None recorded.</p>
         )}
