@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Activity, Database, House, Menu, Network, Search, X } from "lucide-react";
+import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
@@ -68,7 +68,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
       {mobileOpen && <button type="button" className="atlas-round-sidebar-backdrop"
         aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <aside id="atlas-round-sidebar" className={`atlas-round-sidebar ${mobileOpen ? "is-open" : ""}`}
-        aria-label="Apex Atlas sidebar" aria-hidden={!mobileOpen && typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches}>
+        aria-label="Apex Atlas sidebar">
         <div className="atlas-round-sidebar-brand">
           <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
         </div>
