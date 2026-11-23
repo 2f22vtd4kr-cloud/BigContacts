@@ -575,3 +575,8 @@
 .atlas-round .atlas-board-profile [class*="transition-all"] { transition-property:color,background-color,border-color,opacity,transform!important; transition-duration:160ms!important; }
 .atlas-round .atlas-board-profile [class*="rounded-full"][class*="border"] { border-radius:8px!important; }
 .atlas-round .atlas-board-profile button[class*="bg-primary"] { background:var(--round-red)!important; color:#fff!important; }
+
+/* Card board contact groups keep personal and organization routes distinct. */
+.atlas-round .atlas-board-profile .atlas-card-contact-groups { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.atlas-round .atlas-board-profile .atlas-card-contact-label { color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-board-profile .atlas-card-contact-empty { margin:0; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
