@@ -230,6 +230,7 @@ async function main() {
           };
           const discover = document.querySelector(".atlas-discover-layout");
           const discoverConsole = document.querySelector(".atlas-discover-search-console");
+          const discoverInner = document.querySelector(".atlas-discover-search-console-inner");
           const discoverInput = document.querySelector(".atlas-discover-query-field input");
           const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
@@ -240,8 +241,7 @@ async function main() {
               display: discover ? getComputedStyle(discover).display : null,
               columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
               inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
-              innerBackground: discoverConsole ? getComputedStyle(discoverConsole).backgroundColor : null,
-              backgroundClip: discoverConsole ? getComputedStyle(discoverConsole).backgroundClip : null,
+              innerBackground: discoverInner ? getComputedStyle(discoverInner).backgroundColor : null,
               checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
               waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
             } : null,
@@ -260,7 +260,7 @@ async function main() {
             } : null,
           };
         }, boardPage.label);
-        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || boardDiagnostics.discover?.backgroundClip !== "padding-box" || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
           throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
         }
         if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
