@@ -72,7 +72,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
       <header className="atlas-round-header">
         <div className="atlas-round-brand">
           <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-mark"><Crosshair /></Link>
-          <Link href="/" className="atlas-round-wordmark"><strong>Apex Atlas</strong><span>PUBLIC RECORDS · RESEARCH BUREAU</span></Link>
+          <Link href="/" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
         </div>
         <nav className="atlas-round-primary" aria-label="Primary navigation"><NavItems /></nav>
         <div className="atlas-round-actions">
