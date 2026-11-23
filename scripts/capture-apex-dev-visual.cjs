@@ -113,6 +113,11 @@ async function main() {
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
+      const sidebarLinks = await page.locator(".atlas-round-sidebar-nav a").allTextContents();
+      if (sidebarLinks.length !== 5 || sidebarLinks.some((label) => /Field manual|System status|Data sources|Source directory|Persona review|Duplicate review|Workspace activity|Network graph|Reactor topology|Intel terminal/.test(label))) {
+        throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
+      }
+      if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
@@ -121,6 +126,18 @@ async function main() {
         bodyHtmlLength: document.body.innerHTML.length,
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
+        sidebar: (() => {
+          const element = document.querySelector(".atlas-round-sidebar");
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return { width: rect.width, height: rect.height, position: style.position, visibility: style.visibility, links: Array.from(element.querySelectorAll("nav a")).map((link) => link.textContent?.trim()) };
+        })(),
+        launchFramePatterns: (() => {
+          const element = document.querySelector(".atlas-home-board-console");
+          if (!element) return null;
+          return { checky: getComputedStyle(element, "::before").backgroundImage, waves: getComputedStyle(element, "::after").backgroundImage };
+        })(),
         launchButton: (() => {
           const element = document.querySelector('[data-testid="button-launch-apex-atlas"]');
           if (!element) return null;
@@ -155,6 +172,17 @@ async function main() {
         viteLog: fs.existsSync("/tmp/apex-vite.log") ? fs.readFileSync("/tmp/apex-vite.log", "utf8").slice(-5000) : "",
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
+      if (name === "mobile") {
+        const openNavigation = page.getByRole("button", { name: "Open navigation" });
+        if (await openNavigation.count()) {
+          await openNavigation.click();
+          await page.waitForSelector(".atlas-round-sidebar.is-open", { timeout: 3000 });
+          const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
+          console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
+        } else {
+          throw new Error("Mobile sidebar toggle is missing.");
+        }
+      }
       await page.close();
     }
   } finally {
