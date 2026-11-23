@@ -190,7 +190,7 @@ export default function BoardDiscoverPage() {
           <section className="atlas-discover-panel" aria-labelledby="atlas-source-register-title">
             <div className="atlas-discover-panel-heading">
               <div>
-                <h2 id="atlas-source-register-title">Source register</h2>
+                <h2 id="atlas-source-register-title">Sources</h2>
                 <p>Live configuration, not a promise of results</p>
               </div>
               <button type="button" className="atlas-discover-refresh" onClick={() => void loadSources()} disabled={sourcesLoading} aria-label="Refresh source status">
