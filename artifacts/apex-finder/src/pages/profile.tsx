@@ -5,6 +5,7 @@ import {
   useListAssets,
   useListRelationships,
   useListResearchSessions,
+  useListResearchEvidence,
   useCreateRelationship,
   useDeleteRelationship,
 } from "@workspace/api-client-react";
@@ -334,6 +335,11 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   const { data: assets = []       } = useListAssets({ entityId });
   const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
+  const latestResearchSessionId = Number((sessions as any[])[0]?.id ?? 0);
+  const researchEvidenceQuery = useListResearchEvidence(latestResearchSessionId, {
+    query: { enabled: latestResearchSessionId > 0 && !mockEntity, staleTime: 10_000 },
+  });
+  const researchEvidence = Array.isArray(researchEvidenceQuery.data) ? researchEvidenceQuery.data : [];
 
   const createRelationship = useCreateRelationship();
   const deleteRelationship = useDeleteRelationship();
@@ -2002,9 +2008,9 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                         const SANCTIONS_RE = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch/i;
                         const flagged = occrpData.datasets?.some((d: string) => SANCTIONS_RE.test(d));
                         if (boardMode) {
-    const claimRows = (ledger as any[])
-      .filter((entry) => entry && entry.source && entry.source !== "Internal")
-      .slice(0, 5);
+    // Claim-level evidence comes from the persisted research-evidence endpoint,
+    // not from entity-level registry names or locally inferred source counts.
+    const claimRows = researchEvidence.slice(0, 8);
     const displayType = displayEntityType(entity);
     const isCompanyCard = String(entity.type ?? "").toLowerCase() === "company" || displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
     const boardEntityType = String(entity.type ?? "").toLowerCase() === "company" ? "Corporation" : entity.type;
@@ -2041,10 +2047,9 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       !/no shareholder record|not recorded|unknown/i.test(entityMetadata.ownershipSummary)
     );
     const evidenceLabel = entityEvidenceLabel(entity);
-    const evidenceStatus = /verified/i.test(evidenceLabel) ? "verified" : /corroborated/i.test(evidenceLabel) ? "corroborated" : "review";
-    const rawScore = entity.bayesianScore ?? confidence?.overall;
-    const score = rawScore == null ? NaN : Number(rawScore);
-    const scoreLabel = Number.isFinite(score) && score >= 0 ? score.toFixed(2) : "—";
+    const contactConfidence = typeof (entity as any).contactConfidence === "number"
+      ? `${Math.round((entity as any).contactConfidence)}%`
+      : "—";
     const personInitials = String(e.name ?? "Apex").trim().split(/\s+/).slice(0, 2).map((part: string) => part[0] ?? "").join("").toUpperCase();
     const wealthLabel = displayableEstimatedNetWorth ? String(displayableEstimatedNetWorth) : "Not recorded";
     return (
@@ -2059,10 +2064,9 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               {!isCompanyCard && e.nationality && <span>{e.nationality}</span>}
             </div>
             <div className="atlas-card-subject-score">
-              <span className={"atlas-evidence-pattern is-" + evidenceStatus} aria-hidden="true" />
               <span>{evidenceLabel}</span>
-              <strong>{scoreLabel}</strong>
-              <small>Evidence score</small>
+              <strong>{contactConfidence}</strong>
+              <small>Contact confidence</small>
             </div>
           </header>
 
@@ -2071,23 +2075,33 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Each claim is tied to a recorded source.</p></div>
               <span>{claimRows.length} claims</span>
             </div>
-            {claimRows.length === 0 ? (
-              <div className="atlas-card-empty">No source-backed claims have been recorded for this card yet.</div>
+            {researchEvidenceQuery.isLoading ? (
+              <div className="atlas-card-empty" role="status">Loading claim-level evidence…</div>
+            ) : researchEvidenceQuery.isError ? (
+              <div className="atlas-card-empty" role="alert">Claim-level evidence could not be loaded from the research API.</div>
+            ) : claimRows.length === 0 ? (
+              <div className="atlas-card-empty">No claim-level evidence is recorded for the latest research session.</div>
             ) : (
               <ul>
                 {claimRows.map((entry: any) => {
-                  const sources = String(entry.source ?? "").split(/[;,·]/).map((value) => value.trim()).filter(Boolean);
-                  const status = !entry.verified ? "review" : sources.length > 1 ? "corroborated" : "verified";
-                  const label = status === "verified" ? "Verified" : status === "corroborated" ? "Corroborated" : "In review";
+                  const rawStatus = String(entry.status ?? "unclassified").toLowerCase();
+                  const patternStatus = ["verified", "corroborated", "review"].includes(rawStatus) ? rawStatus : null;
+                  const label = rawStatus.replace(/[_-]+/g, " ").replace(/^\\w/, (letter: string) => letter.toUpperCase());
+                  const sourceLabel = entry.sourceName || entry.sourceDomain || "Source not recorded";
                   return (
                     <li key={entry.id}>
-                      <span className={"atlas-evidence-pattern is-" + status} aria-hidden="true" />
+                      {patternStatus
+                        ? <span className={"atlas-evidence-pattern is-" + patternStatus} aria-hidden="true" />
+                        : <span className="atlas-card-claim-status is-unclassified"> </span>}
                       <div className="atlas-card-claim-copy">
-                        <strong>{entry.dataPoint || entry.category || "Recorded claim"}</strong>
-                        <p>{entry.value || "Value not recorded"}</p>
-                        <small>{entry.source || "Source not recorded"}</small>
+                        <strong>{entry.claimType?.replace(/[_-]+/g, " ") || "Recorded claim"}</strong>
+                        <p>{entry.value || entry.claim || "Claim value not recorded"}</p>
+                        <small>{sourceLabel}</small>
+                        {entry.sourceUrl && /^https?:\\/\\//i.test(entry.sourceUrl) && (
+                          <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Open source</a>
+                        )}
                       </div>
-                      <span className={"atlas-card-claim-status is-" + status}>{label}</span>
+                      <span className={"atlas-card-claim-status" + (patternStatus ? " is-" + patternStatus : " is-unclassified")}>{label}</span>
                     </li>
                   );
                 })}
