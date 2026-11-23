@@ -334,7 +334,8 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
     setResult(null);
 
     try {
-      const resp = await fetch("/api/search/intelligent", {
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+      const resp = await fetch(base + "/api/search/intelligent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
