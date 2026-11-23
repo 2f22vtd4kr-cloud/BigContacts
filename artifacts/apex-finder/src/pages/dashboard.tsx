@@ -107,9 +107,9 @@ export default function Dashboard() {
             <Link href="/network" aria-label="Open all connections">All connections <ChevronRight aria-hidden="true" /></Link>
           </div>
           <div className="atlas-home-route-empty">
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-verified" aria-hidden="true" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-corroborated" aria-hidden="true" /> <strong>Corroborated</strong><span>Two independent sources agree</span></div>
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-review" aria-hidden="true" /> <strong>In review</strong><span>One source so far, a second is pending</span></div>
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-supported" aria-hidden="true" /> <strong>Supported</strong><span>Relationship provenance meets Atlas’s support threshold</span></div>
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-disputed" aria-hidden="true" /> <strong>Disputed</strong><span>The relationship record carries a dispute or rejection note</span></div>
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-review" aria-hidden="true" /> <strong>In review</strong><span>Provenance does not meet the support threshold yet</span></div>
             <p>{Number(stats?.totalRelationships ?? 0) > 0 ? "Recorded relationships are available in Connections. A ranked, evidence-backed route is shown here only when its complete path is available." : "No routes yet. Launch a run and the strongest evidenced paths will appear here."}</p>
           </div>
         </aside>
