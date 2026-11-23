@@ -2085,14 +2085,18 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <ul>
                 {claimRows.map((entry: any) => {
                   const rawStatus = String(entry.status ?? "unclassified").toLowerCase();
-                  const patternStatus = ["supported", "disputed", "review"].includes(rawStatus) ? rawStatus : null;
+                  const patternStatus = ["supported", "corroborated", "review"].includes(rawStatus) ? rawStatus : null;
+                  const disputed = rawStatus === "disputed" || rawStatus === "rejected";
+                  const statusClass = disputed ? "is-disputed" : patternStatus ? "is-" + patternStatus : "is-unclassified";
                   const label = rawStatus === "review" ? "In review" : rawStatus.replace(/[_-]+/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase());
                   const sourceLabel = entry.sourceName || entry.sourceDomain || "Source not recorded";
                   return (
                     <li key={entry.id}>
                       {patternStatus
                         ? <span className={"atlas-evidence-pattern is-" + patternStatus} aria-hidden="true" />
-                        : <span className="atlas-card-claim-status is-unclassified"> </span>}
+                        : disputed
+                          ? <AlertCircle className="atlas-evidence-disputed-mark" aria-hidden="true" />
+                          : <span className="atlas-card-claim-status is-unclassified"> </span>}
                       <div className="atlas-card-claim-copy">
                         <strong>{entry.claimType?.replace(/[_-]+/g, " ") || "Recorded claim"}</strong>
                         <p>{entry.value || entry.claim || "Claim value not recorded"}</p>
@@ -2101,7 +2105,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                           <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Open source</a>
                         )}
                       </div>
-                      <span className={"atlas-card-claim-status" + (patternStatus ? " is-" + patternStatus : " is-unclassified")}>{label}</span>
+                      <span className={"atlas-card-claim-status " + statusClass}>{label}</span>
                     </li>
                   );
                 })}
