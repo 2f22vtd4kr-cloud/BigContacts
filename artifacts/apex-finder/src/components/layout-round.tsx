@@ -4,7 +4,6 @@ import { Activity, BookOpen, ChevronDown, Database, GitCompare, Menu, Network, S
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
-import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
 const primaryNav = [
   { name: "Overview", href: "/", icon: Crosshair },
@@ -77,7 +76,6 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
         <div className="atlas-round-actions">
           <div className="atlas-round-status"><WorkspaceStatus /></div>
           <div className="atlas-round-health"><ApiKeyHealth /></div>
-          <div className="atlas-round-launch"><LaunchAtlasButton variant="header" /></div>
           <button className="atlas-round-more" type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>
             More <ChevronDown />
           </button>
