@@ -70,6 +70,7 @@ require(launch.includes('const objectiveLimit = variant === "primary" ? 1_200 : 
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
+require((launch.match(/variant === "header" \\? "flex-row items-center justify-end" : "w-full flex-col items-stretch"/g) ?? []).length >= 2, "Home launch CTA must stack beneath settings and remain full width on desktop");
 require(layout.includes("icon: ReactorMark"), "sidebar Reactor navigation must use ReactorMark");
 require(!layout.includes("icon: Cpu"), "sidebar Reactor navigation must not use generic CPU icon");
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
