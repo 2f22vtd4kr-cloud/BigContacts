@@ -610,5 +610,6 @@
 /* Review bends follow the board's diagonal, continuously curved field. */
 .atlas-round .atlas-evidence-pattern.is-review {
   background-image: repeating-linear-gradient(135deg, #EDB92B 0 5px, #F8E8B7 5px 11px);
-  background-size: 16px 16px;
+  background-repeat: no-repeat;
+  background-size: auto;
 }
