@@ -595,6 +595,7 @@
   image-rendering: auto;
 }
 .atlas-round .atlas-evidence-pattern.is-verified {
+  background-color: transparent;
   background-image: radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px);
   background-size: 4px 4px;
 }
