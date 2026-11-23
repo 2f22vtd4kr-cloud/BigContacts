@@ -2097,7 +2097,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                         <strong>{entry.claimType?.replace(/[_-]+/g, " ") || "Recorded claim"}</strong>
                         <p>{entry.value || entry.claim || "Claim value not recorded"}</p>
                         <small>{sourceLabel}</small>
-                        {entry.sourceUrl && /^https?:\\/\\//i.test(entry.sourceUrl) && (
+                        {entry.sourceUrl && /^https?:\/\//i.test(entry.sourceUrl) && (
                           <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Open source</a>
                         )}
                       </div>
