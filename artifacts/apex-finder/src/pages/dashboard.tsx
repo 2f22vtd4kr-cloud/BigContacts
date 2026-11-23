@@ -19,6 +19,13 @@ function routeEvidenceLabel(status: RouteEvidenceStatus) {
   return status === "review" ? "In review" : status === "unclassified" ? "Status unavailable" : status[0].toUpperCase() + status.slice(1);
 }
 
+function routePatternStatus(edges: Array<{ evidenceStatus?: unknown }>): "supported" | "disputed" | "review" {
+  const statuses = edges.map((edge) => routeEvidenceStatus(edge.evidenceStatus));
+  if (statuses.length === 0 || statuses.some((status) => ["review", "rejected", "unclassified"].includes(status))) return "review";
+  if (statuses.includes("disputed")) return "disputed";
+  return "supported";
+}
+
 function StatTile({
   label,
   value,
@@ -170,6 +177,7 @@ export default function Dashboard() {
               <p className="atlas-home-route-result-empty" role="status">{routeQuery.data.recommendation || "No connection path was found within the loaded graph neighborhood."}</p>
             )}
             {findPath && routeQuery.data?.found && (
+              <div className={"atlas-route-pattern-card is-" + routePatternStatus(routeQuery.data.edges)}>
               <div className="atlas-home-route-result" aria-live="polite">
                 <div className="atlas-home-route-result-meta">
                   <span>{routeQuery.data.hops} hops</span>
@@ -200,6 +208,7 @@ export default function Dashboard() {
                   </ul>
                 )}
                 {routeQuery.data.recommendation && <p className="atlas-home-route-recommendation">{routeQuery.data.recommendation}</p>}
+              </div>
               </div>
             )}
             {!findPath && !mock && !entitiesQuery.isLoading && entities.length > 0 && (
