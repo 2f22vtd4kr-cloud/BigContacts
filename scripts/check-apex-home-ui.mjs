@@ -25,6 +25,8 @@ const boardProfile = read("artifacts/apex-finder/src/pages/board-profile.tsx");
 const deepSearch = read("artifacts/apex-finder/src/pages/deep-search.tsx");
 const liveSurface = read("artifacts/apex-finder/src/components/reactor-live-surface.tsx");
 const ingestRoutes = read("artifacts/api-server/src/src/routes/ingest.ts");
+const canonicalDiscovery = read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
+const canonicalLaunchRoute = read("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 
 const failures = [];
 const require = (condition, message) => { if (!condition) failures.push(message); };
@@ -71,6 +73,7 @@ require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"),
 const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
 require(objective.length > 0 && objective.length <= 1600, "default mission must fit the canonical 1,600-character launch contract");
 require(launch.includes("/api/ingest/atlas-config") && launch.includes("maxLength={objectiveLimit ?? undefined}") && launch.includes("objective.length > objectiveLimit"), "Every launch surface must load and enforce the backend-authoritative objective limit");
+require(canonicalDiscovery.includes("export const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;") && canonicalLaunchRoute.includes('router.get("/ingest/atlas-config"') && canonicalLaunchRoute.includes("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS"), "The UI limit endpoint must return the exact canonical backend objective validation constant");
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
