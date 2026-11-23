@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useListRelationships, type Relationship } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 
 type RelationshipFilter = "all" | "entity" | "asset";
