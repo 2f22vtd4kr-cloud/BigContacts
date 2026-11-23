@@ -468,3 +468,22 @@
   .atlas-round .atlas-reactor-log-filters { overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
   .atlas-round .atlas-reactor-log-filters button { flex:none; }
 }
+
+
+/* Card board: subject tabs sit above the existing evidence-rich dossier. */
+.atlas-round .atlas-profile-tabs { display:flex; min-width:0; gap:0; margin-bottom:18px; overflow-x:auto; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-profile-tab { display:flex; min-width:130px; max-width:210px; flex-direction:column; gap:5px; padding:11px 14px 12px; border-bottom:2px solid transparent; color:var(--round-ink-2); text-decoration:none; white-space:nowrap; }
+.atlas-round .atlas-profile-tab strong { overflow:hidden; color:inherit; font:500 12px "Geist",sans-serif; text-overflow:ellipsis; }
+.atlas-round .atlas-profile-tab span { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-profile-tab[aria-current="page"] { border-bottom-color:var(--round-red); color:var(--round-ink); background:var(--round-raised); }
+.atlas-round .atlas-profile-tab-more { min-width:110px; align-items:flex-start; justify-content:center; }
+.atlas-round .atlas-board-profile [class*="bg-card"],.atlas-round .atlas-board-profile [class*="bg-background"] { background-color:#fff!important; }
+.atlas-round .atlas-board-profile [class*="border-border"] { border-color:var(--round-line)!important; }
+.atlas-round .atlas-board-profile [class*="shadow-"] { box-shadow:none!important; }
+.atlas-round .atlas-board-profile [class*="text-[#9CFF1A]"] { color:var(--round-green)!important; }
+.atlas-round .atlas-board-profile [class*="border-[#9CFF1A]"] { border-color:rgba(31,138,77,.24)!important; }
+.atlas-round .atlas-board-profile [class*="bg-[#9CFF1A]"] { background-color:rgba(31,138,77,.07)!important; }
+@media (max-width:760px) {
+  .atlas-round .atlas-profile-tab { min-width:118px; padding:10px 11px; }
+  .atlas-round .atlas-profile-tabs { margin-bottom:12px; }
+}
