@@ -232,3 +232,9 @@
 .atlas-home-source-status .is-unavailable { color:var(--round-ink-3); }
 .atlas-home-source-status .is-unavailable::before { opacity:.45; }
 .atlas-home-source-status span::before { display:none; }
+
+/* Let optional status rows collapse naturally; never leave a phantom grid track. */
+.atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }
+@media (max-width:760px) {
+  .atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-routes { grid-row:auto; }
+}
