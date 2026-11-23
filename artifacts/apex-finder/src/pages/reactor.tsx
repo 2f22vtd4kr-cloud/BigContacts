@@ -1618,7 +1618,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   }, [deskEvents, deskQuery]);
 
   if (boardMode) {
-    const logItems = telemetry.activities;
+    const logItems = [...telemetry.activities].sort((a, b) => {
+      const at = Date.parse(String(a.startedAt ?? a.endedAt ?? ""));
+      const bt = Date.parse(String(b.startedAt ?? b.endedAt ?? ""));
+      return (Number.isFinite(at) ? at : 0) - (Number.isFinite(bt) ? bt : 0);
+    });
     const categoryForActivity = (activity: LiveActivity) => {
       const method = classifyReactorMethod({
         method: "unknown",
