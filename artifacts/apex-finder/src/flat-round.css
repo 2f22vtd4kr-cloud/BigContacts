@@ -913,7 +913,7 @@ body:has(.atlas-round-shell) {
   gap:36px;
   align-items:start;
 }
-.atlas-round .atlas-discover-search-console {
+.atlas-round .atlas-board-discover .atlas-discover-search .atlas-discover-search-console {
   position:relative;
   isolation:isolate;
   min-width:0;
@@ -921,7 +921,9 @@ body:has(.atlas-round-shell) {
   padding:20px;
   border:8px solid transparent;
   border-radius:20px;
-  background:linear-gradient(#fff,#fff) padding-box!important;
+  background-color:transparent!important;
+  background-image:linear-gradient(#fff,#fff)!important;
+  background-clip:padding-box!important;
 }
 .atlas-round .atlas-discover-search-console::before,
 .atlas-round .atlas-discover-search-console::after {
