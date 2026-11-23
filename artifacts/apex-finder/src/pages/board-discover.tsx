@@ -229,7 +229,7 @@ export default function BoardDiscoverPage() {
           <div className="atlas-discover-panel-heading">
             <div>
               <h2 id="atlas-source-register-title">Sources</h2>
-              <p>Live configuration, not a promise of results</p>
+              <p>Configuration and adapter state, not a promise of results</p>
             </div>
             <button type="button" className="atlas-discover-refresh" onClick={() => void loadSources()} disabled={sourcesLoading} aria-label="Refresh source status" aria-busy={sourcesLoading}>
               <RefreshCw aria-hidden="true" />
