@@ -238,3 +238,33 @@
 @media (max-width:760px) {
   .atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-routes { grid-row:auto; }
 }
+
+
+/* Primary screen frames — the five board pages share the Home paper-and-ink system. */
+.atlas-round .atlas-board-page { width:100%; max-width:1600px; min-width:0; margin:0 auto; padding-top:32px; }
+.atlas-round .atlas-board-page-intro { max-width:760px; margin:0 0 28px; }
+.atlas-round .atlas-board-page-intro h1 { margin:0; color:var(--round-ink)!important; font:500 clamp(40px,4.8vw,64px)/1.04 "Geist",sans-serif!important; letter-spacing:-.045em!important; }
+.atlas-round .atlas-board-page-intro p { max-width:620px; margin:18px 0 0; color:var(--round-ink-2)!important; font:400 17px/1.6 "Geist",sans-serif!important; }
+.atlas-round .atlas-board-page-content { min-width:0; width:100%; color:var(--round-ink); }
+.atlas-round .atlas-board-page-content [class*="shadow-[0_0_"] { box-shadow:none!important; }
+.atlas-round .atlas-board-page-content [class*="transition-all"] { transition-property:color,background-color,border-color,opacity,transform!important; }
+.atlas-round .atlas-board-page-content [class*="rounded-full"][class*="border"] { border-radius:6px!important; }
+.atlas-round .atlas-board-page-content [class*="uppercase"][class*="tracking-"] { letter-spacing:.01em!important; text-transform:none; }
+.atlas-round .atlas-board-ledger [data-testid="scoreboard-strip"],
+.atlas-round .atlas-board-ledger [data-testid="select-entities-dig-depth"] { display:none!important; }
+.atlas-round .atlas-board-ledger .hidden.lg\\:flex { height:auto!important; min-height:0; overflow:visible!important; }
+.atlas-round .atlas-board-ledger .atlas-h-scroll button { border-radius:6px!important; }
+.atlas-round .atlas-board-discover .atlas-board-page-content { min-height:560px; }
+.atlas-round .atlas-board-discover .atlas-board-page-content > div { min-height:560px; }
+.atlas-round .atlas-board-connections .atlas-board-page-content { min-height:600px; }
+.atlas-round .atlas-board-connections #graph-container { min-height:600px!important; height:calc(100dvh - 260px)!important; border:1px solid var(--round-line); background:var(--round-paper)!important; }
+.atlas-round .atlas-board-reactor .atlas-board-page-content { min-height:600px; }
+.atlas-round .atlas-board-profile .atlas-board-page-content { min-height:500px; }
+@media (max-width:760px) {
+  .atlas-round .atlas-board-page { padding-top:24px; }
+  .atlas-round .atlas-board-page-intro { margin-bottom:20px; }
+  .atlas-round .atlas-board-page-intro h1 { font-size:40px!important; line-height:1.04!important; }
+  .atlas-round .atlas-board-page-intro p { margin-top:12px; font-size:15px!important; line-height:1.6!important; }
+  .atlas-round .atlas-board-page-content { min-height:0; }
+  .atlas-round .atlas-board-connections #graph-container { min-height:65vh!important; height:65vh!important; }
+}
