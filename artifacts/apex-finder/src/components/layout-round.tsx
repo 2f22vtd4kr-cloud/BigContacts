@@ -70,7 +70,7 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
       <aside id="atlas-round-sidebar" className={`atlas-round-sidebar ${mobileOpen ? "is-open" : ""}`}
         aria-label="Apex Atlas sidebar">
         <div className="atlas-round-sidebar-brand">
-          <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
+          <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark className="atlas-round-brand-mark" /><strong>Apex Atlas</strong></Link>
         </div>
         <nav className="atlas-round-sidebar-nav" aria-label="Primary navigation">
           <div className="atlas-round-sidebar-label">Workspace</div>
