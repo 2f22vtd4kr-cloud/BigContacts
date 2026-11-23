@@ -1,28 +1,18 @@
 import { useGetDashboardStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
-import {
-  ChevronRight,
-  CircleAlert,
-  Database,
-  Network,
-  Users,
-} from "lucide-react";
+import { ChevronRight, CircleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
 function StatTile({
   label,
   value,
-  detail,
-  icon: Icon,
   testId,
   href,
 }: {
   label: string;
   value: string | number;
-  detail: string;
-  icon: typeof Users;
   testId: string;
   href: string;
 }) {
@@ -30,14 +20,10 @@ function StatTile({
     <Link
       href={href}
       data-testid={testId}
-      className="atlas-card atlas-pressable group block p-4 transition-colors hover:border-[#9CFF1A]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
+      className="atlas-home-figure"
     >
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[12px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-[#9CFF1A]">{label}</span>
-        <Icon className="atlas-stat-icon h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-[#9CFF1A]/80" />
-      </div>
-      <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-foreground">{value}</div>
-      <div className="mt-1 text-[11px] text-muted-foreground">{detail}</div>
+      <span className="atlas-home-figure-value">{value}</span>
+      <span className="atlas-home-figure-label">{label}</span>
     </Link>
   );
 }
@@ -105,9 +91,9 @@ export default function Dashboard() {
             <div className="atlas-home-stale-note" role="status">Saved copy remains visible. Scores may be out of date.</div>
           )}
           <section className="atlas-home-figures" aria-label="Bureau figures">
-            <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people, companies and trusts" icon={Users} testId="stat-total-entities" />
-            <StatTile href="/network" label="Relationships" value={stats?.totalRelationships ?? "—"} detail="recorded connections" icon={Network} testId="stat-total-relationships" />
-            <StatTile href="/profiles" label="Evidence records" value={stats?.totalAssets ?? "—"} detail="linked public records and assets" icon={Database} testId="stat-total-assets" />
+            <StatTile href="/profiles" label="People" value={stats?.totalEntities ?? "—"} testId="stat-total-entities" />
+            <StatTile href="/network" label="Routes" value={stats?.totalRelationships ?? "—"} testId="stat-total-relationships" />
+            <StatTile href="/profiles" label="Evidence records" value={stats?.totalAssets ?? "—"} testId="stat-total-assets" />
           </section>
 
         </div>
