@@ -16,20 +16,20 @@
  .atlas-round-wordmark strong { font-size:16px; line-height:1; font-weight:500; letter-spacing:-.035em; }
 .atlas-round-wordmark span, .atlas-round-page-meta, .atlas-round-footer { font-family:"Geist Mono","IBM Plex Mono",ui-monospace,monospace; font-size:9px; letter-spacing:.12em; }
 .atlas-round-wordmark span { color:var(--round-ink-3); font-size:8px; }
-.atlas-round-primary { display:flex; align-items:center; gap:4px; margin-left:auto; }
-.atlas-round-navlink { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:38px; padding:0 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:8px; transition:background .15s,color .15s; white-space:nowrap; }
+.atlas-round-primary { display:flex; align-items:center; gap:4px; margin-left:auto; padding:4px; border:1px solid var(--round-line); border-radius:16px; background:#fff; box-shadow:0 1px 3px #18181a0b; }
+.atlas-round-navlink { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:0 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:6px; transition:background .15s,color .15s; white-space:nowrap; }
 .atlas-round-navlink svg { width:14px; height:14px; }
 .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
-.atlas-round-navlink.is-active { background:#fff; color:var(--round-ink); box-shadow:inset 0 0 0 1px var(--round-line); font-weight:600; }
+.atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); box-shadow:none; font-weight:500; }
 .atlas-round-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .atlas-round-status, .atlas-round-health { max-width:180px; overflow:hidden; }
-.atlas-round-more { display:flex; align-items:center; gap:4px; border:1px solid var(--round-line); background:#fff; border-radius:8px; padding:8px 12px; color:var(--round-ink-2); font-size:11px; }
+.atlas-round-more { display:flex; align-items:center; gap:4px; border:1px solid var(--round-line); background:#fff; border-radius:10px; padding:8px 12px; color:var(--round-ink-2); font-size:11px; }
 .atlas-round-more svg { width:13px; height:13px; }
-.atlas-round-more-menu { position:absolute; right:24px; top:58px; z-index:100; display:grid; min-width:210px; padding:8px; background:#fff; border:1px solid var(--round-line); border-radius:8px; box-shadow:0 12px 32px #18181a18; }
-.atlas-round-more-menu a { display:flex; align-items:center; gap:8px; padding:8px 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:8px; }
+.atlas-round-more-menu { position:absolute; right:24px; top:58px; z-index:100; display:grid; min-width:210px; padding:8px; background:#fff; border:1px solid var(--round-line); border-radius:12px; box-shadow:0 12px 32px #18181a18; }
+.atlas-round-more-menu a { display:flex; align-items:center; gap:8px; padding:8px 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:6px; }
 .atlas-round-more-menu a:hover { background:var(--round-raised); color:var(--round-ink); }
 .atlas-round-more-menu svg { width:14px; height:14px; }
-.atlas-round-mobile-toggle, .atlas-round-mobile-nav { display:none; }
+.atlas-round-mobile-toggle { display:none; }
 .atlas-round-main { min-height:calc(100dvh - 68px); min-width:0; background:var(--round-paper); color:var(--round-ink); }
 .atlas-round-page-meta { display:flex; align-items:center; gap:12px; padding:16px clamp(16px,3vw,44px) 0; color:var(--round-ink-3); }
 .atlas-round-page-meta strong { color:var(--round-ink-2); font-weight:500; }
@@ -71,17 +71,15 @@
  .atlas-round-health { display:none; }
  .atlas-round-launch { max-width:125px; overflow:hidden; }
  .atlas-round-more { display:none; }
- .atlas-round-mobile-toggle { display:grid; place-items:center; width:38px; height:38px; border:1px solid var(--round-line); border-radius:8px; background:#fff; color:var(--round-ink); }
+ .atlas-round-mobile-toggle { display:grid; place-items:center; width:44px; height:44px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink); }
  .atlas-round-mobile-toggle svg { width:17px; height:17px; }
- .atlas-round-mobile-nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:12px 16px; background:#fff; border-bottom:1px solid var(--round-line); }
- .atlas-round-navlink.is-mobile { justify-content:flex-start; }
  .atlas-round-page-meta { padding:16px 16px 0; }
  .atlas-round-content { padding:12px 16px 28px; }
  .atlas-round-footer { flex-wrap:wrap; padding:16px; }
 }
 @media (prefers-reduced-motion:reduce) { .atlas-round * { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
 
-.atlas-round-more-option { display:flex; align-items:center; width:100%; padding:8px 12px; color:var(--round-ink-2); text-align:left; font-size:12px; border-radius:8px; background:transparent; border:0; cursor:pointer; }
+.atlas-round-more-option { display:flex; align-items:center; width:100%; padding:8px 12px; color:var(--round-ink-2); text-align:left; font-size:12px; border-radius:6px; background:transparent; border:0; cursor:pointer; }
 .atlas-round-more-option:hover { background:var(--round-raised); color:var(--round-ink); }
 
 
@@ -93,8 +91,8 @@
 .atlas-home-board-intro { grid-column:1; grid-row:1; padding:0 0 8px; }
 .atlas-home-board-intro h1 { margin:0; color:var(--round-ink)!important; font-size:clamp(40px,4.8vw,64px); line-height:1.04; letter-spacing:-.045em!important; font-weight:500!important; }
 .atlas-home-board-intro p { max-width:560px; margin:20px 0 0; color:var(--round-ink-2)!important; font-size:17px; line-height:1.65; }
-.atlas-round .atlas-home-board-console { grid-column:1; grid-row:2; position:relative; isolation:isolate; display:block; width:100%; padding:8px!important; border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; }
-.atlas-home-board-console::before,.atlas-home-board-console::after { content:""; position:absolute; z-index:-1; top:0; bottom:0; width:50%; pointer-events:none; }
+.atlas-round .atlas-home-board-console { grid-column:1; grid-row:2; position:relative; isolation:isolate; display:block; width:100%; padding:8px!important; border:0!important; border-radius:20px!important; overflow:hidden; background:transparent!important; box-shadow:none!important; }
+.atlas-home-board-console::before,.atlas-home-board-console::after { content:""; position:absolute; z-index:-1; top:0; bottom:0; width:50%; pointer-events:none; border-radius:20px; }
 .atlas-home-board-console::before { left:0; background:repeating-conic-gradient(#C8321E 0 25%,#FAFAF8 0 50%) 0 0/16px 16px; }
 .atlas-home-board-console::after { right:0; background:repeating-radial-gradient(ellipse at 50% 100%,#C8321E 0 1.5px,#FAFAF8 1.5px 5px) 0 0/16px 16px; }
 .atlas-home-console-inner { position:relative; z-index:1; min-width:0; padding:20px; border:1px solid var(--round-line); border-radius:12px; background:var(--round-card); }
@@ -107,13 +105,13 @@
 .atlas-launch-settings { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 16px; width:100%; }
 .atlas-launch-depth,.atlas-launch-target-count { display:flex; min-height:40px; align-items:center; gap:4px; color:var(--round-ink-2); font:400 12px "Geist Mono",ui-monospace,monospace; }
 .atlas-launch-depth > span,.atlas-launch-target-count > span { margin-right:8px; }
-.atlas-launch-depth button { min-height:34px; padding:0 12px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--round-ink-2); font:400 12px "Geist",sans-serif; }
+.atlas-launch-depth button { min-height:34px; padding:0 12px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--round-ink-2); font:400 12px "Geist",sans-serif; }
 .atlas-launch-depth button[aria-pressed="true"] { border-color:var(--round-line); background:#fff; color:var(--round-ink); box-shadow:0 1px 2px #18181a0d; }
-.atlas-launch-target-count button { display:grid; width:30px; height:30px; place-items:center; border:1px solid var(--round-line); border-radius:8px; background:#fff; color:var(--round-ink); }
+.atlas-launch-target-count button { display:grid; width:30px; height:30px; place-items:center; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink); }
 .atlas-launch-target-count button svg { width:13px; height:13px; }
 .atlas-launch-target-count button:disabled { opacity:.35; }
 .atlas-launch-target-count output { min-width:24px; color:var(--round-ink); text-align:center; font:500 14px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-.atlas-round .atlas-home-board-console .atlas-launch-cta { width:100%!important; min-height:48px; height:48px; border:0!important; border-radius:8px!important; background:#C8321E!important; color:#fff!important; font:500 16px "Geist",sans-serif!important; letter-spacing:0!important; box-shadow:none!important; }
+.atlas-round .atlas-home-board-console .atlas-launch-cta { width:100%!important; min-height:48px; height:48px; border:0!important; border-radius:10px!important; background:#C8321E!important; color:#fff!important; font:500 16px "Geist",sans-serif!important; letter-spacing:0!important; box-shadow:none!important; }
 .atlas-round .atlas-home-board-console .atlas-launch-cta:hover { background:#A92718!important; }
 .atlas-round .atlas-home-board-console .atlas-launch-cta:active { transform:scale(.98); }
 .atlas-home-risk { grid-column:1; grid-row:3; display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border:1px solid #EDB92B66; border-radius:8px; background:#EDB92B12; color:#7A5600; font-size:13px; line-height:1.5; }
@@ -191,14 +189,10 @@
 .atlas-round-primary .atlas-round-navlink { min-height:36px; padding-inline:12px; border-radius:8px; font-size:12px; }
 .atlas-round-mobile-utilities { display:none; }
 @media (max-width:760px) {
-  .atlas-round-main { padding-bottom:76px; }
-  .atlas-round-mobile-nav { position:fixed; z-index:90; right:0; bottom:0; left:0; display:grid!important; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; padding:8px max(8px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)); border-top:1px solid var(--round-line); border-bottom:0; background:rgba(255,255,255,.98); box-shadow:0 -2px 10px #18181a0b; }
-  .atlas-round-mobile-nav .atlas-round-navlink { display:flex; min-width:0; min-height:48px; flex-direction:column; justify-content:center; gap:4px; padding:4px 4px; border-radius:8px; color:var(--round-ink-3); font-size:10px; line-height:1.1; }
-  .atlas-round-mobile-nav .atlas-round-navlink svg { display:block; width:16px; height:16px; }
-  .atlas-round-mobile-nav .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); box-shadow:none; }
-  .atlas-round-mobile-utilities { position:fixed; z-index:100; top:60px; right:10px; left:10px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:12px; border:1px solid var(--round-line); border-radius:12px; background:#fff; box-shadow:0 8px 24px #18181a18; }
-  .atlas-round-mobile-utilities a,.atlas-round-mobile-utilities button { display:flex; min-height:40px; align-items:center; gap:8px; padding:8px 12px; border:0; border-radius:8px; background:transparent; color:var(--round-ink-2); text-align:left; text-decoration:none; font:400 12px "Geist",sans-serif; }
-  .atlas-round-mobile-utilities a:hover,.atlas-round-mobile-utilities button:hover { background:var(--round-raised); color:var(--round-ink); }
+  .atlas-round-mobile-utilities { position:fixed; z-index:100; top:calc(60px + env(safe-area-inset-top)); right:12px; left:12px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; max-height:calc(100dvh - 88px); overflow:auto; padding:12px; border:1px solid var(--round-line); border-radius:16px; background:#fff; box-shadow:0 8px 24px #18181a18; }
+  .atlas-round-mobile-utilities a,.atlas-round-mobile-utilities button { display:flex; min-height:40px; align-items:center; gap:8px; padding:8px 12px; border:0; border-radius:6px; background:transparent; color:var(--round-ink-2); text-align:left; text-decoration:none; font:400 12px "Geist",sans-serif; }
+  .atlas-round-mobile-utilities a:hover,.atlas-round-mobile-utilities button:hover,.atlas-round-mobile-utilities a[aria-current="page"] { background:var(--round-raised); color:var(--round-ink); }
+.atlas-round-mobile-utilities-heading { grid-column:1/-1; padding:4px 8px; color:var(--round-ink-3); font:400 12px "Geist Mono",ui-monospace,monospace; }
   .atlas-round-mobile-utilities svg { width:14px; height:14px; }
 }
 
@@ -207,7 +201,7 @@
 .atlas-home-api-down > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .atlas-home-api-down strong { color:#A92718; font-size:13px; font-weight:500; }
 .atlas-home-api-down span { color:var(--round-ink-2); font-size:12px; }
-.atlas-home-api-down button { min-height:36px; padding:0 16px; border:1px solid var(--round-line); border-radius:8px; background:#fff; color:var(--round-ink); font-size:12px; font-weight:500; }
+.atlas-home-api-down button { min-height:36px; padding:0 16px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink); font-size:12px; font-weight:500; }
 .atlas-home-api-down button:disabled { opacity:.4; }
 .atlas-home-board-console textarea:disabled { background:#F3F3F0!important; color:var(--round-ink-3)!important; opacity:1!important; }
 .atlas-home-stale-note { grid-column:1; grid-row:3; margin-top:12px; padding:8px 12px; border-left:2px solid var(--round-gold); background:#EDB92B12; color:#7A5600; font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; }
