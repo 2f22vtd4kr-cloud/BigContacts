@@ -656,8 +656,11 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600");
     expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
     expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS");
-    expect(launchButtonSource).toContain('const objectiveLimit = variant === "primary" ? 1_200 : 1_600;');
-    expect(launchButtonSource).toContain("maxLength={objectiveLimit}");
+    expect(launchRouteSource).toContain('router.get("/ingest/atlas-config"');
+    expect(launchRouteSource).toContain("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
+    expect(launchButtonSource).toContain("/api/ingest/atlas-config");
+    expect(launchButtonSource).toContain("maxLength={objectiveLimit ?? undefined}");
+    expect(launchButtonSource).not.toMatch(/1_200|1_600/);
     expect(canonicalDiscoverySource).not.toContain("Identify real operating companies and their current business decision-makers");
   });
 
