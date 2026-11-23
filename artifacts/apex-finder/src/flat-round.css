@@ -15,7 +15,7 @@
 .atlas-round-wordmark { display:flex; flex-direction:column; gap:4px; color:var(--round-ink); text-decoration:none; }
  .atlas-round-wordmark strong { font-size:16px; line-height:1; font-weight:500; letter-spacing:0; }
 .atlas-round-wordmark span, .atlas-round-page-meta, .atlas-round-footer { font-family:"Geist Mono","IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:0; }
-.atlas-round-wordmark span { color:var(--round-ink-3); font-size:8px; }
+.atlas-round-wordmark span { color:var(--round-ink-3); font-size:11px; }
 .atlas-round-primary { display:flex; align-items:center; gap:4px; margin-left:auto; padding:4px; border:1px solid var(--round-line); border-radius:16px; background:#fff; box-shadow:0 1px 3px #18181a0b; }
 .atlas-round-navlink { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:0 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:6px; transition:background .15s,color .15s; white-space:nowrap; }
 .atlas-round-navlink svg { width:14px; height:14px; }
@@ -35,7 +35,7 @@
 .atlas-round-page-meta strong { color:var(--round-ink-2); font-weight:500; }
 .atlas-round-meta-dot { color:#B8B8B2; }
 .atlas-round-content { width:100%; max-width:1600px; min-width:0; margin:0 auto; padding:12px clamp(16px,3vw,44px) 36px; overflow-wrap:anywhere; }
-.atlas-round-footer { display:flex; justify-content:space-between; gap:16px; padding:16px clamp(16px,3vw,44px); border-top:1px solid var(--round-line); color:var(--round-ink-3); font-size:8px; }
+.atlas-round-footer { display:flex; justify-content:space-between; gap:16px; padding:16px clamp(16px,3vw,44px); border-top:1px solid var(--round-line); color:var(--round-ink-3); font-size:11px; }
 .atlas-round-skip { position:absolute; left:-9999px; }
 .atlas-round-skip:focus { left:12px; top:12px; z-index:200; padding:12px; background:#fff; color:#18181a; }
 .atlas-round .atlas-card { background:var(--round-card)!important; color:var(--round-ink)!important; border:1px solid var(--round-line)!important; border-radius:12px!important; box-shadow:none!important; }
@@ -276,7 +276,7 @@
 .atlas-round .atlas-discover-panel { min-width:0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); padding:16px 0; background:transparent; }
 .atlas-round .atlas-discover-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
 .atlas-round .atlas-discover-panel-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:0!important; }
-.atlas-round .atlas-discover-panel-heading p { margin:4px 0 0; color:var(--round-ink-3)!important; font:400 10px/1.5 "Geist Mono",ui-monospace,monospace!important; }
+.atlas-round .atlas-discover-panel-heading p { margin:4px 0 0; color:var(--round-ink-3)!important; font:400 11px/1.5 "Geist Mono",ui-monospace,monospace!important; }
 .atlas-round .atlas-discover-count { display:grid; width:28px; height:28px; place-items:center; border:1px solid var(--round-line); border-radius:50%; color:var(--round-ink-2); font:500 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-discover-empty { padding:20px 0; color:var(--round-ink-2); font:400 13px/1.5 "Geist",sans-serif; }
 .atlas-round .atlas-discover-empty span { display:block; margin-top:4px; color:var(--round-ink-3); font-size:12px; }
@@ -284,7 +284,7 @@
 .atlas-round .atlas-discover-saved-list li { display:flex; min-width:0; align-items:center; gap:8px; padding:12px 0; border-top:1px solid var(--round-line); }
 .atlas-round .atlas-discover-saved-query { display:flex; min-width:0; flex:1; flex-direction:column; gap:8px; padding:0; border:0; background:transparent; color:var(--round-ink); text-align:left; cursor:pointer; }
 .atlas-round .atlas-discover-saved-query strong { overflow-wrap:anywhere; font:500 13px/1.45 "Geist",sans-serif; }
-.atlas-round .atlas-discover-saved-query span { display:flex; align-items:center; gap:4px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-saved-query span { display:flex; align-items:center; gap:4px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-discover-saved-query svg { width:11px; height:11px; }
 .atlas-round .atlas-discover-remove,.atlas-round .atlas-discover-refresh { display:grid; width:32px; height:32px; flex:none; place-items:center; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-3); cursor:pointer; }
 .atlas-round .atlas-discover-remove:hover,.atlas-round .atlas-discover-refresh:hover { color:var(--round-ink); background:var(--round-raised); }
@@ -294,7 +294,7 @@
 .atlas-round .atlas-discover-source-group-title { display:flex; align-items:center; gap:8px; margin-bottom:8px; color:var(--round-ink); font:500 12px "Geist",sans-serif; }
 .atlas-round .atlas-discover-source-group-title svg { width:14px; height:14px; color:var(--round-ink-2); }
 .atlas-round .atlas-discover-source-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:8px 0; color:var(--round-ink-2); font:400 11px/1.45 "Geist",sans-serif; }
-.atlas-round .atlas-discover-source-row span:last-child { flex:none; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; text-align:right; }
+.atlas-round .atlas-discover-source-row span:last-child { flex:none; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; text-align:right; }
 @media (max-width:760px) {
   .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
   .atlas-round .atlas-discover-search,.atlas-round .atlas-discover-search > div { min-height:520px; }
@@ -309,7 +309,7 @@
 .atlas-round .atlas-ledger-console { min-width:0; padding:20px 0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-ledger-section-heading,.atlas-round .atlas-ledger-register-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:20px; }
 .atlas-round .atlas-ledger-section-heading h2,.atlas-round .atlas-ledger-register-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:0!important; }
-.atlas-round .atlas-ledger-section-heading > span { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-section-heading > span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-search { display:flex; min-height:46px; align-items:center; gap:12px; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; }
 .atlas-round .atlas-ledger-search svg { width:15px; height:15px; color:var(--round-ink-3); flex:none; }
 .atlas-round .atlas-ledger-search input { width:100%; min-width:0; min-height:42px; border:0!important; outline:0; padding:0!important; background:transparent!important; color:var(--round-ink)!important; font:400 13px "Geist",sans-serif!important; box-shadow:none!important; }
@@ -332,15 +332,15 @@
 .atlas-round .atlas-ledger-person { display:flex; min-width:0; align-items:center; gap:12px; color:var(--round-ink); text-decoration:none; }
 .atlas-round .atlas-ledger-person > span:nth-child(2) { display:flex; min-width:0; flex-direction:column; gap:4px; }
 .atlas-round .atlas-ledger-person strong { color:var(--round-ink); font:500 12px "Geist",sans-serif; }
-.atlas-round .atlas-ledger-person small { max-width:250px; overflow:hidden; color:var(--round-ink-3); font:400 10px/1.4 "Geist",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
+.atlas-round .atlas-ledger-person small { max-width:250px; overflow:hidden; color:var(--round-ink-3); font:400 11px/1.4 "Geist",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
 .atlas-round .atlas-ledger-person > svg { width:12px; height:12px; margin-left:auto; color:var(--round-ink-3); flex:none; }
 .atlas-round .atlas-evidence-pattern { display:inline-block; width:12px; height:12px; flex:none; border-radius:0; background-color:transparent; }
-.atlas-round .atlas-ledger-status { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px "Geist",sans-serif; white-space:nowrap; }
+.atlas-round .atlas-ledger-status { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 11px "Geist",sans-serif; white-space:nowrap; }
 .atlas-round .atlas-ledger-status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--round-gold); }
 .atlas-round .atlas-ledger-status.is-verified::before { background:var(--round-green); }
 .atlas-round .atlas-ledger-status.is-corroborated::before { background:var(--round-blue); }
 .atlas-round .atlas-ledger-score { color:var(--round-ink)!important; font:500 12px "Geist Mono",ui-monospace,monospace!important; font-variant-numeric:tabular-nums; }
-.atlas-round .atlas-ledger-sources { max-width:150px; color:var(--round-ink-3)!important; font:400 10px/1.4 "Geist Mono",ui-monospace,monospace!important; }
+.atlas-round .atlas-ledger-sources { max-width:150px; color:var(--round-ink-3)!important; font:400 11px/1.4 "Geist Mono",ui-monospace,monospace!important; }
 .atlas-round .atlas-ledger-state { display:flex; min-height:180px; flex-direction:column; align-items:flex-start; justify-content:center; gap:8px; padding:20px 0; border-bottom:1px solid var(--round-line); color:var(--round-ink-2); font:400 13px/1.5 "Geist",sans-serif; }
 .atlas-round .atlas-ledger-state strong { color:var(--round-ink); font-weight:500; }
 .atlas-round .atlas-ledger-state button { display:inline-flex; align-items:center; gap:8px; min-height:36px; padding:0 12px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink); font-size:11px; }
@@ -357,28 +357,28 @@
 
 
 
-.atlas-round .atlas-ledger-contact-outcome { display:inline-flex; max-width:190px; padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; white-space:normal; }
+.atlas-round .atlas-ledger-contact-outcome { display:inline-flex; max-width:190px; padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; white-space:normal; }
 
 .atlas-round .atlas-home-route-finder { display:grid; gap:12px; padding:16px 0; border-top:1px solid var(--round-line); }
-.atlas-round .atlas-home-route-finder > label { display:grid; gap:8px; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-finder > label { display:grid; gap:8px; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-finder select { width:100%; min-width:0; padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; background:var(--round-card); color:var(--round-ink); font:400 12px "Geist",sans-serif; }
 .atlas-round .atlas-home-route-finder > button { justify-self:start; padding:12px 16px; border:1px solid var(--round-ink); border-radius:6px; background:var(--round-ink); color:var(--round-card); font:500 11px "Geist Mono",ui-monospace,monospace; cursor:pointer; }
 .atlas-round .atlas-home-route-finder > button:disabled { opacity:.45; cursor:not-allowed; }
 .atlas-round .atlas-home-route-finder > p,.atlas-round .atlas-home-route-recommendation { margin:0; color:var(--round-ink-3); font:400 11px/1.55 "Geist",sans-serif; }
 .atlas-round .atlas-home-route-result { display:grid; gap:12px; padding:12px; border:1px solid var(--round-line); border-radius:6px; background:var(--round-raised); }
-.atlas-round .atlas-home-route-result-meta { display:flex; justify-content:space-between; gap:12px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-result-meta { display:flex; justify-content:space-between; gap:12px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-result-meta strong { color:var(--round-ink); font-weight:500; }
 .atlas-round .atlas-home-route-nodes,.atlas-round .atlas-home-route-evidence { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
 .atlas-round .atlas-home-route-nodes li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; color:var(--round-ink); font:500 12px/1.4 "Geist",sans-serif; }
-.atlas-round .atlas-home-route-nodes li small { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-nodes li small { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-node-arrow { grid-column:1 / -1; color:var(--round-ink-3); font:400 12px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-evidence { padding-top:8px; border-top:1px solid var(--round-line); }
-.atlas-round .atlas-home-route-evidence li { display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px/1.4 "Geist",sans-serif; }
-.atlas-round .atlas-home-route-evidence li strong { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-evidence li { display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center; gap:8px; color:var(--round-ink-2); font:400 11px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-home-route-evidence li strong { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-legend { display:grid; gap:12px; padding-top:12px; border-top:1px solid var(--round-line); }
 .atlas-round .atlas-home-route-legend > div { display:grid; grid-template-columns:12px auto minmax(0,1fr); align-items:center; gap:8px; }
-.atlas-round .atlas-home-route-legend strong { color:var(--round-ink); font:500 10px "Geist Mono",ui-monospace,monospace; }
-.atlas-round .atlas-home-route-legend > div > span:last-child { color:var(--round-ink-3); font:400 10px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-home-route-legend strong { color:var(--round-ink); font:500 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-legend > div > span:last-child { color:var(--round-ink-3); font:400 11px/1.4 "Geist",sans-serif; }
 @media (max-width:760px) { .atlas-round .atlas-home-route-result-meta { flex-direction:column; gap:4px; } .atlas-round .atlas-home-route-legend > div { grid-template-columns:12px minmax(0,1fr); } .atlas-round .atlas-home-route-legend > div > span:last-child { grid-column:2; } }
 
 /* Connections board: user-owned contacts and only complete, source-backed routes. */
@@ -388,11 +388,11 @@
 .atlas-round .atlas-connections-routes { padding-top:16px; }
 .atlas-round .atlas-connections-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:16px; }
 .atlas-round .atlas-connections-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:0!important; }
-.atlas-round .atlas-connections-heading p { margin:4px 0 0; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connections-heading p { margin:4px 0 0; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connections-heading > span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
 .atlas-round .atlas-connections-search { display:flex; min-height:44px; align-items:center; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink-3); font:400 12px "Geist",sans-serif; }
 .atlas-round .atlas-connections-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
-.atlas-round .atlas-connections-tabs span { padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connections-tabs span { padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connections-tabs span.is-active { border-color:var(--round-ink); background:var(--round-raised); color:var(--round-ink); }
 .atlas-round .atlas-connections-empty { padding:20px 0; border-top:1px solid var(--round-line); color:var(--round-ink-2); }
 .atlas-round .atlas-connections-empty strong { color:var(--round-ink); font:500 13px "Geist",sans-serif; }
@@ -401,7 +401,7 @@
 .atlas-round .atlas-connections-counts > div { display:flex; min-width:0; flex-direction:column; gap:8px; padding:16px 12px; }
 .atlas-round .atlas-connections-counts > div + div { border-left:1px solid var(--round-line); }
 .atlas-round .atlas-connections-counts strong { color:var(--round-ink); font:500 22px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-.atlas-round .atlas-connections-counts span { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connections-counts span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connections-retry { margin-top:12px; padding:8px 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink); font-size:11px; }
 .atlas-round .atlas-connections-route-empty { display:flex; min-height:280px; flex-direction:column; align-items:flex-start; justify-content:center; padding:24px 0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-connections-route-mark { display:grid; width:34px; height:34px; place-items:center; margin-bottom:16px; border:1px solid var(--round-line); border-radius:50%; color:var(--round-ink-2); }
@@ -409,7 +409,7 @@
 .atlas-round .atlas-connections-route-empty strong { color:var(--round-ink); font:500 15px "Geist",sans-serif; }
 .atlas-round .atlas-connections-route-empty p { max-width:360px; margin:8px 0 0; color:var(--round-ink-3); font:400 12px/1.6 "Geist",sans-serif; }
 .atlas-round .atlas-connections-legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; }
-.atlas-round .atlas-connections-legend span { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connections-legend span { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connections-legend .atlas-evidence-pattern { width:12px; height:12px; border-radius:0; background-color:transparent; }
 @media (max-width:760px) {
   .atlas-round .atlas-connections-layout { grid-template-columns:minmax(0,1fr); gap:28px; }
@@ -418,16 +418,16 @@
 }
 
 
-.atlas-round .atlas-connections-tabs button { padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; background:transparent; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; cursor:pointer; }
+.atlas-round .atlas-connections-tabs button { padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; background:transparent; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; cursor:pointer; }
 .atlas-round .atlas-connections-tabs button.is-active { border-color:var(--round-ink); background:var(--round-raised); color:var(--round-ink); }
 .atlas-round .atlas-connections-record-list { border-top:1px solid var(--round-line); }
 .atlas-round .atlas-connection-record { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:12px 0; border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-connection-record-main { min-width:0; }
 .atlas-round .atlas-connection-record-names { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--round-ink-2); font:500 13px/1.4 "Geist",sans-serif; }
 .atlas-round .atlas-connection-record-names a { color:var(--round-ink); text-decoration:underline; text-decoration-color:var(--round-line); text-underline-offset:3px; }
-.atlas-round .atlas-connection-record-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connection-record-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connection-record-note { margin:8px 0 0; color:var(--round-ink-2); font:400 11px/1.5 "Geist",sans-serif; }
-.atlas-round .atlas-connection-record time { flex:none; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-connection-record time { flex:none; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-connections-list-state,.atlas-round .atlas-connections-data-note { color:var(--round-ink-3); font:400 11px/1.6 "Geist",sans-serif; }
 .atlas-round .atlas-connections-data-note { margin-top:16px; }
 @media (max-width:760px) { .atlas-round .atlas-connection-record { flex-direction:column; gap:8px; } }
@@ -440,23 +440,23 @@
 .atlas-round .atlas-reactor-run-console { padding:16px 0; }
 .atlas-round .atlas-reactor-board-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
 .atlas-round .atlas-reactor-board-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:0!important; }
-.atlas-round .atlas-reactor-board-heading p { margin:4px 0 0; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
-.atlas-round .atlas-reactor-board-heading > span { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.atlas-round .atlas-reactor-board-heading p { margin:4px 0 0; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-heading > span { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
 .atlas-round .atlas-reactor-board-heading > span.is-live { border-color:rgba(31,138,77,.35); color:var(--round-green); }
 .atlas-round .atlas-reactor-log-search { display:flex; min-height:42px; align-items:center; gap:8px; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; }
 .atlas-round .atlas-reactor-log-search svg { width:14px; height:14px; color:var(--round-ink-3); flex:none; }
 .atlas-round .atlas-reactor-log-search input { width:100%; min-width:0; min-height:38px; border:0!important; outline:0; background:transparent!important; color:var(--round-ink)!important; font:400 12px "Geist",sans-serif!important; box-shadow:none!important; }
 .atlas-round .atlas-reactor-log-search input::placeholder { color:var(--round-ink-3)!important; opacity:1; }
 .atlas-round .atlas-reactor-log-filters { display:flex; flex-wrap:wrap; gap:4px; margin:12px 0 16px; }
-.atlas-round .atlas-reactor-log-filters button { display:inline-flex; align-items:center; gap:8px; min-height:30px; padding:0 8px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-log-filters button { display:inline-flex; align-items:center; gap:8px; min-height:30px; padding:0 8px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-log-filters button[aria-pressed="true"] { border-color:var(--round-ink); background:var(--round-raised); color:var(--round-ink); }
 .atlas-round .atlas-reactor-log-filters strong { color:var(--round-ink-3); font-weight:500; }
 .atlas-round .atlas-reactor-log-list { min-height:0; overflow:auto; border-top:1px solid var(--round-line); }
 .atlas-round .atlas-reactor-log-item { display:grid; grid-template-columns:92px minmax(0,1fr); gap:16px; padding:16px 0; border-bottom:1px solid var(--round-line); }
-.atlas-round .atlas-reactor-log-time { display:flex; flex-direction:column; gap:4px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-log-time { display:flex; flex-direction:column; gap:4px; color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-log-time span { color:var(--round-ink-2); }
 .atlas-round .atlas-reactor-log-item-main { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:4px; }
-.atlas-round .atlas-reactor-log-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-log-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-log-category.is-search { border-color:rgba(39,87,198,.28); color:var(--round-blue); }
 .atlas-round .atlas-reactor-log-category.is-registry { border-color:rgba(31,138,77,.28); color:var(--round-green); }
 .atlas-round .atlas-reactor-log-category.is-browser { border-color:rgba(200,50,30,.24); color:var(--round-red); }
@@ -478,7 +478,7 @@
 .atlas-round .atlas-reactor-run-facts > div { display:flex; min-width:0; flex-direction:column; gap:8px; padding:0 8px; }
 .atlas-round .atlas-reactor-run-facts > div:first-child { padding-left:0; }
 .atlas-round .atlas-reactor-run-facts > div + div { border-left:1px solid var(--round-line); }
-.atlas-round .atlas-reactor-run-facts dt { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-run-facts dt { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-run-facts dd { margin:0; overflow-wrap:anywhere; color:var(--round-ink); font:500 11px/1.4 "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-live-note { margin-top:16px; padding:12px; border-left:2px solid var(--round-blue); background:var(--round-raised); color:var(--round-ink-2); font:400 11px/1.5 "Geist",sans-serif; }
 .atlas-round .atlas-reactor-live-note span { display:block; margin-bottom:4px; color:var(--round-blue); font:400 11px "Geist Mono",ui-monospace,monospace; letter-spacing:0; text-transform:none; }
@@ -498,7 +498,7 @@
 .atlas-round .atlas-profile-tabs { display:flex; min-width:0; gap:0; margin-bottom:20px; overflow-x:auto; border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-profile-tab { display:flex; min-width:130px; max-width:210px; flex-direction:column; gap:4px; padding:12px 16px 12px; border-bottom:2px solid transparent; color:var(--round-ink-2); text-decoration:none; white-space:nowrap; }
 .atlas-round .atlas-profile-tab strong { overflow:hidden; color:inherit; font:500 12px "Geist",sans-serif; text-overflow:ellipsis; }
-.atlas-round .atlas-profile-tab span { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-profile-tab span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-profile-tab[aria-current="page"] { border-bottom-color:var(--round-red); color:var(--round-ink); background:var(--round-raised); }
 .atlas-round .atlas-profile-tab-more { min-width:110px; align-items:flex-start; justify-content:center; }
 .atlas-round .atlas-board-profile [class*="bg-card"],.atlas-round .atlas-board-profile [class*="bg-background"] { background-color:#fff!important; }
@@ -518,26 +518,26 @@
 
 .atlas-round .atlas-reactor-run-status-group { display:flex; align-items:center; gap:8px; }
 .atlas-round .atlas-reactor-run-status.is-api { border-color:rgba(200,50,30,.35)!important; color:var(--round-red)!important; }
-.atlas-round .atlas-reactor-run-status-group button { min-height:28px; padding:0 8px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-run-status-group button { min-height:28px; padding:0 8px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:500 11px "Geist Mono",ui-monospace,monospace; }
 
-.atlas-round .atlas-ledger-view-all { display:inline-flex; align-items:center; justify-content:center; min-height:38px; margin:12px 0 0; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-view-all { display:inline-flex; align-items:center; justify-content:center; min-height:38px; margin:12px 0 0; padding:0 12px; border:1px solid var(--round-line); border-radius:10px; background:#fff; color:var(--round-ink-2); font:500 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-view-all:hover { border-color:var(--round-ink); color:var(--round-ink); }
-.atlas-round .atlas-discover-query-count { padding:4px 4px 0; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; text-align:right; }
+.atlas-round .atlas-discover-query-count { padding:4px 4px 0; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; text-align:right; }
 
 .atlas-round .atlas-reactor-live-board { display:flex; flex-direction:column; min-width:0; }
 .atlas-round .atlas-reactor-board-event { display:grid; grid-template-columns:92px minmax(0,1fr); gap:16px; padding:16px 0; border-bottom:1px solid var(--round-line); background:transparent; }
-.atlas-round .atlas-reactor-board-event-time { display:flex; flex-direction:column; gap:4px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-event-time { display:flex; flex-direction:column; gap:4px; color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-board-event-time span { color:var(--round-ink-2); }
 .atlas-round .atlas-reactor-board-event-content { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:8px; }
 .atlas-round .atlas-reactor-board-event-content strong { color:var(--round-ink); font:500 13px/1.4 "Geist",sans-serif; }
 .atlas-round .atlas-reactor-board-event-content p { max-width:680px; margin:0; color:var(--round-ink-2); font:400 11px/1.55 "Geist",sans-serif; }
-.atlas-round .atlas-reactor-board-event-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-event-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-board-event-category.is-search { border-color:rgba(39,87,198,.28); color:var(--round-blue); }
 .atlas-round .atlas-reactor-board-event-category.is-registry { border-color:rgba(31,138,77,.28); color:var(--round-green); }
 .atlas-round .atlas-reactor-board-event-category.is-browser { border-color:rgba(200,50,30,.24); color:var(--round-red); }
 .atlas-round .atlas-reactor-board-event-category.is-evidence { border-color:rgba(237,185,43,.32); color:#946b00; }
 .atlas-round .atlas-reactor-board-event-sources { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
-.atlas-round .atlas-reactor-board-event-sources a { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; text-decoration:underline; text-underline-offset:2px; }
+.atlas-round .atlas-reactor-board-event-sources a { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; text-decoration:underline; text-underline-offset:2px; }
 @media (max-width:760px) {
   .atlas-round .atlas-reactor-board-event { grid-template-columns:78px minmax(0,1fr); gap:12px; }
 }
@@ -608,7 +608,7 @@
 
 /* Card board contact groups keep personal and organization routes distinct. */
 .atlas-round .atlas-board-profile .atlas-card-contact-groups { display:flex; flex-direction:column; gap:12px; min-width:0; }
-.atlas-round .atlas-board-profile .atlas-card-contact-label { color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-board-profile .atlas-card-contact-label { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-board-profile .atlas-card-contact-empty { margin:0; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
 
 
@@ -894,4 +894,9 @@ body:has(.atlas-round-shell) {
 }
 .atlas-round .atlas-contact-route-secondary small {
   font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+
+.atlas-round .atlas-round-content [class*="text-[9px]"],
+.atlas-round .atlas-round-content [class*="text-[10px]"] {
+  font-size:11px!important;
 }
