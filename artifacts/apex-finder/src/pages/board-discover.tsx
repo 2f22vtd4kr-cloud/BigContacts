@@ -35,10 +35,12 @@ const WEB_PROVIDERS = [
 
 function providerState(slots: SourceSlot[] | undefined) {
   if (!Array.isArray(slots) || slots.length === 0) return "Not reported";
-  const configured = slots.filter((slot) => slot.state !== "missing");
-  if (configured.length === 0) return "Not configured";
-  if (configured.every((slot) => slot.state === "rate_limited" || slot.state === "exhausted")) return "Rate-limited";
-  return "Configured";
+  const active = slots.filter((slot) => slot.state === "active");
+  if (active.length > 0) return "Configured";
+  const present = slots.filter((slot) => slot.state !== "missing");
+  if (present.length === 0) return "Not configured";
+  if (present.every((slot) => slot.state === "rate_limited" || slot.state === "exhausted")) return "Rate-limited";
+  return "Unavailable";
 }
 
 function dateLabel(value?: string) {
@@ -116,7 +118,8 @@ export default function BoardDiscoverPage() {
   const webLive = webProviderRows.some((provider) => provider.status === "Configured");
   const reviewedRegistries = registrySources.filter((source) => source.productionReviewStatus === "reviewed_for_production");
   const reviewRequiredRegistries = registrySources.filter((source) => source.productionReviewStatus === "review_required");
-  const registryLive = reviewedRegistries.length > 0;
+  const availableRegistries = reviewedRegistries.filter((source) => source.runtimeAdapterImplemented === true);
+  const registryLive = availableRegistries.length > 0;
   const footprintLive = footprintCount > 0;
   const sourceKindsLive = Number(webLive) + Number(registryLive) + Number(footprintLive);
   const sourceKindsLabel = sourcesLoading || sourcesError ? "— of 3" : `${sourceKindsLive} of 3`;
@@ -125,10 +128,12 @@ export default function BoardDiscoverPage() {
   const webDetailWithNote = webProviderRows.some((provider) => provider.key === "serper" && provider.status === "Not reported")
     ? webDetail + " · Serper status not reported"
     : webDetail;
-  const registryDetail = reviewedRegistries.length > 0
-    ? reviewedRegistries.slice(0, 2).map((source) => source.label).join(", ") +
+  const registryDetail = availableRegistries.length > 0
+    ? availableRegistries.slice(0, 2).map((source) => source.label).join(", ") +
       (reviewRequiredRegistries.length > 0 ? ` · ${reviewRequiredRegistries[0].label} requires review` : "")
-    : registrySources.length > 0 ? "Catalogued; no production-reviewed adapter" : "Registry catalog unavailable";
+    : reviewedRegistries.length > 0
+      ? "Production reviewed; runtime adapter unavailable"
+      : registrySources.length > 0 ? "Catalogued; no production-reviewed runtime adapter" : "Registry catalog unavailable";
   const footprintDetail = footprintTotal === 0
     ? "Worker status not reported"
     : footprintCount === 0
