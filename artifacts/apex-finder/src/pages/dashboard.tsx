@@ -451,7 +451,7 @@ export default function Dashboard() {
             </div>
           ) : null}
 
-          {apiUnavailable && (stats || leads.length > 0) && (
+          {apiUnavailable && stats && (
             <div className="atlas-home-stale-note" role="status">Saved copy remains visible. Scores may be out of date.</div>
           )}
           <section className="atlas-home-figures" aria-label="Bureau figures">
