@@ -52,9 +52,9 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
   it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
-    const continuousWaveRows = "M0%204%20C4%200%204%200%208%204%20S12%208%2016%204%20M0%2012%20C4%2016%204%2016%208%2012%20S12%208%2016%2012";
+    const continuousWaveRows = "M0%206%20C8%202%208%202%2016%206%20S24%2010%2032%206%20M0%2018%20C8%2014%208%2014%2016%2018%20S24%2022%2032%2018";
     expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
-    expect(boardCss).not.toContain("M0%2012%20C4%208%204%208%208%2012");
+    expect(boardCss).toContain("background-size: 32px 24px;");
   });
 
   it("draws review bends with a seamless repeating diagonal field", () => {
