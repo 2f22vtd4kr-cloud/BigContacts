@@ -15,8 +15,13 @@ export default function BoardProfilePage() {
       : Array.isArray((rawEntities as any)?.entities)
         ? (rawEntities as any).entities
         : [];
-    return raw.filter((entity: any) => !entity.isHidden).slice(0, 5);
-  }, [rawEntities]);
+    const visible = raw.filter((entity: any) => !entity.isHidden);
+    const active = visible.find((entity: any) => String(entity.id) === id);
+    const first = visible.slice(0, 5);
+    return active && !first.some((entity: any) => String(entity.id) === id)
+      ? [active, ...first.slice(0, 4)]
+      : first;
+  }, [rawEntities, id]);
 
   return (
     <BoardPageFrame
@@ -33,7 +38,7 @@ export default function BoardProfilePage() {
             className="atlas-profile-tab"
           >
             <strong>{entity.name}</strong>
-            <span>{entity.type === "Corporation" || entity.type === "Trust" ? "Company" : "Person"}</span>
+            <span>{/company|corporation|trust|organization/i.test(String(entity.type ?? "")) ? "Company" : "Person"}</span>
           </Link>
         ))}
         <Link href="/profiles" className="atlas-profile-tab atlas-profile-tab-more">All cards <span>Open Ledger</span></Link>
