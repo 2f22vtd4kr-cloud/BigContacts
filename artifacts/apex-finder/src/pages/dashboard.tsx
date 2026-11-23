@@ -186,7 +186,7 @@ export default function Dashboard() {
                 </ol>
                 {routeQuery.data.edges.length > 0 && (
                   <ul className="atlas-home-route-evidence">
-                    {routeQuery.data.edges.map((edge, index) => {
+                    {routeQuery.data.edges.map((edge) => {
                       const status = routeEvidenceStatus((edge as any).evidenceStatus);
                       const hasPattern = status === "supported" || status === "disputed" || status === "review";
                       return (
