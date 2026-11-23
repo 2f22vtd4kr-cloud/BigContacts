@@ -21,6 +21,7 @@ const integrityBanner = readFileSync(new URL("../components/bureau-integrity-ban
 const sharedStatus = readFileSync(new URL("./system-status.ts", import.meta.url), "utf8");
 const replitPreflight = readFileSync(new URL("../../../../scripts/replit-preflight.mjs", import.meta.url), "utf8");
 const themeCss = readFileSync(new URL("../index.css", import.meta.url), "utf8");
+const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -107,6 +108,18 @@ describe("current Apex UI contract", () => {
     expect(launchButton).not.toContain("1_600");
     expect(launchButton).toContain("discoveryObjective: objective");
     expect(launchButton).toContain("Apex chooses its own targets, sources, providers, queries and next actions from the evidence");
+  });
+
+  it("keeps the four board patterns semantically distinct and the Home frame phase-aligned", () => {
+    expect(boardCss).toContain("background-size:auto,50% 100%,16px 16px");
+    expect(boardCss).toContain("background-clip:padding-box,border-box,border-box");
+    expect(boardCss).toContain("repeating-conic-gradient(#C8321E 0 25%,#EDB92B 0 50%)");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-supported");
+    expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-corroborated");
+    expect(boardCss).toContain("stroke-width='1.35'");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-review");
+    expect(boardCss).toContain("repeating-linear-gradient(135deg");
   });
 
   it("uses the backend launch limit and avoids duplicate Ledger totals while restoring the heraldic mark", () => {
