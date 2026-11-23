@@ -2085,7 +2085,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <ul>
                 {claimRows.map((entry: any) => {
                   const rawStatus = String(entry.status ?? "unclassified").toLowerCase();
-                  const patternStatus = ["verified", "corroborated", "review"].includes(rawStatus) ? rawStatus : null;
+                  const patternStatus = ["supported", "disputed", "review"].includes(rawStatus) ? rawStatus : null;
                   const label = rawStatus.replace(/[_-]+/g, " ").replace(/^\\w/, (letter: string) => letter.toUpperCase());
                   const sourceLabel = entry.sourceName || entry.sourceDomain || "Source not recorded";
                   return (
