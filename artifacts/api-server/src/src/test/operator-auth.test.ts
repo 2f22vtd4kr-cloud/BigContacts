@@ -47,6 +47,7 @@ describe("operator authentication boundary", () => {
     const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/app.ts"), "utf8");
     const routeSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/index.ts"), "utf8");
     const uiSource = fs.readFileSync(path.resolve(process.cwd(), "../apex-finder/src/App.tsx"), "utf8");
+    const viteConfig = fs.readFileSync(path.resolve(process.cwd(), "../apex-finder/vite.config.ts"), "utf8");
     const preflightSource = fs.readFileSync(path.resolve(process.cwd(), "../../scripts/replit-preflight.mjs"), "utf8");
     const replitConfig = fs.readFileSync(path.resolve(process.cwd(), "../../.replit"), "utf8");
     const apiPackage = fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8");
@@ -61,7 +62,13 @@ describe("operator authentication boundary", () => {
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(healthRouter)"));
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
     expect(uiSource).toContain('import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true"');
-    expect(uiSource).toContain('if (import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;');
+    expect(uiSource).toContain('if (import.meta.env.DEV || import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true") return desk;');
+    expect(viteConfig).toContain("const isProductionBuild");
+    expect(viteConfig).toContain("const isDevelopmentOrPreviewBuild");
+    expect(viteConfig).toContain("const operatorAuthBypass");
+    expect(viteConfig).toContain('process.env.VERCEL_ENV === "preview"');
+    expect(viteConfig).toContain('process.env.CONTEXT === "deploy-preview"');
+    expect(viteConfig).toContain('!isProductionBuild && process.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true"');
     expect(uiSource).toContain("<OperatorGate>{desk}</OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
     expect(replitConfig).toContain("[userenv.development]");
