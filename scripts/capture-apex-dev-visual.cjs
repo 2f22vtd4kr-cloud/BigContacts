@@ -280,6 +280,8 @@ async function main() {
           throw new Error(`Reactor run console/logbook split or metric hierarchy failed: ${JSON.stringify(boardDiagnostics.reactor)}`);
         }
         if (boardPage.label === "card") {
+          const visibleCardHeadings = await page.getByRole("heading", { name: "Mira Patel" }).count();
+          if (visibleCardHeadings !== 1) throw new Error(`Card responsive header is duplicated: ${visibleCardHeadings} visible headings`);
           const cardColors = await page.evaluate(() => ({
             primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
             secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
