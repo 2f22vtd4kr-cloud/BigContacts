@@ -105,7 +105,7 @@ function phaseLabel(atlas: AtlasStatus | null): string {
   return `Phase ${phase}`;
 }
 
-export function WorkspaceStatus() {
+export function WorkspaceStatus({ compact = false, className }: { compact?: boolean; className?: string }) {
   const [atlas, setAtlas] = useState<AtlasStatus | null>(null);
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -229,6 +229,53 @@ export function WorkspaceStatus() {
             : ShieldCheck;
   const nextCycle = formatNextCycle(atlas?.scheduler?.nextTriggerAt);
   const refreshedNow = now;
+  const compactKeyCount = summary.active;
+  const compactKeys = compactKeyCount > 0 ? `, ${compactKeyCount} ${compactKeyCount === 1 ? "key" : "keys"} live` : "";
+  const compactFullLabel = state === "ready"
+    ? `Ready${compactKeys}`
+    : state === "researching"
+      ? `Research running${compactKeys}`
+      : state === "researching-degraded"
+        ? `Research limited${compactKeys}`
+        : state === "queued"
+          ? `Queued${compactKeys}`
+          : state === "degraded"
+            ? "Services need attention"
+            : state === "offline"
+              ? "API unreachable"
+              : "Checking status";
+  const compactShortLabel = state === "ready"
+    ? "Ready"
+    : state === "researching"
+      ? "Research live"
+      : state === "researching-degraded"
+        ? "Limited"
+        : state === "queued"
+          ? "Queued"
+          : state === "degraded"
+            ? "Attention"
+            : state === "offline"
+              ? "API down"
+              : "Checking";
+  const compactDotState = state === "researching-degraded" ? "limited" : state;
+
+  if (compact) {
+    return (
+      <div
+        className={cn("atlas-round-status", className)}
+        role="status"
+        aria-live="polite"
+        aria-label={compactFullLabel}
+        title={copy.detail}
+        data-status={state}
+      >
+        <span className={`atlas-round-status-dot is-${compactDotState}`} aria-hidden="true" />
+        <span className="atlas-round-status-full">{compactFullLabel}</span>
+        <span className="atlas-round-status-short">{compactShortLabel}</span>
+      </div>
+    );
+  }
+
   const persistentRedisTotal = system?.databases.upstash.length ?? 0;
   const persistentRedisHealthy = system?.databases.upstash.filter(
     (slot) => slot.status === "ready" || slot.status === "ok",

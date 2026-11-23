@@ -17,7 +17,8 @@ describe("board card person/company distinction", () => {
   });
 
   it("keeps personal wealth exclusive to person cards", () => {
-    const personFactsStart = boardCardSource.indexOf("{!isCompanyCard && (");
+    const wealthHeading = boardCardSource.indexOf("<h3>Personal wealth</h3>");
+    const personFactsStart = boardCardSource.lastIndexOf("{!isCompanyCard && (", wealthHeading);
     const personFactsEnd = boardCardSource.indexOf("\n          )}", personFactsStart);
     expect(personFactsStart).toBeGreaterThanOrEqual(0);
     expect(personFactsEnd).toBeGreaterThan(personFactsStart);
@@ -49,7 +50,9 @@ describe("board card person/company distinction", () => {
   it("uses persisted claim-level statuses and keeps contact-surface status semantics", () => {
     expect(profileSource).toContain("useListResearchEvidence");
     expect(boardCardSource).toContain("researchEvidence.filter((entry: any) => Number(entry.entityId) === entityId)");
-    expect(boardCardSource).toContain('["supported", "disputed", "review"].includes(rawStatus)');
+    expect(boardCardSource).toContain('["supported", "corroborated", "review"].includes(rawStatus)');
+    expect(boardCardSource).toContain('const disputed = rawStatus === "disputed" || rawStatus === "rejected"');
+    expect(boardCardSource).toContain('const statusClass = disputed ? "is-disputed"');
     expect(boardCardSource).toContain('const label = rawStatus === "review" ? "In review"');
     expect(boardCardSource).toContain('replace(/^\\w/, (letter: string) => letter.toUpperCase())');
     expect(boardCardSource).toContain("Contact confidence");

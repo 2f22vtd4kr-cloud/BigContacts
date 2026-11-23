@@ -21,6 +21,9 @@ for (const [name, file] of Object.entries(files)) {
 const css = read(files.css);
 const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
+const contactSurface = read("artifacts/apex-finder/src/components/contact-surface.tsx");
+const profile = read("artifacts/apex-finder/src/pages/profile.tsx");
+const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const ledger = read(files.ledger);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
@@ -33,6 +36,7 @@ const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-rea
 
 const layout = read("artifacts/apex-finder/src/components/layout-legacy.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
+const boardPageFrame = read("artifacts/apex-finder/src/components/board-page-frame.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
   "artifacts/apex-finder/src/pages/duplicates.tsx",
@@ -46,10 +50,25 @@ const tabletSurfaces = [
 const checks = [
   ["Flat Round is the default presentation shell", read("artifacts/apex-finder/src/components/layout.tsx").includes("./layout-round")],
   ["Flat Round exposes the five product destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
-  ["Flat Round keeps all utility routes reachable", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research"].every((route) => roundLayout.includes(`href: "${route}"`))],
+  ["Flat Round preserves utility routes without exposing them in active board navigation", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].every((route) => router.includes(`path="${route}"`)) && !["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].some((route) => roundLayout.includes(`href: "${route}"`))],
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
-  ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.7[0-9]/.test(css)],
-  ["grain is neutral texture-only, not a color treatment", (() => { const grain = css.slice(css.indexOf(".atlas-noise::before"), css.indexOf(".atlas-noise > *")); return grain.includes("fill%3D%22%23fff") && !grain.includes("110,210,255") && !grain.includes("156,255,26") && !grain.includes("fractalNoise") && !grain.includes("feTurbulence"); })()],
+  ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
+  ["active shell sets the document canvas to the board's paper color", flatRound.includes("body:has(.atlas-round-shell)") && flatRound.includes("background:#FAFAF8!important;")],
+  ["sidebar follows Unslop's 240px rail and 36px navigation rhythm", flatRound.includes("width:240px; min-width:240px;") && flatRound.includes("min-height:36px;") && flatRound.includes("gap:8px;") && flatRound.includes("stroke-width:1.5;")],
+  ["tablet board layouts stack before content becomes cramped", flatRound.includes("@media (max-width:1000px) and (min-width:761px)") && flatRound.includes(".atlas-round .atlas-discover-layout,") && flatRound.includes(".atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr);")],
+  ["active sidebar contains only board navigation; compact workspace status stays in the topbar", roundLayout.split("<WorkspaceStatus compact").length === 2 && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
+  ["compact workspace status is live, accessible and uses semantic tinctures", workspaceStatus.includes("aria-label={compactFullLabel}") && workspaceStatus.includes("data-status={state}") && flatRound.includes(".atlas-round-status-dot.is-ready") && flatRound.includes(".atlas-round-status-dot.is-offline")],
+  ["active shell avoids a redundant, invented footer tagline", !roundLayout.includes("atlas-round-footer")],
+  ["board pages avoid redundant breadcrumbs and let the designed page title lead", !boardPageFrame.includes("breadcrumb") && !boardPageFrame.includes("Apex Atlas /")],
+  ["display tracking follows the board while small labels remain untracked", flatRound.includes("letter-spacing:-.035em") && !flatRound.includes("letter-spacing:-.045em") && !flatRound.includes("letter-spacing:-.025em") && !flatRound.includes("text-transform:uppercase")],
+  ["active board meta type never falls below eleven pixels", !/font-size:\s*(8|9|10)px|font:\s*\d+\s*(8|9|10)px/.test(flatRound) && flatRound.includes(' [class*="text-[10px]"]') && flatRound.includes("font-size:11px!important;")],
+  ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;") && flatRound.includes(".atlas-round .atlas-home-board-console .atlas-home-actions")],
+
+  ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
+  ["launch controls use named transitions and the board focus color", !launchButton.includes("transition-all") && !launchButton.includes("ring-lime-400") && launchButton.includes("ring-[#2757C6]/50")],
+  ["profile progress and hover actions avoid broad transition-all", !profile.includes("transition-all") && !flatRound.includes('[class*="transition-all"]')],
+  ["Card typography normalizes legacy bold, uppercase and italic utilities to the board system", flatRound.includes('.atlas-round .atlas-board-profile [class*="font-semibold"]') && flatRound.includes('.atlas-round .atlas-board-profile [class*="uppercase"]') && flatRound.includes('.atlas-round .atlas-board-profile [class*="italic"]') && flatRound.includes("font-weight:500!important;") && flatRound.includes("font-style:normal!important;")],
+
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
@@ -94,8 +113,14 @@ const checks = [
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
   ["console wave field uses an overdrawn, seamless 32x24 SVG tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-home-board-console::after\s*\{([^}]+)\}/); return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-repeat:\s*repeat/.test(wave[1]) && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
-  ["evidence wave swatch preserves the same overdrawn, seamless tile", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-disputed"); const wave = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
+  ["evidence wave swatch preserves the same overdrawn, seamless tile", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-corroborated"); const wave = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
   ["supported evidence dots remain discrete high-resolution circles", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-supported"); const dots = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(dots && dots[1].includes("background-color: #1F8A4D") && dots[1].includes("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)") && dots[1].includes("background-size: 12px 12px")); })()],
+
+  ["Connections path results use the weakest recorded evidence state for their patterned edge", pathFinder.includes("routePatternStatus(routeQuery.data.edges)") && pathFinder.includes("atlas-route-pattern-card is-")],
+  ["Home uses the board's honest strongest-routes empty state", dashboard.includes("Strongest routes") && dashboard.includes("No routes yet") && !dashboard.includes("useGetConnectionPath")],
+  ["Card contact routes carry written evidence statuses with semantic markers, not a false route-card frame", contactSurface.includes("primaryTierPattern") && contactSurface.includes("atlas-evidence-pattern is-") && contactSurface.includes("primaryTier.label === \"Disputed\"") && contactSurface.includes("atlas-contact-route-secondary") && contactSurface.includes('boardMode ? "hover:text-[#2757C6]" : "hover:text-[#9CFF1A]"') && !contactSurface.includes("atlas-route-pattern-card")],
+  ["Person cards show an honest route empty state when no route is stored", profile.includes("atlas-card-route-empty") && profile.includes("No route is stored on this card") && profile.includes('href="/network"')],
+  ["route-card pattern edge follows the board's 12px frame and 4px spacing grid", flatRound.includes(".atlas-route-pattern-card {") && flatRound.includes("padding:12px;") && flatRound.includes("border-radius:16px;") && flatRound.includes("background-size:12px 12px;") && flatRound.includes("background-size:32px 24px;")],
 ];
 
 let failed = false;

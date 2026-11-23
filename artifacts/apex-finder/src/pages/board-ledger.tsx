@@ -87,7 +87,6 @@ export default function BoardLedgerPage() {
   return (
     <BoardPageFrame
       className="atlas-board-ledger"
-      breadcrumb="Ledger"
       split
       title="Everyone on the register"
       description="The Ledger is the Bureau’s register. Each person Atlas has found is entered once, with recorded sources and the contact outcome Atlas has established."

@@ -5,6 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
+const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const legacyDashboard = read("artifacts/apex-finder/src/pages/dashboard-legacy.tsx");
 const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const reactor = read("artifacts/apex-finder/src/pages/reactor.tsx");
@@ -32,7 +33,8 @@ require(dashboard.includes("People worth knowing"), "Home must use the approved 
 require(dashboard.includes("atlas-home-board-grid"), "Home must use the approved split desktop composition");
 require(dashboard.includes("atlas-home-board-console"), "Home must use the framed launch console");
 require(dashboard.includes("All connections") && dashboard.includes('aria-label="Open all connections"'), "Home must link to the relationship register without mislabelling raw edges as routes");
-require(dashboard.includes("Shortest connection path") && dashboard.includes("useGetConnectionPath") && dashboard.includes("useListEntities") && dashboard.includes("Find shortest path") && dashboard.includes("routeQuery.data.path") && dashboard.includes("atlas-evidence-pattern is-supported") && dashboard.includes("atlas-evidence-pattern is-disputed") && dashboard.includes("atlas-evidence-pattern is-review") && dashboard.includes("<strong>Supported</strong>") && dashboard.includes("<strong>Disputed</strong>") && !dashboard.includes("Strongest routes") && !dashboard.includes("useListRelationships"), "Home must use the backend shortest-path API and map real graph statuses without relabelling raw edges as complete routes");
+require(dashboard.includes("Strongest routes") && dashboard.includes("No routes yet") && dashboard.includes("no personal contact routes to rank yet") && dashboard.includes("atlas-home-route-legend") && dashboard.includes("<strong>Supported</strong>") && dashboard.includes("<strong>Corroborated</strong>") && dashboard.includes("<strong>Disputed</strong>") && dashboard.includes("CircleAlert") && !dashboard.includes("useGetConnectionPath") && !dashboard.includes("useListEntities"), "Home must match the board's real-data empty state without inventing strongest-route records");
+require(pathFinder.includes("useGetConnectionPath") && pathFinder.includes("useListEntities") && pathFinder.includes("Find shortest path") && pathFinder.includes("routePatternStatus") && pathFinder.includes("atlas-route-pattern-card"), "The real shortest-path API remains available in Connections with evidence-patterned results");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
 require(dashboard.includes('label="People"') && dashboard.includes('label="Relationships"') && dashboard.includes('label="Assets"'), "Home figures must use the backend's actual entity, relationship and asset counts");
 require(!dashboard.includes("atlas-stat-icon") && !dashboard.includes("icon: Users") && !dashboard.includes("icon: Network"), "Home figures must remain typographic, not decorative icon tiles");
@@ -43,10 +45,10 @@ require(!dashboard.includes("atlas-home-secondary-row"), "Home must not add shor
 require(!dashboard.includes("ScoreboardStrip"), "operator scoreboard must not displace the designed Home composition");
 require(css.includes(".atlas-home-board-grid"), "CSS must define the board's two-column Home layout");
 require(css.includes("width='24'%20height='24'%20viewBox='0%200%2024%2024'") && css.includes("x='12'%20y='12'%20width='12'%20height='12'"), "launch console must use the crisp 12px SVG checker cells");
-require(css.includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && css.includes("M-16%2012%20C-8%208%20-8%208%200%2012") && css.includes("background-size: 32px 24px"), "launch console must use one overdrawn, phase-matched SVG wave per tile");
+require(css.includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && css.includes("M-16%2012%20C-8%204%20-8%204%200%2012") && css.includes("background-size:32px 24px"), "launch console must use a seamless, phase-matched wave tile with continuous curves");
 require(css.includes("border-radius:20px 0 0 20px") && css.includes("border-radius:0 20px 20px 0"), "split console patterns must round only their outer corners so the wave field is not clipped at the center seam");
 require(css.includes("#FAFAF8") && css.includes("#C8321E") && css.includes("#1F8A4D") && css.includes("#2757C6") && css.includes("#EDB92B"), "CSS must preserve the board's paper and four semantic tinctures");
-require(css.includes("background-color: #1F8A4D;") && css.includes("radial-gradient(circle, #FAFAF8") && css.includes("background-color: #2757C6;") && css.includes("stroke='%23FAFAF8'") && css.includes("background-color: #F8E8B7;"), "supported dots, disputed waves and review bends must use the board's light geometry on their semantic tincture");
+require(css.includes("background-color: #1F8A4D;") && css.includes("radial-gradient(circle, #FAFAF8") && css.includes("background-color: #2757C6;") && css.includes("stroke='%23FAFAF8'") && css.includes("background-color: #F8E8B7;") && css.includes("background-color: #C8321E;"), "supported dots, corroborated waves, review bends and disputed markers must preserve their actual evidence semantics");
 require(css.includes("@media (max-width:760px)"), "Home must define the 390px mobile composition");
 require(css.includes(".atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }"), "optional Home status rows must not leave empty grid tracks");
 require(launch.includes("launchTargetCount"), "launch console must expose the target-count control");
@@ -57,10 +59,11 @@ require(launch.includes("Web search") && launch.includes("Registries") && launch
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
-require(roundLayout.includes("atlas-round-mobile-utilities") && roundLayout.includes('aria-label="Apex Atlas navigation"'), "mobile primary and utility destinations must remain available in the consolidated navigation menu");
-require(roundLayout.includes('aria-controls="atlas-round-mobile-utilities"') && roundLayout.includes("aria-expanded={mobileOpen}"), "mobile navigation toggle must expose its expanded state and controlled menu");
-require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "mobile menu must identify the active destination");
-require(css.includes("atlas-round-mobile-utilities") && css.includes("max-height:calc(100dvh - 88px)") && css.includes("overflow:auto"), "mobile menu must remain scrollable within the safe viewport");
+require(roundLayout.includes("atlas-round-sidebar") && roundLayout.includes("primaryNav.map") && roundLayout.includes('aria-label="Primary navigation"'), "board navigation must be a persistent sidebar with only the five designed destinations");
+require(roundLayout.includes('aria-controls="atlas-round-sidebar"') && roundLayout.includes("aria-expanded={mobileOpen}") && roundLayout.includes("atlas-round-sidebar-backdrop"), "mobile sidebar must be an accessible off-canvas drawer with a dismissible backdrop");
+require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "sidebar must identify the active destination");
+require(!roundLayout.includes("utilityNav") && !roundLayout.includes("atlas-round-more-menu") && !roundLayout.includes("Crosshair"), "non-board utilities must remain implemented but unavailable from the active sidebar, and the target icon must be removed");
+require(css.includes(".atlas-round-sidebar") && css.includes(".atlas-round-sidebar-backdrop") && css.includes("translateX(-102%)") && css.includes("visibility:hidden"), "sidebar must be persistent on desktop and an off-canvas drawer on mobile");
 require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
 require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
@@ -94,7 +97,7 @@ require(css.includes(".atlas-round .atlas-connection-record") && css.includes(".
 require(router.includes('path="/network" component={GraphViewer}'), "The full relationship graph must remain available in the classic rollback");
 require(router.includes('path="/network/graph" component={GraphViewer}'), "The board must expose the full relationship graph at its own utility route");
 require(router.includes('path="/reactor/topology" component={IntelligenceReactorPage}'), "The original Reactor topology must remain available as a separate utility route");
-require(layout.includes('href: "/network/graph"') && layout.includes('href: "/reactor/topology"'), "Graph and Reactor topology utilities must be reachable from board navigation");
+require(!layout.includes('href: "/network/graph"') && !layout.includes('href: "/reactor/topology"') && router.includes('path="/network/graph"') && router.includes('path="/reactor/topology"'), "Graph and Reactor topology implementations must remain in the router but unavailable from board navigation");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook") && reactor.includes("newest last"), "Reactor board must use the shared normalized live-telemetry store");
 require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board") && liveSurface.includes("boardMode ? 50 : 18"), "Reactor board must render the full normalized 50-step window in its paper logbook");

@@ -62,7 +62,6 @@ export default function BoardProfilePage() {
   return (
     <BoardPageFrame
       className="atlas-board-profile"
-      breadcrumb="Ledger / Cards"
       title="One card, one subject"
       description="Every person or company Atlas has enough evidence to follow gets its own card. Every card is its own tab."
     >

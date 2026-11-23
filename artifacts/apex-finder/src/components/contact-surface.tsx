@@ -65,9 +65,10 @@ function routeTier(route: ContactRouteView, boardMode = false): { label: string;
     return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
   }
   const validation = String(route.validationStatus ?? "").toLowerCase();
-  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#2757C6" };
-  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#1F8A4D" };
-  return { label: "In review", title: "Source context or attribution still needs review", color: "#EDB92B" };
+  if (/disputed|rejected/.test(validation)) return { label: "Disputed", title: "This public route carries a dispute or rejection note", color: "#C8321E" };
+  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#1D4FAE" };
+  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#17713E" };
+  return { label: "In review", title: "Source context or attribution still needs review", color: "#7A5600" };
 }
 
 function markColor(mark?: string, boardMode = false): string {
@@ -169,6 +170,8 @@ export function ContactSurface({
   }
 
   const primary = routes[0]!;
+  const primaryTier = routeTier(primary, boardMode);
+  const primaryTierPattern = primaryTier.label === "Verified" ? "supported" : primaryTier.label === "Corroborated" ? "corroborated" : primaryTier.label === "In review" ? "review" : null;
   const rest = routes.slice(1, density === "row" ? 4 : 8);
   const overflow = routes.length - 1 - rest.length;
   const PrimaryIcon = iconFor(String(primary.vectorType ?? ""), primary.mark);
@@ -179,9 +182,9 @@ export function ContactSurface({
         ? mailHref(primary.value!)
         : safeExternalHref(primary.sourceUrl) || safeExternalHref(String(primary.value).startsWith("http") ? primary.value : undefined);
 
-  return (
+  const content = (
     <div
-      className={cn("flex flex-col gap-1 min-w-0", className)}
+      className={cn("atlas-contact-surface-inner flex flex-col gap-1 min-w-0", className)}
       data-testid="contact-surface"
       data-route-count={routes.length}
     >
@@ -191,7 +194,7 @@ export function ContactSurface({
           <a
             href={primaryHref}
             className={cn(
-              "truncate font-mono text-foreground hover:text-[#9CFF1A]",
+              cn("truncate font-mono text-foreground", boardMode ? "hover:text-[#2757C6]" : "hover:text-[#9CFF1A]"),
               density === "card" ? "text-sm" : "text-xs",
             )}
             onClick={(e) => e.stopPropagation()}
@@ -209,12 +212,18 @@ export function ContactSurface({
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <span
-          className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"
-          style={{ color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
+          className={boardMode ? "atlas-contact-route-mark" : "inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"}
+          style={boardMode ? { color: markColor(primary.mark, boardMode) } : { color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
         >
           {primary.label || primary.mark || primary.vectorType}
         </span>
-        <span className="inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground" title={routeTier(primary, boardMode).title}>{routeTier(primary, boardMode).label}</span>
+        {boardMode && primaryTierPattern && <span className={"atlas-evidence-pattern is-" + primaryTierPattern} aria-hidden="true" />}
+        {boardMode && primaryTier.label === "Disputed" && <AlertTriangle className="atlas-evidence-disputed-mark" aria-hidden="true" />}
+        <span
+          className={boardMode ? "atlas-contact-route-status" : "inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground"}
+          style={boardMode ? { color: primaryTier.color } : undefined}
+          title={primaryTier.title}
+        >{primaryTier.label}</span>
         {primary.source && primary.source !== "entity" ? (
           <span className="truncate text-[10px] text-muted-foreground max-w-[120px]" title={primary.source}>
             {primary.source}
@@ -227,6 +236,18 @@ export function ContactSurface({
               : r.vectorType === "email"
                 ? mailHref(r.value!)
                 : safeExternalHref(r.sourceUrl);
+          const tier = routeTier(r, boardMode);
+          const pattern = tier.label === "Verified" ? "supported" : tier.label === "Corroborated" ? "corroborated" : tier.label === "In review" ? "review" : null;
+          if (boardMode) {
+            return (
+              <span key={`${r.vectorType}-${r.value}-${i}`} className="atlas-contact-route-secondary" title={`${tier.title} · ${r.source || ""}`}>
+                {href ? <a href={href} onClick={(e) => e.stopPropagation()}>{r.value}</a> : <span>{r.value}</span>}
+                {pattern && <span className={"atlas-evidence-pattern is-" + pattern} aria-hidden="true" />}
+                {tier.label === "Disputed" && <AlertTriangle className="atlas-evidence-disputed-mark" aria-hidden="true" />}
+                <small style={{ color: tier.color }}>{tier.label}</small>
+              </span>
+            );
+          }
           return (
             <span
               key={`${r.vectorType}-${r.value}-${i}`}
@@ -234,7 +255,7 @@ export function ContactSurface({
               title={`${r.label || r.mark} · ${r.source || ""}`}
             >
               {href ? (
-                <a href={href} className="truncate hover:text-[#9CFF1A]" onClick={(e) => e.stopPropagation()}>
+                <a href={href} className={cn("truncate", boardMode ? "hover:text-[#2757C6]" : "hover:text-[#9CFF1A]")} onClick={(e) => e.stopPropagation()}>
                   {r.value}
                 </a>
               ) : (
@@ -249,4 +270,5 @@ export function ContactSurface({
       </div>
     </div>
   );
+  return content;
 }

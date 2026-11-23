@@ -60,24 +60,37 @@ describe("Western registry seed source-catalogue honesty", () => {
 });
 
 const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
+const connectionsSource = readFileSync(new URL("../pages/board-connections.tsx", import.meta.url), "utf8");
+const pathFinderSource = readFileSync(new URL("../components/connection-path-finder.tsx", import.meta.url), "utf8");
 
-describe("board Home route projection", () => {
-  it("uses the backend shortest-path endpoint and truthful graph status labels", () => {
-    expect(currentDashboardSource).toContain("Shortest connection path");
-    expect(currentDashboardSource).toContain("useGetConnectionPath");
-    expect(currentDashboardSource).toContain("useListEntities");
-    expect(currentDashboardSource).toContain("Find shortest path");
-    expect(currentDashboardSource).toContain("routeQuery.data.path");
+describe("board Home and Connections route projection", () => {
+  it("keeps Home's Strongest routes panel honest when no ranked personal-contact route feed exists", () => {
+    expect(currentDashboardSource).toContain("Strongest routes");
+    expect(currentDashboardSource).toContain("No routes yet");
+    expect(currentDashboardSource).toContain("no personal contact routes to rank yet");
+    expect(currentDashboardSource).toContain("Find a shortest path in Connections");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-supported");
-    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-disputed");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-corroborated");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-review");
     expect(currentDashboardSource).toContain("<strong>Supported</strong>");
     expect(currentDashboardSource).toContain("<strong>Disputed</strong>");
-    expect(currentDashboardSource).not.toContain("Strongest routes");
+    expect(currentDashboardSource).not.toContain("useGetConnectionPath");
+    expect(currentDashboardSource).not.toContain("routeQuery.data.path");
     expect(currentDashboardSource).not.toContain("useListRelationships");
     expect(currentDashboardSource).toContain('label="Relationships" value={stats?.totalRelationships');
     expect(currentDashboardSource).toContain('label="Assets" value={stats?.totalAssets');
     expect(currentDashboardSource).not.toContain('label="Routes" value={stats?.totalRelationships');
     expect(currentDashboardSource).not.toContain('label="Evidence records" value={stats?.totalAssets');
+  });
+
+  it("preserves the real backend shortest-path finder in Connections", () => {
+    expect(connectionsSource).toContain("<ConnectionPathFinder />");
+    expect(pathFinderSource).toContain("useGetConnectionPath");
+    expect(pathFinderSource).toContain("useListEntities");
+    expect(pathFinderSource).toContain("Find a shortest path");
+    expect(pathFinderSource).toContain("routeQuery.data.path");
+    expect(pathFinderSource).toContain("atlas-evidence-pattern is-");
+    expect(pathFinderSource).toContain("routeEvidenceStatus");
+    expect(pathFinderSource).toContain("routeQuery.data.edges");
   });
 });

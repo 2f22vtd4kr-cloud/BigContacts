@@ -231,7 +231,7 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
         <span className={cn("text-[11px] font-mono font-bold", txtCls)}>{score}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all duration-700", barCls)} style={{ width: `${score}%` }} />
+        <div className={cn("h-full rounded-full transition-[width] duration-700", barCls)} style={{ width: `${score}%` }} />
       </div>
     </div>
   );
@@ -276,7 +276,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden mb-2.5">
-        <div className={cn("h-full rounded-full transition-all duration-700", barCls)} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full transition-[width] duration-700", barCls)} style={{ width: `${pct}%` }} />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {fields.map((f) => (
@@ -2070,6 +2070,17 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             </div>
           </header>
 
+          {!isCompanyCard && (
+            <section className="atlas-card-section atlas-card-route-empty" aria-labelledby="atlas-card-route-title">
+              <div className="atlas-card-section-heading">
+                <div><h3 id="atlas-card-route-title">Route</h3><p>Shortest recorded path to this subject</p></div>
+                <span>Not recorded</span>
+              </div>
+              <p className="atlas-card-empty">No route is stored on this card. Use Connections to calculate the shortest recorded path between two records.</p>
+              <Link href="/network" className="atlas-card-route-link">Find a shortest path <ArrowUpRight className="w-3.5 h-3.5" /></Link>
+            </section>
+          )}
+
           <section className="atlas-card-section atlas-card-claims" aria-labelledby="atlas-card-claims-title">
             <div className="atlas-card-section-heading">
               <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Claim-level evidence from the latest research session.</p></div>
@@ -2085,14 +2096,18 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <ul>
                 {claimRows.map((entry: any) => {
                   const rawStatus = String(entry.status ?? "unclassified").toLowerCase();
-                  const patternStatus = ["supported", "disputed", "review"].includes(rawStatus) ? rawStatus : null;
+                  const patternStatus = ["supported", "corroborated", "review"].includes(rawStatus) ? rawStatus : null;
+                  const disputed = rawStatus === "disputed" || rawStatus === "rejected";
+                  const statusClass = disputed ? "is-disputed" : patternStatus ? "is-" + patternStatus : "is-unclassified";
                   const label = rawStatus === "review" ? "In review" : rawStatus.replace(/[_-]+/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase());
                   const sourceLabel = entry.sourceName || entry.sourceDomain || "Source not recorded";
                   return (
                     <li key={entry.id}>
                       {patternStatus
                         ? <span className={"atlas-evidence-pattern is-" + patternStatus} aria-hidden="true" />
-                        : <span className="atlas-card-claim-status is-unclassified"> </span>}
+                        : disputed
+                          ? <AlertCircle className="atlas-evidence-disputed-mark" aria-hidden="true" />
+                          : <span className="atlas-card-claim-status is-unclassified"> </span>}
                       <div className="atlas-card-claim-copy">
                         <strong>{entry.claimType?.replace(/[_-]+/g, " ") || "Recorded claim"}</strong>
                         <p>{entry.value || entry.claim || "Claim value not recorded"}</p>
@@ -2101,7 +2116,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                           <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Open source</a>
                         )}
                       </div>
-                      <span className={"atlas-card-claim-status" + (patternStatus ? " is-" + patternStatus : " is-unclassified")}>{label}</span>
+                      <span className={"atlas-card-claim-status " + statusClass}>{label}</span>
                     </li>
                   );
                 })}
@@ -2433,7 +2448,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                           <button
                             onClick={() => handleDeleteRelationship(rel.id)}
                             disabled={deletingRelId === rel.id}
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-all disabled:opacity-50"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-colors duration-160 disabled:opacity-50"
                             title="Remove relationship"
                           >
                             {deletingRelId === rel.id

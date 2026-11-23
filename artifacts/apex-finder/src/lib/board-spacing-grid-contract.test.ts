@@ -40,15 +40,15 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(radiusFor(".atlas-round-primary")).toBe("16px");
     expect(radiusFor(".atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-round .atlas-card")).toBe("12px!important");
-    expect(radiusFor(".atlas-round-mobile-utilities")).toBe("16px");
-    expect(radiusFor(".atlas-round-mobile-utilities a,.atlas-round-mobile-utilities button")).toBe("6px");
+    expect(radiusFor(".atlas-round-sidebar .atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-home-console-inner")).toBe("12px");
     expect(radiusFor(".atlas-round .atlas-home-board-console")).toBe("20px!important");
     expect(radiusFor(".atlas-round .atlas-home-board-console .atlas-launch-cta")).toBe("10px!important");
     expect(radiusFor(".atlas-launch-depth button")).toBe("6px");
     expect(radiusFor(".atlas-launch-target-count button")).toBe("6px");
-    expect(layoutSource).toContain("primaryNav.map(item =>");
-    expect(layoutSource).toContain("utilityNav.map(item =>");
+    expect(layoutSource).toContain("primaryNav.map((item) =>");
+    expect(layoutSource).not.toContain("utilityNav");
+    expect(layoutSource).not.toContain("Crosshair");
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
 

@@ -93,7 +93,16 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForTimeout(1800);
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
+      await page.waitForTimeout(400);
+      const workspaceStatusVisible = await page.evaluate(() => {
+        const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
+        if (!status) return false;
+        const rect = status.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return rect.width > 0 && rect.height > 0 && !!hit && (hit === status || status.contains(hit));
+      });
+      if (!workspaceStatusVisible) throw new Error("Workspace status is obscured by the shell header");
 
       const prompt = page.locator("textarea").first();
       if (await prompt.count()) {
@@ -102,17 +111,14 @@ async function main() {
       }
 
       let routeFixtureLoaded = false;
-      const routeSelects = page.locator(".atlas-home-route-finder select");
-      if (await routeSelects.count() === 2) {
-        await routeSelects.nth(0).selectOption("1");
-        await routeSelects.nth(1).selectOption("2");
-        await page.getByRole("button", { name: "Find shortest path" }).click();
-        await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
-        routeFixtureLoaded = true;
-      }
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
+      const sidebarLinks = await page.locator(".atlas-round-sidebar-nav a").allTextContents();
+      if (sidebarLinks.length !== 5 || sidebarLinks.some((label) => /Field manual|System status|Data sources|Source directory|Persona review|Duplicate review|Workspace activity|Network graph|Reactor topology|Intel terminal/.test(label))) {
+        throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
+      }
+      if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
@@ -121,6 +127,18 @@ async function main() {
         bodyHtmlLength: document.body.innerHTML.length,
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
+        sidebar: (() => {
+          const element = document.querySelector(".atlas-round-sidebar");
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return { width: rect.width, height: rect.height, position: style.position, visibility: style.visibility, links: Array.from(element.querySelectorAll("nav a")).map((link) => link.textContent?.trim()) };
+        })(),
+        launchFramePatterns: (() => {
+          const element = document.querySelector(".atlas-home-board-console");
+          if (!element) return null;
+          return { checky: getComputedStyle(element, "::before").backgroundImage, waves: getComputedStyle(element, "::after").backgroundImage };
+        })(),
         launchButton: (() => {
           const element = document.querySelector('[data-testid="button-launch-apex-atlas"]');
           if (!element) return null;
@@ -141,6 +159,8 @@ async function main() {
         })(),
         scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean),
       }));
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
       const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
       fs.writeFileSync(`/tmp/apex-home-${name}.jpg`, screenshot);
       console.log(`APEX_VISUAL_META_${name}=${JSON.stringify({
@@ -155,6 +175,38 @@ async function main() {
         viteLog: fs.existsSync("/tmp/apex-vite.log") ? fs.readFileSync("/tmp/apex-vite.log", "utf8").slice(-5000) : "",
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
+      if (name === "mobile") {
+        const openNavigation = page.getByRole("button", { name: "Open navigation" });
+        if (await openNavigation.count()) {
+          await openNavigation.click();
+          await page.waitForSelector(".atlas-round-sidebar.is-open", { timeout: 3000 });
+          const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
+          console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
+        } else {
+          throw new Error("Mobile sidebar toggle is missing.");
+        }
+      }
+      await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
+      const routeSelects = page.locator(".atlas-connections-path-finder select");
+      if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
+      await routeSelects.nth(0).selectOption("1");
+      await routeSelects.nth(1).selectOption("2");
+      await page.getByRole("button", { name: "Find shortest path" }).click();
+      await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
+      routeFixtureLoaded = true;
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
+      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
+      console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
+        url: page.url(),
+        routeFixtureLoaded,
+        pathResultVisible: await page.locator(".atlas-home-route-result").isVisible(),
+        browserErrors: browserErrors.slice(0, 20),
+        failedRequests: failedRequests.slice(0, 20),
+      })}`);
+      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
       await page.close();
     }
   } finally {

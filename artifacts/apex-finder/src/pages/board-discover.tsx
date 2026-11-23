@@ -174,7 +174,6 @@ export default function BoardDiscoverPage() {
   return (
     <BoardPageFrame
       className="atlas-board-discover"
-      breadcrumb="Discover"
       split
       title="Where Atlas looks"
       description="Saved searches and the sources behind them. Atlas chooses its own sources for each run; this page shows what it can choose from."

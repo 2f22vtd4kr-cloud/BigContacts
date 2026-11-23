@@ -1,55 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Activity, BookOpen, ChevronDown, Database, GitCompare, Menu, Network, Search, Settings2, Telescope, X, Crosshair } from "lucide-react";
-import { ApiKeyHealth } from "@/components/api-key-health";
+import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
 
 const primaryNav = [
-  { name: "Overview", href: "/", icon: Crosshair },
+  { name: "Overview", href: "/", icon: House },
   { name: "Ledger", href: "/profiles", icon: Database },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
   { name: "Reactor", href: "/reactor", icon: ReactorMark },
 ];
-const utilityNav = [
-  { name: "Field manual", href: "/manual", icon: BookOpen },
-  { name: "System status", href: "/status", icon: Activity },
-  { name: "Data sources", href: "/data-sources", icon: Database },
-  { name: "Source directory", href: "/osint-tools", icon: Telescope },
-  { name: "Persona review", href: "/improvements", icon: Settings2 },
-  { name: "Duplicate review", href: "/duplicates", icon: GitCompare },
-  { name: "Workspace activity", href: "/jobs", icon: Activity },
-  { name: "Network graph", href: "/network/graph", icon: Network },
-  { name: "Reactor topology", href: "/reactor/topology", icon: ReactorMark },
-  { name: "Intel terminal", href: "/research", icon: Crosshair },
-];
 
-export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
+export function Layout({ children }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
   const [location] = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
-  const mobileWasOpen = useRef(false);
+  const wasOpen = useRef(false);
   const active = (href: string) => href === "/" ? location === "/" : location === href || location.startsWith(href + "/");
   const title = primaryNav.find((item) => active(item.href))?.name
-    ?? utilityNav.find((item) => active(item.href))?.name
-    ?? (location.startsWith("/profile/") ? "Person dossier" : "Apex Atlas");
+    ?? (location.startsWith("/profile/") ? "Card" : "Apex Atlas");
+
   useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
   useEffect(() => { setMobileOpen(false); }, [location]);
   useEffect(() => {
     if (mobileOpen) {
-      mobileWasOpen.current = true;
+      wasOpen.current = true;
       const closeOnEscape = (event: KeyboardEvent) => {
         if (event.key === "Escape") setMobileOpen(false);
       };
       window.addEventListener("keydown", closeOnEscape);
-      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-utilities a")?.focus();
       return () => window.removeEventListener("keydown", closeOnEscape);
     }
-    if (mobileWasOpen.current) {
+    if (wasOpen.current) {
       mobileToggleRef.current?.focus();
-      mobileWasOpen.current = false;
+      wasOpen.current = false;
     }
     return undefined;
   }, [mobileOpen]);
@@ -59,6 +44,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
       {primaryNav.map((item) => {
         const Icon = item.icon;
         return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}
+          onClick={() => setMobileOpen(false)}
           className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""}`}>
           <Icon aria-hidden="true" /> <span>{item.name}</span>
         </Link>;
@@ -67,46 +53,35 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
   );
 
   return (
-    <div className="atlas-round min-h-[100dvh]">
+    <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
-      <header className="atlas-round-header">
-        <div className="atlas-round-brand">
-          <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-mark"><Crosshair /></Link>
-          <Link href="/" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
-        </div>
-        <nav className="atlas-round-primary" aria-label="Primary navigation"><NavItems /></nav>
-        <div className="atlas-round-actions">
-          <div className="atlas-round-status"><WorkspaceStatus /></div>
-          <div className="atlas-round-health"><ApiKeyHealth /></div>
-          <button className="atlas-round-more" type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>
-            More <ChevronDown />
-          </button>
-          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-utilities" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
-            {mobileOpen ? <X /> : <Menu />}
-          </button>
-        </div>
-        {moreOpen && <div className="atlas-round-more-menu">{utilityNav.map(item => {
-          const Icon = item.icon;
-          return <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon />{item.name}</Link>;
-        })}<button type="button" className="atlas-round-more-option" onClick={() => { setMoreOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></div>}
+      <header className="atlas-round-mobile-header">
+        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
+        <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
+          aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+          onClick={() => setMobileOpen((value) => !value)}>
+          {mobileOpen ? <X /> : <Menu />}
+        </button>
       </header>
-      {mobileOpen && <nav id="atlas-round-mobile-utilities" className="atlas-round-mobile-utilities" aria-label="Apex Atlas navigation">
-        <div className="atlas-round-mobile-utilities-heading">Pages</div>
-        {primaryNav.map(item => {
-          const Icon = item.icon;
-          return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined} onClick={() => setMobileOpen(false)}><Icon /><span>{item.name}</span></Link>;
-        })}
-        <div className="atlas-round-mobile-utilities-heading">Utilities</div>
-        {utilityNav.map(item => {
-          const Icon = item.icon;
-          return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined} onClick={() => setMobileOpen(false)}><Icon /><span>{item.name}</span></Link>;
-        })}
-        <button type="button" onClick={() => { setMobileOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button>
-      </nav>}
-      <main id="main-content" tabIndex={-1} className="atlas-round-main">
-        <div className="atlas-round-content">{children}</div>
-        <footer className="atlas-round-footer"><span>APEX ATLAS</span><span>Evidence first. Always attributable.</span><span>PUBLIC RECORDS WORKSPACE</span></footer>
-      </main>
+      {mobileOpen && <button type="button" className="atlas-round-sidebar-backdrop"
+        aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
+      <aside id="atlas-round-sidebar" className={`atlas-round-sidebar ${mobileOpen ? "is-open" : ""}`}
+        aria-label="Apex Atlas sidebar">
+        <div className="atlas-round-sidebar-brand">
+          <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
+        </div>
+        <nav className="atlas-round-sidebar-nav" aria-label="Primary navigation">
+          <div className="atlas-round-sidebar-label">Workspace</div>
+          <NavItems />
+        </nav>
+      </aside>
+      <div className="atlas-round-main-column">
+        <main id="main-content" tabIndex={-1} className="atlas-round-main">
+          <div className="atlas-round-desktop-status"><WorkspaceStatus compact /></div>
+          <div className="atlas-round-content">{children}</div>
+            </main>
+      </div>
     </div>
   );
 }
