@@ -49,6 +49,7 @@ describe("board card person/company distinction", () => {
     expect(contactSurfaceSource).toContain('label: "Corroborated"');
     expect(contactSurfaceSource).toContain('label: "Verified"');
     expect(contactSurfaceSource).toContain('label: "In review"');
+    expect(contactSurfaceSource).toContain("markColor(primary.mark, boardMode)");
     expect(contactSurfaceSource).toContain('label: "PUBLIC COMPANY"');
     expect(boardCardSource).toContain('density="card" boardMode evidenceCount={contactEvidence.length}');
   });
