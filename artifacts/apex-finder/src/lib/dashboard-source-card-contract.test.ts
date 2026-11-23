@@ -68,6 +68,10 @@ describe("board Home relationship projection", () => {
     expect(currentDashboardSource).toContain("relationship.sourceEntityName");
     expect(currentDashboardSource).toContain("relationship.targetName");
     expect(currentDashboardSource).toContain("relationship.relationshipType");
+    expect(currentDashboardSource).toContain('label="Relationships" value={stats?.totalRelationships');
+    expect(currentDashboardSource).toContain('label="Assets" value={stats?.totalAssets');
+    expect(currentDashboardSource).not.toContain('label="Routes" value={stats?.totalRelationships');
+    expect(currentDashboardSource).not.toContain('label="Evidence records" value={stats?.totalAssets');
     expect(currentDashboardSource).not.toContain("Confirmed in a primary record");
     expect(currentDashboardSource).not.toContain("Two independent sources agree");
     expect(currentDashboardSource).not.toContain("One source so far, a second is pending");
