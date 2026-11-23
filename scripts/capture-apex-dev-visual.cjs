@@ -102,14 +102,6 @@ async function main() {
       }
 
       let routeFixtureLoaded = false;
-      const routeSelects = page.locator(".atlas-home-route-finder select");
-      if (await routeSelects.count() === 2) {
-        await routeSelects.nth(0).selectOption("1");
-        await routeSelects.nth(1).selectOption("2");
-        await page.getByRole("button", { name: "Find shortest path" }).click();
-        await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
-        routeFixtureLoaded = true;
-      }
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
@@ -185,6 +177,25 @@ async function main() {
           throw new Error("Mobile sidebar toggle is missing.");
         }
       }
+      await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
+      const routeSelects = page.locator(".atlas-connections-path-finder select");
+      if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
+      await routeSelects.nth(0).selectOption("1");
+      await routeSelects.nth(1).selectOption("2");
+      await page.getByRole("button", { name: "Find shortest path" }).click();
+      await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
+      routeFixtureLoaded = true;
+      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
+      console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
+        url: page.url(),
+        routeFixtureLoaded,
+        pathResultVisible: await page.locator(".atlas-home-route-result").isVisible(),
+        browserErrors: browserErrors.slice(0, 20),
+        failedRequests: failedRequests.slice(0, 20),
+      })}`);
+      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
       await page.close();
     }
   } finally {
