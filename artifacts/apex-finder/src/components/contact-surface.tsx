@@ -236,6 +236,18 @@ export function ContactSurface({
               : r.vectorType === "email"
                 ? mailHref(r.value!)
                 : safeExternalHref(r.sourceUrl);
+          const tier = routeTier(r, boardMode);
+          const pattern = tier.label === "Verified" ? "supported" : tier.label === "Corroborated" ? "corroborated" : tier.label === "In review" ? "review" : null;
+          if (boardMode) {
+            return (
+              <span key={`${r.vectorType}-${r.value}-${i}`} className="atlas-contact-route-secondary" title={`${tier.title} · ${r.source || ""}`}>
+                {href ? <a href={href} onClick={(e) => e.stopPropagation()}>{r.value}</a> : <span>{r.value}</span>}
+                {pattern && <span className={"atlas-evidence-pattern is-" + pattern} aria-hidden="true" />}
+                {tier.label === "Disputed" && <AlertTriangle className="atlas-evidence-disputed-mark" aria-hidden="true" />}
+                <small style={{ color: tier.color }}>{tier.label}</small>
+              </span>
+            );
+          }
           return (
             <span
               key={`${r.vectorType}-${r.value}-${i}`}
