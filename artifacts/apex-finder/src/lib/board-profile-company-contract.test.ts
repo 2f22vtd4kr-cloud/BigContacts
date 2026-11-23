@@ -31,6 +31,7 @@ describe("board card person/company distinction", () => {
     expect(boardCardSource).toContain('!isCompanyCard && renderContactGroup("Personal", personalContacts)');
     expect(boardCardSource).toContain('renderContactGroup("Organisation", companyContacts, companyPhone, companyPhoneSource)');
     expect(boardCardSource).toContain('renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)');
+    expect(boardCardSource).toContain("(reviewContacts.length > 0 || reviewPhone)");
     expect(boardCardSource).toContain("None recorded.");
   });
 
