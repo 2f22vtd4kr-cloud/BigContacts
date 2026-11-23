@@ -25,7 +25,7 @@ export function BoardPageFrame({
   return (
     <div className={`atlas-board-page ${className}`}>
       <nav className="atlas-board-page-breadcrumb" aria-label="Breadcrumb">
-        <span>APEX ATLAS</span>
+        <span>Apex Atlas</span>
         <span aria-hidden="true">/</span>
         <span>{breadcrumb}</span>
       </nav>
