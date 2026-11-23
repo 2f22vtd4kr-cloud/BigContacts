@@ -52,7 +52,7 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
 
-  it("keeps checky cells and verified dots on exact repeating grids", () => {
+  it("keeps checky cells and supported dots on exact repeating grids", () => {
     expect(boardCss).toContain("width='24'%20height='24'%20viewBox='0%200%2024%2024'");
     expect(boardCss).toContain("background-size: 24px 24px;");
     expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
