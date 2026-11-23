@@ -3,7 +3,7 @@ import { useListEntities } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
-import { entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
+import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
 import { normalizeEntityType } from "@/lib/entity-taxonomy";
 
 type EvidenceStatus = "verified" | "corroborated" | "review";
