@@ -5,6 +5,9 @@ const manual = readFileSync(new URL("../pages/manual.tsx", import.meta.url), "ut
 const statusPage = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const healthRoute = readFileSync(new URL("../../../api-server/src/src/routes/health.ts", import.meta.url), "utf8");
+const boardLedger = readFileSync(new URL("../pages/board-ledger.tsx", import.meta.url), "utf8");
+const boardLayout = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
 const launchHelper = readFileSync(new URL("./launch-atlas.ts", import.meta.url), "utf8");
 const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
 const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
@@ -95,9 +98,20 @@ describe("current Apex UI contract", () => {
     expect(launchHelper).toContain("discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(launchHelper).toContain("A source-backed operating company is a valid finding");
     expect(launchButton).toContain("textarea-atlas-discovery-objective");
-    expect(launchButton).toContain("maxLength={1_200}");
+    expect(healthRoute).toContain("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
+    expect(launchButton).toContain("maxLength={objectiveLimit ?? undefined}");
+    expect(launchButton).toContain("setObjectiveLimit(limit)");
+    expect(launchButton).not.toContain("1_200");
+    expect(launchButton).not.toContain("1_600");
     expect(launchButton).toContain("discoveryObjective: objective");
     expect(launchButton).toContain("Apex chooses its own targets, sources, providers, queries and next actions from the evidence");
+  });
+
+  it("uses the backend launch limit and avoids duplicate Ledger totals while restoring the heraldic mark", () => {
+    expect(boardLedger).not.toContain("atlas-ledger-counts");
+    expect(boardLayout).toContain("ApexAtlasMark");
+    expect(boardLayout).toContain("#C8321E");
+    expect(boardLayout).toContain("#EDB92B");
   });
 
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
