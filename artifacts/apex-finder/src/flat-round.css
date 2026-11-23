@@ -524,3 +524,22 @@
 @media (max-width:760px) {
   .atlas-round .atlas-reactor-board-event { grid-template-columns:78px minmax(0,1fr); gap:10px; }
 }
+
+
+/* Discover board overrides: the shared search engine keeps its behavior, not its former neon skin. */
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="border-[#9CFF1A]"],
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="border-primary"] { border-color:var(--round-line)!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="bg-card"],
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="bg-background"] { background:#fff!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="bg-[#9CFF1A]"],
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="bg-primary/"] { background:var(--round-raised)!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="text-[#9CFF1A]"],
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="text-[#b8ff4d]"],
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="text-primary"] { color:var(--round-green)!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="text-muted-foreground"] { color:var(--round-ink-3)!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="shadow-"] { box-shadow:none!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="rounded-2xl"] { border-radius:8px!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="uppercase"][class*="tracking-"] { text-transform:none!important; letter-spacing:.01em!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="transition-all"] { transition-property:color,background-color,border-color,opacity,transform!important; transition-duration:160ms!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search [class*="hover:border-[#9CFF1A]"]:hover { border-color:var(--round-ink-2)!important; }
+.atlas-round .atlas-board-discover .atlas-discover-search button[type="submit"] { background:var(--round-red)!important; color:#fff!important; }
