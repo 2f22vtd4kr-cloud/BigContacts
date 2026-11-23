@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
+import { useGetDashboardStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
@@ -410,7 +410,6 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
 export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
-  const leadsQuery = useGetHotLeads({ limit: 8 });
   const apiHealthQuery = useQuery({
     queryKey: ["dashboard", "api-health"],
     queryFn: async () => {
@@ -425,28 +424,9 @@ export default function Dashboard() {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
-  const reviewLeadsQuery = useQuery({
-    queryKey: ["dashboard", "research-leads"],
-    queryFn: async () => {
-      const response = await fetch("/api/dashboard/research-leads?limit=8", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) throw new Error(`Research leads request failed (${response.status}).`);
-      return response.json() as Promise<{ leads?: unknown[]; sourceLeads?: unknown[]; activeDiscovery?: boolean }>;
-    },
-    staleTime: 5_000,
-    refetchInterval: 5_000,
-  });
   const stats = mock ? mockDashboardStats() : statsQuery.data;
-  const leads = mock ? mockHotLeads() : normalizeHotLeads(leadsQuery.data);
-  const reviewLeads = mock ? [] : normalizeResearchLeads(reviewLeadsQuery.data);
-  const sourceLeads = mock ? [] : normalizeResearchSourceLeads(reviewLeadsQuery.data);
-  const reviewLeadsLoading = mock ? false : reviewLeadsQuery.isLoading;
-  const reviewLeadsError = mock ? false : reviewLeadsQuery.isError;
-  const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
   const apiUnavailable = !mock && apiHealthQuery.isError;
-  const hasError = mock ? false : ((statsQuery.isError && !statsQuery.data) || (leadsQuery.isError && !leadsQuery.data));
+  const hasError = mock ? false : (statsQuery.isError && !statsQuery.data);
 
   return (
     <div className="atlas-page atlas-home-board w-full min-w-0 max-w-full pb-12">
@@ -498,41 +478,8 @@ export default function Dashboard() {
           </div>
         </aside>
 
-          <section className="atlas-home-board-people" aria-labelledby="atlas-home-people-title">
-            <div className="atlas-home-section-heading">
-              <div>
-                <h2 id="atlas-home-people-title">People and organisations</h2>
-                <p>Source-backed findings, strongest contact paths first</p>
-              </div>
-              <Link href="/profiles">Open Ledger <ChevronRight aria-hidden="true" /></Link>
-            </div>
-            {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
-              isLoading ? <div className="atlas-home-route-loading" aria-label="Loading findings">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div> :
-              leads.length === 0 ? <EmptyLeads /> :
-              <div className="atlas-home-people-list">{leads.slice(0, 3).map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
-          </section>
       </div>
 
-      <section className="atlas-home-research-leads" data-testid="section-research-leads">
-        <div className="atlas-home-section-heading">
-          <div>
-            <h2>Research leads in review</h2>
-            <p>Unverified and provisional findings stay visible without being promoted to confirmed facts.</p>
-          </div>
-          <Link href="/entities">Open entity ledger <ChevronRight aria-hidden="true" /></Link>
-        </div>
-        {reviewLeadsError ? (
-          <div className="atlas-card p-4 text-xs text-muted-foreground">Partial review leads could not be loaded. The entity ledger remains the canonical record.<button onClick={() => { void reviewLeadsQuery.refetch(); }} className="ml-2 font-semibold text-primary underline underline-offset-2">Retry</button></div>
-        ) : reviewLeadsLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div>
-        ) : (
-          <>
-            {reviewLeads.length > 0 && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
-            {reviewLeads.length === 0 && sourceLeads.length === 0 && <div className="atlas-card p-5" data-testid="empty-research-leads"><strong>No named entity lead is source-backed yet</strong><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Search-result URLs remain unverified until Atlas observes source content. Snippets and guessed contacts are never promoted to facts.</p></div>}
-            {sourceLeads.length > 0 && <div className="mt-6" data-testid="section-source-leads"><h3 className="mb-3 text-sm font-medium">Search-result leads to pursue</h3><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{sourceLeads.map((lead: any, index: number) => <SourceLeadCard key={lead.id} lead={lead} index={index} />)}</div></div>}
-          </>
-        )}
-      </section>
     </div>
   );
 }
