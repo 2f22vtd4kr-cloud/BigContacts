@@ -8,6 +8,9 @@ const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx
 const healthRoute = readFileSync(new URL("../../../api-server/src/src/routes/health.ts", import.meta.url), "utf8");
 const boardLedger = readFileSync(new URL("../pages/board-ledger.tsx", import.meta.url), "utf8");
 const boardLayout = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
+const boardDiscover = readFileSync(new URL("../pages/board-discover.tsx", import.meta.url), "utf8");
+const boardReactor = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
+const deepSearch = readFileSync(new URL("../pages/deep-search.tsx", import.meta.url), "utf8");
 const launchHelper = readFileSync(new URL("./launch-atlas.ts", import.meta.url), "utf8");
 const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
 const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
@@ -122,6 +125,16 @@ describe("current Apex UI contract", () => {
     expect(boardCss).toContain("stroke-width='1.35'");
     expect(boardCss).toContain(".atlas-evidence-pattern.is-review");
     expect(boardCss).toContain("repeating-linear-gradient(135deg");
+  });
+
+  it("keeps Discover and Reactor board columns connected to their actual page markup", () => {
+    expect(boardDiscover).toContain('className="atlas-discover-layout"');
+    expect(boardDiscover).toContain('className="atlas-discover-search"');
+    expect(deepSearch).toContain('className="atlas-discover-search-console"');
+    expect(deepSearch).toContain('backgroundClip: "padding-box"');
+    expect(boardReactor).toContain('className="atlas-reactor-board-layout"');
+    expect(boardReactor).toContain('className="atlas-reactor-run-metrics"');
+    expect(boardCss).toContain(".atlas-round .atlas-reactor-board-layout");
   });
 
   it("uses the backend launch limit and avoids duplicate Ledger totals while restoring the heraldic mark", () => {
