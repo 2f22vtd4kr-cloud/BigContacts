@@ -6,8 +6,8 @@ const baseUrl = process.env.APEX_VISUAL_BASE_URL || "http://127.0.0.1:23695";
 // Synthetic browser-only fixtures for the visual harness. The route interceptor
 // below serves these responses locally; no fixture is written to or sent to Apex.
 const visualEntities = [
-  { id: 1, name: "Mira Patel", type: "HNWI", isHidden: false },
-  { id: 2, name: "Noah Reed", type: "HNWI", isHidden: false },
+  { id: 1, name: "Fixture Person Alpha", type: "HNWI", isHidden: false },
+  { id: 2, name: "Fixture Person Beta", type: "HNWI", isHidden: false },
   { id: 3, name: "Northstar Capital", type: "Corporation", isHidden: false },
   { id: 4, name: "Harbor Ventures", type: "Corporation", isHidden: false },
 ];
@@ -39,6 +39,7 @@ async function main() {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
       const browserErrors = [];
       const failedRequests = [];
+      let emptyLedgerFixture = false;
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -82,7 +83,7 @@ async function main() {
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
         } else if (url.includes("/api/entities")) {
-          payload = visualEntities;
+          payload = emptyLedgerFixture ? [] : visualEntities;
         } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
@@ -246,6 +247,14 @@ async function main() {
           failedRequests: failedRequests.slice(0, 20),
         })}`);
       }
+      emptyLedgerFixture = true;
+      await page.goto(new URL("/profiles?visual-empty=1", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForFunction(() => document.body.innerText.includes("No one on the register yet"), { timeout: 10000 });
+      const emptyLedgerShot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+      fs.writeFileSync(`/tmp/apex-ledger-empty-${name}.jpg`, emptyLedgerShot);
+      console.log(`APEX_VISUAL_IMAGE_ledger_empty_${name}=${emptyLedgerShot.toString("base64")}`);
+      console.log(`APEX_VISUAL_META_ledger_empty_${name}=${JSON.stringify({ viewport: name, emptyStateVisible: true, browserErrors: browserErrors.slice(0, 20) })}`);
+      emptyLedgerFixture = false;
       await page.close();
     }
   } finally {
