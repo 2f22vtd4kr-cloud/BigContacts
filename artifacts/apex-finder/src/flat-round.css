@@ -498,3 +498,7 @@
 .atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="text-[#b8ff4d]"] { color:var(--round-green)!important; }
 .atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="bg-[#9cff1a]"] { background:rgba(31,138,77,.06)!important; }
 .atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="shadow-"] { box-shadow:none!important; }
+
+.atlas-round .atlas-reactor-run-status-group { display:flex; align-items:center; gap:8px; }
+.atlas-round .atlas-reactor-run-status.is-api { border-color:rgba(200,50,30,.35)!important; color:var(--round-red)!important; }
+.atlas-round .atlas-reactor-run-status-group button { min-height:28px; padding:0 9px; border:1px solid var(--round-line); border-radius:5px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
