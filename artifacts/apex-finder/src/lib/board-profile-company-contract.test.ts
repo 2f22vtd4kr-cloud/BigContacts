@@ -13,7 +13,7 @@ describe("board card person/company distinction", () => {
     expect(personFactsStart).toBeGreaterThanOrEqual(0);
     expect(personFactsEnd).toBeGreaterThan(personFactsStart);
     expect(boardCardSource.slice(personFactsStart, personFactsEnd)).toContain("Personal wealth");
-    expect(boardCardSource).toContain('const isCompanyCard = displayType === "Corporation" || displayType === "Trust"');
+    expect(boardCardSource).toContain('entityMeta(entity.type).shortLabel === "Company"');
   });
 
   it("shows company ownership and people without inventing shareholder data", () => {
