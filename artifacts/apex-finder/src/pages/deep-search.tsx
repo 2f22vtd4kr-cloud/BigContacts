@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useRef } from "react";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { readApiJson } from "@/lib/api-json";
 import {
@@ -59,6 +60,7 @@ type DeepSearchProps = {
   selectedQuery?: string;
   onSaveSearch?: (query: string) => void;
   onSearchCompleted?: (query: string, response: SearchResponse) => void;
+  sourceStatus?: { webSearch?: boolean | null; registries?: boolean | null; footprint?: boolean | null };
 };
 
 // ── Example queries ───────────────────────────────────────────────────────────
@@ -276,7 +278,7 @@ const SOURCE_OPTIONS = [
   { label: "OpenCorporates", value: "oc" },
 ];
 
-export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSearch, onSearchCompleted }: DeepSearchProps = {}) {
+export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSearch, onSearchCompleted, sourceStatus }: DeepSearchProps = {}) {
   const [query, setQuery]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -366,6 +368,85 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); run(query); };
 
   const p = result?.pipeline;
+
+  if (boardMode) {
+    const sourceChip = (label: string, available?: boolean | null, unavailableLabel?: string) => (
+      <span className={"atlas-discover-source-chip " + (available === true ? "is-live" : available === false ? "is-unavailable" : "is-checking")}>
+        <i aria-hidden="true" />
+        {available === false && unavailableLabel ? unavailableLabel : label}
+      </span>
+    );
+    return (
+      <div className="atlas-discover-search-console">
+        <div className="atlas-discover-search-heading">
+          <div><h2>Search console</h2><p>Search people, companies, assets and public routes</p></div>
+        </div>
+        <form className="atlas-discover-search-form" onSubmit={handleSubmit}>
+          <label className="atlas-discover-query-field">
+            <span>Investigation query</span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              maxLength={1200}
+              placeholder="Describe who or what Atlas should find"
+              aria-label="Search public records"
+            />
+            <small>{query.length.toLocaleString()} / 1,200</small>
+          </label>
+          <div className="atlas-discover-search-chips" aria-label="Source kinds">
+            {sourceChip("Web search", sourceStatus?.webSearch)}
+            {sourceChip("Registries", sourceStatus?.registries)}
+            {sourceChip("Footprint tools", sourceStatus?.footprint, "Footprint tools unavailable")}
+          </div>
+          <div className="atlas-discover-search-actions">
+            {onSaveSearch && (
+              <button type="button" className="atlas-discover-save-button" onClick={() => onSaveSearch(query)} disabled={!query.trim() || loading}>
+                Save
+              </button>
+            )}
+            <button type="submit" className="atlas-discover-run-button" disabled={loading || !query.trim()} aria-busy={loading}>
+              {loading ? <Loader2 aria-hidden="true" /> : <Search aria-hidden="true" />}
+              {loading ? "Running…" : "Run"}
+            </button>
+          </div>
+        </form>
+        {error && <div className="atlas-discover-search-error" role="alert"><AlertCircle aria-hidden="true" />{error}</div>}
+        {loading && <div className="atlas-discover-search-loading" role="status"><Loader2 aria-hidden="true" />Searching public records…</div>}
+        {result?.isEmpty && !loading && (
+          <div className="atlas-discover-search-empty" role="status">
+            <strong>No matches yet.</strong>
+            <span>Try a broader query. Search results are leads, not verified findings.</span>
+          </div>
+        )}
+        {result && result.results.length > 0 && (
+          <section className="atlas-discover-results" aria-label="Search results">
+            <div className="atlas-discover-results-heading">
+              <strong>{result.results.length} results</strong>
+              <span>Best matches first{result.cached ? " · cached" : ""}</span>
+            </div>
+            {result.results.slice(0, 5).map((item) => (
+              <article className="atlas-discover-result" key={item.id}>
+                <div className="atlas-discover-result-main">
+                  <Link href={"/profile/" + item.id}>{item.name}</Link>
+                  <p>{[item.nationality, item.assetCount ? item.assetCount + " linked records" : "No linked assets"].filter(Boolean).join(" · ")}</p>
+                  {item.sourceRegistries.length > 0 && <span>{item.sourceRegistries.slice(0, 2).join(" · ")}</span>}
+                </div>
+                <div className="atlas-discover-result-score">
+                  <strong>{item.bayesianScore == null ? "—" : item.bayesianScore.toFixed(2)}</strong>
+                  <span>{item.confidence === "high" ? "Strong match" : item.confidence === "medium" ? "Partial match" : "Weak match"}</span>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+        {!result && !loading && !error && (
+          <div className="atlas-discover-search-hint">Apex chooses the tools and sources for each investigation. Only evidence-backed results are promoted to the Ledger.</div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
