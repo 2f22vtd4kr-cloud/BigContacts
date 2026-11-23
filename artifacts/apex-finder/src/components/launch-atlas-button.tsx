@@ -57,7 +57,7 @@ export function LaunchAtlasButton({
 
   useEffect(() => {
     let active = true;
-    const base = (import.meta.env.BASE_URL || "/").replace(/\\/$/, "");
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
     void fetch(`${base}/api/healthz`, { credentials: "same-origin", cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Launch configuration unavailable (${response.status}).`);
@@ -174,7 +174,7 @@ export function LaunchAtlasButton({
             data-testid="textarea-atlas-discovery-objective"
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
-            maxLength={objectiveLimit}
+            maxLength={objectiveLimit ?? undefined}
             placeholder="Describe who you want to reach"
             rows={3}
             disabled={busy || stopping || apiUnavailable}
