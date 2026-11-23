@@ -46,6 +46,8 @@ function LegacyRoutes() {
         <Route path="/search" component={DeepSearch} />
         <Route path="/profiles" component={EntityLedger} />
         <Route path="/network" component={GraphViewer} />
+        <Route path="/network/graph" component={GraphViewer} />
+        <Route path="/reactor/topology" component={IntelligenceReactorPage} />
         <Route path="/jobs" component={BackgroundJobs} />
         <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/research" component={IntelTerminal} />
@@ -75,6 +77,8 @@ function BoardRoutes() {
         <Route path="/search" component={BoardDiscover} />
         <Route path="/profiles" component={BoardLedger} />
         <Route path="/network" component={BoardConnections} />
+        <Route path="/network/graph" component={GraphViewer} />
+        <Route path="/reactor/topology" component={IntelligenceReactorPage} />
         <Route path="/jobs" component={BackgroundJobs} />
         <Route path="/reactor" component={BoardReactor} />
         <Route path="/research" component={IntelTerminal} />
@@ -86,7 +90,7 @@ function BoardRoutes() {
         <Route path="/osint-tools" component={OsintToolsDirectory} />
         <Route path="/status" component={SystemStatusPage} />
         <Route path="/entities">{() => { const s = useSearch(); return <Redirect to={`/profiles${s ? `?${s}` : ""}`} />; }}</Route>
-        <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
+        <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network/graph${s ? `?${s}` : ""}`} />; }}</Route>
         <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
         <Route path="/discover">{() => <Redirect to="/search" />}</Route>
         <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
