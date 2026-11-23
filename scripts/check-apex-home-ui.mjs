@@ -5,6 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
+const legacyDashboard = read("artifacts/apex-finder/src/pages/dashboard-legacy.tsx");
 const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const reactor = read("artifacts/apex-finder/src/pages/reactor.tsx");
 const mobile = read("artifacts/apex-finder/src/components/mobile-reactor-flow.tsx");
@@ -33,6 +34,7 @@ require(dashboard.includes("atlas-home-board-console"), "Home must use the frame
 require(dashboard.includes("Strongest routes"), "Home must reserve the right-hand strongest-routes panel");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
 require(!dashboard.includes("atlas-home-board-people") && !dashboard.includes("atlas-home-research-leads"), "Home must not retain legacy feed sections absent from the board");
+require(!dashboard.includes("function LeadCard") && !dashboard.includes("function SourceLeadCard") && legacyDashboard.includes("function LeadCard") && legacyDashboard.includes("function SourceLeadCard") && router.includes("DashboardLegacy"), "The new Home must not carry dead legacy feed code while the classic rollback remains intact");
 require(dashboard.includes("/api/dashboard/research-leads?limit=8"), "Home must keep the canonical research-lead projection warm without rendering the legacy feed");
 require(!dashboard.includes("atlas-home-secondary-row"), "Home must not add shortcut buttons absent from the design board");
 require(!dashboard.includes("ScoreboardStrip"), "operator scoreboard must not displace the designed Home composition");
