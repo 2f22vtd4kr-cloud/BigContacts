@@ -488,13 +488,6 @@
 .atlas-round .atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }
 .atlas-round .atlas-reactor-launch-slot .atlas-launch-primary-root { width:100%; }
 
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] > header { display:none!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="bg-[#0a1018]"] { background:#fff!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="border-white"] { border-color:var(--round-line)!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="text-stone-"] { color:var(--round-ink-2)!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="text-[#b8ff4d]"] { color:var(--round-green)!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="bg-[#9cff1a]"] { background:rgba(31,138,77,.06)!important; }
-.atlas-round .atlas-reactor-logbook [data-testid="reactor-live-surface"] [class*="shadow-"] { box-shadow:none!important; }
 
 .atlas-round .atlas-reactor-run-status-group { display:flex; align-items:center; gap:8px; }
 .atlas-round .atlas-reactor-run-status.is-api { border-color:rgba(200,50,30,.35)!important; color:var(--round-red)!important; }
