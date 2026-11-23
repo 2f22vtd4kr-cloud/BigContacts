@@ -64,9 +64,11 @@ const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", im
 describe("board Home relationship projection", () => {
   it("keeps the strongest-routes panel route-specific and uses truthful backend metric labels", () => {
     expect(currentDashboardSource).toContain("Strongest routes");
-    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-verified");
-    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-corroborated");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-supported");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-disputed");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-review");
+    expect(currentDashboardSource).toContain("<strong>Supported</strong>");
+    expect(currentDashboardSource).toContain("<strong>Disputed</strong>");
     expect(currentDashboardSource).toContain("complete path is available");
     expect(currentDashboardSource).not.toContain("useListRelationships");
     expect(currentDashboardSource).not.toContain("Recent connections");
