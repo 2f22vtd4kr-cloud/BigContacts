@@ -21,6 +21,7 @@ const boardConnections = read("artifacts/apex-finder/src/pages/board-connections
 const boardReactor = read("artifacts/apex-finder/src/pages/board-reactor.tsx");
 const boardProfile = read("artifacts/apex-finder/src/pages/board-profile.tsx");
 const deepSearch = read("artifacts/apex-finder/src/pages/deep-search.tsx");
+const liveSurface = read("artifacts/apex-finder/src/components/reactor-live-surface.tsx");
 
 const failures = [];
 const require = (condition, message) => { if (!condition) failures.push(message); };
@@ -80,6 +81,7 @@ require(boardConnections.includes("The people between you") && boardConnections.
 require(router.includes('path="/network/graph"'), "The full relationship graph must remain accessible as a secondary utility");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook"), "Reactor board must use the shared normalized live-telemetry store");
+require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board"), "Reactor board must render a paper-style list from the shared normalized event stream");
 require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor={false}'), "Reactor run console must preserve the board 25-person objective controls");
 require(reactor.includes('"/api/healthz"') && reactor.includes("onRetryApi") && reactor.includes("API down"), "Reactor must expose a verified API-down state with retry");
 require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
