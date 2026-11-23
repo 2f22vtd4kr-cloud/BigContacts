@@ -53,10 +53,10 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("keeps checky cells and verified dots on exact repeating grids", () => {
-    expect(boardCss).toContain("width='16'%20height='16'%20viewBox='0%200%2016%2016'");
-    expect(boardCss).toContain("background-size: 16px 16px;");
+    expect(boardCss).toContain("width='24'%20height='24'%20viewBox='0%200%2024%2024'");
+    expect(boardCss).toContain("background-size: 24px 24px;");
     expect(boardCss).toContain("radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px)");
-    expect(boardCss).toContain("background-size: 4px 4px;");
+    expect(boardCss).toContain("background-size: 12px 12px;");
     expect(boardCss).toContain("background-color: #1F8A4D;");
     expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
   });
