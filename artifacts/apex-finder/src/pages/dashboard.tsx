@@ -426,7 +426,6 @@ export default function Dashboard() {
   });
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const apiUnavailable = !mock && apiHealthQuery.isError;
-  const hasError = mock ? false : (statsQuery.isError && !statsQuery.data);
 
   return (
     <div className="atlas-page atlas-home-board w-full min-w-0 max-w-full pb-12">
