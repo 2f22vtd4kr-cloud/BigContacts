@@ -62,7 +62,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
-    const continuousWaveRows = "M-16%2012%20C-8%204%20-8%204%200%2012%20S8%2020%2016%2012%20S24%204%2032%2012%20S40%2020%2048%2012";
+    const continuousWaveRows = "M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012";
     expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
     expect(boardCss).toContain("width='32'%20height='24'%20viewBox='0%200%2032%2024'");
     expect(boardCss).toContain("background-size: 32px 24px;");
