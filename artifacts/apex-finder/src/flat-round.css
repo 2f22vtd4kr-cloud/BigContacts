@@ -505,3 +505,4 @@
 
 .atlas-round .atlas-ledger-view-all { display:inline-flex; align-items:center; justify-content:center; min-height:38px; margin:12px 0 0; padding:0 12px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-view-all:hover { border-color:var(--round-ink); color:var(--round-ink); }
+.atlas-round .atlas-discover-query-count { padding:5px 2px 0; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; text-align:right; }
