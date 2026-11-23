@@ -23,6 +23,8 @@ describe("board card person/company distinction", () => {
     expect(personFactsEnd).toBeGreaterThan(personFactsStart);
     expect(boardCardSource.slice(personFactsStart, personFactsEnd)).toContain("Personal wealth");
     expect(boardCardSource).toContain('entityMeta(entity.type).shortLabel === "Company"');
+    expect(boardCardSource).toContain('const boardEntityType = String(entity.type ?? "").toLowerCase() === "company" ? "Corporation" : entity.type');
+    expect(boardCardSource).toContain("<EntityTypeMark type={boardEntityType} />");
   });
 
   it("shows company ownership and people without inventing shareholder data", () => {
