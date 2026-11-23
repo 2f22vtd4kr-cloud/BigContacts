@@ -76,8 +76,8 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 943
         continue-on-error: true
         run: |
-          npm install --global playwright@1.56.0
-          playwright install chromium --with-deps
+          npm install --global playwright
+          playwright install chromium
           pnpm --dir artifacts/apex-finder exec vite --host 127.0.0.1 --port 23695 > /tmp/apex-vite.log 2>&1 &
           for attempt in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:23695/ >/dev/null; then break; fi
