@@ -73,6 +73,7 @@ require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"),
 const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
 require(objective.length > 0 && objective.length <= 1600, "default mission must fit the canonical 1,600-character launch contract");
 require(launch.includes("/api/ingest/atlas-config") && launch.includes("maxLength={objectiveLimit ?? undefined}") && launch.includes("objective.length > objectiveLimit"), "Every launch surface must load and enforce the backend-authoritative objective limit");
+require(launch.indexOf('data-testid="button-launch-apex-atlas"') < launch.indexOf('className="atlas-home-objective-count"'), "The objective counter belongs below Launch, not beside or over the prompt");
 require(canonicalDiscovery.includes("export const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;") && canonicalLaunchRoute.includes('router.get("/ingest/atlas-config"') && canonicalLaunchRoute.includes("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS"), "The UI limit endpoint must return the exact canonical backend objective validation constant");
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
