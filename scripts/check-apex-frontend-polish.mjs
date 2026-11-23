@@ -51,6 +51,12 @@ const checks = [
   ["Flat Round preserves utility routes without exposing them in active board navigation", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].every((route) => router.includes(`path="${route}"`)) && !["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].some((route) => roundLayout.includes(`href: "${route}"`))],
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
   ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
+  ["sidebar follows Unslop's 240px rail and 36px navigation rhythm", flatRound.includes("width:240px; min-width:240px;") && flatRound.includes("min-height:36px;") && flatRound.includes("gap:8px;") && flatRound.includes("stroke-width:1.5;")],
+  ["active sidebar contains only quiet board navigation, not status badges", !roundLayout.includes("WorkspaceStatus") && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
+  ["footer copy is sentence case and readable", roundLayout.includes("Evidence first, always attributable") && roundLayout.includes("Public records workspace") && flatRound.includes("font-size:11px; letter-spacing:0; text-transform:none;")],
+  ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
+  ["launch controls use named transitions and the board focus color", !launchButton.includes("transition-all") && !launchButton.includes("ring-lime-400") && launchButton.includes("ring-[#2757C6]/50")],
+
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
