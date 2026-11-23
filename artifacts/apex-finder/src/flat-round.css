@@ -97,7 +97,7 @@
 .atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }
 .atlas-home-console-inner { position:relative; z-index:1; min-width:0; padding:20px; border:1px solid var(--round-line); border-radius:12px; background:var(--round-card); }
 .atlas-round .atlas-home-source-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; min-height:24px; color:var(--round-ink-2); font:400 11px/1.3 "Geist",sans-serif; }
-.atlas-round .atlas-home-source-status > span { display:inline-flex; align-items:center; gap:6px; }
+.atlas-round .atlas-home-source-status > span { display:inline-flex; align-items:center; gap:8px; }
 .atlas-round .atlas-home-source-status .atlas-home-console-label { margin-right:8px; color:var(--round-ink); font:500 13px "Geist",sans-serif; }
 .atlas-round .atlas-home-console-label svg { width:16px; height:16px; flex:none; }
 .atlas-round .atlas-home-source-status > span:not(.atlas-home-console-label)::before { display:block!important; content:""; width:7px; height:7px; border-radius:50%; background:#1F8A4D; }
@@ -326,7 +326,7 @@
 .atlas-round .atlas-ledger-filters button strong { color:var(--round-ink); font:500 12px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
 .atlas-round .atlas-ledger-filters button[aria-pressed="true"] { border-color:var(--round-ink); background:var(--round-raised); color:var(--round-ink); }
 .atlas-round .atlas-ledger-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:24px; padding-top:20px; border-top:1px solid var(--round-line); }
-.atlas-round .atlas-ledger-counts > div { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:6px; }
+.atlas-round .atlas-ledger-counts > div { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:8px; }
 .atlas-round .atlas-ledger-counts strong { color:var(--round-ink); font:500 24px/1.1 "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
 .atlas-round .atlas-ledger-counts span { color:var(--round-ink-2); font:400 11px/1.4 "Geist",sans-serif; }
 .atlas-round .atlas-ledger-console-note { margin:20px 0 0; color:var(--round-ink-2); font:400 12px/1.6 "Geist",sans-serif; }
