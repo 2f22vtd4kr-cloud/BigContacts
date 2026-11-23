@@ -4,6 +4,7 @@ import { useListEntities } from "@workspace/api-client-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import ApexProfile from "@/pages/profile";
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
+import { normalizeEntityType } from "@/lib/entity-taxonomy";
 
 const RECENT_CARD_KEY = "apex-atlas-recent-cards-v1";
 
@@ -68,7 +69,8 @@ export default function BoardProfilePage() {
       <nav className="atlas-profile-tabs" aria-label="Subject cards">
         {tabs.items.map((entity: any) => {
           const active = Number(entity.id) === activeId;
-          const kind = String(entity.type ?? "Person").toLowerCase() === "company" ? "Company" : "Person";
+          const normalizedType = normalizeEntityType(entity.type);
+          const kind = normalizedType === "Corporation" || normalizedType === "Trust" ? "Company" : normalizedType === "Other" ? "Record" : "Person";
           return (
             <Link
               key={entity.id}
