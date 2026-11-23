@@ -377,7 +377,7 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
       </span>
     );
     return (
-      <div className="atlas-discover-search-console">
+      <div className="atlas-discover-search-console" style={boardMode ? { backgroundColor: "#fff", backgroundClip: "padding-box" } : undefined}>
         <div className="atlas-discover-search-heading">
           <div><h2>Search console</h2><p>Search people, companies, assets and public routes</p></div>
         </div>
