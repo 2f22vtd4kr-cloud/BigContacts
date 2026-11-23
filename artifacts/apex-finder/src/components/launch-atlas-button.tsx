@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,23 @@ export function LaunchAtlasButton({
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
   const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? (variant === "primary" ? 25 : 1))));
   const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? (variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE));
-  const objectiveLimit = variant === "primary" ? 1_200 : 1_600;
+  const [objectiveLimit, setObjectiveLimit] = useState<number | null>(null);
+  const [limitUnavailable, setLimitUnavailable] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    const base = (import.meta.env.BASE_URL || "/").replace(/\\/$/, "");
+    fetch(`${base}/api/ingest/atlas-config`, { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Launch configuration unavailable (${response.status}).`);
+        const config = await response.json() as { discoveryObjectiveMaxChars?: unknown };
+        const limit = config.discoveryObjectiveMaxChars;
+        if (!Number.isSafeInteger(limit) || Number(limit) < 1) throw new Error("The API returned an invalid objective limit.");
+        setObjectiveLimit(Number(limit));
+        setLimitUnavailable(false);
+      })
+      .catch(() => { if (!controller.signal.aborted) setLimitUnavailable(true); });
+    return () => controller.abort();
+  }, []);
   const { run, refresh } = useAtlasRun(8_000);
 
   const running = (run.active || busy) && run.status !== "paused";
@@ -80,6 +96,14 @@ export function LaunchAtlasButton({
       // Health is advisory; canonical launch remains the authoritative gate.
     }
     const objective = launchObjective.trim();
+    if (objectiveLimit === null || limitUnavailable) {
+      setStatus("The API launch limit could not be loaded. Retry when the research API is available.");
+      return;
+    }
+    if (objective.length > objectiveLimit) {
+      setStatus(`Keep the investigation objective within ${objectiveLimit.toLocaleString()} characters.`);
+      return;
+    }
     if (!objective) {
       setStatus("Enter an investigation objective before launching Apex.");
       return;
@@ -156,14 +180,14 @@ export function LaunchAtlasButton({
             data-testid="textarea-atlas-discovery-objective"
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
-            maxLength={objectiveLimit}
+            maxLength={objectiveLimit ?? undefined}
             placeholder="Describe who you want to reach"
             rows={3}
             disabled={busy || stopping || apiUnavailable}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
           <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
-          <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / {objectiveLimit.toLocaleString()}</span>
+          <span className="atlas-home-objective-count">{objectiveLimit === null ? "Loading API limit…" : `${launchObjective.length.toLocaleString()} / ${objectiveLimit.toLocaleString()}`}</span>
         </label>
       )}
       <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
@@ -186,7 +210,7 @@ export function LaunchAtlasButton({
             </div>
           </div>
         )}
-        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || limitUnavailable || objectiveLimit === null || (objectiveLimit !== null && launchObjective.length > objectiveLimit) || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
         </button>
         {variant !== "header" && controls}
