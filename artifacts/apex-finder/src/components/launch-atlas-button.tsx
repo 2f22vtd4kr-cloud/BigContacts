@@ -18,12 +18,12 @@ const VARIANT_CLASS: Record<Variant, string> = {
 
 const VARIANT_RUNNING: Record<Variant, string> = {
   primary: "h-12 w-full px-7 text-sm rounded-lg border border-[#E5E5E1] bg-[#F3F3F0] text-[#55555A]",
-  header: "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/18 text-[#9CFF1A] border border-[#9CFF1A]/50",
-  reactor: "h-11 w-full sm:w-auto px-5 text-xs rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/15 text-[#9CFF1A]",
-  ghost: "h-10 px-4 text-xs font-semibold rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#9CFF1A]",
+  header: "h-9 shrink-0 px-3 text-[12px] font-medium rounded-lg border border-[#E5E5E1] bg-[#F3F3F0] text-[#55555A]",
+  reactor: "h-11 w-full sm:w-auto px-5 text-sm font-medium rounded-lg border border-[#E5E5E1] bg-[#F3F3F0] text-[#55555A]",
+  ghost: "h-10 px-4 text-xs font-medium rounded-lg border border-[#E5E5E1] bg-white text-[#55555A]",
 };
 
-const CTRL = "atlas-pressable relative z-10 inline-flex h-9 min-w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[11px] font-bold tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60";
+const CTRL = "atlas-pressable relative z-10 inline-flex h-9 min-w-[4.5rem] shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-[12px] font-medium transition-colors duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60";
 const CTRL_STOP = "atlas-btn-danger focus-visible:ring-[rgba(255,77,109,0.45)]";
 
 export function LaunchAtlasButton({
@@ -125,7 +125,7 @@ export function LaunchAtlasButton({
   if (inFlight && (variant === "primary" || variant === "reactor")) {
     return (
       <div className={cn("flex w-full flex-col gap-2", variant === "primary" && "atlas-launch-primary-root")} data-testid="atlas-inflight-controls">
-        <button type="button" onClick={() => navigateToReactor && setLocation("/reactor")} className={cn("inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 px-4 text-sm font-semibold text-[#9CFF1A]", flash && "atlas-click-flash")} aria-label="Open Reactor while Atlas research is active">
+        <button type="button" onClick={() => navigateToReactor && setLocation("/reactor")} className={cn("inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#E5E5E1] bg-[#F3F3F0] px-4 text-sm font-medium text-[#55555A] transition-colors duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50", flash && "atlas-click-flash")} aria-label="Open Reactor while Atlas research is active">
           <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /><span className="truncate">{runningLabel}</span>
         </button>
         {controls}
@@ -186,7 +186,7 @@ export function LaunchAtlasButton({
             </div>
           </div>
         )}
-        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
         </button>
         {variant !== "header" && controls}
