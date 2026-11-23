@@ -567,6 +567,8 @@
 .atlas-round .atlas-board-profile [class~="text-primary"] { color:var(--round-green)!important; }
 .atlas-round .atlas-board-profile [class*="text-primary/"],
 .atlas-round .atlas-board-profile [class*="text-[#d4ff8a]"] { color:var(--round-green)!important; opacity:1!important; }
+.atlas-round .atlas-board-profile [style*="156, 255, 26"],
+.atlas-round .atlas-board-profile [style*="184, 255, 77"] { color:var(--round-green)!important; background-color:rgba(31,138,77,.08)!important; }
 .atlas-round .atlas-board-profile [class*="text-secondary/"] { color:var(--round-ink-2)!important; opacity:1!important; }
 .atlas-round .atlas-board-profile [class*="bg-[#9CFF1A]"],
 .atlas-round .atlas-board-profile [class*="bg-lime-"],
