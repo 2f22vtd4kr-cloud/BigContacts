@@ -21,6 +21,7 @@ for (const [name, file] of Object.entries(files)) {
 const css = read(files.css);
 const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
+const contactSurface = read("artifacts/apex-finder/src/components/contact-surface.tsx");
 const ledger = read(files.ledger);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
