@@ -100,7 +100,7 @@
 .atlas-round .atlas-home-source-status > span { display:inline-flex; align-items:center; gap:6px; }
 .atlas-round .atlas-home-source-status .atlas-home-console-label { margin-right:8px; color:var(--round-ink); font:500 13px "Geist",sans-serif; }
 .atlas-round .atlas-home-console-label svg { width:16px; height:16px; flex:none; }
-.atlas-round .atlas-home-source-status > span:not(.atlas-home-console-label)::before { content:""; width:7px; height:7px; border-radius:50%; background:#1F8A4D; }
+.atlas-round .atlas-home-source-status > span:not(.atlas-home-console-label)::before { display:block!important; content:""; width:7px; height:7px; border-radius:50%; background:#1F8A4D; }
 .atlas-round .atlas-home-source-status > .is-unavailable::before { background:transparent; border:1px solid var(--round-ink-3); }
 .atlas-home-board-console .atlas-launch-primary-root { display:flex; width:100%; flex-direction:column; gap:16px; }
 .atlas-home-board-console .atlas-launch-primary-root label { display:flex; width:100%; flex-direction:column; gap:8px; }
