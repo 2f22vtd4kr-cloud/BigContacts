@@ -188,6 +188,7 @@ export function LaunchAtlasButton({
           />
           <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
           <span className="atlas-home-objective-count">{objectiveLimit === null ? "Loading API limit…" : `${launchObjective.length.toLocaleString()} / ${objectiveLimit.toLocaleString()}`}</span>
+          {limitUnavailable && <span className="text-[11px] leading-relaxed text-destructive" role="alert">The research API launch limit is unavailable. Refresh after the API reconnects.</span>}
         </label>
       )}
       <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
