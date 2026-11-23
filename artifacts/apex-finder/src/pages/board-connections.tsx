@@ -86,14 +86,14 @@ export default function BoardConnectionsPage() {
             <button type="button" className={filter === "asset" ? "is-active" : ""} aria-pressed={filter === "asset"} onClick={() => setFilter("asset")}>Assets {counts.asset}</button>
           </div>
           <div className="atlas-connections-counts" aria-label="Relationship totals">
-            <div><strong>{isLoading ? "—" : isError ? "!" : counts.all.toLocaleString()}</strong><span>Relationships</span></div>
-            <div><strong>{isLoading ? "—" : isError ? "—" : counts.entity.toLocaleString()}</strong><span>Entity links</span></div>
-            <div><strong>{isLoading ? "—" : isError ? "—" : counts.asset.toLocaleString()}</strong><span>Asset links</span></div>
+            <div><strong>{isLoading ? "—" : isError ? "!" : counts.all.toLocaleString()}</strong><span>Loaded relationships</span></div>
+            <div><strong>{isLoading ? "—" : isError ? "—" : counts.entity.toLocaleString()}</strong><span>Loaded entity links</span></div>
+            <div><strong>{isLoading ? "—" : isError ? "—" : counts.asset.toLocaleString()}</strong><span>Loaded asset links</span></div>
           </div>
           {isError && (
             <div className="atlas-connections-empty" role="alert">
               <strong>The relationship register could not be loaded.</strong>
-              <p>Atlas could not retrieve the current relationship records. The backend may be unavailable or the request may need operator access.</p>
+              <p>Atlas could not retrieve the current relationship records. Try again or check system status.</p>
               <button type="button" className="atlas-connections-retry" onClick={() => void refetch()}><RefreshCw aria-hidden="true" /> Retry</button>
             </div>
           )}
@@ -109,7 +109,7 @@ export default function BoardConnectionsPage() {
           <div className="atlas-connections-heading">
             <div>
               <h2 id="atlas-routes-title">Recorded connections</h2>
-              <p>Backend relationship records · newest first</p>
+              <p>Newest first · up to 500 records returned by Atlas</p>
             </div>
             <span>{isError ? "Unavailable" : isLoading ? "Loading" : `${visible.length} shown`}</span>
           </div>
@@ -122,7 +122,7 @@ export default function BoardConnectionsPage() {
               <RelationshipRow key={relationship.id} relationship={relationship} />
             ))}
           </div>
-          <p className="atlas-connections-data-note">The relationship API supplies record type, endpoints, strength and notes. Evidence verification states are not inferred from these fields.</p>
+          <p className="atlas-connections-data-note">Each row shows the relationship record as stored: linked records, type, strength and any saved note. This register does not assign evidence-verification labels.</p>
         </section>
       </div>
     </BoardPageFrame>
