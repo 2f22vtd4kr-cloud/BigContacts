@@ -267,7 +267,7 @@
 .atlas-round .atlas-discover-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); gap:36px; align-items:start; }
 .atlas-round .atlas-discover-search { min-width:0; min-height:0; }
 .atlas-round .atlas-discover-search > div { min-height:0; }
-.atlas-round .atlas-discover-search > div > div:first-child { padding:0 0 20px!important; background:transparent!important; border-color:var(--round-line)!important; }
+.atlas-round .atlas-discover-search-console-inner > .atlas-discover-search-heading { padding:0 0 16px!important; background:transparent!important; border-color:var(--round-line)!important; }
  .atlas-round .atlas-discover-search input { min-height:48px; border:1px solid var(--round-line)!important; border-radius:10px!important; background:#fff!important; color:var(--round-ink)!important; font:400 14px "Geist",sans-serif!important; }
 .atlas-round .atlas-discover-search button[type="submit"] { min-height:44px; border-radius:10px!important; background:var(--round-red)!important; color:#fff!important; box-shadow:none!important; font:500 12px "Geist",sans-serif!important; letter-spacing:0!important; text-transform:none!important; }
 .atlas-round .atlas-discover-search button[type="submit"]:disabled { background:var(--round-raised)!important; color:var(--round-ink-3)!important; }
