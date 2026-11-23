@@ -6,6 +6,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const files = {
   css: "artifacts/apex-finder/src/index.css",
   dashboard: "artifacts/apex-finder/src/pages/dashboard.tsx",
+  ledger: "artifacts/apex-finder/src/pages/board-ledger.tsx",
   reactor: "artifacts/apex-finder/src/pages/reactor.tsx",
   mobile: "artifacts/apex-finder/src/components/mobile-reactor-flow.tsx",
   replay: "artifacts/apex-finder/src/components/research-replay.tsx",
@@ -20,6 +21,7 @@ for (const [name, file] of Object.entries(files)) {
 const css = read(files.css);
 const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
+const ledger = read(files.ledger);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
@@ -53,7 +55,8 @@ const checks = [
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
   ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
   ["tablet desks avoid legacy md geometry", !tabletSurfaces[5].includes("md:w-80") && !tabletSurfaces[0].includes("md:rotate-0")],
-["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
+["Ledger imports its evidence-aware entity display classifier", ledger.includes('import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";') && ledger.includes("normalizeEntityType(displayEntityType(entity))")],
+  ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
   ["dashboard rows stay inside the shell canvas", /atlas-home-board-grid/.test(dashboard) && /max-width:\s*1600px/.test(flatRound) && /min-width:\s*0/.test(flatRound) && !/inline-size:\s*100vw/.test(flatRound) && !/atlas-sidebar-offset/.test(flatRound)],
   ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && !dashboard.includes("atlas-sidebar-offset") && /atlas-home-board-grid/.test(dashboard)],
   ["dashboard hero copy is explicitly start-aligned", /atlas-home-board-intro/.test(dashboard) && /text-align:\s*left/.test(flatRound)],
