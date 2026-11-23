@@ -18,7 +18,7 @@ describe("Flat Round four-pixel spacing grid", () => {
 
   it("uses only the board's documented corner-radius scale", () => {
     const radii = [...boardCss.matchAll(/border-radius:\s*([^;]+)/g)].map((match) => match[1].trim());
-    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:6|10|12|16|20)px)(?:!important)?$/.test(radius));
+    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:6|10|12|16|20)px|20px 0 0 20px|0 20px 20px 0)(?:!important)?$/.test(radius));
     expect(unsupported).toEqual([]);
   });
 
@@ -64,6 +64,8 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
     expect(boardCss).toContain("width='32'%20height='24'%20viewBox='0%200%2032%2024'");
     expect(boardCss).toContain("background-size: 32px 24px;");
+    expect(boardCss).toContain(".atlas-home-board-console::before { left:0; border-radius:20px 0 0 20px; }");
+    expect(boardCss).toContain(".atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }");
   });
 
   it("draws review bends with a seamless repeating diagonal field", () => {
