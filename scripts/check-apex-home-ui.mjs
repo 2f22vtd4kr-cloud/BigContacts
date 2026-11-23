@@ -55,9 +55,10 @@ require(launch.includes("Web search") && launch.includes("Registries") && launch
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
-require(roundLayout.includes('className="atlas-round-mobile-nav"'), "mobile primary navigation must remain visible as a tab bar");
-require(roundLayout.includes("atlas-round-mobile-utilities"), "mobile utility navigation must remain available from the menu");
-require(css.includes("position:fixed") && css.includes("bottom:0"), "mobile tab bar must be fixed to the bottom safe area");
+require(roundLayout.includes("atlas-round-mobile-utilities") && roundLayout.includes('aria-label="Apex Atlas navigation"'), "mobile primary and utility destinations must remain available in the consolidated navigation menu");
+require(roundLayout.includes('aria-controls="atlas-round-mobile-utilities"') && roundLayout.includes("aria-expanded={mobileOpen}"), "mobile navigation toggle must expose its expanded state and controlled menu");
+require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "mobile menu must identify the active destination");
+require(css.includes("atlas-round-mobile-utilities") && css.includes("max-height:calc(100dvh - 88px)") && css.includes("overflow:auto"), "mobile menu must remain scrollable within the safe viewport");
 require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
 require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
