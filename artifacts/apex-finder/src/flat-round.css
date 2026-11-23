@@ -358,6 +358,11 @@
 }
 
 
+.atlas-round .atlas-home-recent-connections { border-top:1px solid var(--round-line); }
+.atlas-round .atlas-home-recent-connection { display:flex; flex-direction:column; gap:5px; padding:12px 0; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-home-recent-connection-names { display:flex; flex-wrap:wrap; gap:7px; color:var(--round-ink-2); font:500 12px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-home-recent-connection-names a { color:var(--round-ink); text-decoration:underline; text-decoration-color:var(--round-line); text-underline-offset:3px; }
+.atlas-round .atlas-home-recent-connection-type { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; text-transform:capitalize; }
 /* Connections board: user-owned contacts and only complete, source-backed routes. */
 .atlas-round .atlas-connections-layout { display:grid; grid-template-columns:minmax(270px,.82fr) minmax(0,1.18fr); gap:48px; align-items:start; }
 .atlas-round .atlas-connections-console,.atlas-round .atlas-connections-routes { min-width:0; border-top:1px solid var(--round-line); }
