@@ -486,42 +486,12 @@ export default function Dashboard() {
             </div>
             <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
           </div>
-          {hasError ? (
-            <div className="atlas-home-route-empty"><CircleAlert aria-hidden="true" /><p>Routes could not be loaded. Your saved records remain available in the Ledger.</p></div>
-          ) : isLoading ? (
-            <div className="atlas-home-route-loading">{[0,1,2].map((item) => <div className="atlas-home-route-skeleton" key={item} />)}</div>
-          ) : leads.length ? (
-            <div className="atlas-home-route-list">
-              {leads.slice(0, 3).map((lead: any, index: number) => {
-                const access = Number(lead.accessScore ?? 0);
-                const verification = String(leadMetadata(lead).verificationLevel ?? "");
-                const status = verification === "verified" || verification === "primary_record" ? "Verified" : verification === "corroborated" ? "Corroborated" : "In review";
-                const tone = status === "Verified" ? "verified" : status === "Corroborated" ? "corroborated" : "review";
-                return (
-                  <Link href={`/profile/${lead.entityId}`} key={lead.entityId} className={`atlas-home-route-card atlas-home-route-${tone}`} data-testid={`home-route-${lead.entityId}`}>
-                    <div className="atlas-home-route-top">
-                      <span className="atlas-home-route-initials">{initials(lead.entityName)}</span>
-                      <span className="atlas-home-route-score">{scorePercent(access)}</span>
-                    </div>
-                    <div className="atlas-home-route-name">{lead.entityName || "Unnamed entity"}</div>
-                    <div className="atlas-home-route-role">{lead.role || lead.title || "Role not recorded"}</div>
-                    <div className="atlas-home-route-path">
-                      <span>You</span><span className="atlas-home-route-line" aria-hidden="true" /><span>{lead.entityName || "Target"}</span>
-                    </div>
-                    <div className="atlas-home-route-evidence">{entityEvidenceLabel(lead)} · {dateLabel(lead.signalDate)}</div>
-                    <div className="atlas-home-route-status">{status}</div>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="atlas-home-route-empty">
-              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-verified" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
-              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-corroborated" /> <strong>Corroborated</strong><span>Two independent sources agree</span></div>
-              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-review" /> <strong>In review</strong><span>One source so far, a second is pending</span></div>
-              <p>No routes yet. Launch a run and the strongest evidenced paths will appear here.</p>
-            </div>
-          )}
+          <div className="atlas-home-route-empty">
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-verified" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-corroborated" /> <strong>Corroborated</strong><span>Two independent sources agree</span></div>
+            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-review" /> <strong>In review</strong><span>One source so far, a second is pending</span></div>
+            <p>{Number(stats?.totalRelationships ?? 0) > 0 ? "Recorded relationships are available in Connections. A ranked, evidence-backed route is shown here only when its complete path is available." : "No routes yet. Launch a run and the strongest evidenced paths will appear here."}</p>
+          </div>
         </aside>
       </div>
 
