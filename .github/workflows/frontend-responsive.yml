@@ -73,7 +73,7 @@ jobs:
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
       - name: Capture Home desktop and mobile in a real browser
-        if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/fix/apex-atlas-board-sidebar-patterns-2026-11-23' || github.event.pull_request.head.ref == 'fix/apex-atlas-board-sidebar-patterns-2026-11-23')
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/fix/apex-atlas-board-sidebar-patterns-2026-11-23' || github.ref == 'refs/heads/fix/apex-atlas-design-board-fidelity' || github.event.pull_request.head.ref == 'fix/apex-atlas-board-sidebar-patterns-2026-11-23' || github.event.pull_request.head.ref == 'fix/apex-atlas-design-board-fidelity')
         run: |
           npm install --global playwright
           playwright install chromium
