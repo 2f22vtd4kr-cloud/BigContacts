@@ -45,6 +45,7 @@ require(css.includes("width='16'%20height='16'%20viewBox='0%200%2016%2016'") && 
 require(css.includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && css.includes("M-8%206%20C0%202%200%202%208%206") && css.includes("M-8%2018%20C0%2014%200%2014%208%2018") && css.includes("background-size: 32px 24px"), "launch console must use the overdrawn, phase-matched SVG wave field");
 require(css.includes("border-radius:20px 0 0 20px") && css.includes("border-radius:0 20px 20px 0"), "split console patterns must round only their outer corners so the wave field is not clipped at the center seam");
 require(css.includes("#FAFAF8") && css.includes("#C8321E") && css.includes("#1F8A4D") && css.includes("#2757C6") && css.includes("#EDB92B"), "CSS must preserve the board's paper and four semantic tinctures");
+require(css.includes("background-color: #1F8A4D;") && css.includes("radial-gradient(circle, #FAFAF8") && css.includes("background-color: #2757C6;") && css.includes("stroke='%23FAFAF8'") && css.includes("background-color: #F8E8B7;"), "verified dots, corroborated waves and review bends must use the board's light geometry on their semantic tincture");
 require(css.includes("@media (max-width:760px)"), "Home must define the 390px mobile composition");
 require(css.includes(".atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }"), "optional Home status rows must not leave empty grid tracks");
 require(dashboard.includes("complete path is available"), "Home must not imply a relationship route without a complete evidenced path");
