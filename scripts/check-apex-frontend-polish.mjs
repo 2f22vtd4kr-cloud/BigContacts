@@ -37,6 +37,7 @@ const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-rea
 const layout = read("artifacts/apex-finder/src/components/layout-legacy.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const boardPageFrame = read("artifacts/apex-finder/src/components/board-page-frame.tsx");
+const workspaceStatus = read("artifacts/apex-finder/src/components/workspace-status.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
   "artifacts/apex-finder/src/pages/duplicates.tsx",
@@ -57,6 +58,7 @@ const checks = [
   ["sidebar follows Unslop's 240px rail and 36px navigation rhythm", flatRound.includes("width:240px; min-width:240px;") && flatRound.includes("min-height:36px;") && flatRound.includes("gap:8px;") && flatRound.includes("stroke-width:1.5;")],
   ["tablet board layouts stack before content becomes cramped", flatRound.includes("@media (max-width:1000px) and (min-width:761px)") && flatRound.includes(".atlas-round .atlas-discover-layout,") && flatRound.includes(".atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr);")],
   ["active sidebar contains only board navigation; compact workspace status stays in the topbar", roundLayout.includes("<WorkspaceStatus compact") && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
+  ["compact workspace status is live, accessible and uses semantic tinctures", workspaceStatus.includes("aria-label={compactFullLabel}") && workspaceStatus.includes("data-status={state}") && flatRound.includes(".atlas-round-status-dot.is-ready") && flatRound.includes(".atlas-round-status-dot.is-offline")],
   ["active shell avoids a redundant, invented footer tagline", !roundLayout.includes("atlas-round-footer")],
   ["board pages avoid redundant breadcrumbs and let the designed page title lead", !boardPageFrame.includes("breadcrumb") && !boardPageFrame.includes("Apex Atlas /")],
   ["display tracking follows the board while small labels remain untracked", flatRound.includes("letter-spacing:-.035em") && !flatRound.includes("letter-spacing:-.045em") && !flatRound.includes("letter-spacing:-.025em") && !flatRound.includes("text-transform:uppercase")],
