@@ -116,6 +116,7 @@ export default function BoardDiscoverPage() {
   const footprintCount = Object.values(pythonTools).filter(Boolean).length;
   const footprintTotal = Object.keys(pythonTools).length;
   const webConfigured = webProviderRows.some((provider) => provider.status === "Configured");
+  const rateLimitedProviders = webProviderRows.filter((provider) => provider.status === "Rate-limited").map((provider) => provider.label);
   const reviewedRegistries = registrySources.filter((source) => source.productionReviewStatus === "reviewed_for_production");
   const reviewRequiredRegistries = registrySources.filter((source) => source.productionReviewStatus === "review_required");
   const availableRegistries = reviewedRegistries.filter((source) => source.runtimeAdapterImplemented === true);
@@ -124,10 +125,12 @@ export default function BoardDiscoverPage() {
   const sourceKindsReady = Number(webConfigured) + Number(registryAdapterReady) + Number(footprintAvailable);
   const sourceKindsLabel = sourcesLoading || sourcesError ? "— of 3" : `${sourceKindsReady} of 3`;
   const webDetail = webProviderRows.filter((provider) => provider.status === "Configured").map((provider) => provider.label).join(", ") ||
-    "No configured web search provider reported";
-  const webDetailWithNote = webProviderRows.some((provider) => provider.key === "serper" && provider.status === "Not reported")
-    ? webDetail + " · Serper status not reported"
-    : webDetail;
+    (rateLimitedProviders.length > 0 ? "All configured providers are rate-limited" : "No configured web search provider reported");
+  const webDetailWithNote = [
+    webDetail,
+    rateLimitedProviders.length > 0 && webConfigured ? "Rate-limited: " + rateLimitedProviders.join(", ") : "",
+    webProviderRows.some((provider) => provider.key === "serper" && provider.status === "Not reported") ? "Serper status not reported" : "",
+  ].filter(Boolean).join(" · ");
   const registryDetail = availableRegistries.length > 0
     ? availableRegistries.slice(0, 2).map((source) => source.label).join(", ") +
       (reviewRequiredRegistries.length > 0 ? ` · ${reviewRequiredRegistries[0].label} requires review` : "")
@@ -163,7 +166,7 @@ export default function BoardDiscoverPage() {
   const removeSearch = (id: string) => setSavedSearches((current) => current.filter((item) => item.id !== id));
 
   const sourceGroups = [
-    { id: "web", label: "Web search", detail: webDetailWithNote, ready: webConfigured, status: webConfigured ? "Configured" : "Unavailable" },
+    { id: "web", label: "Web search", detail: webDetailWithNote, ready: webConfigured, status: webConfigured ? "Configured" : rateLimitedProviders.length > 0 ? "Rate-limited" : "Unavailable" },
     { id: "registries", label: "Registries", detail: registryDetail, ready: registryAdapterReady, status: registryAdapterReady ? "Adapter ready" : "Unavailable" },
     { id: "footprint", label: "Footprint tools", detail: footprintDetail, ready: footprintAvailable, status: footprintAvailable ? "Available" : "Unavailable" },
   ];
