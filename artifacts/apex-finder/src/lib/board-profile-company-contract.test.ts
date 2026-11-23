@@ -21,6 +21,7 @@ describe("board card person/company distinction", () => {
     expect(boardCardSource).toContain("<h3>Ownership</h3>");
     expect(boardCardSource).toContain("No shareholder record yet. Atlas does not infer ownership from a title.");
     expect(boardCardSource).toContain("People on this card");
+    expect(boardCardSource).toContain("{!isCompanyCard && e.nationality && <span>{e.nationality}</span>}");
     expect(boardCardSource).toContain("hasOwnershipEvidence");
   });
 
