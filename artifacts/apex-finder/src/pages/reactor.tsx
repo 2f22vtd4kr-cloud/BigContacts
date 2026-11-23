@@ -1674,7 +1674,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           </dl>
           {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
           <div className="atlas-reactor-launch-slot">{launchSlot}</div>
-          <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
         </aside>
       </div>
     );
