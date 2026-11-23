@@ -81,6 +81,24 @@ async function main() {
         bodyHtmlLength: document.body.innerHTML.length,
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
+        launchButton: (() => {
+          const element = document.querySelector('[data-testid="button-launch-apex-atlas"]');
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          const parentRect = element.parentElement?.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            text: element.textContent?.trim(),
+            disabled: element.disabled,
+            className: element.className,
+            width: rect.width,
+            height: rect.height,
+            parentWidth: parentRect?.width ?? null,
+            display: style.display,
+            flex: style.flex,
+            minWidth: style.minWidth,
+          };
+        })(),
         scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean),
       }));
       const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: false });
