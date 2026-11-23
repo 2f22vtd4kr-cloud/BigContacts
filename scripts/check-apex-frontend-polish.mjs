@@ -26,6 +26,7 @@ const contactSurface = read("artifacts/apex-finder/src/components/contact-surfac
 const profile = read("artifacts/apex-finder/src/pages/profile.tsx");
 const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const ledger = read(files.ledger);
+const connections = read("artifacts/apex-finder/src/pages/board-connections.tsx");
 const ledgerEvidence = read("artifacts/apex-finder/src/lib/board-ledger-evidence.ts");
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
@@ -82,6 +83,7 @@ const checks = [
   ["Ledger derives the row status from the primary presented contact and uses evidence tinctures", ledger.includes("resolveBoardEvidenceStatus(entity.contacts)") && ledgerEvidence.includes("contacts[0]") && ledgerEvidence.includes("validationStatus") && ledger.includes("boardEvidenceStatus") && ledger.includes("atlas-evidence-pattern is-") && ledger.includes("<th>Person</th><th>Evidence</th><th>Score</th><th>Sources</th>")],
   ["Ledger outcome totals render as a separated three-column summary instead of concatenated inline text", flatRound.includes(".atlas-round .atlas-ledger-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));") && flatRound.includes(".atlas-round .atlas-ledger-counts > div { display:flex; min-width:0; flex-direction:column;") && flatRound.includes(".atlas-round .atlas-ledger-counts strong {") && flatRound.includes(".atlas-round .atlas-ledger-counts span {")],
   ["Ledger internal register layout is not nested in a second split page grid", !ledger.includes("      split") && ledger.includes('<div className="atlas-ledger-layout">')],
+  ["Connections internal register and shortest-path workspace use the full board width", !connections.includes("      split") && connections.includes('className="atlas-connections-layout"')],
   ["Split board pages use a full-width intro and real responsive content columns", flatRound.includes(".atlas-round .atlas-board-page-grid { display:grid;") && flatRound.includes(".atlas-round .atlas-board-page-grid > .atlas-board-page-intro { grid-column:1 / -1;") && flatRound.includes("@media (max-width:760px) { .atlas-round .atlas-board-page-grid")],
   ["Discover query form, source markers and action controls have explicit board styling", flatRound.includes(".atlas-round .atlas-discover-search-console { display:flex;") && flatRound.includes(".atlas-round .atlas-discover-query-field { display:grid;") && flatRound.includes(".atlas-round .atlas-discover-source-chip { display:inline-flex;") && flatRound.includes(".atlas-round .atlas-discover-search-actions { display:flex;")],
   ["Reactor board places Logbook left and Run console right, with separated metric columns", flatRound.includes(".atlas-round .atlas-board-reactor .atlas-reactor-logbook { grid-column:1; grid-row:2; }") && flatRound.includes(".atlas-round .atlas-board-reactor .atlas-reactor-run-console { grid-column:2; grid-row:2; }") && flatRound.includes(".atlas-round .atlas-reactor-run-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));")],
