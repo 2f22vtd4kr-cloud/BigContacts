@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const dashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
+const dashboardSource = readFileSync(new URL("../pages/dashboard-legacy.tsx", import.meta.url), "utf8");
 
 describe("dashboard source-card snippet honesty", () => {
   it("renders search snippets as unverified context, separate from fetched page excerpts", () => {
