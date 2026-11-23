@@ -96,6 +96,7 @@ function LegacyRoutes() {
         <Route path="/network/graph" component={GraphViewer} />
         <Route path="/network" component={GraphViewer} />
         <Route path="/jobs" component={BackgroundJobs} />
+        <Route path="/reactor/topology" component={IntelligenceReactorPage} />
         <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/research" component={IntelTerminal} />
         <Route path="/manual" component={FieldManual} />
@@ -126,6 +127,7 @@ function BoardRoutes() {
         <Route path="/network/graph" component={GraphViewer} />
         <Route path="/network" component={BoardConnections} />
         <Route path="/jobs" component={BackgroundJobs} />
+        <Route path="/reactor/topology" component={IntelligenceReactorPage} />
         <Route path="/reactor" component={BoardReactor} />
         <Route path="/research" component={IntelTerminal} />
         <Route path="/manual" component={FieldManual} />
