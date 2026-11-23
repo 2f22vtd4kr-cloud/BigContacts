@@ -48,6 +48,7 @@ require(css.includes("#FAFAF8") && css.includes("#C8321E") && css.includes("#1F8
 require(css.includes("@media (max-width:760px)"), "Home must define the 390px mobile composition");
 require(css.includes(".atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures { grid-row:auto; }"), "optional Home status rows must not leave empty grid tracks");
 require(dashboard.includes("complete path is available"), "Home must not imply a relationship route without a complete evidenced path");
+require(dashboard.includes("atlas-evidence-pattern is-verified") && dashboard.includes("atlas-evidence-pattern is-corroborated") && dashboard.includes("atlas-evidence-pattern is-review") && !dashboard.includes("atlas-evidence-dot"), "Home evidence legend must teach the distinct dots, waves and bends rather than three solid status dots");
 require(launch.includes("launchTargetCount"), "launch console must expose the target-count control");
 require(launch.includes("Math.min(25"), "target-count control must cap at 25");
 require(launch.includes('targetCount: opts?.targetCount ?? (variant === "primary" ? launchTargetCount : undefined)'), "target-count control must pass its value to the canonical launch function");
