@@ -1,6 +1,5 @@
 import { useGetDashboardStats } from "@workspace/api-client-react";
-import { Link } from "wouter";
-import { ArrowUpRight, Network, Route } from "lucide-react";
+import { Route } from "lucide-react";
 
 export default function BoardConnectionsPage() {
   const { data: stats, isLoading, isError, refetch } = useGetDashboardStats();
@@ -57,7 +56,6 @@ export default function BoardConnectionsPage() {
             <span><i className="is-corroborated" />Corroborated</span>
             <span><i className="is-review" />In review</span>
           </div>
-          <Link href="/network/graph" className="atlas-connections-graph-link">Open relationship graph <Network aria-hidden="true" /><ArrowUpRight aria-hidden="true" /></Link>
         </section>
       </div>
     </div>
