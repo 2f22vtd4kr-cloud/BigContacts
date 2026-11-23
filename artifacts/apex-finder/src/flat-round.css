@@ -877,3 +877,21 @@ body:has(.atlas-round-shell) {
   text-decoration:underline;
   text-underline-offset:3px;
 }
+
+
+.atlas-round .atlas-contact-route-secondary {
+  display:inline-flex;
+  max-width:100%;
+  align-items:center;
+  gap:6px;
+  color:var(--round-ink);
+  font:400 11px/1.4 "Geist",sans-serif;
+}
+.atlas-round .atlas-contact-route-secondary a {
+  color:var(--round-ink);
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.atlas-round .atlas-contact-route-secondary small {
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
