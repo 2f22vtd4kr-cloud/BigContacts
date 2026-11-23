@@ -49,8 +49,8 @@ export default function BoardConnectionsPage() {
         </div>
         <div className="atlas-connections-route-empty" role="status" aria-live="polite">
           <div className="atlas-connections-route-mark"><Route aria-hidden="true" /></div>
-          <strong>No complete route yet.</strong>
-          <p>When a contact is linked to a person by a public record, the route and its evidence will appear here. No contacts or paths are inferred from names alone.</p>
+          <strong>Routes are unavailable.</strong>
+          <p>Connect a user-owned contact source. Atlas will show a route only when a public record supports each link; no contacts or paths are inferred from names alone.</p>
         </div>
         <div className="atlas-connections-legend" aria-label="Evidence status legend">
           <span><i className="is-verified" />Verified</span>
