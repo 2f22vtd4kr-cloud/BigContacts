@@ -2564,7 +2564,7 @@ function useIsMobile() {
 }
 
 // ── Page wrapper ──────────────────────────────────────────────────────────────
-export default function IntelligenceReactorPage() {
+export default function IntelligenceReactorPage({ boardMode = false }: { boardMode?: boolean } = {}) {
   const isMobile = useIsMobile();
 
   // ── Real data for mobile ──────────────────────────────────────────────────
@@ -2857,7 +2857,7 @@ export default function IntelligenceReactorPage() {
   const [totalAssets, setTotalAssets] = useState(0);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || boardMode) return;
     const measure = () => {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
@@ -2868,10 +2868,10 @@ export default function IntelligenceReactorPage() {
     const ro = new ResizeObserver(measure);
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, [isMobile]);
+  }, [isMobile, boardMode]);
 
   // ── Mobile ────────────────────────────────────────────────────────────────
-  if (isMobile) {
+  if (isMobile && !boardMode) {
     return (
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#111827" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
@@ -2893,6 +2893,33 @@ export default function IntelligenceReactorPage() {
            scheduler={scheduler}
            schedulerNow={schedulerNow}
           exhaustedKeys={exhaustedKeys}
+        />
+      </div>
+    );
+  }
+
+  if (boardMode) {
+    return (
+      <div className="atlas-reactor-board-shell">
+        <style>{KEYFRAMES}</style>
+        <DesktopReactor
+          boardMode
+          liveNodes={liveNodes}
+          liveLabel={liveLabel}
+          livePhaseDetail={livePhaseDetail}
+          atlasState={atlasState}
+          scheduler={scheduler}
+          schedulerNow={schedulerNow}
+          isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
+          totalEntities={totalEntities}
+          hotCount={hotCount}
+          totalAssets={totalAssets}
+          sessionCount={sessions.length}
+          launchSlot={(
+            <div data-testid="reactor-launch-bar-board">
+              <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+            </div>
+          )}
         />
       </div>
     );
