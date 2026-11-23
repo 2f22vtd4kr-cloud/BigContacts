@@ -35,7 +35,7 @@ function scoreLabel(value: unknown) {
 
 export default function BoardLedgerPage() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | EvidenceStatus>("all");
+  const [filter, setFilter] = useState<"all" | BoardEvidenceStatus>("all");
   const [visibleCount, setVisibleCount] = useState(5);
   const { data: rawEntities, isLoading, isError, refetch } = useListEntities({ limit: 500 });
 
@@ -49,21 +49,21 @@ export default function BoardLedgerPage() {
     return raw
       .filter((entity: any) => !entity.isHidden)
       .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(displayEntityType(entity))))
-      .map((entity: any) => ({ ...entity, boardEvidenceStatus: resolveBoardEvidenceStatus(entity.contacts) }));
+      .map((entity: any) => ({ ...entity, boardBoardEvidenceStatus: resolveBoardEvidenceStatus(entity.contacts) }));
   }, [rawEntities]);
 
   const counts = useMemo(() => ({
     all: entities.length,
-    verified: entities.filter((entity: any) => entity.boardEvidenceStatus === "verified").length,
-    corroborated: entities.filter((entity: any) => entity.boardEvidenceStatus === "corroborated").length,
-    review: entities.filter((entity: any) => entity.boardEvidenceStatus === "review").length,
-    disputed: entities.filter((entity: any) => entity.boardEvidenceStatus === "disputed").length,
+    verified: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "verified").length,
+    corroborated: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "corroborated").length,
+    review: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "review").length,
+    disputed: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "disputed").length,
   }), [entities]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return entities.filter((entity: any) => {
-      if (filter !== "all" && entity.boardEvidenceStatus !== filter) return false;
+      if (filter !== "all" && entity.boardBoardEvidenceStatus !== filter) return false;
       if (!query) return true;
       const role = entityWorkSummary(entity) ?? "";
       const sources = sourceList(entity.sourceRegistries).join(" ");
@@ -92,7 +92,7 @@ export default function BoardLedgerPage() {
             <Search aria-hidden="true" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the register…" aria-label="Search the register" />
           </label>
-          <div className="atlas-ledger-filters" role="group" aria-label="Filter register by contact outcome">
+          <div className="atlas-ledger-filters" role="group" aria-label="Filter register by evidence status">
             {([
               { value: "all", label: "All", count: counts.all },
               { value: "verified", label: "Verified", count: counts.verified },
@@ -140,7 +140,7 @@ export default function BoardLedgerPage() {
           ) : visible.length === 0 ? (
             <div className="atlas-ledger-state">
               <strong>{search || filter !== "all" ? "No entries match this view." : "No one on the register yet."}</strong>
-              <span>{search || filter !== "all" ? "Clear the search or choose another contact outcome." : "Run a free dig from Overview and the first evidence-backed person will appear here."}</span>
+              <span>{search || filter !== "all" ? "Clear the search or choose another evidence status." : "Run a free dig from Overview and the first evidence-backed person will appear here."}</span>
               {!search && filter === "all" && <Link href="/" className="atlas-ledger-empty-link">Open Overview <ArrowUpRight aria-hidden="true" /></Link>}
             </div>
           ) : (
@@ -150,7 +150,7 @@ export default function BoardLedgerPage() {
                 <tbody>
                   {displayed.map((entity: any) => {
                     const sources = sourceList(entity.sourceRegistries).filter((source) => !/^(manual|user|seed|imported)$/i.test(source));
-                    const evidence = entity.boardEvidenceStatus as EvidenceStatus;
+                    const evidence = entity.boardBoardEvidenceStatus as BoardEvidenceStatus;
                     const pattern = evidence === "verified" ? "supported" : evidence === "corroborated" ? "corroborated" : evidence === "review" ? "review" : null;
                     const role = entityWorkSummary(entity);
                     return (
