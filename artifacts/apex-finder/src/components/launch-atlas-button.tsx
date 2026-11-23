@@ -155,14 +155,14 @@ export function LaunchAtlasButton({
             data-testid="textarea-atlas-discovery-objective"
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
-            maxLength={variant === "primary" ? 1_200 : 1_600}
+            maxLength={1_600}
             placeholder="Describe who you want to reach"
             rows={3}
             disabled={busy || stopping || apiUnavailable}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
           <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
-          <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / {variant === "primary" ? "1,200" : "1,600"}</span>
+          <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / 1,600</span>
         </label>
       )}
       <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
