@@ -34,6 +34,7 @@ async function main() {
   try {
     for (const [name, viewport] of [
       ["desktop", { width: 1280, height: 900 }],
+      ["tablet", { width: 768, height: 1024 }],
       ["mobile", { width: 390, height: 844 }],
     ]) {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
