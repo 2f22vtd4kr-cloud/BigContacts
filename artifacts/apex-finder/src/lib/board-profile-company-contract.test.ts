@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
 const boardProfileSource = readFileSync(new URL("../pages/board-profile.tsx", import.meta.url), "utf8");
+const contactSurfaceSource = readFileSync(new URL("../components/contact-surface.tsx", import.meta.url), "utf8");
 const boardModeStart = profileSource.lastIndexOf("if (boardMode)");
 const boardModeEnd = profileSource.indexOf("\n  return (", boardModeStart);
 const boardCardSource = profileSource.slice(boardModeStart, boardModeEnd);
@@ -41,6 +42,15 @@ describe("board card person/company distinction", () => {
     expect(boardCardSource).toContain('renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)');
     expect(boardCardSource).toContain("(reviewContacts.length > 0 || reviewPhone)");
     expect(boardCardSource).toContain("None recorded.");
+  });
+
+  it("uses board evidence statuses without changing legacy contact semantics", () => {
+    expect(contactSurfaceSource).toContain("boardMode = false");
+    expect(contactSurfaceSource).toContain('label: "Corroborated"');
+    expect(contactSurfaceSource).toContain('label: "Verified"');
+    expect(contactSurfaceSource).toContain('label: "In review"');
+    expect(contactSurfaceSource).toContain('label: "PUBLIC COMPANY"');
+    expect(boardCardSource).toContain('density="card" boardMode evidenceCount={contactEvidence.length}');
   });
 
   it("renders relationship roles as readable labels", () => {
