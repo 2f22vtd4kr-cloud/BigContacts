@@ -20,6 +20,15 @@ import { getAgenticLlmTelemetryForJob } from "../../lib/agentic-llm-telemetry";
 
 const router = Router();
 
+/** Public, non-sensitive launch constraints consumed by the UI for exact validation. */
+router.get("/ingest/atlas-config", (_req: Request, res: Response): void => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS,
+    discoveryContextMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS,
+  });
+});
+
 function respondToTerminalAtlasStop(res: Response, jobId: string, status: string): void {
   if (status === "cancelled") {
     res.json({ ok: true, jobId, status: "cancelled", message: "Atlas was already stopped." });
