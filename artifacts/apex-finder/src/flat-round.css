@@ -699,3 +699,34 @@
   background-position:0 0;
   background-size:32px 24px;
 }
+
+
+/* Evidence patterns belong on real route cards, never as general decoration. */
+.atlas-route-pattern-card {
+  padding:12px;
+  border-radius:16px;
+  background-repeat:repeat;
+  background-origin:border-box;
+}
+.atlas-route-pattern-card > .atlas-home-route-result,
+.atlas-route-pattern-card > .atlas-contact-surface-inner {
+  border:1px solid var(--round-line);
+  border-radius:6px;
+  background:#FFFFFF;
+}
+.atlas-route-pattern-card > .atlas-contact-surface-inner { padding:12px; }
+.atlas-route-pattern-card.is-supported {
+  background-color:#1F8A4D;
+  background-image:radial-gradient(circle,#FAFAF8 1.15px,transparent 1.3px);
+  background-size:12px 12px;
+}
+.atlas-route-pattern-card.is-disputed,
+.atlas-route-pattern-card.is-corroborated {
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%204%20-8%204%200%2012%20S8%2020%2016%2012%20S24%204%2032%2012%20S40%2020%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size:32px 24px;
+}
+.atlas-route-pattern-card.is-review {
+  background-color:#F8E8B7;
+  background-image:repeating-linear-gradient(135deg,#EDB92B 0 8px,#F8E8B7 8px 16px);
+}
