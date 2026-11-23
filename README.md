@@ -123,3 +123,39 @@ Before changing code or conducting a live run, refresh GitHub `main`, open PRs, 
 - Preserve the distinction between research retrieval, supported findings, candidate admission, durable cards, and terminal completion.
 
 **Every contact should be a person you can justify from the public record—not a guess that looks like one.**
+
+## 2026-11-23 — Design-board-faithful frontend (PR #943, in progress)
+
+The supplied Apex Atlas Design Board PDF is the visual source of truth for the new default frontend. PR [#943](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/943) implements the Flat Round board shell while retaining the classic interface as an operational fallback. This section describes the feature branch only; it does not change the canonical main revision or imply merge readiness.
+
+### Board routes
+
+In the Flat Round shell:
+
+- / — Home / Overview
+- /profiles — Ledger
+- /search — Discover
+- /network — Connections
+- /network/graph — full relationship graph utility
+- /reactor — board Logbook and Run console
+- /reactor/topology — original Reactor topology utility
+- /profile/:id — evidence-backed subject Card
+
+The More menu exposes the graph and topology utilities. The shell's **Classic interface** action switches to the retained legacy route tree; ?ui=legacy also selects it, and the preference is stored as apex-atlas-ui. Do not remove layout-legacy.tsx or the legacy route tree as part of the redesign.
+
+### Visual and interaction contract
+
+- Geist for interface text and Geist Mono for figures/source metadata; restrained 400/500 weights.
+- Paper #FAFAF8, card #FFFFFF, raised #F3F3F0; ink #18181A, #55555A, #74747A.
+- Semantic tinctures: gules #C8321E for launch/API failure, vert #1F8A4D for verified, azure #2757C6 for corroborated, and or #EDB92B for in-review.
+- Checky, waves, dots and bends are evidence/console patterns with fixed meanings, not decoration.
+- The Home launch objective retains the canonical 1,600-character limit and passes its value to the existing launch API. Discover's saved searches and source status use the existing live search and status endpoints.
+- Ledger, Cards, Connections and Reactor render persisted entities, provenance, relationships and canonical telemetry only. Unknown contacts/routes and unavailable APIs remain explicitly unavailable; no synthetic evidence or activity is added.
+- Reactor's Logbook is chronological (oldest first, newest last), and its Run console uses the canonical launch/stop controls.
+- Subject Card tabs retain recently opened real entity IDs locally; they do not create synthetic subjects.
+
+### Verification gate
+
+PR #943 remains a draft until the full frontend build, API regression suite, responsive contract, research-quality/no-fabrication contracts, and independent full-codebase audits pass on the exact final head. Rendered desktop and 390px mobile comparisons against every Design Board screen are also required; source-level tests are not visual proof. No merge or production readiness is implied by this section.
+
+The redesign uses the [Unslop design skill](https://github.com/heydamir/unslop), adapted to the supplied board and credited under CC BY 4.0 to Damir Sokolovsky.
