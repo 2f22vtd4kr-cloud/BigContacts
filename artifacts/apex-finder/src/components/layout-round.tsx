@@ -42,7 +42,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
         if (event.key === "Escape") setMobileOpen(false);
       };
       window.addEventListener("keydown", closeOnEscape);
-      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-nav a")?.focus();
+      document.querySelector<HTMLAnchorElement>(".atlas-round-mobile-utilities a")?.focus();
       return () => window.removeEventListener("keydown", closeOnEscape);
     }
     if (mobileWasOpen.current) {
@@ -79,7 +79,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
           <button className="atlas-round-more" type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(v => !v)}>
             More <ChevronDown />
           </button>
-          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-nav" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
+          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button" aria-controls="atlas-round-mobile-utilities" aria-expanded={mobileOpen} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} onClick={() => setMobileOpen(v => !v)}>
             {mobileOpen ? <X /> : <Menu />}
           </button>
         </div>
@@ -88,10 +88,11 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
           return <Link key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon />{item.name}</Link>;
         })}<button type="button" className="atlas-round-more-option" onClick={() => { setMoreOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></div>}
       </header>
-      {mobileOpen && <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Mobile navigation"><NavItems mobile />{utilityNav.map(item => {
+      {mobileOpen && <nav id="atlas-round-mobile-utilities" className="atlas-round-mobile-utilities" aria-label="More navigation">{utilityNav.map(item => {
         const Icon = item.icon;
-        return <Link key={item.href} href={item.href} className="atlas-round-navlink is-mobile"><Icon /><span>{item.name}</span></Link>;
-      })}<button type="button" className="atlas-round-navlink is-mobile" onClick={() => onSwitchToLegacy?.()}>Classic interface</button></nav>}
+        return <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}><Icon /><span>{item.name}</span></Link>;
+      })}<button type="button" onClick={() => { setMobileOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></nav>}
+      <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Primary mobile navigation"><NavItems mobile /></nav>
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
         <div className="atlas-round-page-meta"><span>APEX ATLAS</span><span className="atlas-round-meta-dot">/</span><strong>{title}</strong></div>
         <div className="atlas-round-content">{children}</div>
