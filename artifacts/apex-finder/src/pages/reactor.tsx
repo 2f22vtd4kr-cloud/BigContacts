@@ -2888,7 +2888,7 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#111827" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
         <style>{KEYFRAMES}</style>
-        <div className="flex-shrink-0 border-b border-[#9CFF1A]/15 bg-[#111827]/95 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="primary" navigateToReactor={false} label="Launch Apex Atlas" />
+        <div className="flex-shrink-0 border-b border-[#9CFF1A]/15 bg-[#111827]/95 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
         </div>
         <MobileReactorFlow
           sessions={sessions}
@@ -2931,7 +2931,7 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
           sessionCount={sessions.length}
           launchSlot={(
             <div data-testid="reactor-launch-bar-board">
-              <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+              <LaunchAtlasButton variant="primary" navigateToReactor={false} label="Launch Apex Atlas" />
             </div>
           )}
         />
