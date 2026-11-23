@@ -1,5 +1,6 @@
-import { useGetDashboardStats } from "@workspace/api-client-react";
+import { useGetDashboardStats, useListRelationships } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
 import { ChevronRight, CircleAlert } from "lucide-react";
 import { Link } from "wouter";
@@ -31,6 +32,8 @@ function StatTile({
 export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
+  const relationshipsQuery = useListRelationships(undefined, { query: { enabled: !mock, staleTime: 10_000, refetchOnWindowFocus: true } });
+  const recentRelationships = useMemo(() => (Array.isArray(relationshipsQuery.data) ? relationshipsQuery.data : []).slice(0, 4), [relationshipsQuery.data]);
   // Keep the canonical research-lead projection warm without rendering the retired Home feed.
   useQuery({
     queryKey: ["dashboard", "research-leads"],
@@ -101,17 +104,33 @@ export default function Dashboard() {
         <aside className="atlas-home-board-routes" aria-labelledby="atlas-home-routes-title">
           <div className="atlas-home-section-heading">
             <div>
-              <h2 id="atlas-home-routes-title">Strongest routes</h2>
-              <p>Evidence-backed connections</p>
+              <h2 id="atlas-home-routes-title">Recent connections</h2>
+              <p>Recorded relationship edges</p>
             </div>
-            <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
+            <Link href="/network" aria-label="Open all connections">All connections <ChevronRight aria-hidden="true" /></Link>
           </div>
-          <div className="atlas-home-route-empty">
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-verified" aria-hidden="true" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-corroborated" aria-hidden="true" /> <strong>Corroborated</strong><span>Two independent sources agree</span></div>
-            <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-review" aria-hidden="true" /> <strong>In review</strong><span>One source so far, a second is pending</span></div>
-            <p>{Number(stats?.totalRelationships ?? 0) > 0 ? "Recorded relationships are available in Connections. A ranked, evidence-backed route is shown here only when its complete path is available." : "No routes yet. Launch a run and the strongest evidenced paths will appear here."}</p>
-          </div>
+          {relationshipsQuery.isError ? (
+            <div className="atlas-home-route-empty" role="status">The relationship register is unavailable. Retry from Connections.</div>
+          ) : recentRelationships.length > 0 ? (
+            <div className="atlas-home-recent-connections">
+              {recentRelationships.map((relationship) => (
+                <div className="atlas-home-recent-connection" key={relationship.id}>
+                  <div className="atlas-home-recent-connection-names">
+                    <Link href={`/profile/${relationship.sourceEntityId}`}>{relationship.sourceEntityName || `Entity #${relationship.sourceEntityId}`}</Link>
+                    <span aria-hidden="true">→</span>
+                    {relationship.targetType === "Entity"
+                      ? <Link href={`/profile/${relationship.targetId}`}>{relationship.targetName || `Entity #${relationship.targetId}`}</Link>
+                      : <span>{relationship.targetName || `Asset #${relationship.targetId}`}</span>}
+                  </div>
+                  <span className="atlas-home-recent-connection-type">{relationship.relationshipType.toLowerCase().replace(/_/g, " ")}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="atlas-home-route-empty" role="status">
+              {relationshipsQuery.isLoading ? "Loading recorded connections…" : "No relationship records yet. Connections will appear here when Atlas records them."}
+            </div>
+          )}
         </aside>
 
       </div>
