@@ -213,3 +213,19 @@
   .atlas-round-mobile-utilities a:hover,.atlas-round-mobile-utilities button:hover { background:var(--round-raised); color:var(--round-ink); }
   .atlas-round-mobile-utilities svg { width:14px; height:14px; }
 }
+
+
+.atlas-home-api-down { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid #C8321E55; border-radius:8px; background:#F3F3F0; color:var(--round-ink); }
+.atlas-home-api-down > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.atlas-home-api-down strong { color:#A92718; font-size:13px; font-weight:500; }
+.atlas-home-api-down span { color:var(--round-ink-2); font-size:12px; }
+.atlas-home-api-down button { min-height:36px; padding:0 14px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink); font-size:12px; font-weight:500; }
+.atlas-home-api-down button:disabled { opacity:.4; }
+.atlas-home-board-console textarea:disabled { background:#F3F3F0!important; color:var(--round-ink-3)!important; opacity:1!important; }
+.atlas-home-stale-note { grid-column:1; grid-row:3; margin-top:12px; padding:8px 10px; border-left:2px solid var(--round-gold); background:#EDB92B12; color:#7A5600; font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; }
+@media (max-width:760px) {
+  .atlas-home-stale-note { grid-column:1; grid-row:4; }
+  .atlas-home-figures { grid-row:5; }
+  .atlas-home-board-routes { grid-row:6; }
+  .atlas-home-board-people { grid-row:7; }
+}
