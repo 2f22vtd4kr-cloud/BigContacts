@@ -1,16 +1,19 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { useListEntities } from "@workspace/api-client-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import ApexProfile from "@/pages/profile";
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
 
+const RECENT_CARD_KEY = "apex-atlas-recent-cards-v1";
+
 export default function BoardProfilePage() {
   const [, params] = useRoute("/profile/:id");
   const activeId = Number(params?.id ?? 0);
   const { data: rawEntities } = useListEntities({ limit: 500 });
+  const [recentIds, setRecentIds] = useState<number[]>([]);
 
-  const tabs = useMemo(() => {
+  const allEntities = useMemo(() => {
     const raw = Array.isArray(rawEntities)
       ? rawEntities
       : Array.isArray((rawEntities as any)?.entities)
@@ -19,13 +22,40 @@ export default function BoardProfilePage() {
     const all = raw
       .filter((entity: any) => !entity.isHidden)
       .sort((a: any, b: any) => Number(b.bayesianScore ?? 0) - Number(a.bayesianScore ?? 0));
-    const first = all.slice(0, 5);
-    if (activeId && !first.some((entity: any) => Number(entity.id) === activeId)) {
-      const current = all.find((entity: any) => Number(entity.id) === activeId);
-      if (current) first.splice(Math.max(0, first.length - 1), 1, current);
+    return all;
+  }, [rawEntities]);
+
+  useEffect(() => {
+    try {
+      const stored: unknown = JSON.parse(window.localStorage.getItem(RECENT_CARD_KEY) || "[]");
+      if (Array.isArray(stored)) {
+        setRecentIds([...new Set(stored.filter((id): id is number => Number.isInteger(id) && id > 0))].slice(0, 20));
+      }
+    } catch {
+      setRecentIds([]);
     }
-    return { items: first, more: Math.max(0, all.length - first.length) };
-  }, [rawEntities, activeId]);
+  }, []);
+
+  useEffect(() => {
+    if (!activeId || !allEntities.some((entity: any) => Number(entity.id) === activeId)) return;
+    setRecentIds((current) => {
+      const next = [activeId, ...current.filter((id) => id !== activeId)].slice(0, 20);
+      try { window.localStorage.setItem(RECENT_CARD_KEY, JSON.stringify(next)); } catch { /* Recent tabs remain session-local if storage is unavailable. */ }
+      return next;
+    });
+  }, [activeId, allEntities]);
+
+  const tabs = useMemo(() => {
+    const recent = recentIds
+      .map((id) => allEntities.find((entity: any) => Number(entity.id) === id))
+      .filter(Boolean);
+    const current = allEntities.find((entity: any) => Number(entity.id) === activeId);
+    if (current && !recent.some((entity: any) => Number(entity.id) === activeId)) recent.unshift(current);
+    const recentIdsSet = new Set(recent.map((entity: any) => Number(entity.id)));
+    const remaining = allEntities.filter((entity: any) => !recentIdsSet.has(Number(entity.id)));
+    const items = [...recent, ...remaining].slice(0, 5);
+    return { items, more: Math.max(0, allEntities.length - items.length) };
+  }, [allEntities, recentIds, activeId]);
 
   return (
     <BoardPageFrame
