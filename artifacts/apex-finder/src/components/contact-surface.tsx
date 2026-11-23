@@ -179,9 +179,9 @@ export function ContactSurface({
         ? mailHref(primary.value!)
         : safeExternalHref(primary.sourceUrl) || safeExternalHref(String(primary.value).startsWith("http") ? primary.value : undefined);
 
-  return (
+  const content = (
     <div
-      className={cn("flex flex-col gap-1 min-w-0", className)}
+      className={cn("atlas-contact-surface-inner flex flex-col gap-1 min-w-0", className)}
       data-testid="contact-surface"
       data-route-count={routes.length}
     >
@@ -249,4 +249,8 @@ export function ContactSurface({
       </div>
     </div>
   );
+  if (!boardMode) return content;
+  const tier = routeTier(primary, true).label;
+  const pattern = tier === "Verified" ? "supported" : tier === "Corroborated" ? "corroborated" : "review";
+  return <div className={"atlas-route-pattern-card is-" + pattern}>{content}</div>;
 }
