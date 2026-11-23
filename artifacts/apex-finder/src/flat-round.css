@@ -817,3 +817,8 @@
   width:100%!important;
   max-width:none!important;
 }
+
+html:has(.atlas-round-shell),
+body:has(.atlas-round-shell) {
+  background:#FAFAF8!important;
+}
