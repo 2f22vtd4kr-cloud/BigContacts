@@ -22,6 +22,7 @@ const css = read(files.css);
 const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
 const contactSurface = read("artifacts/apex-finder/src/components/contact-surface.tsx");
+const profile = read("artifacts/apex-finder/src/pages/profile.tsx");
 const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const ledger = read(files.ledger);
 const reactor = read(files.reactor);
