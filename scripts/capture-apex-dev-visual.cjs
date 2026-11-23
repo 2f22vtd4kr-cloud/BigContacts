@@ -263,6 +263,8 @@ async function main() {
             reactor: label === "reactor" ? {
               display: reactorGrid ? getComputedStyle(reactorGrid).display : null,
               columns: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns : null,
+              columnCount: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns.split(/\\s+/).length : 0,
+              viewportWidth: window.innerWidth,
               metricsDisplay: reactorMetrics ? getComputedStyle(reactorMetrics).display : null,
               metricLabels: reactorMetrics ? Array.from(reactorMetrics.querySelectorAll("span")).map((item) => item.textContent?.trim()) : [],
               lastStepDisplay: reactorLastStep ? getComputedStyle(reactorLastStep).display : null,
