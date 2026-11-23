@@ -227,3 +227,9 @@
 .atlas-home-board-console textarea::placeholder { color:var(--round-ink-3)!important; opacity:1; }
 
 .atlas-round .atlas-home-board-console .atlas-launch-cta:disabled { border:1px solid var(--round-line)!important; background:var(--round-raised)!important; color:var(--round-ink-3)!important; opacity:1!important; cursor:not-allowed; }
+
+.atlas-home-source-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; padding-bottom:12px; border-bottom:1px solid var(--round-line); color:var(--round-ink-2); font:400 12px "Geist Mono",ui-monospace,monospace; }
+.atlas-home-source-status span { display:inline-flex; align-items:center; gap:7px; }
+.atlas-home-source-status span::before { content:""; width:7px; height:7px; border:1px solid var(--round-ink-3); border-radius:50%; background:transparent; }
+.atlas-home-source-status .is-unavailable { color:var(--round-ink-3); }
+.atlas-home-source-status .is-unavailable::before { opacity:.45; }
