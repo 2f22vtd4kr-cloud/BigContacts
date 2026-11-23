@@ -19,6 +19,7 @@ import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/
 import { readApiJson } from "@/lib/api-json";
 import { parseReactorAtlasPoll } from "@/lib/reactor-page-atlas-poll";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
+import { useReactorLiveTelemetry, type LiveActivity } from "../lib/reactor-live-store";
 import { ReactorMark } from "../components/reactor-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1434,6 +1435,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   launchSlot?: ReactNode;
   boardMode?: boolean;
 }) {
+  const telemetry = useReactorLiveTelemetry();
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
   const AN = (isLive && liveNodes) ? liveNodes : new Set<string>();
@@ -1584,48 +1586,38 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   }, [deskEvents, deskQuery]);
 
   if (boardMode) {
-    const rawSpans = Array.isArray(atlasState?.recentSpans) ? atlasState.recentSpans : [];
-    const logItems = rawSpans.length > 0
-      ? rawSpans.map((span: DigSpanView) => {
-          const blob = [span.name, span.toolName, span.spanType, span.operationName].filter(Boolean).join(" ").toLowerCase();
-          const category = /search|serper|tavily|exa|google|bing/.test(blob) ? "Search"
-            : /registry|edgar|sec|companies|brreg|filing/.test(blob) ? "Registry"
-            : /browser|visit|fetch|scrape|crawl|page/.test(blob) ? "Browser"
-            : /evidence|promote|case|verify|source/.test(blob) ? "Evidence" : "Notes";
-          const status = span.status === "active" ? "Running" : span.status === "error" ? "Failed" : "Recorded";
-          return { id: span.id, category, title: span.name || span.toolName || "Recorded research step", detail: span.resultSummary || span.inputSummary || "", timestamp: span.startedAt, status };
-        })
-      : deskEvents.map((event: any, index: number) => {
-          const blob = [event.stage, event.activeToolId, event.kind, event.methodKind].filter(Boolean).join(" ").toLowerCase();
-          const category = /search|serper|tavily|exa|google|bing/.test(blob) ? "Search"
-            : /registry|edgar|sec|companies|brreg|filing/.test(blob) ? "Registry"
-            : /browser|visit|fetch|scrape|crawl|page/.test(blob) ? "Browser"
-            : /evidence|promote|case|verify|source/.test(blob) ? "Evidence" : "Notes";
-          const status = event.status === "active" ? "Running" : event.status === "failed" ? "Failed" : "Recorded";
-          return { id: String(event.timestamp || "") + "-" + index, category, title: event.stage || event.story || event.narration || "Recorded Bureau note", detail: event.resultSummary || event.why || event.story || "", timestamp: event.timestamp, status };
-        });
+    const logItems = telemetry.activities;
+    const categoryForActivity = (activity: LiveActivity) => {
+      const blob = [activity.tool, activity.operation, activity.spanType, activity.agent].filter(Boolean).join(" ").toLowerCase();
+      if (/search|serper|tavily|exa|google|bing/.test(blob)) return "Search";
+      if (/registry|edgar|sec|companies|brreg|filing/.test(blob)) return "Registry";
+      if (/browser|visit|fetch|scrape|crawl|page/.test(blob)) return "Browser";
+      if (/evidence|promote|case|verify|source/.test(blob)) return "Evidence";
+      return "Notes";
+    };
     const query = deskQuery.trim().toLowerCase();
-    const filteredBoardItems = logItems.filter((item: any) => {
-      if (boardLogFilter !== "All" && item.category !== boardLogFilter) return false;
+    const filteredBoardItems = logItems.filter((activity) => {
+      const category = categoryForActivity(activity);
+      if (boardLogFilter !== "All" && category !== boardLogFilter) return false;
       if (!query) return true;
-      return [item.title, item.detail, item.category, item.status].join(" ").toLowerCase().includes(query);
+      return [activity.tool, activity.operation, activity.spanType, activity.agent, activity.target, activity.inputSummary, activity.resultSummary, category]
+        .filter(Boolean).join(" ").toLowerCase().includes(query);
     });
     const categories = ["All", "Evidence", "Search", "Registry", "Browser", "Notes"];
-    const runStatus = atlasState?.runStatus ?? "idle";
+    const countForCategory = (category: string) => category === "All"
+      ? logItems.length
+      : logItems.filter((activity) => categoryForActivity(activity) === category).length;
+    const runStatus = telemetry.runStatus;
     const statusLabel = runStatus === "running" || runStatus === "queued" || runStatus === "paused"
       ? "Running" : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Cancelled" : "Idle";
     const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ");
-    const timeLabel = (value?: string) => {
-      if (!value) return "Time not recorded";
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? "Time not recorded" : date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    };
+    const telemetryLive = runStatus === "running" || runStatus === "paused";
     return (
       <div className="atlas-reactor-board-layout">
         <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
           <div className="atlas-reactor-board-heading">
             <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps, newest last</p></div>
-            <span className={isLive ? "is-live" : ""}>{isLive ? "Following live" : "Recorded"}</span>
+            <span className={telemetryLive ? "is-live" : ""}>{telemetryLive ? "Following live" : "Recorded"}</span>
           </div>
           <label className="atlas-reactor-log-search">
             <Search aria-hidden="true" />
@@ -1634,7 +1626,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           <div className="atlas-reactor-log-filters" role="group" aria-label="Filter logbook by event type">
             {categories.map((category) => (
               <button key={category} type="button" aria-pressed={boardLogFilter === category} onClick={() => setBoardLogFilter(category)}>
-                {category} <strong>{category === "All" ? logItems.length : logItems.filter((item: any) => item.category === category).length}</strong>
+                {category} <strong>{countForCategory(category)}</strong>
               </button>
             ))}
           </div>
@@ -1644,17 +1636,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <p>{logItems.length === 0 ? "Launch a run. Every actual search, page visit and registry check will be recorded here." : "Clear the search or choose another event type."}</p>
             </div>
           ) : (
-            <div className="atlas-reactor-log-list" role="log" aria-live={isLive ? "polite" : "off"}>
-              {filteredBoardItems.map((item: any) => (
-                <article key={item.id} className="atlas-reactor-log-item">
-                  <div className="atlas-reactor-log-time"><time>{timeLabel(item.timestamp)}</time><span>{item.status}</span></div>
-                  <div className="atlas-reactor-log-item-main">
-                    <span className={"atlas-reactor-log-category is-" + item.category.toLowerCase()}>{item.category}</span>
-                    <strong>{item.title}</strong>
-                    {item.detail && <p>{item.detail}</p>}
-                  </div>
-                </article>
-              ))}
+            <div className="atlas-reactor-log-list">
+              <ReactorLiveSurface
+                events={[]}
+                activities={filteredBoardItems}
+                targetName={atlasState?.currentEntities?.[0] || atlasState?.atlasTelemetry?.targetName}
+                showTopology={false}
+              />
             </div>
           )}
         </section>
@@ -1666,8 +1654,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           </div>
           <div className="atlas-reactor-current-run">
             <span>Current run</span>
-            <strong>{runTarget || (isLive ? "Research in progress" : "No active target")}</strong>
-            <p>{atlasState?.detail || (isLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
+            <strong>{runTarget || (telemetryLive ? "Research in progress" : "No active target")}</strong>
+            <p>{atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
           </div>
           <dl className="atlas-reactor-run-facts">
             <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
