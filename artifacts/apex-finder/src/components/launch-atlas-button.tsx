@@ -4,6 +4,7 @@ import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
+import { ApexAtlasMark } from "@/components/apex-atlas-mark";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
 
@@ -166,7 +167,8 @@ export function LaunchAtlasButton({
         </div>
       )}
       {variant === "primary" && (
-        <div className="atlas-home-source-status" aria-label="Available source kinds">
+        <div className="atlas-home-source-status" aria-label="Launch console and available source kinds">
+          <span className="atlas-home-console-label"><ApexAtlasMark aria-hidden="true" />Launch console</span>
           <span>Web search</span>
           <span>Registries</span>
           <span className="is-unavailable">Footprint tools unavailable</span>
