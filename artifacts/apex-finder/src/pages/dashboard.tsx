@@ -104,7 +104,7 @@ export default function Dashboard() {
               <h2 id="atlas-home-routes-title">Strongest routes</h2>
               <p>Evidence-backed connections</p>
             </div>
-            <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
+            <Link href="/network" aria-label="Open all connections">All connections <ChevronRight aria-hidden="true" /></Link>
           </div>
           <div className="atlas-home-route-empty">
             <div className="atlas-home-route-empty-line"><span className="atlas-evidence-pattern is-verified" aria-hidden="true" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
