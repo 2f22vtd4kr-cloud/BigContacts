@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Loader2, Square } from "lucide-react";
+import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
@@ -10,14 +10,14 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 const VARIANT_CLASS: Record<Variant, string> = {
   // Keep the home-page primary CTA on the same 48px visual rail as Reactor/Discover.
   // The previous h-13/min-h-[3.25rem] made the launch button visibly taller.
-  primary: "atlas-launch-cta relative h-12 min-h-12 w-full sm:w-auto min-w-[11rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
-  header: "atlas-launch-cta relative h-8 shrink-0 px-2.5 text-[11px] font-extrabold tracking-wide rounded-full whitespace-nowrap sm:h-9 sm:px-3.5 sm:text-[12px]",
-  reactor: "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
+  primary: "atlas-launch-cta relative h-12 min-h-12 w-full px-8 text-[15px] font-medium rounded-lg",
+  header: "atlas-launch-cta relative h-9 shrink-0 px-3 text-[12px] font-medium rounded-lg whitespace-nowrap",
+  reactor: "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-medium rounded-lg",
   ghost: "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
 
 const VARIANT_RUNNING: Record<Variant, string> = {
-  primary: "h-12 w-full sm:w-auto px-7 text-sm tracking-tight rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/15 text-[#9CFF1A] shadow-[0_0_28px_rgba(156,255,26,0.2)]",
+  primary: "h-12 w-full px-7 text-sm rounded-lg border border-[#E5E5E1] bg-[#F3F3F0] text-[#55555A]",
   header: "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/18 text-[#9CFF1A] border border-[#9CFF1A]/50",
   reactor: "h-11 w-full sm:w-auto px-5 text-xs rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/15 text-[#9CFF1A]",
   ghost: "h-10 px-4 text-xs font-semibold rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#9CFF1A]",
@@ -47,6 +47,7 @@ export function LaunchAtlasButton({
   const [status, setStatus] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
+  const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? 25)));
   const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? DEFAULT_ATLAS_DISCOVERY_OBJECTIVE);
   const { run, refresh } = useAtlasRun(8_000);
 
@@ -79,7 +80,7 @@ export function LaunchAtlasButton({
       return;
     }
     setBusy(true);
-    const result = await launchAtlasPipeline({ ...opts, discoveryObjective: objective, researchDepth: opts?.researchDepth ?? launchDepth });
+    const result = await launchAtlasPipeline({ ...opts, targetCount: opts?.targetCount ?? launchTargetCount, discoveryObjective: objective, researchDepth: opts?.researchDepth ?? launchDepth });
     setBusy(false);
     setStatus(result.message);
     onLaunched?.(result);
@@ -138,18 +139,33 @@ export function LaunchAtlasButton({
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
             maxLength={1_600}
-            rows={4}
+            rows={3}
             disabled={busy || stopping}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
           <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
+          <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / 1,200</span>
         </label>
       )}
       <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
         {variant !== "header" && !opts?.researchDepth && !inFlight && (
-          <select aria-label="Research depth" data-testid="select-launch-depth" value={launchDepth} onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")} className="h-12 rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="fast / standard / deep — free dig budget only">
-            <option value="fast">Depth · fast</option><option value="standard">Depth · standard</option><option value="deep">Depth · deep</option>
-          </select>
+          <div className="atlas-launch-settings">
+            <div className="atlas-launch-depth" role="group" aria-label="Research depth">
+              <span>Depth</span>
+              {(["fast", "standard", "deep"] as const).map((depth) => (
+                <button key={depth} type="button" aria-pressed={launchDepth === depth} onClick={() => setLaunchDepth(depth)} data-testid={"button-depth-" + depth}>
+                  {depth === "fast" ? "Fast" : depth === "standard" ? "Standard" : "Deep"}
+                </button>
+              ))}
+            </div>
+            <div className="atlas-launch-target-count" role="group" aria-label="Maximum people to investigate">
+              <span>Up to</span>
+              <button type="button" aria-label="Decrease people limit" onClick={() => setLaunchTargetCount((n) => Math.max(1, n - 1))} disabled={launchTargetCount <= 1}><Minus aria-hidden="true" /></button>
+              <output aria-live="polite">{launchTargetCount}</output>
+              <button type="button" aria-label="Increase people limit" onClick={() => setLaunchTargetCount((n) => Math.min(25, n + 1))} disabled={launchTargetCount >= 25}><Plus aria-hidden="true" /></button>
+              <span>people</span>
+            </div>
+          </div>
         )}
         <button type="button" onClick={handleLaunch} disabled={busy || stopping} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
