@@ -231,7 +231,7 @@ async function main() {
         } else if (routeName === "discover") {
           const search = await page.locator(".atlas-discover-search").boundingBox();
           const rail = await page.locator(".atlas-discover-rail").boundingBox();
-          if (!search || !rail || (name === "desktop" && search.x + search.width > rail.x + 8)) throw new Error("Discover search console and saved/source rail must occupy distinct columns.");
+          if (!search || !rail || (name === "desktop" && search.x + search.width > rail.x + 8) || (name === "mobile" && search.height > 680)) throw new Error("Discover search console and saved/source rail must use compact, distinct responsive regions.");
         } else if (routeName === "reactor") {
           const logbook = await page.locator(".atlas-reactor-logbook").boundingBox();
           const consoleBox = await page.locator(".atlas-reactor-run-console").boundingBox();
