@@ -1709,7 +1709,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <LaunchAtlasButton variant="header" label="Stop run" navigateToReactor={false} />
             </div>
           ) : (
-            <a className="atlas-reactor-launch-slot" href="/">Launch a run from Overview</a>
+            <LaunchAtlasButton
+              variant="primary"
+              className="atlas-reactor-launch-slot"
+              navigateToReactor={false}
+            />
           )}
           <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
         </aside>
