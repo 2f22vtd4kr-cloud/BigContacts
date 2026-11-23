@@ -1020,7 +1020,7 @@ body:has(.atlas-round-shell) {
 }
 .atlas-round .atlas-ledger-console-inner { position:relative; z-index:1; padding:20px; border-radius:12px; background:#fff; }
 .atlas-round .atlas-ledger-register-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; }
-.atlas-round .atlas-ledger-register-meta span { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-register-meta span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-register-meta strong { color:var(--round-ink); font:500 13px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
 
 /* Reactor's run console belongs on the left; the recorded logbook belongs on the right. */
