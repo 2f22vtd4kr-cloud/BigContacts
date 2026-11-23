@@ -252,7 +252,7 @@
 .atlas-round .atlas-board-page-content [class*="uppercase"][class*="tracking-"] { letter-spacing:.01em!important; text-transform:none; }
 .atlas-round .atlas-board-ledger [data-testid="scoreboard-strip"],
 .atlas-round .atlas-board-ledger [data-testid="select-entities-dig-depth"] { display:none!important; }
-.atlas-round .atlas-board-ledger .hidden.lg\\:flex { height:auto!important; min-height:0; overflow:visible!important; }
+.atlas-round .atlas-board-ledger .hidden.lg\:flex { height:auto!important; min-height:0; overflow:visible!important; }
 .atlas-round .atlas-board-ledger .atlas-h-scroll button { border-radius:6px!important; }
 .atlas-round .atlas-board-discover .atlas-board-page-content { min-height:560px; }
 .atlas-round .atlas-board-discover .atlas-board-page-content > div { min-height:560px; }
