@@ -51,6 +51,14 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).toContain("utilityNav.map(item =>");
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
+
+  it("keeps checky cells and verified dots on exact repeating grids", () => {
+    expect(boardCss).toContain("width='16'%20height='16'%20viewBox='0%200%2016%2016'");
+    expect(boardCss).toContain("background-size: 16px 16px;");
+    expect(boardCss).toContain("radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px)");
+    expect(boardCss).toContain("background-size: 4px 4px;");
+  });
+
   it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
     const continuousWaveRows = "M0%206%20C8%202%208%202%2016%206%20S24%2010%2032%206%20M0%2018%20C8%2014%208%2014%2016%2018%20S24%2022%2032%2018";
     expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
