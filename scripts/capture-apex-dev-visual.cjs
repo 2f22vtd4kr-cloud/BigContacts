@@ -51,7 +51,7 @@ async function main() {
         const url = route.request().url();
         let payload = {};
         if (url.endsWith("/api/healthz")) {
-          payload = { researchKeysConfigured: false };
+          payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
             ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
@@ -119,6 +119,7 @@ async function main() {
         throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
+      if (await page.locator(".atlas-round-brand-mark").count() !== 2) throw new Error("The heraldic Apex Atlas shield must appear in desktop and mobile navigation.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
