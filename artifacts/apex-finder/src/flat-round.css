@@ -343,7 +343,7 @@
 .atlas-round .atlas-ledger-table th { padding:12px 12px; border-bottom:1px solid var(--round-line); color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; letter-spacing:0; }
 .atlas-round .atlas-ledger-table td { padding:12px 12px; border-bottom:1px solid var(--round-line); color:var(--round-ink-2); vertical-align:middle; }
 .atlas-round .atlas-ledger-person { display:flex; min-width:0; align-items:center; gap:12px; color:var(--round-ink); text-decoration:none; }
-.atlas-round .atlas-ledger-avatar { display:grid; width:32px; height:32px; flex:none; place-items:center; clip-path:polygon(0 0,100% 0,100% 64%,50% 100%,0 64%); background:var(--round-raised); color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-avatar { display:grid; width:32px; height:32px; flex:none; place-items:center; clip-path:polygon(0 0,100% 0,100% 64%,50% 100%,0 64%); background:var(--round-raised); color:var(--round-ink-2); font:500 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-ledger-avatar.is-verified { background:#1F8A4D; color:#fff; }
 .atlas-round .atlas-ledger-avatar.is-corroborated { background:#2757C6; color:#fff; }
 .atlas-round .atlas-ledger-avatar.is-review { background:#F8E8B7; color:#7A5600; }
