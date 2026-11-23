@@ -37,7 +37,6 @@ const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-rea
 const layout = read("artifacts/apex-finder/src/components/layout-legacy.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const boardPageFrame = read("artifacts/apex-finder/src/components/board-page-frame.tsx");
-const workspaceStatus = read("artifacts/apex-finder/src/components/workspace-status.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
   "artifacts/apex-finder/src/pages/duplicates.tsx",
