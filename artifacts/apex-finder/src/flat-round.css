@@ -14,7 +14,7 @@
 .atlas-round-mark svg { width:17px; height:17px; }
 .atlas-round-wordmark { display:flex; flex-direction:column; gap:4px; color:var(--round-ink); text-decoration:none; }
  .atlas-round-wordmark strong { font-size:16px; line-height:1; font-weight:500; letter-spacing:-.035em; }
-.atlas-round-wordmark span, .atlas-round-page-meta, .atlas-round-footer { font-family:"Geist Mono","IBM Plex Mono",ui-monospace,monospace; font-size:9px; letter-spacing:.12em; }
+.atlas-round-wordmark span, .atlas-round-page-meta, .atlas-round-footer { font-family:"Geist Mono","IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:0; }
 .atlas-round-wordmark span { color:var(--round-ink-3); font-size:8px; }
 .atlas-round-primary { display:flex; align-items:center; gap:4px; margin-left:auto; padding:4px; border:1px solid var(--round-line); border-radius:16px; background:#fff; box-shadow:0 1px 3px #18181a0b; }
 .atlas-round-navlink { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:0 12px; color:var(--round-ink-2); text-decoration:none; font-size:12px; border-radius:6px; transition:background .15s,color .15s; white-space:nowrap; }
@@ -653,23 +653,21 @@
 
 /* Board navigation correction: persistent desktop sidebar, off-canvas mobile drawer. */
 .atlas-round-shell { display:flex; min-height:100dvh; min-width:0; background:var(--round-paper); }
-.atlas-round-sidebar { position:sticky; top:0; z-index:90; display:flex; width:232px; min-width:232px; height:100dvh; flex-direction:column; padding:24px 16px 16px; border-right:1px solid var(--round-line); background:var(--round-paper); }
+.atlas-round-sidebar { position:sticky; top:0; z-index:90; display:flex; width:240px; min-width:240px; height:100dvh; flex-direction:column; padding:24px 16px 16px; border-right:1px solid var(--round-line); background:var(--round-paper); }
 .atlas-round-sidebar-brand { padding:4px 8px 28px; border-bottom:1px solid var(--round-line); }
 .atlas-round-sidebar-brand .atlas-round-wordmark { color:var(--round-ink); text-decoration:none; }
-.atlas-round-sidebar-brand .atlas-round-wordmark strong { font:500 20px/1.1 "Geist",sans-serif; letter-spacing:-.045em; }
+.atlas-round-sidebar-brand .atlas-round-wordmark strong { font:500 20px/1.1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-round-sidebar-nav { display:flex; flex-direction:column; gap:4px; padding-top:24px; }
-.atlas-round-sidebar-label { padding:0 8px 8px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:.08em; }
-.atlas-round-sidebar .atlas-round-navlink { display:flex; min-height:38px; justify-content:flex-start; gap:8px; padding:0 8px; border-radius:6px; color:var(--round-ink-2); font:400 13px/1.2 "Geist",sans-serif; text-decoration:none; }
-.atlas-round-sidebar .atlas-round-navlink svg { display:block; width:16px; height:16px; color:var(--round-ink-3); stroke-width:1.7; }
+.atlas-round-sidebar-label { padding:0 8px 8px; color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:0; }
+.atlas-round-sidebar .atlas-round-navlink { display:flex; min-height:36px; justify-content:flex-start; gap:8px; padding:0 8px; border-radius:6px; color:var(--round-ink-2); font:400 14px/1.2 "Geist",sans-serif; text-decoration:none; }
+.atlas-round-sidebar .atlas-round-navlink svg { display:block; width:16px; height:16px; color:var(--round-ink-3); stroke-width:1.5; }
 .atlas-round-sidebar .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
 .atlas-round-sidebar .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); font-weight:500; }
 .atlas-round-sidebar .atlas-round-navlink.is-active svg { color:var(--round-ink); }
-.atlas-round-sidebar-status { display:flex; flex-direction:column; gap:12px; margin-top:auto; padding:16px 8px 4px; border-top:1px solid var(--round-line); }
-.atlas-round-sidebar-status-item { min-width:0; color:var(--round-ink-2); font-size:11px; }
 .atlas-round-main-column { flex:1; min-width:0; }
 .atlas-round-main { min-height:100dvh; min-width:0; }
-.atlas-round-content { max-width:1600px; padding:32px clamp(24px,3vw,48px) 40px; }
-.atlas-round-footer { padding-inline:clamp(24px,3vw,48px); }
+.atlas-round-content { max-width:1600px; padding:32px clamp(24px,3vw,32px) 40px; }
+.atlas-round-footer { padding-inline:clamp(24px,3vw,32px); }
 .atlas-round-mobile-header { display:none; }
 .atlas-round-sidebar-backdrop { display:none; }
 @media (max-width:1000px) and (min-width:761px) {
@@ -680,11 +678,10 @@
   .atlas-round-shell { display:block; }
   .atlas-round-mobile-header { position:sticky; top:0; z-index:80; display:flex; height:60px; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--round-line); background:var(--round-paper); }
   .atlas-round-mobile-header .atlas-round-wordmark { color:var(--round-ink); text-decoration:none; }
-  .atlas-round-mobile-header .atlas-round-wordmark strong { font:500 18px/1 "Geist",sans-serif; letter-spacing:-.04em; }
+  .atlas-round-mobile-header .atlas-round-wordmark strong { font:500 18px/1 "Geist",sans-serif; letter-spacing:0; }
   .atlas-round-sidebar { position:fixed; top:0; bottom:0; left:0; z-index:120; width:min(288px,calc(100vw - 56px)); min-width:0; height:100dvh; padding:calc(20px + env(safe-area-inset-top)) 16px 20px; transform:translateX(-102%); visibility:hidden; transition:transform .18s ease,visibility .18s ease; box-shadow:none; }
   .atlas-round-sidebar.is-open { transform:translateX(0); visibility:visible; box-shadow:8px 0 28px #18181a18; }
   .atlas-round-sidebar-backdrop { position:fixed; inset:0; z-index:110; display:block; width:100%; height:100%; border:0; background:#18181a55; }
-  .atlas-round-sidebar-status { padding-bottom:env(safe-area-inset-bottom); }
   .atlas-round-main { min-height:calc(100dvh - 60px); }
   .atlas-round-content { padding:24px 16px 28px; }
   .atlas-round-footer { padding:16px; }
