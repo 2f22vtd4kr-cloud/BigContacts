@@ -268,3 +268,42 @@
   .atlas-round .atlas-board-page-content { min-height:0; }
   .atlas-round .atlas-board-connections #graph-container { min-height:65vh!important; height:65vh!important; }
 }
+
+
+/* Discover board: search desk on the left; saved work and source register on the right. */
+.atlas-round .atlas-discover-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); gap:36px; align-items:start; }
+.atlas-round .atlas-discover-search { min-width:0; min-height:620px; }
+.atlas-round .atlas-discover-search > div { min-height:620px; background:transparent!important; }
+.atlas-round .atlas-discover-search > div > div:first-child { padding:0 0 18px!important; background:transparent!important; border-color:var(--round-line)!important; }
+.atlas-round .atlas-discover-search input { min-height:48px; border:1px solid var(--round-line)!important; border-radius:8px!important; background:#fff!important; color:var(--round-ink)!important; font:400 14px "Geist",sans-serif!important; }
+.atlas-round .atlas-discover-search button[type="submit"] { min-height:44px; border-radius:8px!important; background:var(--round-red)!important; color:#fff!important; box-shadow:none!important; font:500 12px "Geist",sans-serif!important; letter-spacing:0!important; text-transform:none!important; }
+.atlas-round .atlas-discover-search button[type="submit"]:disabled { background:var(--round-raised)!important; color:var(--round-ink-3)!important; }
+.atlas-round .atlas-discover-search .atlas-outline-btn { min-height:44px; border-radius:8px!important; background:#fff!important; color:var(--round-ink)!important; border:1px solid var(--round-line)!important; }
+.atlas-round .atlas-discover-rail { display:flex; min-width:0; flex-direction:column; gap:20px; }
+.atlas-round .atlas-discover-panel { min-width:0; border-top:1px solid var(--round-line); border-bottom:1px solid var(--round-line); padding:16px 0; background:transparent; }
+.atlas-round .atlas-discover-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.atlas-round .atlas-discover-panel-heading h2 { margin:0; color:var(--round-ink)!important; font:500 20px/1.2 "Geist",sans-serif!important; letter-spacing:-.025em!important; }
+.atlas-round .atlas-discover-panel-heading p { margin:5px 0 0; color:var(--round-ink-3)!important; font:400 10px/1.5 "Geist Mono",ui-monospace,monospace!important; }
+.atlas-round .atlas-discover-count { display:grid; width:28px; height:28px; place-items:center; border:1px solid var(--round-line); border-radius:50%; color:var(--round-ink-2); font:500 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-empty { padding:18px 0; color:var(--round-ink-2); font:400 13px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-discover-empty span { display:block; margin-top:5px; color:var(--round-ink-3); font-size:12px; }
+.atlas-round .atlas-discover-saved-list { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; }
+.atlas-round .atlas-discover-saved-list li { display:flex; min-width:0; align-items:center; gap:8px; padding:12px 0; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-discover-saved-query { display:flex; min-width:0; flex:1; flex-direction:column; gap:6px; padding:0; border:0; background:transparent; color:var(--round-ink); text-align:left; cursor:pointer; }
+.atlas-round .atlas-discover-saved-query strong { overflow-wrap:anywhere; font:500 13px/1.45 "Geist",sans-serif; }
+.atlas-round .atlas-discover-saved-query span { display:flex; align-items:center; gap:5px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-saved-query svg { width:11px; height:11px; }
+.atlas-round .atlas-discover-remove,.atlas-round .atlas-discover-refresh { display:grid; width:32px; height:32px; flex:none; place-items:center; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-3); cursor:pointer; }
+.atlas-round .atlas-discover-remove:hover,.atlas-round .atlas-discover-refresh:hover { color:var(--round-ink); background:var(--round-raised); }
+.atlas-round .atlas-discover-remove svg,.atlas-round .atlas-discover-refresh svg { width:13px; height:13px; }
+.atlas-round .atlas-discover-refresh:disabled { opacity:.45; cursor:wait; }
+.atlas-round .atlas-discover-source-group { padding:12px 0; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-discover-source-group-title { display:flex; align-items:center; gap:8px; margin-bottom:8px; color:var(--round-ink); font:500 12px "Geist",sans-serif; }
+.atlas-round .atlas-discover-source-group-title svg { width:14px; height:14px; color:var(--round-ink-2); }
+.atlas-round .atlas-discover-source-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:6px 0; color:var(--round-ink-2); font:400 11px/1.45 "Geist",sans-serif; }
+.atlas-round .atlas-discover-source-row span:last-child { flex:none; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; text-align:right; }
+@media (max-width:760px) {
+  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .atlas-round .atlas-discover-search,.atlas-round .atlas-discover-search > div { min-height:520px; }
+  .atlas-round .atlas-discover-panel-heading h2 { font-size:18px!important; }
+}
