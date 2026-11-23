@@ -43,7 +43,7 @@ function StatTile({
       data-testid={testId}
       className="atlas-home-figure"
     >
-      <span className="atlas-home-figure-value">{value}</span>
+      <span className="atlas-home-figure-value">{typeof value === "number" ? value.toLocaleString("en-US") : value}</span>
       <span className="atlas-home-figure-label">{label}</span>
     </Link>
   );
