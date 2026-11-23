@@ -2006,7 +2006,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       .filter((entry) => entry && entry.source && entry.source !== "Internal")
       .slice(0, 5);
     const displayType = displayEntityType(entity);
-    const isCompanyCard = displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
+    const isCompanyCard = String(entity.type ?? "").toLowerCase() === "company" || displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
     const contactRoutes = Array.isArray((entity as any).contacts) ? (entity as any).contacts : [];
     const personalContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "personal");
     const companyContacts = contactRoutes.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "organization");
