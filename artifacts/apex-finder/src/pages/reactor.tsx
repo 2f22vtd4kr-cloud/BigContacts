@@ -1575,6 +1575,33 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     }
     prevEventCountRef.current = n;
   }, [deskEvents.length]);
+  const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
+  const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
+    const idx = schemeNodeIds.indexOf(id);
+    if (idx < 0) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = schemeNodeIds[(idx + 1) % schemeNodeIds.length]!;
+      setSchemeFocusId(next);
+      document.getElementById(`scheme-node-${next}`)?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = schemeNodeIds[(idx - 1 + schemeNodeIds.length) % schemeNodeIds.length]!;
+      setSchemeFocusId(prev);
+      document.getElementById(`scheme-node-${prev}`)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      const first = schemeNodeIds[0]!;
+      setSchemeFocusId(first);
+      document.getElementById(`scheme-node-${first}`)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = schemeNodeIds[schemeNodeIds.length - 1]!;
+      setSchemeFocusId(last);
+      document.getElementById(`scheme-node-${last}`)?.focus();
+    }
+  }, [schemeNodeIds]);
+
   const filteredDeskEvents = useMemo(() => {
     const q = deskQuery.trim().toLowerCase();
     if (!q) return deskEvents;
@@ -1679,32 +1706,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     );
   }
 
-  const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
-  const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
-    const idx = schemeNodeIds.indexOf(id);
-    if (idx < 0) return;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = schemeNodeIds[(idx + 1) % schemeNodeIds.length]!;
-      setSchemeFocusId(next);
-      document.getElementById(`scheme-node-${next}`)?.focus();
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const prev = schemeNodeIds[(idx - 1 + schemeNodeIds.length) % schemeNodeIds.length]!;
-      setSchemeFocusId(prev);
-      document.getElementById(`scheme-node-${prev}`)?.focus();
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      const first = schemeNodeIds[0]!;
-      setSchemeFocusId(first);
-      document.getElementById(`scheme-node-${first}`)?.focus();
-    } else if (e.key === "End") {
-      e.preventDefault();
-      const last = schemeNodeIds[schemeNodeIds.length - 1]!;
-      setSchemeFocusId(last);
-      document.getElementById(`scheme-node-${last}`)?.focus();
-    }
-  }, [schemeNodeIds]);
+
 
   return (
     <div style={{
