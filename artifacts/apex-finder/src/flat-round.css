@@ -207,7 +207,7 @@
 .atlas-home-api-down > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .atlas-home-api-down strong { color:#A92718; font-size:13px; font-weight:500; }
 .atlas-home-api-down span { color:var(--round-ink-2); font-size:12px; }
-.atlas-home-api-down button { min-height:36px; padding:0 14px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink); font-size:12px; font-weight:500; }
+.atlas-home-api-down button { min-height:36px; padding:0 16px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink); font-size:12px; font-weight:500; }
 .atlas-home-api-down button:disabled { opacity:.4; }
 .atlas-home-board-console textarea:disabled { background:#F3F3F0!important; color:var(--round-ink-3)!important; opacity:1!important; }
 .atlas-home-stale-note { grid-column:1; grid-row:3; margin-top:12px; padding:8px 12px; border-left:2px solid var(--round-gold); background:#EDB92B12; color:#7A5600; font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; }
