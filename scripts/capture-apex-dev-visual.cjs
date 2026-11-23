@@ -80,8 +80,10 @@ async function main() {
           payload = visualConnectionPath;
         } else if (url.endsWith("/api/registry-matrix")) {
           payload = { sources: [] };
+        } else if (url.endsWith("/api/entities/1")) {
+          payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
-          payload = currentPath === "/network" ? visualEntities : [];
+          payload = currentPath === "/network" || currentPath === "/profile/1" ? visualEntities : [];
         } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
@@ -217,6 +219,7 @@ async function main() {
         { path: "/profiles", label: "ledger", heading: "Everyone on the register" },
         { path: "/search", label: "discover", heading: "Where Atlas looks" },
         { path: "/reactor", label: "reactor", heading: "Every step, on the record" },
+        { path: "/profile/1", label: "card", heading: "Mira Patel" },
       ]) {
         currentPath = boardPage.path;
         await page.goto(new URL(boardPage.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
