@@ -229,6 +229,7 @@ async function main() {
             return element ? getComputedStyle(element) : null;
           };
           const discover = document.querySelector(".atlas-discover-layout");
+          const discoverConsole = document.querySelector(".atlas-discover-search-console");
           const discoverInput = document.querySelector(".atlas-discover-query-field input");
           const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
@@ -239,8 +240,8 @@ async function main() {
               display: discover ? getComputedStyle(discover).display : null,
               columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
               inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
-              innerBackground: discover ? getComputedStyle(discover).backgroundColor : null,
-              backgroundClip: discover ? getComputedStyle(discover).backgroundClip : null,
+              innerBackground: discoverConsole ? getComputedStyle(discoverConsole).backgroundColor : null,
+              backgroundClip: discoverConsole ? getComputedStyle(discoverConsole).backgroundClip : null,
               checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
               waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
             } : null,
