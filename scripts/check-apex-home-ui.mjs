@@ -75,6 +75,7 @@ require(boardFrame.includes("atlas-board-page-intro"), "primary screens must sha
 require(boardLedger.includes("Everyone on the register") && boardLedger.includes("useListEntities") && boardLedger.includes("atlas-ledger-table") && boardLedger.includes("View all "), "Ledger must render a live strongest-first evidence register with a working expand control");
 require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Sources"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
+require(boardDiscover.includes("RefreshCw") && boardDiscover.includes('aria-label="Refresh source status"') && boardDiscover.includes("aria-busy={sourcesLoading}"), "Discover source-status refresh control must be explicit and accessible");
 require(systemStatusRoute.includes('router.get("/registry-matrix"') && systemStatusRoute.includes("REGISTRY_COVERAGE_MATRIX"), "Discover registry status endpoint must return the canonical registry matrix");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
 require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searches must respect the frontend base path");
