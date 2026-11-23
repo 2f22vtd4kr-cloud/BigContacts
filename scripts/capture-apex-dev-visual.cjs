@@ -227,7 +227,7 @@ async function main() {
       ]) {
         currentPath = boardPage.path;
         await page.goto(new URL(boardPage.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
-        await page.getByRole("heading", { name: boardPage.heading }).waitFor({ state: "visible", timeout: 12000 });
+        await page.getByRole("heading", { name: boardPage.heading }).first().waitFor({ state: "visible", timeout: 12000 });
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(100);
         const boardDiagnostics = await page.evaluate((label) => {
