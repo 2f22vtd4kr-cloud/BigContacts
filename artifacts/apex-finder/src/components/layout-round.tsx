@@ -94,7 +94,6 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
       })}<button type="button" onClick={() => { setMobileOpen(false); onSwitchToLegacy?.(); }}>Classic interface</button></nav>}
       <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-nav" aria-label="Primary mobile navigation"><NavItems mobile /></nav>
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
-        <div className="atlas-round-page-meta"><span>APEX ATLAS</span><span className="atlas-round-meta-dot">/</span><strong>{title}</strong></div>
         <div className="atlas-round-content">{children}</div>
         <footer className="atlas-round-footer"><span>APEX ATLAS</span><span>Evidence first. Always attributable.</span><span>PUBLIC RECORDS WORKSPACE</span></footer>
       </main>
