@@ -652,8 +652,10 @@ describe("discovery runtime architecture", () => {
     expect(apiObjectiveLiteral).toBe(uiObjectiveLiteral);
     expect(launchDefaultsSource).toContain("discoveryObjective: DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(canonicalDiscoverySource).toContain("opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
-    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200");
-    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600");
+    expect(launchDefaultsSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200");
+    expect(launchDefaultsSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS");
+    expect(canonicalDiscoverySource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
     expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
     expect(launchRouteSource).toContain("MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS");
     expect(launchButtonSource).toContain('const objectiveLimit = variant === "primary" ? 1_200 : 1_600;');
