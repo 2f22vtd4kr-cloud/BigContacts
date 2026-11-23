@@ -149,7 +149,7 @@ The More menu exposes the graph and topology utilities. The shell's **Classic in
 - Paper #FAFAF8, card #FFFFFF, raised #F3F3F0; ink #18181A, #55555A, #74747A.
 - Semantic tinctures: gules #C8321E for launch/API failure, vert #1F8A4D for verified, azure #2757C6 for corroborated, and or #EDB92B for in-review.
 - Checky, waves, dots and bends are evidence/console patterns with fixed meanings, not decoration.
-- The Home launch objective retains the canonical 1,600-character limit and passes its value to the existing launch API. Discover's saved searches and source status use the existing live search and status endpoints.
+- The Home launch objective follows the design board's 1,200-character limit and passes its value to the existing launch API; other launch surfaces retain the canonical 1,600-character API ceiling. Discover's saved searches and source status use the existing live search and status endpoints.
 - Ledger is the people register: it filters to canonical person/gatekeeper types and orders persisted people strongest-first. Corporate and trust records remain available as Cards, not mislabeled as people.
 - Discover distinguishes configured provider keys, rate-limited providers, production-reviewed registry adapters with implemented runtime support, and available worker tools. Configuration is not presented as a promise of successful results.
 - Connections shows the real persisted relationship count and an explicit unavailable state until a user-owned contacts source exists. Missing contact data is not presented as a confirmed zero-route result.
