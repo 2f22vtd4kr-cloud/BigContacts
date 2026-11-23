@@ -111,6 +111,7 @@ async function main() {
       const prompt = page.locator("textarea").first();
       if (await prompt.count()) {
         await prompt.fill("Founders of UK climate startups with a warm route");
+        await page.waitForFunction(() => document.querySelector("textarea")?.getAttribute("maxlength") === "1600" && document.querySelector(".atlas-home-objective-count")?.textContent?.includes("1,600"), { timeout: 8000 });
         await page.waitForTimeout(250);
       }
 
