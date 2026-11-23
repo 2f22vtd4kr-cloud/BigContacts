@@ -1,29 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useListEntities } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
 import { normalizeEntityType } from "@/lib/entity-taxonomy";
 
-type ContactOutcome = "direct_contact_verified" | "direct_contact_candidate" | "organization_contact" | "social_only" | "evidence_only" | "unclassified";
+type EvidenceStatus = "verified" | "corroborated" | "review" | "disputed";
 
-function contactOutcome(entity: any): ContactOutcome {
-  const outcome = String(entity.contactOutcome ?? "").toLowerCase();
-  return ["direct_contact_verified", "direct_contact_candidate", "organization_contact", "social_only", "evidence_only"].includes(outcome)
-    ? outcome as ContactOutcome
-    : "unclassified";
+function evidenceStatus(entity: any): EvidenceStatus {
+  const primaryContact = Array.isArray(entity.contacts) ? entity.contacts[0] : undefined;
+  const validation = String(primaryContact?.validationStatus ?? "").toLowerCase();
+  if (/disputed|rejected/.test(validation)) return "disputed";
+  if (/corroborated/.test(validation)) return "corroborated";
+  if (/verified|accepted/.test(validation)) return "verified";
+  return "review";
 }
 
-function contactOutcomeLabel(outcome: ContactOutcome) {
-  switch (outcome) {
-    case "direct_contact_verified": return "Direct contact verified";
-    case "direct_contact_candidate": return "Direct contact candidate";
-    case "organization_contact": return "Organization contact";
-    case "social_only": return "Social contact only";
-    case "evidence_only": return "Evidence only";
-    default: return "Not classified";
-  }
+function evidenceStatusLabel(status: EvidenceStatus) {
+  if (status === "verified") return "Verified";
+  if (status === "corroborated") return "Corroborated";
+  if (status === "disputed") return "Disputed";
+  return "In review";
+}
+
+function initials(value: unknown): string {
+  const words = String(value ?? "").trim().split(/\\s+/).filter(Boolean);
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? "").join("") || "—";
 }
 
 function sourceList(value: unknown): string[] {
@@ -42,7 +45,7 @@ function scoreLabel(value: unknown) {
 
 export default function BoardLedgerPage() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | ContactOutcome>("all");
+  const [filter, setFilter] = useState<"all" | EvidenceStatus>("all");
   const [visibleCount, setVisibleCount] = useState(5);
   const { data: rawEntities, isLoading, isError, refetch } = useListEntities({ limit: 500 });
 
@@ -56,23 +59,21 @@ export default function BoardLedgerPage() {
     return raw
       .filter((entity: any) => !entity.isHidden)
       .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(displayEntityType(entity))))
-      .map((entity: any) => ({ ...entity, boardContactOutcome: contactOutcome(entity) }));
+      .map((entity: any) => ({ ...entity, boardEvidenceStatus: evidenceStatus(entity) }));
   }, [rawEntities]);
 
   const counts = useMemo(() => ({
     all: entities.length,
-    direct_contact_verified: entities.filter((entity: any) => entity.boardContactOutcome === "direct_contact_verified").length,
-    direct_contact_candidate: entities.filter((entity: any) => entity.boardContactOutcome === "direct_contact_candidate").length,
-    organization_contact: entities.filter((entity: any) => entity.boardContactOutcome === "organization_contact").length,
-    social_only: entities.filter((entity: any) => entity.boardContactOutcome === "social_only").length,
-    evidence_only: entities.filter((entity: any) => entity.boardContactOutcome === "evidence_only").length,
-    unclassified: entities.filter((entity: any) => entity.boardContactOutcome === "unclassified").length,
+    verified: entities.filter((entity: any) => entity.boardEvidenceStatus === "verified").length,
+    corroborated: entities.filter((entity: any) => entity.boardEvidenceStatus === "corroborated").length,
+    review: entities.filter((entity: any) => entity.boardEvidenceStatus === "review").length,
+    disputed: entities.filter((entity: any) => entity.boardEvidenceStatus === "disputed").length,
   }), [entities]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return entities.filter((entity: any) => {
-      if (filter !== "all" && entity.boardContactOutcome !== filter) return false;
+      if (filter !== "all" && entity.boardEvidenceStatus !== filter) return false;
       if (!query) return true;
       const role = entityWorkSummary(entity) ?? "";
       const sources = sourceList(entity.sourceRegistries).join(" ");
@@ -103,22 +104,20 @@ export default function BoardLedgerPage() {
           <div className="atlas-ledger-filters" role="group" aria-label="Filter register by contact outcome">
             {([
               { value: "all", label: "All", count: counts.all },
-              { value: "direct_contact_verified", label: "Direct verified", count: counts.direct_contact_verified },
-              { value: "direct_contact_candidate", label: "Direct candidate", count: counts.direct_contact_candidate },
-              { value: "organization_contact", label: "Organization", count: counts.organization_contact },
-              { value: "social_only", label: "Social only", count: counts.social_only },
-              { value: "evidence_only", label: "Evidence only", count: counts.evidence_only },
-              { value: "unclassified", label: "Not classified", count: counts.unclassified },
+              { value: "verified", label: "Verified", count: counts.verified },
+              { value: "corroborated", label: "Corroborated", count: counts.corroborated },
+              { value: "review", label: "In review", count: counts.review },
+              ...(counts.disputed > 0 ? [{ value: "disputed" as const, label: "Disputed", count: counts.disputed }] : []),
             ] as const).map((item) => (
               <button key={item.value} type="button" aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>
                 <span>{item.label}</span><strong>{item.count}</strong>
               </button>
             ))}
           </div>
-          <div className="atlas-ledger-counts" aria-label="Contact outcome totals">
-            <div><strong>{counts.direct_contact_verified}</strong><span>Direct verified</span></div>
-            <div><strong>{counts.direct_contact_candidate}</strong><span>Direct candidates</span></div>
-            <div><strong>{counts.organization_contact}</strong><span>Organization</span></div>
+          <div className="atlas-ledger-counts" aria-label="Evidence status totals">
+            <div><strong>{counts.verified.toLocaleString()}</strong><span>Verified</span></div>
+            <div><strong>{counts.corroborated.toLocaleString()}</strong><span>Corroborated</span></div>
+            <div><strong>{counts.review.toLocaleString()}</strong><span>In review</span></div>
           </div>
         </section>
 
@@ -156,21 +155,29 @@ export default function BoardLedgerPage() {
           ) : (
             <div className="atlas-ledger-table-wrap">
               <table className="atlas-ledger-table">
-                <thead><tr><th>Person</th><th>Contact outcome</th><th>Score</th><th>Sources</th></tr></thead>
+                <thead><tr><th>Person</th><th>Evidence</th><th>Score</th><th>Sources</th></tr></thead>
                 <tbody>
                   {displayed.map((entity: any) => {
                     const sources = sourceList(entity.sourceRegistries).filter((source) => !/^(manual|user|seed|imported)$/i.test(source));
-                    const outcome = entity.boardContactOutcome as ContactOutcome;
+                    const evidence = entity.boardEvidenceStatus as EvidenceStatus;
+                    const pattern = evidence === "verified" ? "supported" : evidence === "corroborated" ? "corroborated" : evidence === "review" ? "review" : null;
                     const role = entityWorkSummary(entity);
                     return (
                       <tr key={entity.id}>
                         <td>
                           <Link href={"/profile/" + entity.id} className="atlas-ledger-person">
+                            <span className={"atlas-ledger-avatar is-" + evidence}>{initials(entity.name)}</span>
                             <span><strong>{entity.name || "Unnamed record"}</strong><small>{role || entity.type || "Person"}</small></span>
                             <ArrowUpRight aria-hidden="true" />
                           </Link>
                         </td>
-                        <td><span className="atlas-ledger-contact-outcome">{contactOutcomeLabel(outcome)}</span></td>
+                        <td>
+                          <span className={"atlas-ledger-status is-" + evidence}>
+                            {pattern && <span className={"atlas-evidence-pattern is-" + pattern} aria-hidden="true" />}
+                            {evidence === "disputed" && <AlertTriangle className="atlas-evidence-disputed-mark" aria-hidden="true" />}
+                            {evidenceStatusLabel(evidence)}
+                          </span>
+                        </td>
                         <td className="atlas-ledger-score">{scoreLabel(entity.bayesianScore)}</td>
                         <td className="atlas-ledger-sources">{sources.length > 0 ? sources[0] + (sources.length > 1 ? " + " + (sources.length - 1) : "") : entityEvidenceLabel(entity)}</td>
                       </tr>
