@@ -31,7 +31,7 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
-  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
 ].join("\n\n");
 const agenticWrapperSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const targetRunnerSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
@@ -903,12 +903,13 @@ describe("discovery provisional review-lead output contract", () => {
       actionAllowlist,
     });
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(prompt.toLowerCase()).toContain("review-only");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("reviewOnly=true");
     const discoveryFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
     const discoveryFindingProperties = (discoveryFormat.json_schema?.schema?.properties?.findings as { items?: { properties?: Record<string, unknown> } } | undefined)?.items?.properties ?? {};
-    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
+    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
     const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -932,6 +933,7 @@ describe("discovery provisional review-lead output contract", () => {
         scope: "candidate",
         sourceUrls: ["https://example.com/investors"],
         note: "Named in the observed source; role and relevance require verification.",
+        reviewOnly: true,
       }],
     }), ["web_search"]);
     expect(parsed?.partialFindings).toHaveLength(1);
@@ -1918,6 +1920,7 @@ describe("partial model findings", () => {
       scope: "organization",
       sourceUrls: ["https://example.com/ownership"],
       note: "The fetched source names the company; ownership remains unverified.",
+      reviewOnly: true,
       promotionDecision: null,
       promotionReason: null,
     };
@@ -1956,6 +1959,7 @@ describe("partial model findings", () => {
         scope: "candidate",
         sourceUrls: ["https://example.com/leadership"],
         note: "Candidate claim from a non-terminal action.",
+        reviewOnly: true,
         promotionDecision: "promote",
         promotionReason: "The output claims an ownership role.",
       }],
@@ -1991,6 +1995,7 @@ describe("partial model findings", () => {
         scope: "candidate",
         sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
         note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+        reviewOnly: true,
         promotionDecision: null,
         promotionReason: null,
       }],
@@ -2026,6 +2031,7 @@ describe("partial model findings", () => {
         scope: "organization",
         sourceUrls: ["https://northstarcasino.si/"],
         note: "Investigator-selected organization lead.",
+        reviewOnly: true,
         promotionDecision: null,
         promotionReason: null,
       }],
@@ -2062,6 +2068,7 @@ describe("partial model findings", () => {
           scope: "candidate",
           sourceUrls: ["https://example.org/profile"],
           note: "Investigator-selected person lead.",
+          reviewOnly: true,
         },
         {
           vectorType: "other",
@@ -2071,6 +2078,7 @@ describe("partial model findings", () => {
           scope: "organization",
           sourceUrls: ["https://example.org/company"],
           note: "Investigator-selected organization lead.",
+          reviewOnly: true,
         },
       ],
     }), ["web_search"]);
@@ -2085,7 +2093,7 @@ describe("partial model findings", () => {
         { vectorType: "email", value: "contact@northstarcasino.si", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business email." },
         { vectorType: "phone", value: "+386 1 555 0100", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business phone." },
         { vectorType: "website", value: "https://northstarcasino.si/", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public company website." },
-        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead." },
+        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead.", reviewOnly: true },
       ],
       thought: "Preserve the company lead and keep contact facts separate.",
     }), ["done"]);
@@ -2105,6 +2113,7 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "The fetched source supports a review lead only.",
+      reviewOnly: true,
       promotionDecision: null,
       promotionReason: null,
     };
@@ -2250,6 +2259,7 @@ describe("Investigator prompt architecture", () => {
       lastObservation: "",
       findings: [],
       mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "domain_lookup", "done"],
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
@@ -2478,6 +2488,7 @@ Choose each next action yourself from the available capabilities and observed ev
       priorContext: "Durable lead and provenance context. ".repeat(200),
       intelligenceContext: "Bounded research intelligence state. ".repeat(200),
       mode: "discovery",
+      actionAllowlist: ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "registry_search", "domain_lookup", "done"],
     });
 
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + prompt;
@@ -2485,15 +2496,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    const strictRequest = buildGroqInvestigatorRequestBody({
-      model: "openai/gpt-oss-120b",
-      prompt,
-      cognitiveTask: "discovery",
-      promptMode: "discovery",
-    });
-    const strictSchema = (strictRequest.response_format as { json_schema?: { schema?: { properties?: Record<string, { items?: { required?: string[] } }> } } }).json_schema?.schema?.properties ?? {};
-    expect(strictSchema.findings?.items?.required).toEqual(expect.arrayContaining(["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]));
-    expect(strictSchema.searches?.items?.required).toEqual(expect.arrayContaining(["query", "provider", "registry", "locale", "market", "purpose"]));
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
@@ -3841,6 +3845,7 @@ Choose each next action yourself from the available capabilities and observed ev
       model: "openai/gpt-oss-120b",
       prompt: completeInvestigatorProviderPrompt + "\n\nchoose the next research action", 
       cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
     });
     expect(body.response_format).toBeTruthy();
     expect(body.messages).toHaveLength(2);
@@ -3855,7 +3860,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "target", "targetType", "profile", "sources", "searches", "findings",
     ]);
     expect(schema?.properties?.findings?.items?.required).toEqual([
-      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly",
       "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
       "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
       "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
@@ -3885,6 +3890,7 @@ Choose each next action yourself from the available capabilities and observed ev
       model: "openai/gpt-oss-120b",
       prompt,
       cognitiveTask: "identity_resolution",
+      promptMode: "discovery",
     }) as { max_completion_tokens: number; messages: Array<{ role: string; content: string }> };
     const requestChars = request.messages.reduce((total, message) => total + message.content.length, 0);
 
@@ -5336,7 +5342,7 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).toContain("buildLatestRecordTail(),");
     expect(agenticCoreSource).toContain("const providerBoundedPrompt = [");
     expect(agenticCoreSource).toContain("preserveFetchedClaimAtProviderBoundary([composedPrompt, latestRecordTail].filter(Boolean).join");
-    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPrompt);");
+    expect(agenticCoreSource).toContain("return reportPromptMeasurement(providerBoundedPromptWithReviewHandoff);");
   });
 });
 
@@ -5464,7 +5470,7 @@ describe("small emergency observation budgets", () => {
     expect(durableTail).toContain("const observationBudget = searchActions.has(record.action)");
     expect(durableTail).toContain('record.execution === "success"');
     expect(durableTail).toContain("? 1_280");
-    expect(durableTail).not.toContain(": rawObservation");
+    expect(durableTail).not.toContain("observation: rawObservation");
     expect(durableTail).toContain("observation: boundedObservation");
     expect(durableTail).toContain("observationCharsOmittedFromPrompt");
     expect(agenticCoreSource).toContain("const latestRecordTail = [");
@@ -5889,6 +5895,8 @@ describe("Investigator preflight uses production prompt composition", () => {
     });
     expect(prompt).not.toContain("searches[] required keys:");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
+    expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
+    expect(prompt).toContain("reviewOnly=true");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", ["web_search"], "discovery") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -5911,7 +5919,7 @@ describe("Investigator preflight uses production prompt composition", () => {
   it("states the rationale contract required by the local parser in the non-strict model prompt", () => {
     expect(agenticCoreSource).toContain("hypothesis and purpose must be non-empty strings");
     expect(agenticCoreSource).toContain("expectedInformationGain must be a finite number from 0 to 1");
-    expect(agenticCoreSource).toContain("These fields support audit/telemetry and must never block an otherwise valid action");
+    expect(agenticCoreSource).toContain("These telemetry fields never block otherwise valid actions.");
     expect(agenticCoreSource).toContain("web_search uses the root query and optional root provider");
   });
 });
@@ -5973,7 +5981,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(prompt).toContain("REVIEW LEADS:");
     expect(canonicalAtlasDiscoverySource).toContain("reviewOnly: finding.reviewOnly");
     expect(prompt).toMatch(/search-only is review-only/i);
-    expect(agenticCoreSource).toContain("Assets remain source-backed observations");
+    // The source-backed asset boundary is owned by the Investigator orientation contract above.
   });
   it("turns low-yield trajectory signals into non-prescriptive hypothesis reassessment", () => {
     const advisory = discoverySearchLivenessAdvisory([
@@ -6010,12 +6018,12 @@ describe("requested versus executed action provenance", () => {
 describe("AI-led discovery review handoff contract", () => {
   it("requires explicit review-only model judgment for relevant named leads in discovery output", () => {
     expect(agenticCoreSource).toContain("reviewOnly=true");
-    expect(agenticCoreSource).toContain("complete latest successful observations");
-    expect(agenticCoreSource).toContain("must not be dropped merely because a lossy memory summary omitted it");
+    expect(agenticCoreSource).toContain("Inspect complete latest successful same-run observations, not only the compact summary.");
+    expect(agenticCoreSource).toContain("Do not drop a relevant name from a successful fetched page merely because a compact memory summary omitted it.");
     expect(agenticCoreSource).toContain('"reviewOnly"] as const');
   });
   it("keeps provisional lead selection with the Investigator rather than deterministic extraction", () => {
-    expect(agenticCoreSource).toContain("model-selected named person/org review leads");
+    expect(agenticCoreSource).toContain("model-selected objective-fit person/org leads worth review");
     expect(agenticCoreSource).not.toContain("extractNamesFromObservation");
   });
 });

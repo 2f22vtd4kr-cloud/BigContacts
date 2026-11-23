@@ -29,7 +29,7 @@ const completeInvestigatorProviderPrompt = [
   "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings.",
   "Include every key; use null for unused scalar fields and [] for unused arrays.",
   "searches[] required keys: query, provider, registry, locale, market, purpose.",
-  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
+  "findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution, exactQuote, identityAssessment, identityRationale, hypothesisRelation, hypothesisRationale, relationshipType, temporalStatus, interpretationConfidence, ambiguityNotes, promotionDecision, promotionReason; null for unused optional nested values.",
   "Non-done hypothesis/purpose must be non-empty; expectedInformationGain finite [0,1].",
 ].join("\\n\\n");
 
@@ -45,6 +45,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(preserved).toBe(prompt);
     expect(preserved).toContain(latestQuote);
     expect(preserved).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, sources, searches, findings");
+    expect(preserved).toContain("findings[] required keys: vectorType, value, personName, role, scope, sourceUrls, note, reviewOnly, contactAttribution");
   });
 
   it("keeps the preferred user prompt within the 10,000-character schema-inclusive request target", () => {
@@ -522,6 +523,26 @@ describe("Groq Investigator runtime contract", () => {
 
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
     expect(submitted).not.toContain("reviewOnly=true");
+
+    const terminalOnlyPrompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover evidence-backed public research leads.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "Ready to reconcile terminal discovery.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["done"],
+    });
+    const terminalOnlyBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt: terminalOnlyPrompt,
+      cognitiveTask: "discovery",
+      actionAllowlist: ["done"],
+      promptMode: "discovery",
+    });
+    const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
+    expect(terminalOnlyUser).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
@@ -530,12 +551,12 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b") as {
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", undefined, "discovery") as {
       json_schema?: { schema?: {
         required?: string[];
         properties?: {
           searches?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
-          findings?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[] }> } };
+          findings?: { items?: { required?: string[]; additionalProperties?: boolean; properties?: Record<string, { type?: string | string[]; enum?: unknown[] }> } };
         };
       } };
     };
@@ -552,12 +573,16 @@ describe("Groq Investigator runtime contract", () => {
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.findings?.items?.required).toEqual([
-      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note",
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly",
       "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
       "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
       "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
     ]);
     expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
+    expect(actionSchema?.properties?.findings?.items?.properties?.reviewOnly).toMatchObject({
+      type: ["boolean", "null"],
+      enum: [true, null],
+    });
     expect(messages).toHaveLength(2);
   });
 
@@ -915,9 +940,16 @@ describe("Groq Investigator runtime contract", () => {
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
+    expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(strictUser).toContain("review-only");
+    expect(strictUser).toContain("reviewOnly=true");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};
     expect(strictSchema).toHaveProperty("findings");
+    const strictFindings = strictSchema.findings as {
+      items?: { required?: string[]; properties?: Record<string, { type?: string | string[]; enum?: unknown[] }> };
+    };
+    expect(strictFindings.items?.required).toContain("reviewOnly");
+    expect(strictFindings.items?.properties?.reviewOnly).toMatchObject({ type: "boolean", enum: [true] });
 
     const twentyBBody = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",

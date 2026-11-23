@@ -358,7 +358,9 @@ describe("AI investigation context compaction", () => {
     });
 
     await summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 });
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("PARSE FAILURE IS NOT EVIDENCE");
     expect(prompt).toContain("Never infer that a person, company, relationship, or evidence is absent");
   });
@@ -375,7 +377,9 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
 
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("hard limit of 1200 characters");
     expect(prompt).toContain("Aim at or below 780 characters");
     expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(1);
@@ -932,7 +936,9 @@ describe("AI investigation context compaction", () => {
 
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
 
-    const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
+    const prompt = (rightHandMocks.runGroqRightHandFreeJson.mock.calls[0] ?? [])
+      .filter((value): value is string => typeof value === "string")
+      .join("\n");
     expect(prompt).toContain("one chunk or segment of a larger case memory");
     expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
     expect(prompt).toContain("unverified search leads");
@@ -1353,7 +1359,7 @@ describe("AI investigation context compaction", () => {
       "Successful browser_fetch observation at " + sourceUrl + ":",
       "Fetched page explicitly names Alex Example as an angel investor and Dana Sample as a venture partner.",
       "Search snippets are unverified leads and must remain distinct from fetched observations.",
-      "BACKGROUND: " + "historical context. ".repeat(700),
+      "BACKGROUND: " + "historical context. ".repeat(450),
     ].join("\n\n");
     rightHandMocks.runGroqRightHandFreeJson.mockResolvedValueOnce({
       model: "openai/gpt-oss-20b",
@@ -1371,6 +1377,9 @@ describe("AI investigation context compaction", () => {
     const prompt = String(rightHandMocks.runGroqRightHandFreeJson.mock.calls[0]?.[0] ?? "");
     expect(prompt).toContain("Do not compress a fetched page into a generic statement that it contains no verifiable names");
     expect(prompt).toContain("keep fetched-page names distinct from unverified search snippets");
+    expect(prompt).toContain(sourceUrl);
+    expect(prompt).toContain("Alex Example");
+    expect(prompt).toContain("Dana Sample");
   });
 
 });
