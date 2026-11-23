@@ -6,11 +6,11 @@ import { ChevronRight, CircleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
-type RouteEvidenceStatus = "supported" | "disputed" | "review" | "rejected" | "unclassified";
+type RouteEvidenceStatus = "supported" | "corroborated" | "disputed" | "review" | "rejected" | "unclassified";
 
 function routeEvidenceStatus(value: unknown): RouteEvidenceStatus {
   const status = String(value ?? "").toLowerCase();
-  return ["supported", "disputed", "review", "rejected"].includes(status)
+  return ["supported", "corroborated", "disputed", "review", "rejected"].includes(status)
     ? status as RouteEvidenceStatus
     : "unclassified";
 }
@@ -19,10 +19,11 @@ function routeEvidenceLabel(status: RouteEvidenceStatus) {
   return status === "review" ? "In review" : status === "unclassified" ? "Status unavailable" : status[0].toUpperCase() + status.slice(1);
 }
 
-function routePatternStatus(edges: Array<{ evidenceStatus?: unknown }>): "supported" | "disputed" | "review" {
+function routePatternStatus(edges: Array<{ evidenceStatus?: unknown }>): "supported" | "corroborated" | "disputed" | "review" {
   const statuses = edges.map((edge) => routeEvidenceStatus(edge.evidenceStatus));
   if (statuses.length === 0 || statuses.some((status) => ["review", "rejected", "unclassified"].includes(status))) return "review";
   if (statuses.includes("disputed")) return "disputed";
+  if (statuses.includes("corroborated")) return "corroborated";
   return "supported";
 }
 
@@ -196,10 +197,14 @@ export default function Dashboard() {
                   <ul className="atlas-home-route-evidence">
                     {routeQuery.data.edges.map((edge) => {
                       const status = routeEvidenceStatus((edge as any).evidenceStatus);
-                      const hasPattern = status === "supported" || status === "disputed" || status === "review";
+                      const hasPattern = status === "supported" || status === "corroborated" || status === "review";
                       return (
                         <li key={edge.id}>
-                          {hasPattern && <span className={"atlas-evidence-pattern is-" + status} aria-hidden="true" />}
+                          {hasPattern
+                            ? <span className={"atlas-evidence-pattern is-" + status} aria-hidden="true" />
+                            : (status === "disputed" || status === "rejected")
+                              ? <CircleAlert className="atlas-evidence-disputed-mark" aria-hidden="true" />
+                              : null}
                           <span>{edge.label}</span>
                           <strong>{routeEvidenceLabel(status)}</strong>
                         </li>
@@ -217,7 +222,8 @@ export default function Dashboard() {
           </div>
           <div className="atlas-home-route-legend" aria-label="Route evidence status legend">
             <div><span className="atlas-evidence-pattern is-supported" aria-hidden="true" /><strong>Supported</strong><span>Provenance meets Atlas’s support threshold</span></div>
-            <div><span className="atlas-evidence-pattern is-disputed" aria-hidden="true" /><strong>Disputed</strong><span>The relationship carries a dispute or rejection note</span></div>
+            <div><span className="atlas-evidence-pattern is-corroborated" aria-hidden="true" /><strong>Corroborated</strong><span>Independent sources support the same claim</span></div>
+            <div><CircleAlert className="atlas-evidence-disputed-mark" aria-hidden="true" /><strong>Disputed</strong><span>The relationship carries a dispute or rejection note</span></div>
             <div><span className="atlas-evidence-pattern is-review" aria-hidden="true" /><strong>In review</strong><span>Provenance does not meet the support threshold yet</span></div>
           </div>
         </aside>
