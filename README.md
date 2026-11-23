@@ -150,9 +150,12 @@ The More menu exposes the graph and topology utilities. The shell's **Classic in
 - Semantic tinctures: gules #C8321E for launch/API failure, vert #1F8A4D for verified, azure #2757C6 for corroborated, and or #EDB92B for in-review.
 - Checky, waves, dots and bends are evidence/console patterns with fixed meanings, not decoration.
 - The Home launch objective retains the canonical 1,600-character limit and passes its value to the existing launch API. Discover's saved searches and source status use the existing live search and status endpoints.
-- Ledger, Cards, Connections and Reactor render persisted entities, provenance, relationships and canonical telemetry only. Unknown contacts/routes and unavailable APIs remain explicitly unavailable; no synthetic evidence or activity is added.
-- Reactor's Logbook is chronological (oldest first, newest last), and its Run console uses the canonical launch/stop controls.
-- Subject Card tabs retain recently opened real entity IDs locally; they do not create synthetic subjects.
+- Ledger is the people register: it filters to canonical person/gatekeeper types and orders persisted people strongest-first. Corporate and trust records remain available as Cards, not mislabeled as people.
+- Discover distinguishes configured provider keys, rate-limited providers, production-reviewed registry adapters with implemented runtime support, and available worker tools. Configuration is not presented as a promise of successful results.
+- Connections shows the real persisted relationship count and an explicit unavailable state until a user-owned contacts source exists. Missing contact data is not presented as a confirmed zero-route result.
+- Person Cards separate Personal and Organisation routes and retain source-backed wealth limitations. Company/trust Cards omit personal wealth, show ownership state and linked people, and expose only attributable organization routes; unclassified routes remain in review.
+- Reactor's board Logbook sorts canonical trace events oldest-first/newest-last, and the Run console's last-step timestamp comes from the newest event. The full original topology remains a separate utility.
+- Subject Card tabs retain recently opened real entity IDs locally and label person/company records from canonical entity types; they do not create synthetic subjects.
 
 ### Verification gate
 
