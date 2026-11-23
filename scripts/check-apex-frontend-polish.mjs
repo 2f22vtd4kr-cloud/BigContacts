@@ -61,6 +61,7 @@ const checks = [
   ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
   ["launch controls use named transitions and the board focus color", !launchButton.includes("transition-all") && !launchButton.includes("ring-lime-400") && launchButton.includes("ring-[#2757C6]/50")],
   ["profile progress and hover actions avoid broad transition-all", !profile.includes("transition-all") && !flatRound.includes('[class*="transition-all"]')],
+  ["Card typography normalizes legacy bold, uppercase and italic utilities to the board system", flatRound.includes('.atlas-round .atlas-board-profile [class*="font-semibold"]') && flatRound.includes('.atlas-round .atlas-board-profile [class*="uppercase"]') && flatRound.includes('.atlas-round .atlas-board-profile [class*="italic"]') && flatRound.includes("font-weight:500!important;") && flatRound.includes("font-style:normal!important;")],
 
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
