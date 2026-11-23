@@ -405,6 +405,22 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
 export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
+  // Keep the canonical research-lead projection warm without rendering the retired Home feed.
+  useQuery({
+    queryKey: ["dashboard", "research-leads"],
+    queryFn: async () => {
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+      const response = await fetch(`${base}/api/dashboard/research-leads?limit=8`, {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Research leads request failed (${response.status}).`);
+      return response.json() as Promise<{ leads?: unknown[]; sourceLeads?: unknown[]; activeDiscovery?: boolean }>;
+    },
+    enabled: !mock,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
+  });
   const apiHealthQuery = useQuery({
     queryKey: ["dashboard", "api-health"],
     queryFn: async () => {
