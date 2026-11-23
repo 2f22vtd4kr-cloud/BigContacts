@@ -74,7 +74,7 @@ describe("Flat Round four-pixel spacing grid", () => {
 
   it("draws review bends with a seamless repeating diagonal field", () => {
     expect(boardCss).toContain("background-image: repeating-linear-gradient(135deg, #EDB92B 0 8px, #F8E8B7 8px 16px)");
-    expect(boardCss).toMatch(/is-review\s*\{\s*background-image:\s*repeating-linear-gradient/ );
+    expect(boardCss).toMatch(/is-review\s*\{[^}]*background-image:\s*repeating-linear-gradient/);
     expect(boardCss).toContain("background-repeat: no-repeat;\n  background-size: auto;");
     expect(boardCss).toContain("background-color: #F8E8B7;");
   });
