@@ -279,6 +279,15 @@ async function main() {
         if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed" || boardDiagnostics.reactor?.lastStepDisplay !== "flex" || boardDiagnostics.reactor?.lastStepDirection !== "column")) {
           throw new Error(`Reactor run console/logbook split or metric hierarchy failed: ${JSON.stringify(boardDiagnostics.reactor)}`);
         }
+        if (boardPage.label === "card") {
+          const cardColors = await page.evaluate(() => ({
+            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
+            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
+          }));
+          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)") {
+            throw new Error(`Card profile label contrast regression: ${JSON.stringify(cardColors)}`);
+          }
+        }
         const boardScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
         fs.writeFileSync(`/tmp/apex-${boardPage.label}-${name}.jpg`, boardScreenshot);
         console.log(`APEX_VISUAL_META_${name}_${boardPage.label}=${JSON.stringify({
