@@ -93,7 +93,7 @@ function StatTile({
 function LeadSkeleton() {
   return (
     <div className="atlas-card p-5">
-      <div className="flex animate-pulse gap-3">
+      <div className="flex gap-3">
         <div className="h-10 w-10 rounded-lg bg-muted" />
         <div className="flex-1 space-y-2"><div className="h-3 w-2/3 rounded bg-muted" /><div className="h-2 w-1/3 rounded bg-muted" /></div>
       </div>
