@@ -223,6 +223,49 @@ async function main() {
         await page.getByRole("heading", { name: boardPage.heading }).waitFor({ state: "visible", timeout: 12000 });
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(100);
+        const boardDiagnostics = await page.evaluate((label) => {
+          const style = (selector) => {
+            const element = document.querySelector(selector);
+            return element ? getComputedStyle(element) : null;
+          };
+          const discover = document.querySelector(".atlas-discover-layout");
+          const discoverInput = document.querySelector(".atlas-discover-query-field input");
+          const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
+          const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
+          const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
+          const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
+          return {
+            discover: label === "discover" ? {
+              display: discover ? getComputedStyle(discover).display : null,
+              columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
+              inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
+              checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
+              waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
+            } : null,
+            ledger: label === "ledger" ? {
+              columns: style(".atlas-ledger-layout")?.gridTemplateColumns ?? null,
+              checky: ledgerFrame ? getComputedStyle(ledgerFrame, "::before").backgroundImage : null,
+              waves: ledgerFrame ? getComputedStyle(ledgerFrame, "::after").backgroundImage : null,
+              metaDisplay: ledgerMeta ? getComputedStyle(ledgerMeta).display : null,
+              metaDirection: ledgerMeta ? getComputedStyle(ledgerMeta).flexDirection : null,
+            } : null,
+            reactor: label === "reactor" ? {
+              display: reactorGrid ? getComputedStyle(reactorGrid).display : null,
+              columns: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns : null,
+              metricsDisplay: reactorMetrics ? getComputedStyle(reactorMetrics).display : null,
+              metricLabels: reactorMetrics ? Array.from(reactorMetrics.querySelectorAll("span")).map((item) => item.textContent?.trim()) : [],
+            } : null,
+          };
+        }, boardPage.label);
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+          throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
+        }
+        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
+          throw new Error(`Ledger console frame or register metric hierarchy failed: ${JSON.stringify(boardDiagnostics.ledger)}`);
+        }
+        if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed")) {
+          throw new Error(`Reactor run console/logbook split or metric hierarchy failed: ${JSON.stringify(boardDiagnostics.reactor)}`);
+        }
         const boardScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
         fs.writeFileSync(`/tmp/apex-${boardPage.label}-${name}.jpg`, boardScreenshot);
         console.log(`APEX_VISUAL_META_${name}_${boardPage.label}=${JSON.stringify({
@@ -230,6 +273,7 @@ async function main() {
           heading: boardPage.heading,
           emptyEntitiesFixture: currentPath !== "/network",
           titleVisible: await page.getByRole("heading", { name: boardPage.heading }).isVisible(),
+          boardDiagnostics,
           browserErrors: browserErrors.slice(0, 20),
         })}`);
         console.log(`APEX_VISUAL_IMAGE_${name}_${boardPage.label}=${boardScreenshot.toString("base64")}`);
