@@ -819,3 +819,8 @@
   text-transform:none;
 }
 .atlas-round .atlas-board-page-breadcrumb span:first-child { color:var(--round-ink-2); }
+
+.atlas-round .atlas-home-board-console .atlas-home-actions {
+  width:100%!important;
+  max-width:none!important;
+}
