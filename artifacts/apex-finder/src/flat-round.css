@@ -387,9 +387,7 @@
 .atlas-round .atlas-connections-route-empty p { max-width:360px; margin:8px 0 0; color:var(--round-ink-3); font:400 12px/1.6 "Geist",sans-serif; }
 .atlas-round .atlas-connections-legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; }
 .atlas-round .atlas-connections-legend span { display:inline-flex; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
-.atlas-round .atlas-connections-legend i { width:8px; height:8px; border-radius:50%; background:var(--round-green); }
-.atlas-round .atlas-connections-legend i.is-corroborated { background:var(--round-blue); }
-.atlas-round .atlas-connections-legend i.is-review { background:var(--round-gold); }
+.atlas-round .atlas-connections-legend .atlas-evidence-pattern { width:12px; height:12px; border-radius:0; background-color:transparent; }
 @media (max-width:760px) {
   .atlas-round .atlas-connections-layout { grid-template-columns:minmax(0,1fr); gap:28px; }
   .atlas-round .atlas-connections-counts strong { font-size:20px; }
