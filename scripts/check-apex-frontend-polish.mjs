@@ -11,6 +11,7 @@ const files = {
   mobile: "artifacts/apex-finder/src/components/mobile-reactor-flow.tsx",
   replay: "artifacts/apex-finder/src/components/research-replay.tsx",
   mark: "artifacts/apex-finder/src/components/reactor-mark.tsx",
+  apexAtlasMark: "artifacts/apex-finder/src/components/apex-atlas-mark.tsx",
   workspaceStatus: "artifacts/apex-finder/src/components/workspace-status.tsx",
   errorNotice: "artifacts/apex-finder/src/components/apex-error-notice.tsx",
   launchButton: "artifacts/apex-finder/src/components/launch-atlas-button.tsx",
@@ -29,6 +30,7 @@ const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
 const mark = read(files.mark);
+const apexAtlasMark = read(files.apexAtlasMark);
 const workspaceStatus = read(files.workspaceStatus);
 const errorNotice = read(files.errorNotice);
 const launchButton = read(files.launchButton);
@@ -50,6 +52,7 @@ const tabletSurfaces = [
 const checks = [
   ["Flat Round is the default presentation shell", read("artifacts/apex-finder/src/components/layout.tsx").includes("./layout-round")],
   ["Flat Round exposes the five product destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
+  ["Apex Atlas wordmark uses the quartered heraldic shield from the design board on desktop and mobile", roundLayout.split('<ApexAtlasMark className="atlas-round-brand-mark" />').length === 3 && apexAtlasMark.includes('fill="#C8321E"') && apexAtlasMark.includes('fill="#EDB92B"') && apexAtlasMark.includes('viewBox="0 0 32 32"')],
   ["Flat Round preserves utility routes without exposing them in active board navigation", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].every((route) => router.includes(`path="${route}"`)) && !["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].some((route) => roundLayout.includes(`href: "${route}"`))],
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
   ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
