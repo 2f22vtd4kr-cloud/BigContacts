@@ -997,3 +997,7 @@ body:has(.atlas-round-shell) {
   .atlas-round .atlas-board-reactor .atlas-reactor-logbook,
   .atlas-round .atlas-board-reactor .atlas-reactor-run-console { grid-column:auto; grid-row:auto; }
 }
+@media (max-width:760px) {
+  .atlas-round .atlas-board-discover .atlas-discover-search,
+  .atlas-round .atlas-board-discover .atlas-discover-search > div { min-height:0!important; }
+}
