@@ -287,8 +287,9 @@ async function main() {
           const cardColors = await page.evaluate(() => ({
             primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
             secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
+            neonTextCount: Array.from(document.querySelectorAll(".atlas-board-profile [style]")).filter((element) => ["rgb(156, 255, 26)", "rgb(184, 255, 77)"].includes(getComputedStyle(element).color)).length,
           }));
-          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)") {
+          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)" || cardColors.neonTextCount !== 0) {
             throw new Error(`Card profile label contrast regression: ${JSON.stringify(cardColors)}`);
           }
         }
