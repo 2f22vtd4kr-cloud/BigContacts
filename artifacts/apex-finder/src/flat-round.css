@@ -236,3 +236,5 @@
 }
 
 .atlas-home-board-intro { text-align:left; margin-inline-start:0; }
+
+.atlas-home-board-console textarea::placeholder { color:var(--round-ink-3)!important; opacity:1; }
