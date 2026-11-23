@@ -1094,6 +1094,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImprovementStats"
 
+  /ingest/atlas-config:
+    get:
+      operationId: getCanonicalAtlasLaunchConfig
+      tags: [research]
+      summary: Read canonical Atlas launch validation limits for the UI
+      responses:
+        "200":
+          description: Canonical launch constraints enforced by the research API
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [discoveryObjectiveMaxChars, discoveryContextMaxChars]
+                properties:
+                  discoveryObjectiveMaxChars:
+                    type: integer
+                    example: 1600
+                    description: Maximum characters accepted for a canonical discovery objective
+                  discoveryContextMaxChars:
+                    type: integer
+                    example: 1200
+                    description: Maximum characters accepted for optional discovery context
+
   # ── EXTENDED SOURCES (Phase 8) ─────────────────────────────────────────────
   /ingest/occrp:
     post:
