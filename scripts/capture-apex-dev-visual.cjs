@@ -11,6 +11,16 @@ async function main() {
       ["mobile", { width: 390, height: 844 }],
     ]) {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
+      const browserErrors = [];
+      const failedRequests = [];
+      page.on("console", (message) => {
+        if (message.type() === "error") browserErrors.push(message.text());
+      });
+      page.on("pageerror", (error) => browserErrors.push(error.stack || error.message));
+      page.on("requestfailed", (request) => failedRequests.push({
+        url: request.url(),
+        error: request.failure()?.errorText || "request failed",
+      }));
       await page.route("**/api/**", async (route) => {
         const url = route.request().url();
         let payload = {};
@@ -47,6 +57,16 @@ async function main() {
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
+      const diagnostics = await page.evaluate(() => ({
+        documentTitle: document.title,
+        readyState: document.readyState,
+        rootHtml: document.querySelector("#root")?.innerHTML.slice(0, 3500) ?? null,
+        rootHtmlLength: document.querySelector("#root")?.innerHTML.length ?? -1,
+        bodyHtmlLength: document.body.innerHTML.length,
+        bodyBackground: getComputedStyle(document.body).backgroundColor,
+        rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
+        scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean),
+      }));
       const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: false });
       fs.writeFileSync(`/tmp/apex-home-${name}.jpg`, screenshot);
       console.log(`APEX_VISUAL_META_${name}=${JSON.stringify({
@@ -54,6 +74,9 @@ async function main() {
         url: page.url(),
         hasOperatorSignIn: /operator sign-in|operator login/i.test(bodyText),
         body: bodyText.slice(0, 900),
+        diagnostics,
+        browserErrors: browserErrors.slice(0, 20),
+        failedRequests: failedRequests.slice(0, 20),
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       await page.close();
