@@ -35,6 +35,7 @@ require(launch.includes("launchTargetCount"), "launch console must expose the ta
 require(launch.includes("Math.min(25"), "target-count control must cap at 25");
 require(launch.includes('targetCount: opts?.targetCount ?? (variant === "primary" ? launchTargetCount : undefined)'), "target-count control must pass its value to the canonical launch function");
 require(launch.includes("button-depth-"), "depth choices must be real interactive controls");
+require(launch.includes("Web search") && launch.includes("Registries") && launch.includes("Footprint tools unavailable"), "Home console must expose the board source-kind row");
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
