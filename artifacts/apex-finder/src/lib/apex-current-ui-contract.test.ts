@@ -97,6 +97,7 @@ describe("current Apex UI contract", () => {
     expect(launchButton).toContain("textarea-atlas-discovery-objective");
     expect(launchButton).toContain("maxLength={objectiveLimit ?? undefined}");
     expect(launchButton).toContain("Loading API limit…");
+    expect(launchButton).toContain("The research API launch limit is unavailable.");
     expect(launchButton).toContain("/api/ingest/atlas-config");
     expect(launchButton).not.toMatch(/1_200|1_600/);
     expect(launchButton).toContain("discoveryObjective: objective");
