@@ -66,7 +66,6 @@ export default function BoardConnectionsPage() {
   return (
     <BoardPageFrame
       className="atlas-board-connections"
-      breadcrumb="Connections"
       split
       title="The people between you"
       description="Recorded links between people, organizations and assets. Each connection is taken from Atlas's relationship register."
