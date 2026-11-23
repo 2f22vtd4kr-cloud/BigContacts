@@ -1,28 +1,23 @@
 import { useGetDashboardStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
-import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
+import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
 import {
-  Activity,
   ArrowUpRight,
   ChevronRight,
   CircleAlert,
   Database,
   FileSearch,
-  Mail,
   Network,
-  Phone,
   Radar,
   RefreshCw,
   Search,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, NationalityCell } from "@/lib/utils";
-import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
-import { ReactorMark } from "@/components/reactor-mark";
+import { EntityTypeMark } from "@/lib/entity-taxonomy";
 
 function scorePercent(score?: number | null) {
   if (score == null || Number.isNaN(score)) return "—";
