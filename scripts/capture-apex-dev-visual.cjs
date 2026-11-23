@@ -93,7 +93,8 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForTimeout(1800);
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
+      await page.waitForTimeout(400);
 
       const prompt = page.locator("textarea").first();
       if (await prompt.count()) {
